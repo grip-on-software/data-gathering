@@ -41,14 +41,18 @@ options = {
 def parseDate(date_string):
     string = date_string
     string = string.replace('T', ' ')
-    return string.split('.',1)[0]
+    string = string.split('.',1)[0]
+    if string == None:
+        return "0"
+    else:
+        return string
 
 jira = JIRA(options, basic_auth=('USERNAME', 'PASSWORD'))    # a username/password tuple
 
 overall_data = []
 
 startAt = 0
-iterate_size = 50
+iterate_size = 100
 iterate_max = 100000
 issues = jira.search_issues('project=PROJ1',startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,status')
 
@@ -168,7 +172,7 @@ while issues and iterate_size <= iterate_max:
                 encoded_string = string_to_encode.encode('utf8','replace')
             else:
                 encoded_string = str(string_to_encode)
-            data['storypoint'] = encoded_string
+            data['storypoint'] = str(int(encoded_string))
         else:
             data['storypoint'] = str(0)
 
@@ -195,9 +199,9 @@ while issues and iterate_size <= iterate_max:
         if hasattr(issue_attachment.fields, 'attachment'):
             attach_list = issue_attachment.fields.attachment
             id_list = [attach.id for attach in attach_list]
-            data['attachment'] = len(id_list)
+            data['attachment'] = str(len(id_list))
         else:
-            data['attachment'] = 0
+            data['attachment'] = str(0)
         
         print str(count)
         print
