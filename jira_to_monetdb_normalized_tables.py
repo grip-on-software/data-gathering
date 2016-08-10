@@ -108,9 +108,7 @@ while issues and iterate_size <= iterate_max:
                                 })
         '''
         if hasattr(issue.fields, 'issuelinks') and issue.fields.issuelinks is not None:
-            print issue.fields.issuelinks
             for issuelink in issue.fields.issuelinks:
-                print issuelink
                 if hasattr(issuelink, 'type') and hasattr(issuelink.type, 'id'):
                     if not any(d.get('id', None) == str(issuelink.type.id) for d in relationshiptype_data) and hasattr(issuelink.type, 'name'):
                         relationshiptype_data.append({
@@ -132,7 +130,7 @@ while issues and iterate_size <= iterate_max:
     if startAt + iterate_size > iterate_max:
         iterate_size = iterate_max - startAt
 
-    issues = jira.search_issues('project=PROJ1',startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,status')
+    issues = jira.search_issues('project=PROJ1',startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,status,issuelinks')
 '''
 print developer_data
 print
