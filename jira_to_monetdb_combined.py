@@ -181,9 +181,11 @@ while issues and iterate_size <= iterate_max:
             string_to_encode = issue.fields.customfield_10002
             if isinstance(string_to_encode, unicode):
                 encoded_string = string_to_encode.encode('utf8','replace')
+                head, sep, tail = encoded_string.partition('.')
             else:
                 encoded_string = str(string_to_encode)
-            data['storypoint'] = str(int(float(encoded_string)))
+                head, sep, tail = encoded_string.partition('.')
+            data['storypoint'] = str(int(head))
         else:
             data['storypoint'] = str(0)
 
