@@ -6,8 +6,8 @@ import os.path
 ############################################
 ################## SETTINGS ################
 ############################################
-jira_project_key = 'PROJ1'
-data_folder = 'PROJ1'
+jira_project_key = 'PROJ2'
+data_folder = 'PROJ2'
 jira_username = 'USERNAME'
 jira_password = 'PASSWORD'
 ############################################
@@ -220,9 +220,9 @@ while issues and iterate_size <= iterate_max:
 					encoded_string = str(string_to_encode)
 				data['sprint'] = encoded_string
 
-				if not any(d.get('sprint_id', None) == str(sprint['id']) for d in sprint_data):
+				if not any(d.get('id', None) == str(sprint['id']) for d in sprint_data):
 					sprint_data.append({
-									'sprint_id' : str(sprint['id']), 
+									'id' : str(sprint['id']), 
 									'name' : str(sprint['name']),
 									'start_date' : str(sprint['startDate']),
 									'end_date' : str(sprint['endDate'])
@@ -394,18 +394,22 @@ while issues and iterate_size <= iterate_max:
 		if hasattr(issue.fields, 'issuelinks') and issue.fields.issuelinks is not None:
 			for issuelink in issue.fields.issuelinks:
 				if hasattr(issuelink, 'outwardIssue') and hasattr(issuelink, 'type') and hasattr(issuelink.type, 'id'):
-					issueLinks.append({
-						'from_id' : str(issue.id),
-						'to_id' : str(issuelink.outwardIssue.id),
-						'relationshiptype' : issuelink.type.id
-					})
+					#filter duplicate issuelink
+					if not any(d.get('from_id', None) == str(issue.id) and d.get('to_id', None) == str(issuelink.outwardIssue.id) and d.get('relationshiptype', None) == str(issuelink.type.id) for d in issueLinks):
+						issueLinks.append({
+							'from_id' : str(issue.id),
+							'to_id' : str(issuelink.outwardIssue.id),
+							'relationshiptype' : issuelink.type.id
+						})
 
 				if hasattr(issuelink, 'inwardIssue') and hasattr(issuelink, 'type') and hasattr(issuelink.type, 'id'):
-					issueLinks.append({
-						'from_id' : str(issue.id),
-						'to_id' : str(issuelink.inwardIssue.id),
-						'relationshiptype' : issuelink.type.id
-					})
+					#filter duplicate issuelink
+					if not any(d.get('from_id', None) == str(issue.id) and d.get('to_id', None) == str(issuelink.inwardIssue.id) and d.get('relationshiptype', None) == str(issuelink.type.id) for d in issueLinks):
+						issueLinks.append({
+							'from_id' : str(issue.id),
+							'to_id' : str(issuelink.inwardIssue.id),
+							'relationshiptype' : issuelink.type.id
+						})
 
 		#END get issueLinks
 
