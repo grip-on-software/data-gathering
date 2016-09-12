@@ -6,8 +6,8 @@ import os.path
 ############################################
 ################## SETTINGS ################
 ############################################
-jira_project_key = 'PROJ2'
-data_folder = 'PROJ2'
+jira_project_key = 'PROJ1'
+data_folder = 'PROJ1'
 jira_username = 'USERNAME'
 jira_password = 'PASSWORD'
 ############################################
@@ -387,6 +387,30 @@ while issues and iterate_size <= iterate_max:
 								'description' : str(issue.fields.resolution.description)
 								})
 
+		if hasattr(issue.fields, 'reporter') and issue.fields.reporter is not None and hasattr(issue.fields.reporter, 'name'):
+			if not any(d.get('name', None) == str(issue.fields.reporter.name) for d in developer_data) and hasattr(issue.fields.reporter, 'name') and hasattr(issue.fields.reporter, 'displayName'):
+				string_to_encode = issue.fields.reporter.displayName
+				if isinstance(string_to_encode, unicode):
+					encoded_string = string_to_encode.encode('utf8','replace')
+				else:
+					encoded_string = str(string_to_encode)
+				developer_data.append({
+								'name' : str(issue.fields.reporter.name),
+								'display_name' : encoded_string
+								})
+
+		if hasattr(issue.fields, 'assignee') and issue.fields.assignee is not None and hasattr(issue.fields.assignee, 'name'):
+			if not any(d.get('name', None) == str(issue.fields.assignee.name) for d in developer_data) and hasattr(issue.fields.assignee, 'name') and hasattr(issue.fields.assignee, 'displayName'):
+				string_to_encode = issue.fields.assignee.displayName
+				if isinstance(string_to_encode, unicode):
+					encoded_string = string_to_encode.encode('utf8','replace')
+				else:
+					encoded_string = str(string_to_encode)
+				developer_data.append({
+								'name' : str(issue.fields.assignee.name),
+								'display_name' : encoded_string
+								})
+
 		#END get normalized table data
 
 		#START get issueLinks
@@ -452,6 +476,9 @@ with open(data_folder+'/data_relationshiptype.json', 'w') as outfile:
 
 with open(data_folder+'/data_issuelinks.json', 'w') as outfile:
 	json.dump(issueLinks, outfile, indent=4)
+
+with open(data_folder+'/data_developer.json', 'w') as outfile:
+	json.dump(developer_data, outfile, indent=4)
 
 #END dump data
 
