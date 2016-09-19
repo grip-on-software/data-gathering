@@ -17,64 +17,74 @@ for sprint in sprint_data:
 	sprint_git_data[int(sprint['id'])] = {}
 	sprint_git_data[int(sprint['id'])]['start_date'] = datetime.datetime.strptime(sprint['start_date'], '%Y-%m-%d %H:%M:%S')
 	sprint_git_data[int(sprint['id'])]['end_date'] = datetime.datetime.strptime(sprint['end_date'], '%Y-%m-%d %H:%M:%S')
-	sprint_git_data[int(sprint['id'])]['commits'] = []
-	sprint_git_data[int(sprint['id'])]['commit_count'] = 0
-
-
-print sprint_git_data
 
 repo = Repo("../Project-git-repos/" + project_repo_folder)
 o = repo.remotes.origin
 o.pull()
 
-skip = 0
-iterate_size = 100
-iterate_max = 10000
+skip = 9000
+iterate_size = 500
+iterate_max = 20000
 
 count = 1
 
+git_commit_data = []
+
 commits = repo.iter_commits('master', max_count=iterate_size, skip=skip)
+print commits
+pp = pprint.PrettyPrinter(indent=4)
 
 while commits and iterate_size + skip <= iterate_max:
 	if iterate_size is 0:
 		break
 
+	stop_iteration = True
+
 	for commit in commits:
+		stop_iteration = False
+		git_commit = {}
+		git_commit['commit_id'] = str(commit.hexsha)
+		git_commit['sprint_id'] = 0
+
+		
+		cs = commit.stats
+		cstotal = cs.total
+		git_commit['insertions'] = cstotal['insertions']
+		git_commit['deletions'] = cstotal['deletions']
+		git_commit['number_of_files'] = cstotal['files']
+		git_commit['number_of_lines'] = cstotal['lines']
+
+		git_commit['message'] = str(commit.message.encode('utf-8'))
+		git_commit['size_of_commit'] = commit.size
+		git_commit['type'] = commit.type
+		git_commit['developer'] = str(commit.author.name)
+
+
 		commit_datetime = datetime.datetime.fromtimestamp(commit.committed_date)
+		git_commit['commit_date'] = datetime.datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
 
 		for sprint_id in sprint_git_data:
 			sprint = sprint_git_data[sprint_id]
 			if commit_datetime >= sprint['start_date'] and commit_datetime <= sprint['end_date']:
-				sprint['commits'].append(commit)
-				sprint['commit_count'] += 1
+				git_commit['sprint_id'] = sprint_id
+				break
+		git_commit_data.append(git_commit)
+		#pp.pprint(git_commit)
+
+	print 'Analysed commits up to ',
+	print iterate_size+skip
 
 	skip = skip + iterate_size
 	if skip + iterate_size > iterate_max:
 		iterate_size = iterate_max - skip
 
 	commits = repo.iter_commits('master', max_count=iterate_size, skip=skip)
-
-
-#restructure data
-sprint_git_data_final = []
-for sprint in sprint_git_data:
-	sprint_git_data_row = sprint_git_data[sprint]
-	sprint_git_data_final_row = {}
-	sprint_git_data_final_row['sprint_id'] = sprint
-	sprint_git_data_final_row['feature_name'] = 'commit_count'
-	sprint_git_data_final_row['user_name'] = 0
-	sprint_git_data_final_row['feature_value'] = sprint_git_data_row['commit_count']
-	sprint_git_data_final.append(sprint_git_data_final_row)
-
-
-#prettyprint
-#pp = pprint.PrettyPrinter(indent=4)
-#pp.pprint(sprint_git_data_final)
-
+	#stop iteration if no commits are found in previous round
+	if stop_iteration:
+		commits = False
 
 #START dump data
-
-with open(data_folder+'/data_git_features.json', 'w') as outfile:
-	json.dump(sprint_git_data_final, outfile, indent=4)
+#with open(data_folder+'/data_commits.json', 'w') as outfile:
+#	json.dump(git_commit_data, outfile, indent=4)
 
 #END dump data
