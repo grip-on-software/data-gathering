@@ -22,7 +22,7 @@ repo = Repo("../Project-git-repos/" + project_repo_folder)
 o = repo.remotes.origin
 o.pull()
 
-skip = 9000
+skip = 0
 iterate_size = 500
 iterate_max = 20000
 
@@ -49,14 +49,14 @@ while commits and iterate_size + skip <= iterate_max:
 		
 		cs = commit.stats
 		cstotal = cs.total
-		git_commit['insertions'] = cstotal['insertions']
-		git_commit['deletions'] = cstotal['deletions']
-		git_commit['number_of_files'] = cstotal['files']
-		git_commit['number_of_lines'] = cstotal['lines']
+		git_commit['insertions'] = str(cstotal['insertions'])
+		git_commit['deletions'] = str(cstotal['deletions'])
+		git_commit['number_of_files'] = str(cstotal['files'])
+		git_commit['number_of_lines'] = str(cstotal['lines'])
 
 		git_commit['message'] = str(commit.message.encode('utf-8'))
-		git_commit['size_of_commit'] = commit.size
-		git_commit['type'] = commit.type
+		git_commit['size_of_commit'] = str(commit.size)
+		git_commit['type'] = str(commit.type)
 		git_commit['developer'] = str(commit.author.name)
 
 
@@ -66,7 +66,7 @@ while commits and iterate_size + skip <= iterate_max:
 		for sprint_id in sprint_git_data:
 			sprint = sprint_git_data[sprint_id]
 			if commit_datetime >= sprint['start_date'] and commit_datetime <= sprint['end_date']:
-				git_commit['sprint_id'] = sprint_id
+				git_commit['sprint_id'] = str(sprint_id)
 				break
 		git_commit_data.append(git_commit)
 		#pp.pprint(git_commit)
@@ -84,7 +84,7 @@ while commits and iterate_size + skip <= iterate_max:
 		commits = False
 
 #START dump data
-#with open(data_folder+'/data_commits.json', 'w') as outfile:
-#	json.dump(git_commit_data, outfile, indent=4)
+with open(data_folder+'/data_commits.json', 'w') as outfile:
+	json.dump(git_commit_data, outfile, indent=4)
 
 #END dump data
