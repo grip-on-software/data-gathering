@@ -44,7 +44,7 @@ while commits and iterate_size + skip <= iterate_max:
 		stop_iteration = False
 		git_commit = {}
 		git_commit['commit_id'] = str(commit.hexsha)
-		git_commit['sprint_id'] = 0
+		git_commit['sprint_id'] = str(0)
 
 		
 		cs = commit.stats
