@@ -19,8 +19,7 @@ try:
 except IndexError:
 	#no argument given
 	data_folder = jira_project_key
-print jira_project_key
-sys.exit()
+
 
 # customfield_10404 ->      bugfix
 # issueType         ->      type
@@ -94,7 +93,7 @@ iterate_max = 100000
 if not os.path.exists(data_folder):
 	os.makedirs(data_folder)
 
-issues = jira.search_issues('project='+jira_project_key,startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,customfield_10207,status,issuelinks')
+issues = jira.search_issues('project='+jira_project_key,startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,customfield_10207,status,issuelinks,comment')
 
 count = 1
 
@@ -107,6 +106,7 @@ resolution_data = []
 priority_data = []
 relationshiptype_data = []
 issueLinks = []
+comments_data = []
 
 while issues and iterate_size <= iterate_max:
 	print 'Analyzing ' + str(iterate_size) + ' issues: ' + str(startAt) + ' through ' + str(iterate_size + startAt)
@@ -118,9 +118,11 @@ while issues and iterate_size <= iterate_max:
 					'watchers': str(issue.fields.watches.watchCount),
 					'created': parseDate(str(issue.fields.created)),
 					'updated': parseDate(str(issue.fields.updated)),
+					'updated_by' : str('')
 				}
 		issueData = []
 		lastIssueData = {}
+
 		if hasattr(issue.fields, 'issuetype') and issue.fields.issuetype is not None and hasattr(issue.fields.issuetype, 'id'):
 			data['type'] = str(issue.fields.issuetype.id)
 		else:
@@ -269,18 +271,7 @@ while issues and iterate_size <= iterate_max:
 		else:
 			data['attachment'] = str(0)
 
-
-		
-		issue_attachment = jira.issue( issue.key, fields='attachment')
-		if hasattr(issue_attachment.fields, 'attachment'):
-			attach_list = issue_attachment.fields.attachment
-			id_list = [attach.id for attach in attach_list]
-			data['attachment'] = str(len(id_list))
-		else:
-			data['attachment'] = str(0)
-		
 		count += 1
-		
 
 		issueData.append(data)
 		lastIssueData = data
@@ -293,9 +284,14 @@ while issues and iterate_size <= iterate_max:
 		fields_list = ['issuetype', 'status', 'resolution', 'assignee', 'reporter', 'fixVersions', 'priority', 'project', 'Additional information', 'Story Points', 'Review comments', 'Bug fix']
 
 		for changes in changelog:
-			 created = parseDate(changes.__dict__[u'created'])
-
-			 for c in changes.__dict__[u'items']:
+			created = parseDate(changes.__dict__[u'created']) #date on which change happened
+			string_to_encode = changes.author.name
+			if isinstance(string_to_encode, unicode):
+				encoded_string = string_to_encode.encode('utf8','replace')
+			else:
+				encoded_string = str(string_to_encode)
+			diffs_dict[str(created)] = {'updated_by' : encoded_string }
+			for c in changes.__dict__[u'items']:
 				change = c.__dict__
 				if str(change[u'field']) in fields_list:
 					string_to_encode = change[u'from']
@@ -308,13 +304,15 @@ while issues and iterate_size <= iterate_max:
 					if created not in diffs_dict:
 						diffs_dict[str(created)] = diffs
 					else:
-						diffs_dict[created].update(diffs)
+						diffs_dict[str(created)].update(diffs)
 
 		prev_diffs = {}
 		for created in sorted(diffs_dict.keys(), reverse=True):
-			diffs = diffs_dict[created]
+			diffs = diffs_dict[created] # all changed values for one change on a particular date
 			diffs = translateFields(diffs)
 			if not prev_diffs:
+				issueData[0]['updated_by'] = diffs['updated_by']
+				diffs.pop('updated_by', None)
 				prev_diffs = diffs
 				continue
 			prev_diffs['updated'] = created
@@ -418,6 +416,27 @@ while issues and iterate_size <= iterate_max:
 								'name' : str(issue.fields.assignee.name),
 								'display_name' : encoded_string
 								})
+		if hasattr(issue.fields, 'comment') and issue.fields.comment is not None:
+			if hasattr(issue.fields.comment, 'comments'):
+				for comment in issue.fields.comment.comments:
+					if hasattr(comment, 'body') and hasattr(comment, 'author') and hasattr(comment,'id') and hasattr(comment, 'created'):
+						string_to_encode = comment.author.name
+						if isinstance(string_to_encode, unicode):
+							encoded_string = string_to_encode.encode('utf8','replace')
+						else:
+							encoded_string = str(string_to_encode)
+						string_to_encode2 = comment.body
+						if isinstance(string_to_encode2, unicode):
+							encoded_string2 = string_to_encode2.encode('utf8','replace')
+						else:
+							encoded_string2 = str(string_to_encode2)
+						comments_data.append({
+							'id' : str(comment.id),
+							'issue_id' : str(issue.id),
+							'author' : encoded_string,
+							'comment' : encoded_string2,
+							'created_at' : str(comment.created)
+							})
 
 		#END get normalized table data
 
@@ -446,13 +465,12 @@ while issues and iterate_size <= iterate_max:
 		#END get issueLinks
 
 
-
 	startAt = startAt + iterate_size
 
 	if startAt + iterate_size > iterate_max:
 		iterate_size = iterate_max - startAt
 
-	issues = jira.search_issues('project='+jira_project_key,startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,customfield_10207,status,issuelinks')
+	issues = jira.search_issues('project='+jira_project_key,startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,customfield_10207,status,issuelinks,comment')
 
 print count
 
@@ -487,6 +505,9 @@ with open(data_folder+'/data_issuelinks.json', 'w') as outfile:
 
 with open(data_folder+'/data_developer.json', 'w') as outfile:
 	json.dump(developer_data, outfile, indent=4)
+
+with open(data_folder+'/data_comments.json', 'w') as outfile:
+	json.dump(comments_data, outfile, indent=4)
 
 #END dump data
 
