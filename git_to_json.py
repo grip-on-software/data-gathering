@@ -3,11 +3,23 @@ import time
 import json
 import datetime
 import pprint
+import sys
 
 project_repo_folder = "REPO"
 project_name = "PROJ1"
-data_folder = project_name
 
+try:
+	if sys.argv[1] is not None:
+		project_name = sys.argv[1]
+		data_folder = project_name
+	if sys.argv[2] is not None:
+		project_repo_folder = sys.argv[2]
+except IndexError:
+	data_folder = project_name
+
+print project_name
+print project_repo_folder
+sys.exit()
 
 json_data=open(project_name+"/data_sprint.json").read()
 sprint_data = json.loads(json_data)
@@ -23,8 +35,8 @@ o = repo.remotes.origin
 o.pull()
 
 skip = 0
-iterate_size = 500
-iterate_max = 20000
+iterate_size = 10
+iterate_max = 10
 
 count = 1
 
@@ -48,6 +60,10 @@ while commits and iterate_size + skip <= iterate_max:
 
 		
 		cs = commit.stats
+
+		cd = commit.diff
+		pp.pprint(cd)
+		"""
 		cstotal = cs.total
 		git_commit['insertions'] = str(cstotal['insertions'])
 		git_commit['deletions'] = str(cstotal['deletions'])
@@ -70,7 +86,7 @@ while commits and iterate_size + skip <= iterate_max:
 				break
 		git_commit_data.append(git_commit)
 		#pp.pprint(git_commit)
-
+		"""
 	print 'Analysed commits up to ',
 	print iterate_size+skip
 
@@ -84,7 +100,7 @@ while commits and iterate_size + skip <= iterate_max:
 		commits = False
 
 #START dump data
-with open(data_folder+'/data_commits.json', 'w') as outfile:
-	json.dump(git_commit_data, outfile, indent=4)
+#with open(data_folder+'/data_commits.json', 'w') as outfile:
+#	json.dump(git_commit_data, outfile, indent=4)
 
 #END dump data
