@@ -2,17 +2,25 @@ from jira import JIRA
 import json
 import re
 import os.path
-
+import sys
 ############################################
 ################## SETTINGS ################
 ############################################
 jira_project_key = 'PROJ1'
-data_folder = 'PROJ1'
 jira_username = 'USERNAME'
 jira_password = 'PASSWORD'
 ############################################
 ############################################
 
+try:
+	if sys.argv[1] is not None:
+		jira_project_key = sys.argv[1]
+		data_folder = jira_project_key
+except IndexError:
+	#no argument given
+	data_folder = jira_project_key
+print jira_project_key
+sys.exit()
 
 # customfield_10404 ->      bugfix
 # issueType         ->      type
