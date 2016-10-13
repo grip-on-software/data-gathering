@@ -19,7 +19,6 @@ except IndexError:
 
 print project_name
 print project_repo_folder
-sys.exit()
 
 json_data=open(project_name+"/data_sprint.json").read()
 sprint_data = json.loads(json_data)
@@ -35,16 +34,14 @@ o = repo.remotes.origin
 o.pull()
 
 skip = 0
-iterate_size = 10
-iterate_max = 10
+iterate_size = 1000
+iterate_max = 10000000
 
 count = 1
 
 git_commit_data = []
 
 commits = repo.iter_commits('master', max_count=iterate_size, skip=skip)
-print commits
-pp = pprint.PrettyPrinter(indent=4)
 
 while commits and iterate_size + skip <= iterate_max:
 	if iterate_size is 0:
@@ -58,13 +55,9 @@ while commits and iterate_size + skip <= iterate_max:
 		git_commit['commit_id'] = str(commit.hexsha)
 		git_commit['sprint_id'] = str(0)
 
-		
 		cs = commit.stats
-
-		cd = commit.diff
-		pp.pprint(cd)
-		"""
 		cstotal = cs.total
+
 		git_commit['insertions'] = str(cstotal['insertions'])
 		git_commit['deletions'] = str(cstotal['deletions'])
 		git_commit['number_of_files'] = str(cstotal['files'])
@@ -74,7 +67,7 @@ while commits and iterate_size + skip <= iterate_max:
 		git_commit['size_of_commit'] = str(commit.size)
 		git_commit['type'] = str(commit.type)
 		git_commit['developer'] = str(commit.author.name)
-
+		git_commit['developer_email'] = str(commit.author.email)
 
 		commit_datetime = datetime.datetime.fromtimestamp(commit.committed_date)
 		git_commit['commit_date'] = datetime.datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
@@ -85,8 +78,7 @@ while commits and iterate_size + skip <= iterate_max:
 				git_commit['sprint_id'] = str(sprint_id)
 				break
 		git_commit_data.append(git_commit)
-		#pp.pprint(git_commit)
-		"""
+
 	print 'Analysed commits up to ',
 	print iterate_size+skip
 
@@ -100,7 +92,7 @@ while commits and iterate_size + skip <= iterate_max:
 		commits = False
 
 #START dump data
-#with open(data_folder+'/data_commits.json', 'w') as outfile:
-#	json.dump(git_commit_data, outfile, indent=4)
+with open(data_folder+'/data_commits.json', 'w') as outfile:
+	json.dump(git_commit_data, outfile, indent=4)
 
 #END dump data
