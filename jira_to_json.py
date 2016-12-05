@@ -238,6 +238,8 @@ while issues and iterate_size <= iterate_max:
 									'start_date' : str(sprint['startDate']),
 									'end_date' : str(sprint['endDate'])
 									})
+					else:
+						data['sprint'] = str(0)
 			else:
 				data['sprint'] = str(0)
 		else:
