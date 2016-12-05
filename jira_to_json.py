@@ -231,7 +231,8 @@ while issues and iterate_size <= iterate_max:
 				data['sprint'] = encoded_string
 
 				if not any(d.get('id', None) == str(sprint['id']) for d in sprint_data):
-					sprint_data.append({
+					if str(sprint['endDate']) != '<null>' and str(sprint['startDate']) != '<null>':
+						sprint_data.append({
 									'id' : str(sprint['id']), 
 									'name' : str(sprint['name']),
 									'start_date' : str(sprint['startDate']),

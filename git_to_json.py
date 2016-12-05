@@ -38,7 +38,7 @@ def get_git_data(git_commit_data, project_name, repo_name):
 
 	repo = Repo("project-git-repos/" + project_name + "/" + repo_name)
 	o = repo.remotes.origin
-	o.pull()
+	#o.pull()
 
 	skip = 0
 	iterate_size = 1000
