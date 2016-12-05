@@ -53,7 +53,7 @@ def create_transition(source_data, diffs):
 	return result
 
 options = {
-	'server': 'https://JIRA_SERVER.localhost/rest/api/2/serverInfo'
+	'server': 'https://JIRA_SERVER.localhost/'
 }
 
 def parseDate(date_string):
