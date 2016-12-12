@@ -95,7 +95,7 @@ def get_git_data(git_commit_data, project_name, repo_name):
 		if stop_iteration:
 			commits = False
 
-		return git_commit_data
+	return git_commit_data
 
 
 git_commit_data = []
