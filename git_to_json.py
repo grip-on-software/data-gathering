@@ -67,10 +67,10 @@ def get_git_data(git_commit_data, project_name, repo_name):
 			git_commit['number_of_files'] = str(cstotal['files'])
 			git_commit['number_of_lines'] = str(cstotal['lines'])
 
-			git_commit['message'] = str(commit.message.encode('utf-8'))
+			git_commit['message'] = commit.message.encode('utf-8')
 			git_commit['size_of_commit'] = str(commit.size)
 			git_commit['type'] = str(commit.type)
-			git_commit['developer'] = str(commit.author.name)
+			git_commit['developer'] = commit.author.name
 			git_commit['developer_email'] = str(commit.author.email)
 
 			commit_datetime = datetime.datetime.fromtimestamp(commit.committed_date)
