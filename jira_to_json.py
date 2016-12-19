@@ -287,6 +287,18 @@ while issues and iterate_size <= iterate_max:
 		fields_list = ['issuetype', 'status', 'resolution', 'assignee', 'reporter', 'fixVersions', 'priority', 'project', 'Additional information', 'Story Points', 'Review comments', 'Bug fix']
 
 		for changes in changelog:
+			if hasattr(changes, 'author') and changes.author is not None and hasattr(changes.author, 'name'):
+				if not any(d.get('name', None) == str(changes.author.name) for d in developer_data) and hasattr(changes.author, 'displayName'):
+					string_to_encode = changes.author.displayName
+					if isinstance(string_to_encode, unicode):
+						encoded_string = string_to_encode.encode('utf8','replace')
+					else:
+						encoded_string = str(string_to_encode)
+					developer_data.append({
+									'name' : str(changes.author.name),
+									'display_name' : encoded_string
+									})
+
 			created = parseDate(changes.__dict__[u'created']) #date on which change happened
 			string_to_encode = changes.author.name
 			if isinstance(string_to_encode, unicode):
