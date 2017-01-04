@@ -112,14 +112,16 @@ while issues and iterate_size <= iterate_max:
 	print 'Analyzing ' + str(iterate_size) + ' issues: ' + str(startAt) + ' through ' + str(iterate_size + startAt)
 	for issue in issues:
 		#START collect issue data
-		data = {    'issue_id'    : str(issue.id),
-					'key'   : str(issue.key),
-					'resolution_date': parseDate(str(issue.fields.resolutiondate)),
-					'watchers': str(issue.fields.watches.watchCount),
-					'created': parseDate(str(issue.fields.created)),
-					'updated': parseDate(str(issue.fields.updated)),
-					'updated_by' : str('')
-				}
+		data = {
+			'issue_id'       : str(issue.id),
+			'changelog_id'   : 0,
+			'key'            : str(issue.key),
+			'resolution_date': parseDate(str(issue.fields.resolutiondate)),
+			'watchers'       : str(issue.fields.watches.watchCount),
+			'created'        : parseDate(str(issue.fields.created)),
+			'updated'        : parseDate(str(issue.fields.updated)),
+			'updated_by'     : str('')
+		}
 		issueData = []
 		lastIssueData = {}
 
@@ -276,6 +278,8 @@ while issues and iterate_size <= iterate_max:
 
 		count += 1
 
+		# Start issue changelog
+
 		issueData.append(data)
 		lastIssueData = data
 
@@ -322,6 +326,7 @@ while issues and iterate_size <= iterate_max:
 						diffs_dict[str(created)].update(diffs)
 
 		prev_diffs = {}
+		changelog_count = 0
 		for created in sorted(diffs_dict.keys(), reverse=True):
 			diffs = diffs_dict[created] # all changed values for one change on a particular date
 			diffs = translateFields(diffs)
@@ -332,9 +337,11 @@ while issues and iterate_size <= iterate_max:
 				continue
 			prev_diffs['updated'] = created
 			tempdata = create_transition(lastIssueData, prev_diffs)
+			tempdata['changelog_id'] = changelog_count
 			issueData.append(tempdata)
 			lastIssueData = tempdata
 			prev_diffs = diffs
+			changelog_count += 1
 
 		prev_diffs['updated'] = data['created']
 		tempdata = create_transition(lastIssueData, prev_diffs)
