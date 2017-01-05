@@ -5,6 +5,7 @@ import ast
 import requests
 import gzip
 import io
+import traceback
 
 project_names = {
     "PROJ1": "project1",
@@ -68,7 +69,11 @@ def main():
 
         url = args.url + project_name + "/history.json.gz"
         request = requests.get(url)
-        metric_data = read_project_file(gzip.GzipFile(mode="r", fileobj=io.BytesIO(request.content)))
+        try:
+            metric_data = read_project_file(gzip.GzipFile(mode="r", fileobj=io.BytesIO(request.content)))
+        except e:
+            traceback.print_exc()
+            return
 
     with open(project_key + '/data_metrics.json', 'w') as outfile:
         json.dump(metric_data, outfile, indent=4)
