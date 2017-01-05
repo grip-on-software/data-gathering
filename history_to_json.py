@@ -71,7 +71,7 @@ def main():
         request = requests.get(url)
         try:
             metric_data = read_project_file(gzip.GzipFile(mode="r", fileobj=io.BytesIO(request.content)))
-        except e:
+        except:
             traceback.print_exc()
             return
 
