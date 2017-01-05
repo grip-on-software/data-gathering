@@ -7,7 +7,9 @@ import gzip
 import io
 
 project_names = {
-    "PROJ1": "project1"
+    "PROJ1": "project1",
+    "PROJ2": "project2",
+    "PROJ3": "project3"
 }
 jenkins_url = "http://www.JENKINS_SERVER.localhost:8080/view/Quality%20reports/job/create-full-history/ws/"
 
@@ -61,7 +63,8 @@ def main():
         if project_key in project_names:
             project_name = project_names[project_key]
         else:
-            project_name = project_key
+            print("No metrics history files available for " + project_key + ", skipping.")
+            return
 
         url = args.url + project_name + "/history.json.gz"
         request = requests.get(url)
