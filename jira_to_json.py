@@ -114,7 +114,7 @@ while issues and iterate_size <= iterate_max:
 		#START collect issue data
 		data = {
 			'issue_id'       : str(issue.id),
-			'changelog_id'   : 0,
+			'changelog_id'   : str(0),
 			'key'            : str(issue.key),
 			'resolution_date': parseDate(str(issue.fields.resolutiondate)),
 			'watchers'       : str(issue.fields.watches.watchCount),
@@ -337,7 +337,7 @@ while issues and iterate_size <= iterate_max:
 				continue
 			prev_diffs['updated'] = created
 			tempdata = create_transition(lastIssueData, prev_diffs)
-			tempdata['changelog_id'] = changelog_count
+			tempdata['changelog_id'] = str(changelog_count)
 			issueData.append(tempdata)
 			lastIssueData = tempdata
 			prev_diffs = diffs
