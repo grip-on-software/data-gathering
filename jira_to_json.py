@@ -326,7 +326,7 @@ while issues and iterate_size <= iterate_max:
 						diffs_dict[str(created)].update(diffs)
 
 		prev_diffs = {}
-		changelog_count = 0
+		changelog_count = 1
 		for created in sorted(diffs_dict.keys(), reverse=True):
 			diffs = diffs_dict[created] # all changed values for one change on a particular date
 			diffs = translateFields(diffs)
