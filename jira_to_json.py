@@ -1,537 +1,701 @@
-from jira import JIRA
+import argparse
+import ConfigParser
 import json
-import re
-import os.path
-import sys
-############################################
-################## SETTINGS ################
-############################################
-jira_project_key = 'PROJ1'
-jira_username = 'USERNAME'
-jira_password = 'PASSWORD'
-############################################
-############################################
-
-try:
-	if sys.argv[1] is not None:
-		jira_project_key = sys.argv[1]
-		data_folder = jira_project_key
-except IndexError:
-	#no argument given
-	data_folder = jira_project_key
-
-
-# customfield_10404 ->      bugfix
-# issueType         ->      type
-# project           ->      project_id
-# customfield_10209 ->      review_comments
-# customfield_10002 ->      storypoint
-# customfield_10097 ->      additional_information
-
-def translateFields(diffs):
-	fields_translation = {}
-	fields_translation['Additional information'] = 'additional_information'
-	fields_translation['Review comments'] = 'review_comments'
-	fields_translation['Story Points'] = 'storypoint'
-	fields_translation['project'] = 'project_id'
-	fields_translation['issuetype'] = 'type'
-	fields_translation['Bug fix'] = 'bugfix'
-
-	result = {}
-	for key, value in diffs.iteritems():
-		if key in fields_translation:
-			result[fields_translation[key]] = value
-		else:
-			result[key] = value
-	return result
-
-def create_transition(source_data, diffs):
-	"""Returns a copy of source_dict, updated with the new key-value
-	   pairs in diffs."""
-	result=dict(source_data) # Shallow copy, see addendum below
-	result.update(diffs)
-	return result
-
-options = {
-	'server': 'https://JIRA_SERVER.localhost/'
-}
-
-def parseDate(date_string):
-	string = date_string
-	string = string.replace('T', ' ')
-	string = string.split('.',1)[0]
-	if string == None:
-		return "0"
-	else:
-		return string
-
-def parseSprintString(sprint_string):
-	sprint_data = {}
-	sprint = sprint_string
- 	sprint = sprint[sprint.rindex('[')+1:-1]
- 	sprint = sprint.split(',')
- 	for s in sprint:
- 		try:
- 			s = s.split('=')
-	 		a = s[0].encode('utf-8')
-	 		b = s[1].encode('utf-8')
-	 		if a == 'endDate' or a == 'startDate':
- 				b = parseDate(b)
- 			sprint_data[a]= b
-		except IndexError:
- 			return False
- 	return sprint_data
-
-jira = JIRA(options, basic_auth=(jira_username, jira_password))    # a username/password tuple
-
-overall_data = []
-
-startAt = 0
-iterate_size = 100
-iterate_max = 100000
-
-if not os.path.exists(data_folder):
-	os.makedirs(data_folder)
-
-issues = jira.search_issues('project='+jira_project_key,startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,customfield_10207,status,issuelinks,comment')
-
-count = 1
-
-developer_data = []
-type_data = []
-status_data = []
-fixVersion_data = []
-sprint_data = []
-resolution_data = []
-priority_data = []
-relationshiptype_data = []
-issueLinks = []
-comments_data = []
-
-while issues and iterate_size <= iterate_max:
-	print 'Analyzing ' + str(iterate_size) + ' issues: ' + str(startAt) + ' through ' + str(iterate_size + startAt)
-	for issue in issues:
-		#START collect issue data
-		data = {
-			'issue_id'       : str(issue.id),
-			'changelog_id'   : str(0),
-			'key'            : str(issue.key),
-			'resolution_date': parseDate(str(issue.fields.resolutiondate)),
-			'watchers'       : str(issue.fields.watches.watchCount),
-			'created'        : parseDate(str(issue.fields.created)),
-			'updated'        : parseDate(str(issue.fields.updated)),
-			'updated_by'     : str('')
-		}
-		issueData = []
-		lastIssueData = {}
-
-		if hasattr(issue.fields, 'issuetype') and issue.fields.issuetype is not None and hasattr(issue.fields.issuetype, 'id'):
-			data['type'] = str(issue.fields.issuetype.id)
-		else:
-			data['type'] = 0
-
-		if hasattr(issue.fields, 'customfield_10404') and issue.fields.customfield_10404 is not None and hasattr(issue.fields.customfield_10404, 'id'):
-			data['bugfix'] = str(issue.fields.customfield_10404.id)
-		else:
-			data['bugfix'] = str(0)
-
-		if hasattr(issue.fields, 'resolution') and issue.fields.resolution is not None and hasattr(issue.fields.resolution, 'id'):
-			data['resolution'] = str(issue.fields.resolution.id)
-		else:
-			data['resolution'] = str(0)
-
-		if hasattr(issue.fields, 'fixVersions') and issue.fields.fixVersions is not None and hasattr(issue.fields.fixVersions, 'id'):
-			data['fixVersions'] = str(issue.fields.fixVersions.id)
-		else:
-			data['fixVersions'] = str(0)
-
-		if hasattr(issue.fields, 'priority') and issue.fields.priority is not None and hasattr(issue.fields.priority, 'id'):
-			data['priority'] = str(issue.fields.priority.id)
-		else:
-			data['priority'] = str(0)
-
-		if hasattr(issue.fields, 'project') and issue.fields.project is not None and hasattr(issue.fields.project, 'id'):
-			data['project_id'] = str(issue.fields.project.id)
-		else:
-			data['project_id'] = str(0)
-
-		if hasattr(issue.fields, 'reporter') and issue.fields.reporter is not None and hasattr(issue.fields.reporter, 'name'):
-			string_to_encode = issue.fields.reporter.name
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			data['reporter'] = encoded_string
-		else:
-			data['reporter'] = str(0)
-
-		if hasattr(issue.fields, 'assignee') and issue.fields.assignee is not None and hasattr(issue.fields.assignee, 'name'):
-			string_to_encode = issue.fields.assignee.name
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			data['assignee'] = encoded_string
-		else:
-			data['assignee'] = str(0)
-
-		if hasattr(issue.fields, 'status') and issue.fields.status is not None and hasattr(issue.fields.status, 'id'):
-			data['status'] = str(issue.fields.status.id)
-		else:
-			data['status'] = str(0)
-
-		if hasattr(issue.fields, 'description') and issue.fields.description is not None:
-			string_to_encode = issue.fields.description
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			data['description'] = encoded_string
-		else:
-			data['description'] = str(0)
-
-		if hasattr(issue.fields, 'summary') and issue.fields.summary is not None:
-			string_to_encode = issue.fields.summary
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			data['title'] = encoded_string
-		else:
-			data['title'] = str(0)
-
-		if hasattr(issue.fields, 'duedate') and issue.fields.duedate is not None:
-			string_to_encode = issue.fields.duedate
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			data['duedate'] = parseDate(encoded_string)
-		else:
-			data['duedate'] = str(0)
-
-		if hasattr(issue.fields, 'customfield_10209') and issue.fields.customfield_10209 is not None:
-			string_to_encode = issue.fields.customfield_10209
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			data['review_comments'] = encoded_string
-		else:
-			data['review_comments'] = str(0)
-
-		if hasattr(issue.fields, 'customfield_10207') and issue.fields.customfield_10207 is not None:
- 			
-			sprint = issue.fields.customfield_10207[0]
-			sprint = parseSprintString(sprint)
-			if (sprint is not False):
-				string_to_encode = sprint['id']
-				if isinstance(string_to_encode, unicode):
-					encoded_string = string_to_encode.encode('utf8','replace')
-				else:
-					encoded_string = str(string_to_encode)
-				data['sprint'] = encoded_string
-
-				if not any(d.get('id', None) == str(sprint['id']) for d in sprint_data):
-					if str(sprint['endDate']) != '<null>' and str(sprint['startDate']) != '<null>':
-						sprint_data.append({
-									'id' : str(sprint['id']), 
-									'name' : str(sprint['name']),
-									'start_date' : str(sprint['startDate']),
-									'end_date' : str(sprint['endDate'])
-									})
-					else:
-						data['sprint'] = str(0)
-			else:
-				data['sprint'] = str(0)
-		else:
-			data['sprint'] = str(0)
-
-		if hasattr(issue.fields, 'customfield_10002') and issue.fields.customfield_10002 is not None:
-			string_to_encode = issue.fields.customfield_10002
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-				head, sep, tail = encoded_string.partition('.')
-			else:
-				encoded_string = str(string_to_encode)
-				head, sep, tail = encoded_string.partition('.')
-			data['storypoint'] = str(int(head))
-		else:
-			data['storypoint'] = str(0)
-
-		if hasattr(issue.fields, 'customfield_10097') and issue.fields.customfield_10097 is not None:
-			string_to_encode = issue.fields.customfield_10097
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			data['additional_information'] = encoded_string
-		else:
-			data['additional_information'] = str(0)
-
-		if hasattr(issue.fields, 'attachment'):
-			attach_list = issue.fields.attachment
-			id_list = [attach.id for attach in attach_list]
-			data['attachment'] = str(len(id_list))
-		else:
-			data['attachment'] = str(0)
-
-		count += 1
-
-		# Start issue changelog
-
-		issueData.append(data)
-		lastIssueData = data
-
-		changelog = issue.changelog.__dict__
-		changelog = changelog[u'histories']
-
-		diffs_dict = {}
-
-		fields_list = ['issuetype', 'status', 'resolution', 'assignee', 'reporter', 'fixVersions', 'priority', 'project', 'Additional information', 'Story Points', 'Review comments', 'Bug fix']
-
-		for changes in changelog:
-			if hasattr(changes, 'author') and changes.author is not None and hasattr(changes.author, 'name'):
-				if not any(d.get('name', None) == str(changes.author.name) for d in developer_data) and hasattr(changes.author, 'displayName'):
-					string_to_encode = changes.author.displayName
-					if isinstance(string_to_encode, unicode):
-						encoded_string = string_to_encode.encode('utf8','replace')
-					else:
-						encoded_string = str(string_to_encode)
-					developer_data.append({
-									'name' : str(changes.author.name),
-									'display_name' : encoded_string
-									})
-
-			created = parseDate(changes.__dict__[u'created']) #date on which change happened
-			string_to_encode = changes.author.name
-			if isinstance(string_to_encode, unicode):
-				encoded_string = string_to_encode.encode('utf8','replace')
-			else:
-				encoded_string = str(string_to_encode)
-			diffs_dict[str(created)] = {'updated_by' : encoded_string }
-			for c in changes.__dict__[u'items']:
-				change = c.__dict__
-				if str(change[u'field']) in fields_list:
-					string_to_encode = change[u'from']
-					if isinstance(string_to_encode, unicode):
-						encoded_string = string_to_encode.encode('utf8','replace')
-					else:
-						encoded_string = str(string_to_encode)
-
-					diffs = {str(change[u'field']) : encoded_string }
-					if created not in diffs_dict:
-						diffs_dict[str(created)] = diffs
-					else:
-						diffs_dict[str(created)].update(diffs)
-
-		prev_diffs = {}
-		changelog_count = 1
-		for created in sorted(diffs_dict.keys(), reverse=True):
-			diffs = diffs_dict[created] # all changed values for one change on a particular date
-			diffs = translateFields(diffs)
-			if not prev_diffs:
-				issueData[0]['updated_by'] = diffs['updated_by']
-				diffs.pop('updated_by', None)
-				prev_diffs = diffs
-				continue
-			prev_diffs['updated'] = created
-			tempdata = create_transition(lastIssueData, prev_diffs)
-			tempdata['changelog_id'] = str(changelog_count)
-			issueData.append(tempdata)
-			lastIssueData = tempdata
-			prev_diffs = diffs
-			changelog_count += 1
-
-		prev_diffs['updated'] = data['created']
-		tempdata = create_transition(lastIssueData, prev_diffs)
-		issueData.append(tempdata)
-		lastIssueData = tempdata
-
-		overall_data = overall_data + issueData
-
-		#END collect issue data
-
-
-		#START get normalized table data
-
-		if hasattr(issue.fields, 'issuetype') and issue.fields.issuetype is not None and hasattr(issue.fields.issuetype, 'id'):
-			if not any(d.get('id', None) == str(issue.fields.issuetype.id) for d in type_data) and hasattr(issue.fields.issuetype, 'name') and hasattr(issue.fields.issuetype, 'description'):
-				type_data.append({
-								'id' : str(issue.fields.issuetype.id), 
-								'name' : str(issue.fields.issuetype.name),
-								'description' : str(issue.fields.issuetype.description)
-								})
-
-		if hasattr(issue.fields, 'status') and issue.fields.status is not None and hasattr(issue.fields.status, 'id'):
-			if not any(d.get('id', None) == str(issue.fields.status.id) for d in status_data) and hasattr(issue.fields.status, 'name') and hasattr(issue.fields.status, 'description'):
-				status_data.append({
-								'id' : str(issue.fields.status.id), 
-								'name' : str(issue.fields.status.name),
-								'description' : str(issue.fields.status.description)
-								})
-
-		if hasattr(issue.fields, 'fixVersions') and issue.fields.fixVersions is not None:
-			for fixVersion in issue.fields.fixVersions:
-				if hasattr(fixVersion, 'id'):
-					if not any(d.get('id', None) == str(fixVersion.id) for d in fixVersion_data) and hasattr(fixVersion, 'name') and hasattr(fixVersion, 'description') and hasattr(fixVersion, 'released'):
-						if fixVersion.released == False:
-							fixVersion_data.append({
-										'id' : str(fixVersion.id), 
-										'name' : str(fixVersion.name),
-										'description' : str(fixVersion.description),
-										'release_date' : str(0)
-										})
-						elif hasattr(fixVersion, 'releaseDate'):
-							release_date = parseDate(str(fixVersion.releaseDate))
-							fixVersion_data.append({
-										'id' : str(fixVersion.id), 
-										'name' : str(fixVersion.name),
-										'description' : str(fixVersion.description),
-										'release_date' : str(release_date)
-										})
-
-		if hasattr(issue.fields, 'priority') and issue.fields.priority is not None and hasattr(issue.fields.priority, 'id'):
-			if not any(d.get('id', None) == str(issue.fields.priority.id) for d in priority_data) and hasattr(issue.fields.priority, 'name'):
-				priority_data.append({
-								'id' : str(issue.fields.priority.id), 
-								'name' : str(issue.fields.priority.name),
-								})
-
-		if hasattr(issue.fields, 'issuelinks') and issue.fields.issuelinks is not None:
-			for issuelink in issue.fields.issuelinks:
-				if hasattr(issuelink, 'type') and hasattr(issuelink.type, 'id'):
-					if not any(d.get('id', None) == str(issuelink.type.id) for d in relationshiptype_data) and hasattr(issuelink.type, 'name'):
-						relationshiptype_data.append({
-										'id' : str(issuelink.type.id), 
-										'name' : str(issuelink.type.name),
-										})
-
-		if hasattr(issue.fields, 'resolution') and issue.fields.resolution is not None and hasattr(issue.fields.resolution, 'id'):
-			if not any(d.get('id', None) == str(issue.fields.resolution.id) for d in resolution_data) and hasattr(issue.fields.resolution, 'name') and hasattr(issue.fields.resolution, 'description'):
-				resolution_data.append({
-								'id' : str(issue.fields.resolution.id), 
-								'name' : str(issue.fields.resolution.name),
-								'description' : str(issue.fields.resolution.description)
-								})
-
-		if hasattr(issue.fields, 'reporter') and issue.fields.reporter is not None and hasattr(issue.fields.reporter, 'name'):
-			if not any(d.get('name', None) == str(issue.fields.reporter.name) for d in developer_data) and hasattr(issue.fields.reporter, 'name') and hasattr(issue.fields.reporter, 'displayName'):
-				string_to_encode = issue.fields.reporter.displayName
-				if isinstance(string_to_encode, unicode):
-					encoded_string = string_to_encode.encode('utf8','replace')
-				else:
-					encoded_string = str(string_to_encode)
-				developer_data.append({
-								'name' : str(issue.fields.reporter.name),
-								'display_name' : encoded_string
-								})
-
-		if hasattr(issue.fields, 'assignee') and issue.fields.assignee is not None and hasattr(issue.fields.assignee, 'name'):
-			if not any(d.get('name', None) == str(issue.fields.assignee.name) for d in developer_data) and hasattr(issue.fields.assignee, 'name') and hasattr(issue.fields.assignee, 'displayName'):
-				string_to_encode = issue.fields.assignee.displayName
-				if isinstance(string_to_encode, unicode):
-					encoded_string = string_to_encode.encode('utf8','replace')
-				else:
-					encoded_string = str(string_to_encode)
-				developer_data.append({
-								'name' : str(issue.fields.assignee.name),
-								'display_name' : encoded_string
-								})
-		if hasattr(issue.fields, 'comment') and issue.fields.comment is not None:
-			if hasattr(issue.fields.comment, 'comments'):
-				for comment in issue.fields.comment.comments:
-					if hasattr(comment, 'body') and hasattr(comment, 'author') and hasattr(comment,'id') and hasattr(comment, 'created'):
-						string_to_encode = comment.author.name
-						if isinstance(string_to_encode, unicode):
-							encoded_string = string_to_encode.encode('utf8','replace')
-						else:
-							encoded_string = str(string_to_encode)
-						string_to_encode2 = comment.body
-						if isinstance(string_to_encode2, unicode):
-							encoded_string2 = string_to_encode2.encode('utf8','replace')
-						else:
-							encoded_string2 = str(string_to_encode2)
-						comments_data.append({
-							'id' : str(comment.id),
-							'issue_id' : str(issue.id),
-							'author' : encoded_string,
-							'comment' : encoded_string2,
-							'created_at' : str(comment.created)
-							})
-
-		#END get normalized table data
-
-		#START get issueLinks
-
-		if hasattr(issue.fields, 'issuelinks') and issue.fields.issuelinks is not None:
-			for issuelink in issue.fields.issuelinks:
-				if hasattr(issuelink, 'outwardIssue') and hasattr(issuelink, 'type') and hasattr(issuelink.type, 'id'):
-					#filter duplicate issuelink
-					if not any(d.get('from_id', None) == str(issue.id) and d.get('to_id', None) == str(issuelink.outwardIssue.id) and d.get('relationshiptype', None) == str(issuelink.type.id) for d in issueLinks):
-						issueLinks.append({
-							'from_id' : str(issue.id),
-							'to_id' : str(issuelink.outwardIssue.id),
-							'relationshiptype' : issuelink.type.id
-						})
-
-				if hasattr(issuelink, 'inwardIssue') and hasattr(issuelink, 'type') and hasattr(issuelink.type, 'id'):
-					#filter duplicate issuelink
-					if not any(d.get('from_id', None) == str(issue.id) and d.get('to_id', None) == str(issuelink.inwardIssue.id) and d.get('relationshiptype', None) == str(issuelink.type.id) for d in issueLinks):
-						issueLinks.append({
-							'from_id' : str(issue.id),
-							'to_id' : str(issuelink.inwardIssue.id),
-							'relationshiptype' : issuelink.type.id
-						})
-
-		#END get issueLinks
-
-
-	startAt = startAt + iterate_size
-
-	if startAt + iterate_size > iterate_max:
-		iterate_size = iterate_max - startAt
-
-	issues = jira.search_issues('project='+jira_project_key,startAt=startAt,maxResults=iterate_size,expand='attachment,changelog', fields='summary,resolutiondate,watches,created,updated,description,duedate,issuetype,customfield_10404,resolution,fixVersions,priority,project,attachment,project,assignee,reporter,customfield_10209,customfield_10002,customfield_10097,customfield_10207,status,issuelinks,comment')
-
-print count
-
-#START dump data
-
-with open(data_folder+'/data.json', 'w') as outfile:
-	json.dump(overall_data, outfile, indent=4)
-
-with open(data_folder+'/data_type.json', 'w') as outfile:
-	json.dump(type_data, outfile, indent=4)
-
-with open(data_folder+'/data_status.json', 'w') as outfile:
-	json.dump(status_data, outfile, indent=4)
-
-with open(data_folder+'/data_fixVersion.json', 'w') as outfile:
-	json.dump(fixVersion_data, outfile, indent=4)
-
-with open(data_folder+'/data_sprint.json', 'w') as outfile:
-	json.dump(sprint_data, outfile, indent=4)
-
-with open(data_folder+'/data_resolution.json', 'w') as outfile:
-	json.dump(resolution_data, outfile, indent=4)
-
-with open(data_folder+'/data_priority.json', 'w') as outfile:
-	json.dump(priority_data, outfile, indent=4)
-
-with open(data_folder+'/data_relationshiptype.json', 'w') as outfile:
-	json.dump(relationshiptype_data, outfile, indent=4)
-
-with open(data_folder+'/data_issuelinks.json', 'w') as outfile:
-	json.dump(issueLinks, outfile, indent=4)
-
-with open(data_folder+'/data_developer.json', 'w') as outfile:
-	json.dump(developer_data, outfile, indent=4)
-
-with open(data_folder+'/data_comments.json', 'w') as outfile:
-	json.dump(comments_data, outfile, indent=4)
-
-#END dump data
-
-
-
+import os
+import traceback
+from jira import JIRA
+from utils import parse_date, parse_unicode
+
+###
+# Type specific parsers
+###
+
+class Field_Parser(object):
+    """
+    Parser for JIRA fields. Different versions for each type exist.
+    """
+
+    def __init__(self, jira):
+        self.jira = jira
+
+    def parse(self, value):
+        raise NotImplementedError("Must be overridden in subclass")
+
+    @property
+    def table_key(self):
+        return None
+
+class String_Parser(Field_Parser):
+    """
+    Parser for string fields.
+    """
+
+    def parse(self, value):
+        return str(value)
+
+class Int_Parser(String_Parser):
+    """
+    Parser for integer fields.
+
+    Currently converts the values to strings.
+    """
+
+    def parse(self, value):
+        return str(int(value))
+
+class Date_Parser(Field_Parser):
+    def parse(self, value):
+        return parse_date(value)
+
+class Unicode_Parser(Field_Parser):
+    def parse(self, value):
+        return parse_unicode(value)
+
+class Sprint_Parser(Field_Parser):
+    def _split_sprint(self, sprint):
+        sprint_data = {}
+        sprint_string = str(sprint)
+        sprint_string = sprint_string[sprint_string.rindex('[')+1:-1]
+        sprint_parts = sprint_string.split(',')
+        for part in sprint_parts:
+            try:
+                pair = part.split('=')
+                key = pair[0].encode('utf-8')
+                value = pair[1].encode('utf-8')
+                if key == "endDate" or key == "startDate":
+                    value = parse_date(value)
+
+                sprint_data[key] = value
+            except IndexError:
+                # TODO: Continue or return partial result
+                return False
+
+        return sprint_data
+
+    def parse(self, sprint):
+        sprint_data = self._split_sprint(sprint)
+        if not sprint_data:
+            return str(0)
+
+        sprint_text = parse_unicode(sprint_data["id"])
+
+        if sprint_data["endDate"] != "<null>" and sprint_data["startDate"] != "<null>":
+            self.jira.get_table("sprint").append({
+                "id": sprint_text,
+                "name": str(sprint_data["name"]),
+                "start_date": str(sprint_data["startDate"]),
+                "end_date": str(sprint_data["endDate"])
+            })
+
+            return sprint_text
+
+        return str(0)
+
+    @property
+    def table_key(self):
+        return "id"
+
+class Point_Parser(Field_Parser):
+    def parse(self, value):
+        point_string = str(value)
+        head, sep, tail = point_string.partition('.')
+        return head
+
+class Developer_Parser(Field_Parser):
+    def parse(self, value):
+        if value is not None and hasattr(value, "name"):
+            encoded_name = parse_unicode(value.name)
+            if value.name is not None and hasattr(value, "displayName"):
+                self.jira.get_table("developer").append({
+                    "name": encoded_name,
+                    "display_name": parse_unicode(value.displayName)
+                })
+
+            return encoded_name
+        elif isinstance(value, (str, unicode)):
+            return parse_unicode(value)
+        else:
+            return str(0)
+
+    @property
+    def table_key(self):
+        return "name"
+
+class ID_List_Parser(Field_Parser):
+    def parse(self, value):
+        if not isinstance(value, list):
+            return str(0)
+
+        id_list = [item.id for item in value]
+        return str(len(id_list))
+
+class Fix_Version_Parser(Field_Parser):
+    def parse(self, value):
+        if value is None:
+            return str(0)
+
+        encoded_value = str(0)
+
+        for fixVersion in value:
+            if hasattr(fixVersion, 'id') and hasattr(fixVersion, 'name') and hasattr(fixVersion, 'description') and hasattr(fixVersion, 'released'):
+                release_date = str(0)
+                if fixVersion.released and hasattr(fixVersion, 'releaseDate'):
+                    release_date = parse_date(fixVersion.releaseDate)
+
+                encoded_value = str(fixVersion.id)
+                self.jira.get_table("fixVersion").append({
+                    "id": encoded_value,
+                    "name": str(fixVersion.name),
+                    "description": parse_unicode(fixVersion.description),
+                    "release_date": release_date
+                })
+
+        return encoded_value
+
+    @property
+    def table_key(self):
+        return "id"
+
+###
+# Field definitions
+###
+
+class Jira_Field(object):
+    """
+    Field parser for the issue field data returned by the JIRA REST API.
+    """
+
+    def __init__(self, jira, name, **data):
+        self.jira = jira
+        self.name = name
+        self.data = data
+
+    def fetch(self, issue):
+        raise NotImplementedError("Subclasses must extend this method")
+
+    def parse(self, issue):
+        field = self.fetch(issue)
+        return self.cast(field)
+
+    def cast(self, field):
+        if field is None:
+            return str(0)
+
+        if "type" in self.data:
+            if isinstance(self.data["type"], list):
+                types = self.data["type"]
+            else:
+                types = (self.data["type"],)
+
+            for datatype in types:
+                field = self.jira.type_casts[datatype].parse(field)
+
+        return field
+
+    @property
+    def search_field(self):
+        raise NotImplementedError("Subclasses must extend this property")
+
+    @property
+    def table_key(self):
+        raise NotImplementedError("Subclasses must extend this property")
+
+class Primary_Field(Jira_Field):
+    """
+    A field in the JIRA response that contains primary information of the issue,
+    such as the ID or key of the issue.
+    """
+
+    def fetch(self, issue):
+        return getattr(issue, self.data["primary"])
+
+    @property
+    def search_field(self):
+        return None
+
+    @property
+    def table_key(self):
+        raise Exception("Primary field '" + self.name + "' is not keyable at this moment")
+
+class Payload_Field(Jira_Field):
+    """
+    A field in the JIRA's main payload response, which are the editable fields
+    as well as metadata fields for the issue.
+    """
+
+    def fetch(self, issue):
+        if hasattr(issue.fields, self.data["field"]):
+            return getattr(issue.fields, self.data["field"])
+
+        return None
+
+    @property
+    def search_field(self):
+        return self.data["field"]
+
+    @property
+    def table_key(self):
+        return "id"
+
+class Property_Field(Payload_Field):
+    """
+    A field in the JIRA's main payload response of which one property is the
+    identifying value for that field in the issue.
+    """
+
+    def fetch(self, issue):
+        field = super(Property_Field, self).fetch(issue)
+        if hasattr(field, self.data["property"]):
+            return getattr(field, self.data["property"])
+
+        return None
+
+    def parse(self, issue):
+        field = super(Property_Field, self).parse(issue)
+        if field is None:
+            return None
+
+        if "table" in self.data and isinstance(self.data["table"], dict):
+            payload_field = super(Property_Field, self).fetch(issue)
+            row = {self.data["property"]: field}
+            has_data = False
+            for name, datatype in self.data["table"].iteritems():
+                if hasattr(payload_field, name):
+                    has_data = True
+                    prop = getattr(payload_field, name)
+                    row[name] = self.jira.type_casts[datatype].parse(prop)
+                else:
+                    #print("missing data for {}, prop {}".format(self.name, name))
+                    row[name] = str(0)
+
+            if has_data:
+                self.jira.get_table(self.name).append(row)
+
+        return field
+
+    @property
+    def table_key(self):
+        return self.data["property"]
+
+class Changelog_Primary_Field(Jira_Field):
+    """
+    A field in the change items in the changelog of the JIRA response.
+    """
+
+    def fetch(self, issue):
+        if hasattr(issue, self.data["changelog_primary"]):
+            return getattr(issue, self.data["changelog_primary"])
+
+        return None
+
+    @property
+    def search_field(self):
+        return None
+
+    @property
+    def table_key(self):
+        raise Exception("Changelog fields are not keyable at this moment")
+
+class Changelog_Field(Jira_Field):
+    """
+    A field in the changelog items of the JIRA expanded response.
+    """
+
+    def fetch(self, issue):
+        data = issue.__dict__
+        if data['from'] is not None:
+            return data['from']
+        if data['fromString'] is not None:
+            return data['fromString']
+
+        return None
+
+    @property
+    def search_field(self):
+        return None
+
+    @property
+    def table_key(self):
+        raise Exception("Changelog fields are not keyable at this moment")
+
+class Table(object):
+    """
+    Data storage for eventual JSON output for the database importer.
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.data = []
+
+    def append(self, row):
+        self.data.append(row)
+        return True
+
+    def extend(self, rows):
+        self.data.extend(rows)
+
+class Key_Table(Table):
+    def __init__(self, name, key):
+        super(Key_Table, self).__init__(name)
+        self.key = key
+        self.keys = set()
+
+    def append(self, row):
+        if row[self.key] in self.keys:
+            return False
+
+        self.keys.add(row[self.key])
+        return super(Key_Table, self).append(row)
+
+    def extend(self, rows):
+        for row in rows:
+            self.append(row)
+
+class Link_Table(Table):
+    def __init__(self, name, start_key, end_key):
+        super(Link_Table, self).__init__(name)
+        self.start_key = start_key
+        self.end_key = end_key
+        self.links = {}
+
+    def append(self, row):
+        start = row[self.start_key]
+        end = row[self.end_key]
+        if start in self.links and self.links[start] == end:
+            return False
+
+        self.links[start] = end
+        super(Link_Table, self).append(row)
+
+    def extend(self, rows):
+        for row in rows:
+            self.append(row)
+
+###
+# Main class
+###
+
+class Jira(object):
+    """
+    JIRA parser and extraction tool.
+    """
+
+    """
+    Fields extracted from JIRA.
+
+    Each field has a dictionary of configuration, containing some of:
+    - "primary": if given, the property name of the field within the main
+      issue's response data.
+    - "field": if given, the property name within the "fields" dictionary
+      of the issue.
+    - "property": if given, the property name within the dictionary 
+      pointed at by "field".
+    - "type": the type of the field value, can be "str", "int", "date",
+      "unicode", "point", "sprint", "name" or "id_list".
+      This is the type as it will be stored in the issues data, and is
+      independent from other data relevant to that field. It is mostly used
+      for ensuring we convert to strings correctly. Can have multiple types
+      in a tuple, which are applied in order.
+    - "changelog_primary"
+    - "changelog_name"
+    - "table"
+
+    Fields that are retrieved or deduced from only changelog data are those
+    without "primary" or "field", i.e., "changelog_id" and "updated_by".
+    """
+
+    def __init__(self, project_key, username, password, options):
+        self.jira_project_key = project_key
+        self.jira_username = username
+        self.jira_password = password
+        self.jira_api = JIRA(options,
+            basic_auth=(self.jira_username, self.jira_password)
+        )
+
+        self.data_folder = self.jira_project_key
+
+        self.issue_fields = {}
+        self.changelog_fields = {}
+        self.changelog_primary_fields = {}
+
+        self.extra_data_parsers = {
+            "comment": self.parse_comments,
+            "issuelinks": self.parse_issuelinks
+        }
+
+        self.tables = {
+            "issue": Table("issue"),
+            "relationshiptype": Key_Table("relationshiptype", "id"),
+            "comments": Table("comments"),
+            "issueLinks": Link_Table("issuelinks", "from_id", "to_id")
+        }
+
+        self.type_casts = {
+            "int": Int_Parser(self),
+            "str": String_Parser(self),
+            "date": Date_Parser(self),
+            "unicode": Unicode_Parser(self),
+            "sprint": Sprint_Parser(self),
+            "developer": Developer_Parser(self),
+            "point": Point_Parser(self),
+            "id_list": ID_List_Parser(self),
+            "fix_version": Fix_Version_Parser(self)
+        }
+        
+        self._import_field_specifications()
+
+    def _make_issue_field(self, name, data):
+        if "primary" in data:
+            return Primary_Field(self, name, **data)
+        elif "field" in data:
+            if "property" in data:
+                return Property_Field(self, name, **data)
+            else:
+                return Payload_Field(self, name, **data)
+        
+        return None
+
+    def _import_field_specifications(self):
+        # Parse the JIRA field specifications and create field objects as well 
+        # as the search fields string.
+        jira_fields = []
+
+        with open("jira_fields.json", "r") as fields_file:
+            fields = json.load(fields_file)
+
+        for name, data in fields.iteritems():
+            field = self._make_issue_field(name, data)
+            if field is not None:
+                self.issue_fields[name] = field
+                search_field = self.issue_fields[name].search_field
+                if search_field is not None:
+                    jira_fields.append(search_field)
+
+                if "table" in data:
+                    if isinstance(data["table"], dict):
+                        table_name = name
+                    else:
+                        table_name = data["table"]
+
+                    key = None
+                    if "type" in data:
+                        datatype = data["type"]
+                        key = self.type_casts[datatype].table_key
+
+                    if key is None:
+                        key = self.issue_fields[name].table_key
+
+                    self.tables[table_name] = Key_Table(table_name, key)
+
+            if "changelog_primary" in data:
+                changelog_name = data["changelog_primary"]
+                field = Changelog_Primary_Field(self, name, **data)
+                self.changelog_primary_fields[changelog_name] = field
+            elif "changelog_name" in data:
+                changelog_name = data["changelog_name"]
+                field = Changelog_Field(self, name, **data)
+                self.changelog_fields[changelog_name] = field
+
+        jira_fields.extend(self.extra_data_parsers.keys())
+
+        self.jira_search_fields = ','.join(jira_fields)
+
+    def get_table(self, name):
+        return self.tables[name]
+
+    def _perform_batched_query(self, start_at, iterate_size):
+        return self.jira_api.search_issues('project=' + self.jira_project_key,
+            startAt=start_at,
+            maxResults=iterate_size,
+            expand='attachment,changelog',
+            fields=self.jira_search_fields
+        )
+
+    def search_issues(self):
+        start_at = 0
+        iterate_size = 100
+        iterate_max = 100000
+
+        issues = self._perform_batched_query(start_at, iterate_size)
+        while issues and iterate_size <= iterate_max:
+            for issue in issues:
+                data = self.collect_fields(issue)
+                versions = self.get_changelog_versions(issue, data)
+                self.tables["issue"].extend(versions)
+
+                for parse in self.extra_data_parsers.itervalues():
+                    parse(issue)
+
+            start_at = start_at + iterate_size
+            if start_at + iterate_size > iterate_max:
+                iterate_size = iterate_max - start_at
+
+            issues = self._perform_batched_query(start_at, iterate_size)
+
+    def collect_fields(self, issue):
+        data = {}
+        for name, field in self.issue_fields.iteritems():
+            try:
+                data[name] = field.parse(issue)
+            except:
+                print("Error trying to parse field '" + name + "', issue: " + repr(issue) + " fields: " + repr(issue.fields.__dict__))
+                raise
+
+        return data
+
+    def fetch_changelog(self, issue):
+        changelog = issue.changelog.histories
+        issue_diffs = {}
+        for changes in changelog:
+            diffs = {}
+
+            for name, field in self.changelog_primary_fields.iteritems():
+                value = field.parse(changes)
+                diffs[field.name] = value
+
+            for item in changes.items:
+                changelog_name = str(item.field)
+                if changelog_name in self.changelog_fields:
+                    field = self.changelog_fields[changelog_name]
+                    value = field.parse(item)
+                    diffs[field.name] = value
+
+            if "updated" not in diffs:
+                print("No updated date: " + repr(diffs))
+                continue
+
+            updated = diffs["updated"]
+            if updated in issue_diffs:
+                issue_diffs[updated].update(diffs)
+            else:
+                issue_diffs[updated] = diffs
+
+        return issue_diffs
+
+    def _create_change_transition(self, source_data, diffs):
+        """
+        Returns a copy of `source_data`, updated with the new key-value pairs
+        in `diffs`.
+        """
+
+        # Shallow copy
+        result = dict(source_data)
+        if "attachment" in diffs and diffs["attachment"] == str(0):
+            result["attachment"] = str(max(0, int(result["attachment"])-1))
+
+        result.update(diffs)
+        return result
+
+    def get_changelog_versions(self, issue, data):
+        issue_diffs = self.fetch_changelog(issue)
+
+        changelog_count = len(issue_diffs)
+        prev_diffs = {}
+        prev_data = data
+        versions = []
+
+        # reestablish issue data from differences
+        for updated in sorted(issue_diffs.keys(), reverse=True):
+            diffs = issue_diffs[updated]
+            if not prev_diffs:
+                data["changelog_id"] = str(changelog_count)
+                data["updated_by"] = diffs.pop("updated_by", str(0))
+                versions.append(data)
+                prev_diffs = diffs
+                changelog_count -= 1
+            else:
+                prev_diffs["updated"] = updated
+                prev_diffs["updated_by"] = diffs.pop("updated_by", str(0))
+                old_data = self._create_change_transition(prev_data, prev_diffs)
+                old_data["changelog_id"] = str(changelog_count)
+                versions.append(old_data)
+                prev_data = old_data
+                prev_diffs = diffs
+                changelog_count -= 1
+
+        if prev_diffs:
+            prev_diffs["updated"] = data["created"]
+            new_data = self._create_change_transition(prev_data, prev_diffs)
+            new_data["changelog_id"] = str(0)
+            versions.append(new_data)
+
+        return versions
+
+    def parse_comments(self, issue):
+        if hasattr(issue.fields, 'comment') and issue.fields.comment is not None:
+            if hasattr(issue.fields.comment, 'comments'):
+                for comment in issue.fields.comment.comments:
+                    if hasattr(comment, 'body') and hasattr(comment, 'author') and hasattr(comment, 'id') and hasattr(comment, 'created'):
+                        self.tables["comments"].append({
+                            'id': str(comment.id),
+                            'issue_id': str(issue.id),
+                            'author': parse_unicode(comment.author.name),
+                            'comment': parse_unicode(comment.body),
+                            'created_at': parse_date(comment.created)
+                        })
+
+    def parse_issuelinks(self, issue):
+        if hasattr(issue.fields, 'issuelinks') and issue.fields.issuelinks is not None:
+            for issuelink in issue.fields.issuelinks:
+                if not hasattr(issuelink, 'type') or not hasattr(issuelink.type, 'id'):
+                    continue
+
+                self.tables["relationshiptype"].append({
+                    'id': str(issuelink.type.id), 
+                    'name': str(issuelink.type.name),
+                })
+
+                if hasattr(issuelink, 'outwardIssue'):
+                    self.tables["issueLinks"].append({
+                        'from_id': str(issue.id),
+                        'to_id': str(issuelink.outwardIssue.id),
+                        'relationshiptype': issuelink.type.id
+                    })
+
+                if hasattr(issuelink, 'inwardIssue'):
+                    self.tables["issueLinks"].append({
+                        'from_id': str(issue.id),
+                        'to_id': str(issuelink.inwardIssue.id),
+                        'relationshiptype': issuelink.type.id
+                    })
+
+    def write_tables(self):
+        for table in self.tables.itervalues():
+            self.write_table(table)
+
+    def write_table(self, table):
+        if table.name == "issue":
+            filename = "data.json"
+        else:
+            filename = "data_" + table.name + ".json"
+
+        with open(self.data_folder + "/" + filename, 'w') as outfile:
+            json.dump(table.data, outfile, indent=4)
+
+    def process(self):
+        if not os.path.exists(self.data_folder):
+            os.mkdir(self.data_folder)
+
+        self.search_issues()
+        self.write_tables()
+
+def parse_args():
+    config = ConfigParser.RawConfigParser()
+    config.read("settings.cfg")
+    parser = argparse.ArgumentParser(description="Obtain JIRA issue information and convert it to JSON format readable by the database importer.")
+    parser.add_argument("project", help="JIRA project key")
+    parser.add_argument("--username", default=config.get("jira", "username"), help="JIRA username")
+    parser.add_argument("--password", default=config.get("jira", "password"), help="JIRA password")
+    parser.add_argument("--server", default=config.get("jira", "server"), help="JIRA server URL")
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    options = {
+        "server": args.server
+    }
+    jira = Jira(args.project, args.username, args.password, options)
+    jira.process()
+
+if __name__ == "__main__":
+    main()

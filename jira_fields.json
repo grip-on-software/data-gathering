@@ -1,0 +1,142 @@
+{
+    "issue_id": {
+        "type": "int", 
+        "primary": "id"
+    }, 
+    "changelog_id": {
+        "type": "int"
+    }, 
+    "key": {
+        "type": "str", 
+        "primary": "key"
+    }, 
+    "type": {
+        "field": "issuetype", 
+        "changelog_name": "issuetype", 
+        "property": "id",
+        "table": {
+            "name": "str",
+            "description": "unicode"
+        }
+    }, 
+    "priority": {
+        "field": "priority", 
+        "changelog_name": "priority", 
+        "property": "id", 
+        "type": "int",
+        "table": {
+            "name": "unicode"
+        }
+    }, 
+    "resolution": {
+        "field": "resolution", 
+        "changelog_name": "resolution", 
+        "property": "id", 
+        "type": "int",
+        "table": {
+            "name": "str",
+            "description": "unicode"
+        }
+    }, 
+    "fixVersions": {
+        "field": "fixVersions", 
+        "changelog_name": "fixVersions", 
+        "type": "fix_version",
+        "table": "fixVersion"
+    }, 
+    "bugfix": {
+        "field": "customfield_10404", 
+        "changelog_name": "Bug fix", 
+        "property": "id"
+    }, 
+    "watchers": {
+        "field": "watches", 
+        "property": "watchCount", 
+        "type": "int"
+    }, 
+    "created": {
+        "field": "created", 
+        "type": "date"
+    }, 
+    "updated": {
+        "field": "updated", 
+        "changelog_primary": "created", 
+        "type": "date"
+    }, 
+    "description": {
+        "field": "description",
+        "changelog_name": "description",
+        "type": "unicode"
+    }, 
+    "duedate": {
+        "field": "duedate", 
+        "type": ["unicode", "date"]
+    }, 
+    "project_id": {
+        "field": "project", 
+        "changelog_name": "project", 
+        "property": "id", 
+        "type": "int"
+    }, 
+    "status": {
+        "field": "status", 
+        "changelog_name": "status", 
+        "property": "id", 
+        "type": "int",
+        "table": {
+            "name": "str",
+            "description": "unicode"
+        }
+    }, 
+    "reporter": {
+        "field": "reporter", 
+        "changelog_name": "reporter", 
+        "type": "developer",
+        "table": "developer"
+    }, 
+    "assignee": {
+        "field": "assignee", 
+        "changelog_name": "assignee",
+        "type": "developer",
+        "table": "developer"
+    }, 
+    "additional_information": {
+        "field": "customfield_10097", 
+        "changelog_name": "Additional information", 
+        "type": "unicode"
+    }, 
+    "review_comments": {
+        "field": "customfield_10209", 
+        "changelog_name": "Review comments", 
+        "type": "unicode"
+    }, 
+    "storypoint": {
+        "field": "customfield_10002", 
+        "changelog_name": "Story Points",
+        "type": ["unicode", "point", "int"]
+    }, 
+    "resolution_date": {
+        "field": "resolutiondate", 
+        "type": "date"
+    }, 
+    "sprint": {
+        "field": "customfield_10207", 
+        "type": "sprint",
+        "table": "sprint"
+    }, 
+    "updated_by": {
+        "changelog_primary": "author", 
+        "type": "developer",
+        "table": "developer"
+    }, 
+    "title": {
+        "field": "summary",
+        "changelog_name": "summary",
+        "type": "unicode"
+    }, 
+    "attachment": {
+        "field": "attachment",
+        "changelog_name": "Attachment",
+        "type": "id_list"
+    }
+}
