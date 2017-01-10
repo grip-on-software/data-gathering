@@ -112,6 +112,8 @@ class Developer_Parser(Field_Parser):
                 })
 
             return encoded_name
+        elif isinstance(value, (str, unicode)):
+            return parse_unicode(value)
         else:
             return str(0)
 
@@ -121,6 +123,9 @@ class Developer_Parser(Field_Parser):
 
 class ID_List_Parser(Field_Parser):
     def parse(self, value):
+        if not isinstance(value, list):
+            return str(0)
+
         id_list = [item.id for item in value]
         return str(len(id_list))
 
@@ -297,7 +302,13 @@ class Changelog_Field(Jira_Field):
     """
 
     def fetch(self, issue):
-        return issue.__dict__[u'from']
+        data = issue.__dict__
+        if data['from'] is not None:
+            return data['from']
+        if data['fromString'] is not None:
+            return data['fromString']
+
+        return None
 
     @property
     def search_field(self):
@@ -569,37 +580,44 @@ class Jira(object):
 
         # Shallow copy
         result = dict(source_data)
+        if "attachment" in diffs and diffs["attachment"] == str(0):
+            result["attachment"] = str(max(0, int(result["attachment"])-1))
+
         result.update(diffs)
         return result
 
     def get_changelog_versions(self, issue, data):
         issue_diffs = self.fetch_changelog(issue)
 
-        changelog_count = 1
+        changelog_count = len(issue_diffs)
         prev_diffs = {}
         prev_data = data
-        versions = [data]
+        versions = []
 
         # reestablish issue data from differences
         for updated in sorted(issue_diffs.keys(), reverse=True):
             diffs = issue_diffs[updated]
             if not prev_diffs:
-                data["changelog_id"] = str(0)
+                data["changelog_id"] = str(changelog_count)
                 data["updated_by"] = diffs.pop("updated_by", str(0))
+                versions.append(data)
                 prev_diffs = diffs
+                changelog_count -= 1
             else:
                 prev_diffs["updated"] = updated
+                prev_diffs["updated_by"] = diffs.pop("updated_by", str(0))
                 old_data = self._create_change_transition(prev_data, prev_diffs)
                 old_data["changelog_id"] = str(changelog_count)
                 versions.append(old_data)
                 prev_data = old_data
                 prev_diffs = diffs
-                changelog_count += 1
+                changelog_count -= 1
 
-        prev_diffs["updated"] = data["updated"]
-        new_data = self._create_change_transition(prev_data, prev_diffs)
-        new_data["changelog_id"] = str(changelog_count)
-        versions.append(new_data)
+        if prev_diffs:
+            prev_diffs["updated"] = data["created"]
+            new_data = self._create_change_transition(prev_data, prev_diffs)
+            new_data["changelog_id"] = str(0)
+            versions.append(new_data)
 
         return versions
 

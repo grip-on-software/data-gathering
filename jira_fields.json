@@ -64,7 +64,8 @@
         "type": "date"
     }, 
     "description": {
-        "field": "description", 
+        "field": "description",
+        "changelog_name": "description",
         "type": "unicode"
     }, 
     "duedate": {
@@ -129,11 +130,13 @@
         "table": "developer"
     }, 
     "title": {
-        "field": "summary", 
+        "field": "summary",
+        "changelog_name": "summary",
         "type": "unicode"
     }, 
     "attachment": {
-        "field": "attachment", 
+        "field": "attachment",
+        "changelog_name": "Attachment",
         "type": "id_list"
     }
 }
