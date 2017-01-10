@@ -3,6 +3,7 @@ import ConfigParser
 import json
 import os
 import traceback
+from datetime import datetime
 from jira import JIRA
 from utils import parse_date, parse_unicode
 
@@ -404,13 +405,15 @@ class Jira(object):
     without "primary" or "field", i.e., "changelog_id" and "updated_by".
     """
 
-    def __init__(self, project_key, username, password, options):
+    def __init__(self, project_key, username, password, options, updated_since):
         self.jira_project_key = project_key
         self.jira_username = username
         self.jira_password = password
         self.jira_api = JIRA(options,
             basic_auth=(self.jira_username, self.jira_password)
         )
+        self.updated_since = updated_since
+        self.latest_update = str(0)
 
         self.data_folder = self.jira_project_key
 
@@ -504,7 +507,9 @@ class Jira(object):
         return self.tables[name]
 
     def _perform_batched_query(self, start_at, iterate_size):
-        return self.jira_api.search_issues('project=' + self.jira_project_key,
+        query = 'project={} AND updated > "{}"'.format(self.jira_project_key, self.updated_since)
+        self.latest_update = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M")
+        return self.jira_api.search_issues(query,
             startAt=start_at,
             maxResults=iterate_size,
             expand='attachment,changelog',
@@ -593,9 +598,15 @@ class Jira(object):
         prev_diffs = {}
         prev_data = data
         versions = []
+        date_format = '%Y-%m-%d %H:%M:%S'
+        updated_since = datetime.strptime(self.updated_since, '%Y-%m-%d %H:%M')
 
         # reestablish issue data from differences
         for updated in sorted(issue_diffs.keys(), reverse=True):
+            if datetime.strptime(updated, date_format) < updated_since:
+                print("ignoring {} changes that were done before the last update ({},{})".format(changelog_count, updated, self.updated_since))
+                break
+
             diffs = issue_diffs[updated]
             if not prev_diffs:
                 data["changelog_id"] = str(changelog_count)
@@ -613,7 +624,7 @@ class Jira(object):
                 prev_diffs = diffs
                 changelog_count -= 1
 
-        if prev_diffs:
+        if prev_diffs and datetime.strptime(data["created"], date_format) >= updated_since:
             prev_diffs["updated"] = data["created"]
             new_data = self._create_change_transition(prev_data, prev_diffs)
             new_data["changelog_id"] = str(0)
@@ -679,23 +690,50 @@ class Jira(object):
         self.search_issues()
         self.write_tables()
 
+    def get_latest_update(self):
+        return self.latest_update
+
+def validate_date(value):
+    try:
+        datetime.strptime(value, "%Y-%m-%d %H:%M")
+        return value
+    except ValueError as e:
+        raise argparse.ArgumentTypeError("Not a valid date: " + e.message)
+
 def parse_args():
     config = ConfigParser.RawConfigParser()
     config.read("settings.cfg")
+
     parser = argparse.ArgumentParser(description="Obtain JIRA issue information and convert it to JSON format readable by the database importer.")
     parser.add_argument("project", help="JIRA project key")
     parser.add_argument("--username", default=config.get("jira", "username"), help="JIRA username")
     parser.add_argument("--password", default=config.get("jira", "password"), help="JIRA password")
     parser.add_argument("--server", default=config.get("jira", "server"), help="JIRA server URL")
+    parser.add_argument("--updated-since", default=None, dest="updated_since", type=validate_date, help="Only fetch issues that were changed since the given timestamp")
     return parser.parse_args()
 
 def main():
     args = parse_args()
+
+    updated_since = args.updated_since
+    updates = {}
+    if updated_since is None and os.path.exists('jira-updated.json'):
+        with open('jira-updated.json', 'r') as f:
+            updates = json.load(f)
+            if args.project in updates:
+                updated_since = updates[args.project]
+
     options = {
         "server": args.server
     }
-    jira = Jira(args.project, args.username, args.password, options)
+    jira = Jira(args.project, args.username, args.password, options,
+        updated_since
+    )
     jira.process()
+
+    updates[args.project] = jira.get_latest_update()
+    with open('jira-updated.json', 'w') as f:
+        json.dump(updates, f)
 
 if __name__ == "__main__":
     main()
