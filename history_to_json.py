@@ -5,6 +5,7 @@ import ast
 import requests
 import gzip
 import io
+import os
 import traceback
 from utils import parse_date
 
