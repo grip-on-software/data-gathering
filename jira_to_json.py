@@ -373,6 +373,41 @@ class Link_Table(Table):
             self.append(row)
 
 ###
+# Updated time trackers
+###
+
+class Updated_Time(object):
+    def __init__(self, timestamp):
+        self.timestamp = timestamp
+        self.date = datetime.strptime(self.timestamp, '%Y-%m-%d %H:%M')
+
+    def is_newer(self, timestamp, timestamp_format='%Y-%m-%d %H:%M:%S'):
+        if self.date < datetime.strptime(timestamp, timestamp_format):
+            return True
+
+        return False
+
+class Update_Tracker(object):
+    def __init__(self, project, updated_since=None):
+        self.project = project
+        self.updated_since = updated_since
+        self.filename = self.project + '/jira-updated.txt'
+
+    def get_updated_since(self):
+        if self.updated_since is None:
+            if os.path.exists(self.filename):
+                with open(self.filename, 'r') as f:
+                    self.updated_since = f.read().strip()
+            else:
+                self.updated_since = "0001-01-01 01:01"
+
+        return self.updated_since
+
+    def save_updated_since(self, new_updated_since):
+        with open(self.filename, 'w') as f:
+            f.write(new_updated_since)
+
+###
 # Main class
 ###
 
@@ -412,7 +447,7 @@ class Jira(object):
         self.jira_api = JIRA(options,
             basic_auth=(self.jira_username, self.jira_password)
         )
-        self.updated_since = updated_since
+        self.updated_since = Updated_Time(updated_since)
         self.latest_update = str(0)
 
         self.data_folder = self.jira_project_key
@@ -507,7 +542,7 @@ class Jira(object):
         return self.tables[name]
 
     def _perform_batched_query(self, start_at, iterate_size):
-        query = 'project={} AND updated > "{}"'.format(self.jira_project_key, self.updated_since)
+        query = 'project={} AND updated > "{}"'.format(self.jira_project_key, self.updated_since.timestamp)
         self.latest_update = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M")
         return self.jira_api.search_issues(query,
             startAt=start_at,
@@ -598,13 +633,10 @@ class Jira(object):
         prev_diffs = {}
         prev_data = data
         versions = []
-        date_format = '%Y-%m-%d %H:%M:%S'
-        updated_since = datetime.strptime(self.updated_since, '%Y-%m-%d %H:%M')
 
         # reestablish issue data from differences
         for updated in sorted(issue_diffs.keys(), reverse=True):
-            if datetime.strptime(updated, date_format) < updated_since:
-                print("ignoring {} changes that were done before the last update ({},{})".format(changelog_count, updated, self.updated_since))
+            if not self.updated_since.is_newer(updated):
                 break
 
             diffs = issue_diffs[updated]
@@ -624,7 +656,7 @@ class Jira(object):
                 prev_diffs = diffs
                 changelog_count -= 1
 
-        if prev_diffs and datetime.strptime(data["created"], date_format) >= updated_since:
+        if prev_diffs and self.updated_since.is_newer(data["created"]):
             prev_diffs["updated"] = data["created"]
             new_data = self._create_change_transition(prev_data, prev_diffs)
             new_data["changelog_id"] = str(0)
@@ -695,8 +727,7 @@ class Jira(object):
 
 def validate_date(value):
     try:
-        datetime.strptime(value, "%Y-%m-%d %H:%M")
-        return value
+        return Updated_Time(value).timestamp
     except ValueError as e:
         raise argparse.ArgumentTypeError("Not a valid date: " + e.message)
 
@@ -709,19 +740,14 @@ def parse_args():
     parser.add_argument("--username", default=config.get("jira", "username"), help="JIRA username")
     parser.add_argument("--password", default=config.get("jira", "password"), help="JIRA password")
     parser.add_argument("--server", default=config.get("jira", "server"), help="JIRA server URL")
-    parser.add_argument("--updated-since", default=None, dest="updated_since", type=validate_date, help="Only fetch issues that were changed since the given timestamp")
+    parser.add_argument("--updated-since", default=None, dest="updated_since", type=validate_date, help="Only fetch issues that were changed since the given timestamp (YYYY-MM-DD HH:MM)")
     return parser.parse_args()
 
 def main():
     args = parse_args()
 
-    updated_since = args.updated_since
-    updates = {}
-    if updated_since is None and os.path.exists('jira-updated.json'):
-        with open('jira-updated.json', 'r') as f:
-            updates = json.load(f)
-            if args.project in updates:
-                updated_since = updates[args.project]
+    tracker = Update_Tracker(args.project, args.updated_since)
+    updated_since = tracker.get_updated_since()
 
     options = {
         "server": args.server
@@ -731,9 +757,7 @@ def main():
     )
     jira.process()
 
-    updates[args.project] = jira.get_latest_update()
-    with open('jira-updated.json', 'w') as f:
-        json.dump(updates, f)
+    tracker.save_updated_since(jira.get_latest_update())
 
 if __name__ == "__main__":
     main()

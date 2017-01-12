@@ -6,25 +6,9 @@ import pprint
 import sys
 import os
 
-project_repo_folder = "REPO"
-project_name = "PROJ1"
-
-try:
-    if sys.argv[1] is not None:
-        project_name = sys.argv[1]
-        data_folder = project_name
-    if sys.argv[2] is not None:
-        project_repo_folder = sys.argv[2]
-except IndexError:
-        data_folder = project_name
-
-print project_name
-print project_repo_folder
-
 def get_immediate_subdirectories(a_dir):
     return [name for name in os.listdir(a_dir)
             if os.path.isdir(os.path.join(a_dir, name))]
-
 
 def get_git_data(git_commit_data, project_name, repo_name):
     json_data=open(project_name+"/data_sprint.json").read()
@@ -103,15 +87,27 @@ def get_git_data(git_commit_data, project_name, repo_name):
 
     return git_commit_data
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Obtain git commit data from project repositories and convert to JSON format readable by the database importer.")
+    parser.add_argument("project", help="project key")
+    return parser.parse_args()
 
-git_commit_data = []
-repos = get_immediate_subdirectories("project-git-repos/" + project_name)
-for repo_name in repos:
-    print repo_name
-    git_commit_data = get_git_data(git_commit_data, project_name, repo_name)
+def main():
+    args = parse_args()
+    project_name = args.project
+    data_folder = project_name
 
-#START dump data
-with open(data_folder+'/data_commits.json', 'w') as outfile:
-    json.dump(git_commit_data, outfile, indent=4)
+    git_commit_data = []
+    repos = get_immediate_subdirectories("project-git-repos/" + project_name)
+    for repo_name in repos:
+        print repo_name
+        git_commit_data = get_git_data(git_commit_data, project_name, repo_name)
 
-#END dump data
+    #START dump data
+    with open(data_folder + '/data_commits.json', 'w') as outfile:
+        json.dump(git_commit_data, outfile, indent=4)
+
+    #END dump data
+
+if __name__ == "__main__":
+    main()
