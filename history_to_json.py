@@ -1,12 +1,13 @@
 import argparse
-import json
-from pprint import pprint
 import ast
-import requests
 import gzip
 import io
+import itertools
+import json
 import os
+import requests
 import traceback
+from pprint import pprint
 from utils import parse_date
 
 project_names = {
