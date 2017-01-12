@@ -11,7 +11,7 @@ def get_immediate_subdirectories(a_dir):
     return [name for name in os.listdir(a_dir)
             if os.path.isdir(os.path.join(a_dir, name))]
 
-def get_git_data(git_commit_data, project_name, repo_name):
+def get_git_data(git_commit_data, latest_commits, project_name, repo_name):
     json_data=open(project_name+"/data_sprint.json").read()
     sprint_data = json.loads(json_data)
     sprint_git_data= {}
@@ -29,12 +29,12 @@ def get_git_data(git_commit_data, project_name, repo_name):
     iterate_size = 1000
     iterate_max = 10000000
 
-    refspec = 'master@{1}...master'#@}
-    try:
-        commits = repo.iter_commits(refspec, max_count=iterate_size, skip=skip)
-    except IndexError:
+    if repo_name in latest_commits:
+        refspec = '{}...master'.format(latest_commits[repo_name])
+    else:
         refspec = 'master'
-        commits = repo.iter_commits(refspec, max_count=iterate_size, skip=skip)
+
+    commits = repo.iter_commits(refspec, max_count=iterate_size, skip=skip)
 
     while commits and iterate_size + skip <= iterate_max:
         if iterate_size is 0:
@@ -86,7 +86,8 @@ def get_git_data(git_commit_data, project_name, repo_name):
         if stop_iteration:
             commits = False
 
-    return git_commit_data
+    latest_commit = repo.rev_parse('master')
+    latest_commits[repo_name] = latest_commit.hexsha
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Obtain git commit data from project repositories and convert to JSON format readable by the database importer.")
@@ -98,15 +99,24 @@ def main():
     project_name = args.project
     data_folder = project_name
 
+    latest_commits = {}
+    latest_filename = data_folder + '/git-commits.json'
+    if os.path.exists(latest_filename):
+        with open(latest_filename, 'r') as latest_commits_file:
+            latests_commits = json.load(latest_commits_file)
+
     git_commit_data = []
     repos = get_immediate_subdirectories("project-git-repos/" + project_name)
     for repo_name in repos:
         print repo_name
-        git_commit_data = get_git_data(git_commit_data, project_name, repo_name)
+        get_git_data(git_commit_data, latest_commits, project_name, repo_name)
 
     #START dump data
     with open(data_folder + '/data_commits.json', 'w') as outfile:
         json.dump(git_commit_data, outfile, indent=4)
+
+    with open(latest_filename, 'w') as latest_commits_file:
+        json.dump(latest_commits, latest_commits_file)
 
     #END dump data
 
