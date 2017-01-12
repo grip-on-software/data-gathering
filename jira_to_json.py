@@ -336,6 +336,13 @@ class Table(object):
         self.data.extend(rows)
 
 class Key_Table(Table):
+    """
+    Data storage for a table that has a primary, unique key.
+
+    The table checks whether any row with some key was already added before
+    accepting a new row with that key
+    """
+
     def __init__(self, name, key):
         super(Key_Table, self).__init__(name)
         self.key = key
@@ -353,19 +360,23 @@ class Key_Table(Table):
             self.append(row)
 
 class Link_Table(Table):
-    def __init__(self, name, start_key, end_key):
+    """
+    Data storage for a table that has a combination of columns that make up
+    a primary key.
+    """
+
+    def __init__(self, name, link_keys):
         super(Link_Table, self).__init__(name)
-        self.start_key = start_key
-        self.end_key = end_key
-        self.links = {}
+        self.link_keys = link_keys
+        self.links = set()
 
     def append(self, row):
-        start = row[self.start_key]
-        end = row[self.end_key]
-        if start in self.links and self.links[start] == end:
+        # Link values must be hashable
+        link_values = tuple(row[key] for key in self.link_keys)
+        if link_values in self.links:
             return False
 
-        self.links[start] = end
+        self.links.add(link_values)
         super(Link_Table, self).append(row)
 
     def extend(self, rows):
@@ -465,7 +476,9 @@ class Jira(object):
             "issue": Table("issue"),
             "relationshiptype": Key_Table("relationshiptype", "id"),
             "comments": Table("comments"),
-            "issueLinks": Link_Table("issuelinks", "from_id", "to_id")
+            "issueLinks": Link_Table("issuelinks",
+                ("from_id", "to_id", "relationshiptype")
+            )
         }
 
         self.type_casts = {
