@@ -1,124 +1,159 @@
-from git import *
 import argparse
 import time
 import json
-import datetime
 import pprint
 import sys
 import os
+from datetime import datetime
+from git import *
+from utils import parse_unicode, Sprint_Data
 
-def get_immediate_subdirectories(a_dir):
-    return [name for name in os.listdir(a_dir)
-            if os.path.isdir(os.path.join(a_dir, name))]
+class Git_Holder(object):
+    def __init__(self, project, repo_directory):
+        self.project = project
+        self.repo_directory = repo_directory + '/' + self.project
+        self.latest_commits = {}
+        self.repos = {}
+        self.data = []
+        self.sprints = Sprint_Data(self.project)
 
-def get_git_data(git_commit_data, latest_commits, project_name, repo_name):
-    json_data=open(project_name+"/data_sprint.json").read()
-    sprint_data = json.loads(json_data)
-    sprint_git_data= {}
+        self.latest_filename = self.project + '/git-commits.json'
 
-    for sprint in sprint_data:
-        sprint_git_data[int(sprint['id'])] = {}
-        sprint_git_data[int(sprint['id'])]['start_date'] = datetime.datetime.strptime(sprint['start_date'], '%Y-%m-%d %H:%M:%S')
-        sprint_git_data[int(sprint['id'])]['end_date'] = datetime.datetime.strptime(sprint['end_date'], '%Y-%m-%d %H:%M:%S')
+    def get_immediate_subdirectories(self):
+        return [name for name in os.listdir(self.repo_directory)
+                if os.path.isdir(os.path.join(self.repo_directory, name))]
 
-    repo = Repo("project-git-repos/" + project_name + "/" + repo_name)
-    o = repo.remotes.origin
-    #o.pull()
+    def get_latest_commits(self):
+        if os.path.exists(self.latest_filename):
+            with open(self.latest_filename, 'r') as latest_commits_file:
+                self.latest_commits = json.load(latest_commits_file)
 
-    skip = 0
-    iterate_size = 1000
-    iterate_max = 10000000
+    def get_repositories(self):
+        repo_names = self.get_immediate_subdirectories()
+        print(self.repo_directory)
+        print(repo_names)
 
-    if repo_name in latest_commits:
-        refspec = '{}...master'.format(latest_commits[repo_name])
-    else:
-        refspec = 'master'
+        for repo_name in repo_names:
+            if repo_name in self.latest_commits:
+                latest_commit = self.latest_commits[repo_name]
+            else:
+                latest_commit = None
 
-    commits = repo.iter_commits(refspec, max_count=iterate_size, skip=skip)
+            repo = Git_Repository(repo_name, self.repo_directory,
+                latest_commit=latest_commit, sprints=self.sprints)
+            self.repos[repo_name] = repo
 
-    while commits and iterate_size + skip <= iterate_max:
-        if iterate_size is 0:
-            break
+    def process(self):
+        self.get_latest_commits()
+        self.get_repositories()
+        self.parse_repositories()
+        self.write_data()
 
-        stop_iteration = True
+    def parse_repositories(self):
+        for repo_name, repo in self.repos.iteritems():
+            print repo_name
+            repo.parse()
+            self.latest_commits[repo_name] = repo.latest_commit
+            self.data.extend(repo.data)
+            print(repo.data)
 
-        for commit in commits:
-            stop_iteration = False
-            git_commit = {}
-            git_commit['git_repo'] = str(repo_name)
-            git_commit['commit_id'] = str(commit.hexsha)
-            git_commit['sprint_id'] = str(0)
+    def write_data(self):
+        with open(self.project + '/data_commits.json', 'w') as data_file:
+            json.dump(self.data, data_file, indent=4)
 
-            cs = commit.stats
-            cstotal = cs.total
+        with open(self.latest_filename, 'w') as latest_commits_file:
+            json.dump(self.latest_commits, latest_commits_file)
 
-            git_commit['insertions'] = str(cstotal['insertions'])
-            git_commit['deletions'] = str(cstotal['deletions'])
-            git_commit['number_of_files'] = str(cstotal['files'])
-            git_commit['number_of_lines'] = str(cstotal['lines'])
+class Git_Repository(object):
+    def __init__(self, repo_name, repo_directory, latest_commit=None, sprints=None):
+        self.repo_name = repo_name
+        self.repo = Repo(repo_directory + '/' + self.repo_name)
+        self.latest_commit = latest_commit
+        self.sprints = sprints
 
-            git_commit['message'] = commit.message.encode('utf-8')
-            git_commit['size_of_commit'] = str(commit.size)
-            git_commit['type'] = str(commit.type)
-            git_commit['developer'] = commit.author.name
-            git_commit['developer_email'] = str(commit.author.email)
+        self.data = []
 
-            commit_datetime = datetime.datetime.fromtimestamp(commit.committed_date)
-            git_commit['commit_date'] = datetime.datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
+        self.skip = 0
+        self.iterate_size = 1000
+        self.iterate_max = 10000000
 
-            for sprint_id in sprint_git_data:
-                sprint = sprint_git_data[sprint_id]
-                if commit_datetime >= sprint['start_date'] and commit_datetime <= sprint['end_date']:
-                    git_commit['sprint_id'] = str(sprint_id)
-                    break
+        if self.latest_commit is not None:
+            self.refspec = '{}...master'.format(self.latest_commit)
+        else:
+            self.refspec = 'master'
 
-            git_commit_data.append(git_commit)
+    def _query(self):
+        return self.repo.iter_commits(self.refspec,
+            max_count=self.iterate_size, skip=self.skip
+        )
 
-        print 'Analysed commits up to ',
-        print iterate_size+skip
+    def parse(self):
+        commits = self._query()
+        while commits and self.iterate_size + self.skip <= self.iterate_max:
+            if self.iterate_size is 0:
+                break
 
-        skip = skip + iterate_size
-        if skip + iterate_size > iterate_max:
-            iterate_size = iterate_max - skip
+            stop_iteration = True
 
-        commits = repo.iter_commits(refspec, max_count=iterate_size, skip=skip)
-        #stop iteration if no commits are found in previous round
-        if stop_iteration:
-            commits = False
+            for commit in commits:
+                stop_iteration = False
+                self.parse_commit(commit)
 
-    latest_commit = repo.rev_parse('master')
-    latest_commits[repo_name] = latest_commit.hexsha
+            print 'Analysed commits up to {}'.format(self.iterate_size + self.skip)
+
+            self.skip += self.iterate_size
+            if self.skip + self.iterate_size > self.iterate_max:
+                self.iterate_size = self.iterate_max - self.skip
+
+            commits = self._query()
+            #stop iteration if no commits are found in previous round
+            if stop_iteration:
+                commits = False
+
+        self.latest_commit = self.repo.rev_parse('master').hexsha
+
+    def parse_commit(self, commit):
+        cs = commit.stats
+        cstotal = cs.total
+        commit_datetime = datetime.fromtimestamp(commit.committed_date)
+
+        git_commit = {
+            # Primary data
+            'git_repo': str(self.repo_name),
+            'commit_id': str(commit.hexsha),
+            'sprint_id': str(0),
+            # Statistics
+            'insertions': str(cstotal['insertions']),
+            'deletions': str(cstotal['deletions']),
+            'number_of_files': str(cstotal['files']),
+            'number_of_lines': str(cstotal['lines']),
+            # More data
+            'message': parse_unicode(commit.message),
+            'size_of_commit': str(commit.size),
+            'type': str(commit.type),
+            'developer': commit.author.name,
+            'developer_email': str(commit.author.email),
+            'commit_date': datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
+        }
+
+        sprint_id = self.sprints.find_sprint(commit_datetime)
+        if sprint_id is not None:
+            git_commit['sprint_id'] = str(sprint_id)
+
+        self.data.append(git_commit)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Obtain git commit data from project repositories and convert to JSON format readable by the database importer.")
     parser.add_argument("project", help="project key")
+    parser.add_argument("--repos", default="project-git-repos", help="directory containing the project repositories")
     return parser.parse_args()
 
 def main():
     args = parse_args()
     project_name = args.project
-    data_folder = project_name
 
-    latest_commits = {}
-    latest_filename = data_folder + '/git-commits.json'
-    if os.path.exists(latest_filename):
-        with open(latest_filename, 'r') as latest_commits_file:
-            latests_commits = json.load(latest_commits_file)
-
-    git_commit_data = []
-    repos = get_immediate_subdirectories("project-git-repos/" + project_name)
-    for repo_name in repos:
-        print repo_name
-        get_git_data(git_commit_data, latest_commits, project_name, repo_name)
-
-    #START dump data
-    with open(data_folder + '/data_commits.json', 'w') as outfile:
-        json.dump(git_commit_data, outfile, indent=4)
-
-    with open(latest_filename, 'w') as latest_commits_file:
-        json.dump(latest_commits, latest_commits_file)
-
-    #END dump data
+    holder = Git_Holder(project_name, args.repos)
+    holder.process()
 
 if __name__ == "__main__":
     main()
