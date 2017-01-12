@@ -30,8 +30,6 @@ class Git_Holder(object):
 
     def get_repositories(self):
         repo_names = self.get_immediate_subdirectories()
-        print(self.repo_directory)
-        print(repo_names)
 
         for repo_name in repo_names:
             if repo_name in self.latest_commits:
@@ -55,7 +53,6 @@ class Git_Holder(object):
             repo.parse()
             self.latest_commits[repo_name] = repo.latest_commit
             self.data.extend(repo.data)
-            print(repo.data)
 
     def write_data(self):
         with open(self.project + '/data_commits.json', 'w') as data_file:
