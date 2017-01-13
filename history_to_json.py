@@ -36,13 +36,15 @@ def read_project_file(data_file, start_from=0):
             continue
 
         metric_row = ast.literal_eval(row)
+        date = parse_date(metric_row["date"])
         for metric in metric_row:
             if isinstance(metric_row[metric], tuple):
                 metric_row_data = {
                     'name': metric,
                     'value': metric_row[metric][0],
                     'category': metric_row[metric][1],
-                    'date': parse_date(metric_row[metric][2])
+                    'date': date,
+                    'since_date': parse_date(metric_row[metric][2])
                 }
                 metric_data.append(metric_row_data)
 
