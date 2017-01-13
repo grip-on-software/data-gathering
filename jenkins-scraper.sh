@@ -60,10 +60,7 @@ pip install -r scripts/requirements.txt
 cp scripts/*.py scripts/*.json scripts/*.cfg .
 
 # Retrieve Java importer
-curl -o dist.zip http://www.JENKINS_SERVER.localhost:8080/view/GROS/job/build-importerjson/lastSuccessfulBuild/artifact/Code/importerjson/dist/*zip*/dist.zip
-unzip dist.zip
-mv dist/* .
-rmdir dist
+python retrieve_importer.py
 
 ## now loop through the list of projects
 for project in $listOfProjects
