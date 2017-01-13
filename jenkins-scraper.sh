@@ -53,15 +53,17 @@ function update_repositories() {
 	done
 }
 
-pip install jira
-pip install gitpython
-pip install requests
+# Install Python dependencies
+pip install -r scripts/requirements.txt
 
-cp scripts/jira_to_json.py jira_to_json.py
-cp scripts/git_to_json.py git_to_json.py
-cp scripts/history_to_json.py history_to_json.py
-cp scripts/importerjson.jar importerjson.jar
-cp -r scripts/lib lib
+# Retrieve Python scripts
+cp scripts/*.py scripts/*.json scripts/*.cfg .
+
+# Retrieve Java importer
+curl -o dist.zip http://www.JENKINS_SERVER.localhost:8080/view/GROS/job/build-importerjson/lastSuccessfulBuild/artifact/Code/importerjson/dist/*zip*/dist.zip
+unzip dist.zip
+mv dist/* .
+rmdir dist
 
 ## now loop through the list of projects
 for project in $listOfProjects

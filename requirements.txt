@@ -1,0 +1,4 @@
+# Pip requirements file
+jira
+gitpython
+requests
