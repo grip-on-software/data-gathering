@@ -125,7 +125,8 @@ class Developer_Parser(Field_Parser):
 class ID_List_Parser(Field_Parser):
     def parse(self, value):
         if not isinstance(value, list):
-            return str(0)
+            # Singular value (changelogs)
+            return str(1)
 
         id_list = [item.id for item in value]
         return str(len(id_list))
@@ -461,6 +462,8 @@ class Jira(object):
         self.updated_since = Updated_Time(updated_since)
         self.latest_update = str(0)
 
+        self.query = 'project={} AND updated > "{}"'.format(self.jira_project_key, self.updated_since.timestamp)
+
         self.data_folder = self.jira_project_key
 
         self.issue_fields = {}
@@ -555,9 +558,8 @@ class Jira(object):
         return self.tables[name]
 
     def _perform_batched_query(self, start_at, iterate_size):
-        query = 'project={} AND updated > "{}"'.format(self.jira_project_key, self.updated_since.timestamp)
         self.latest_update = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M")
-        return self.jira_api.search_issues(query,
+        return self.jira_api.search_issues(self.query,
             startAt=start_at,
             maxResults=iterate_size,
             expand='attachment,changelog',
@@ -611,6 +613,13 @@ class Jira(object):
                 if changelog_name in self.changelog_fields:
                     field = self.changelog_fields[changelog_name]
                     value = field.parse(item)
+                    if field.name == "attachment":
+                        change = -1 if value == str(0) else +1
+                        if "attachment" in diffs:
+                            value = diffs["attachment"] + change
+                        else:
+                            value = change
+
                     diffs[field.name] = value
 
             if "updated" not in diffs:
@@ -636,10 +645,9 @@ class Jira(object):
 
         # Count attachments
         if "attachment" in diffs:
-            if diffs["attachment"] == str(0):
-                result["attachment"] = str(max(0, int(result["attachment"])-1))
-            else:
-                result["attachment"] = str(int(result["attachment"])+1)
+            result["attachment"] = str(max(0,
+                int(result["attachment"]) + diffs["attachment"]
+            ))
 
             diffs.pop("attachment")
 
