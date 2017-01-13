@@ -633,8 +633,15 @@ class Jira(object):
 
         # Shallow copy
         result = dict(source_data)
-        if "attachment" in diffs and diffs["attachment"] == str(0):
-            result["attachment"] = str(max(0, int(result["attachment"])-1))
+
+        # Count attachments
+        if "attachment" in diffs:
+            if diffs["attachment"] == str(0):
+                result["attachment"] = str(max(0, int(result["attachment"])-1))
+            else:
+                result["attachment"] = str(int(result["attachment"])+1)
+
+            diffs.pop("attachment")
 
         result.update(diffs)
         return result
