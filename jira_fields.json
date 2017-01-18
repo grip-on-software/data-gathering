@@ -138,5 +138,25 @@
         "field": "attachment",
         "changelog_name": "Attachment",
         "type": "id_list"
+    },
+    "rank_change": {
+        "field": "customfield_11400",
+        "changelog_name": "Rank",
+        "type": "rank"
+    },
+    "epic": {
+        "field": "customfield_10405",
+        "changelog_name": "Epic Link",
+        "type": "issue_key"
+    },
+    "flagged": {
+        "field": "customfield_10000",
+        "changelog_name": "Flagged",
+        "type": "flag"
+    },
+    "ready_status": {
+        "field": "customfield_11504",
+        "changelog_name": "Ready status",
+        "type": "ready_status"
     }
 }

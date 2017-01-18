@@ -2,6 +2,7 @@ import argparse
 import ConfigParser
 import json
 import os
+import re
 import traceback
 from datetime import datetime
 from jira import JIRA
@@ -20,10 +21,32 @@ class Field_Parser(object):
         self.jira = jira
 
     def parse(self, value):
+        """
+        Parse an issue field or changelog value.
+
+        Returns the value formatted according to the type.
+        """
+
         raise NotImplementedError("Must be overridden in subclass")
+
+    def parse_changelog(self, change, value, diffs):
+        """
+        Parse a changelog row and its parsed value.
+
+        This is only called by changelog fields after the normal parse method.
+        Returns the change value the original parsed value if that one should
+        be used.
+        """
+
+        return value
 
     @property
     def table_key(self):
+        """
+        Key to use for assigning unique rows to a table with parsed values of
+        this type, or `None` if there are no keyed tables for this type.
+        """
+
         return None
 
 class String_Parser(Field_Parser):
@@ -131,6 +154,15 @@ class ID_List_Parser(Field_Parser):
         id_list = [item.id for item in value]
         return str(len(id_list))
 
+    def parse_changelog(self, change, value, diffs):
+        change = -1 if value == str(0) else +1
+        if "attachment" in diffs:
+            value = diffs["attachment"] + change
+        else:
+            value = change
+
+        return value
+
 class Fix_Version_Parser(Field_Parser):
     def parse(self, value):
         if value is None:
@@ -153,6 +185,69 @@ class Fix_Version_Parser(Field_Parser):
                 })
 
         return encoded_value
+
+    @property
+    def table_key(self):
+        return "id"
+
+class Rank_Parser(Field_Parser):
+    def parse(self, value):
+        return str(0)
+
+    def parse_changelog(self, change, value, diffs):
+        # TODO: Only toString is available
+        if change["toString"] == "Ranked higher":
+            return str(1)
+        if change["toString"] == "Ranked lower":
+            return str(-1)
+
+        return value
+
+class Issue_Key_Parser(String_Parser):
+    def parse_changelog(self, change, value, diffs):
+        if change["fromString"] is not None:
+            return change["fromString"]
+
+        return str(0)
+
+class Flag_Parser(Field_Parser):
+    def parse(self, value):
+        if isinstance(value, list):
+            if len(value) > 0:
+                return str(1)
+        elif value != "":
+            return str(1)
+
+        return str(0)
+
+class Ready_Status_Parser(Field_Parser):
+    def _add_to_table(self, encoded_id, html):
+        match = re.match(r'<font .*><b>(.*)</b></font>', html)
+        if match:
+            name = match.group(1)
+            self.jira.get_table("ready_status").append({
+                "id": encoded_id,
+                "name": name
+            })
+
+    def parse(self, value):
+        if value is None:
+            return str(0)
+
+        encoded_value = str(0)
+
+        if hasattr(value, 'id') and hasattr(value, 'value'):
+            encoded_value = str(value.id)
+            self._add_to_table(encoded_value, value.value)
+
+        return encoded_value
+
+    def parse_changelog(self, change, value, diffs):
+        if change["from"] is not None:
+            value = str(change["from"])
+            self._add_to_table(value, change["fromString"])
+
+        return value
 
     @property
     def table_key(self):
@@ -183,16 +278,21 @@ class Jira_Field(object):
         if field is None:
             return str(0)
 
+        for parser in self.get_types():
+            field = parser.parse(field)
+
+        return field
+
+    def get_types(self):
         if "type" in self.data:
             if isinstance(self.data["type"], list):
                 types = self.data["type"]
             else:
                 types = (self.data["type"],)
 
-            for datatype in types:
-                field = self.jira.type_casts[datatype].parse(field)
+            return [self.jira.type_casts[datatype] for datatype in types]
 
-        return field
+        return []
 
     @property
     def search_field(self):
@@ -311,6 +411,13 @@ class Changelog_Field(Jira_Field):
             return data['fromString']
 
         return None
+
+    def parse_changelog(self, issue, diffs):
+        field = self.parse(issue)
+        for parser in self.get_types():
+            field = parser.parse_changelog(issue.__dict__, field, diffs)
+
+        return field
 
     @property
     def search_field(self):
@@ -481,7 +588,8 @@ class Jira(object):
             "comments": Table("comments"),
             "issueLinks": Link_Table("issuelinks",
                 ("from_id", "to_id", "relationshiptype")
-            )
+            ),
+            "ready_status": Key_Table("ready_status", "id")
         }
 
         self.type_casts = {
@@ -493,7 +601,11 @@ class Jira(object):
             "developer": Developer_Parser(self),
             "point": Point_Parser(self),
             "id_list": ID_List_Parser(self),
-            "fix_version": Fix_Version_Parser(self)
+            "fix_version": Fix_Version_Parser(self),
+            "rank": Rank_Parser(self),
+            "issue_key": Issue_Key_Parser(self),
+            "flag": Flag_Parser(self),
+            "ready_status": Ready_Status_Parser(self)
         }
         
         self._import_field_specifications()
@@ -612,14 +724,7 @@ class Jira(object):
                 changelog_name = str(item.field)
                 if changelog_name in self.changelog_fields:
                     field = self.changelog_fields[changelog_name]
-                    value = field.parse(item)
-                    if field.name == "attachment":
-                        change = -1 if value == str(0) else +1
-                        if "attachment" in diffs:
-                            value = diffs["attachment"] + change
-                        else:
-                            value = change
-
+                    value = field.parse_changelog(item, diffs)
                     diffs[field.name] = value
 
             if "updated" not in diffs:
@@ -654,6 +759,10 @@ class Jira(object):
         result.update(diffs)
         return result
 
+    def _alter_change_metdata(self, data, diffs):
+        data["updated_by"] = diffs.pop("updated_by", str(0))
+        data["rank_change"] = diffs.pop("rank_change", str(0))
+
     def get_changelog_versions(self, issue, data):
         issue_diffs = self.fetch_changelog(issue)
 
@@ -670,13 +779,13 @@ class Jira(object):
             diffs = issue_diffs[updated]
             if not prev_diffs:
                 data["changelog_id"] = str(changelog_count)
-                data["updated_by"] = diffs.pop("updated_by", str(0))
+                self._alter_change_metdata(data, diffs)
                 versions.append(data)
                 prev_diffs = diffs
                 changelog_count -= 1
             else:
                 prev_diffs["updated"] = updated
-                prev_diffs["updated_by"] = diffs.pop("updated_by", str(0))
+                self._alter_change_metdata(prev_diffs, diffs)
                 old_data = self._create_change_transition(prev_data, prev_diffs)
                 old_data["changelog_id"] = str(changelog_count)
                 versions.append(old_data)
