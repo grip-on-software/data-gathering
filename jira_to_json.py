@@ -79,6 +79,9 @@ class Sprint_Parser(Field_Parser):
     def _split_sprint(self, sprint):
         sprint_data = {}
         sprint_string = str(sprint)
+        if '[' not in sprint_string:
+            return sprint_data
+
         sprint_string = sprint_string[sprint_string.rindex('[')+1:-1]
         sprint_parts = sprint_string.split(',')
         for part in sprint_parts:
@@ -86,12 +89,8 @@ class Sprint_Parser(Field_Parser):
                 pair = part.split('=')
                 key = pair[0].encode('utf-8')
                 value = pair[1].encode('utf-8')
-                if key == "endDate" or key == "startDate":
-                    value = parse_date(value)
-
                 sprint_data[key] = value
             except IndexError:
-                # TODO: Continue or return partial result
                 return False
 
         return sprint_data
@@ -107,13 +106,17 @@ class Sprint_Parser(Field_Parser):
             self.jira.get_table("sprint").append({
                 "id": sprint_text,
                 "name": str(sprint_data["name"]),
-                "start_date": str(sprint_data["startDate"]),
-                "end_date": str(sprint_data["endDate"])
+                "start_date": parse_date(sprint_data["startDate"]),
+                "end_date": parse_date(sprint_data["endDate"])
             })
 
-            return sprint_text
+        return sprint_text
 
-        return str(0)
+    def parse_changelog(self, change, value, diffs):
+        if change['from'] is None:
+            return str(0)
+
+        return str(int(change['from'].split(', ')[0]))
 
     @property
     def table_key(self):
@@ -588,8 +591,7 @@ class Jira(object):
             "comments": Table("comments"),
             "issueLinks": Link_Table("issuelinks",
                 ("from_id", "to_id", "relationshiptype")
-            ),
-            "ready_status": Key_Table("ready_status", "id")
+            )
         }
 
         self.type_casts = {

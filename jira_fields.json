@@ -120,7 +120,8 @@
         "type": "date"
     }, 
     "sprint": {
-        "field": "customfield_10207", 
+        "field": "customfield_10207",
+        "changelog_name": "Sprint",
         "type": "sprint",
         "table": "sprint"
     }, 
@@ -157,6 +158,7 @@
     "ready_status": {
         "field": "customfield_11504",
         "changelog_name": "Ready status",
-        "type": "ready_status"
+        "type": "ready_status",
+        "table": "ready_status"
     }
 }
