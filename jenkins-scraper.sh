@@ -2,8 +2,15 @@
 
 ROOT=$PWD
 
-# Declare list of projects to scrape from
-listOfProjects="PROJ1 PROJ2 PROJN"
+# Declare list of projects to scrape from, space-separated
+if [ -z "$listOfProjects" ]; then
+	listOfProjects="PROJ1 PROJ2 PROJN"
+fi
+
+# Declare the tasks to run during the import, comma-separated
+if [ -z "$importerTasks" ]; then
+	importerTasks="all"
+fi
 
 # Files that are backed up in case of errors for each project
 restoreFiles="jira-updated.txt git-commit.json history_line_count.txt"
@@ -98,5 +105,5 @@ do
 	status_handler python jira_to_json.py $project
 	status_handler python git_to_json.py $project
 	status_handler python history_to_json.py $project
-	status_handler java -jar importerjson.jar $project
+	status_handler java -jar importerjson.jar $project $importerTasks
 done
