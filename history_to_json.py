@@ -1,4 +1,5 @@
 import argparse
+import ConfigParser
 import ast
 import gzip
 import io
@@ -10,19 +11,12 @@ import traceback
 from pprint import pprint
 from utils import parse_date
 
-project_names = {
-    "PROJ1": "project1",
-    "PROJ2": "project2",
-    "PROJ3": "project3"
-}
-jenkins_url = "http://www.JENKINS_SERVER.localhost:8080/view/Quality%20reports/job/create-full-history/ws/"
-
-def parse_args():
+def parse_args(config):
     parser = argparse.ArgumentParser(description="Obtain and convert a metrics history file in a JSON format readable by the database importer.")
     parser.add_argument("project", help="project key")
     parser.add_argument("--start-from", dest="start_from", type=int, default=None, help="line number to start reading from")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--url", default=jenkins_url, help="url prefix to obtain the file from")
+    group.add_argument("--url", default=config.get('history', 'url'), help="url prefix to obtain the file from")
     group.add_argument("--file", help="local file to read from")
     return parser.parse_args()
 
@@ -53,7 +47,9 @@ def read_project_file(data_file, start_from=0):
     return metric_data, line_count
 
 def main():
-    args = parse_args()
+    config = ConfigParser.RawConfigParser()
+    config.read("settings.cfg")
+    args = parse_args(config)
     project_key = args.project
     start_from = args.start_from
     line_filename = project_key + '/history_line_count.txt'
@@ -68,8 +64,8 @@ def main():
         with open(args.file, 'r') as data_file:
             metric_data, line_count = read_project_file(data_file, start_from)
     else:
-        if project_key in project_names:
-            project_name = project_names[project_key]
+        if config.has_option('projects', project_key):
+            project_name = config.get('projects', project_key)
         else:
             print("No metrics history files available for " + project_key + ", skipping.")
             return
