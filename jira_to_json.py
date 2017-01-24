@@ -808,10 +808,11 @@ class Jira(object):
             if hasattr(issue.fields.comment, 'comments'):
                 for comment in issue.fields.comment.comments:
                     if hasattr(comment, 'body') and hasattr(comment, 'author') and hasattr(comment, 'id') and hasattr(comment, 'created'):
+                        name = self.type_casts["developer"].parse(comment.author)
                         self.tables["comments"].append({
                             'id': str(comment.id),
                             'issue_id': str(issue.id),
-                            'author': parse_unicode(comment.author.name),
+                            'author': name,
                             'comment': parse_unicode(comment.body),
                             'created_at': parse_date(comment.created)
                         })
