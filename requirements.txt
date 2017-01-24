@@ -2,3 +2,4 @@
 jira
 gitpython
 requests
+quality_report

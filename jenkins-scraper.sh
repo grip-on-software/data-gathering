@@ -69,6 +69,14 @@ cp scripts/*.py scripts/*.json scripts/*.cfg .
 # Retrieve Java importer
 python retrieve_importer.py
 
+if [ "$(ls -A kwaliteitsmetingen 2>/dev/null)" ]; then
+	cd kwaliteitsmetingen
+	svn update
+	cd ..
+else
+	svn checkout http://SUBVERSION_SERVER.localhost/commons/algemeen/kwaliteitsmetingen/
+fi
+
 ## now loop through the list of projects
 for project in $listOfProjects
 do
@@ -105,6 +113,6 @@ do
 	status_handler python jira_to_json.py $project
 	status_handler python git_to_json.py $project
 	status_handler python history_to_json.py $project
-	status_handler python metric_options_to_json.py $project
+	status_handler python metric_options_to_json.py $project --context -1
 	status_handler java -jar importerjson.jar $project $importerTasks
 done
