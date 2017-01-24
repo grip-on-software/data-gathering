@@ -17,6 +17,7 @@ def main():
         shutil.rmtree('lib')
 
     shutil.move('dist/importerjson.jar', 'importerjson.jar')
+    shutil.move('dist/data_gitdev_to_dev.json', 'data_gitdev_to_dev.json')
     shutil.move('dist/lib/', '.')
     shutil.rmtree('dist')
     os.remove('dist.zip')
