@@ -80,16 +80,19 @@ class Project_Definition_Parser(object):
         return domain_objects
 
     def format_exception(self, contents, emulate_context=True):
-        message = "Could not parse project definition: " + traceback.format_exc()
-        if emulate_context:
-            tb = sys.exc_traceback
-            line = traceback.extract_tb(tb)[-1][1]
-            lines = contents.split('\n')
-            range_start = max(0, line-self.context_lines-1)
-            range_end = min(len(lines), line+self.context_lines)
-            message += "Context:\n" + '\n'.join(lines[range_start:range_end])
+        etype, value, tb = sys.exc_info()
+        formatted_lines = traceback.format_exception_only(etype, value)
+        message = "Could not parse project definition: " + formatted_lines[-1]
+        if self.context_lines >= 0:
+            message += ''.join(formatted_lines[:-1])
+            if emulate_context:
+                line = traceback.extract_tb(tb)[-1][1]
+                lines = contents.split('\n')
+                range_start = max(0, line-self.context_lines-1)
+                range_end = min(len(lines), line+self.context_lines)
+                message += "Context:\n" + '\n'.join(lines[range_start:range_end])
 
-        raise RuntimeError(message)
+        raise RuntimeError(message.strip())
 
     def load_definition(self, contents):
         """
@@ -213,6 +216,11 @@ class Project_Definition_Parser(object):
             if key in options:
                 targets[key] = str(options[key])
 
+        targets.update(self.parse_debt_target(options))
+
+        self.metric_targets[metric_name] = targets
+
+    def parse_debt_target(self, options):
         if 'debt_target' in options:
             debt = options['debt_target']
 
@@ -221,11 +229,13 @@ class Project_Definition_Parser(object):
                 debt_target = debt.target_value()
                 debt_comment = debt.explanation()
 
-                targets['target'] = str(debt_target)
-                targets['type'] = debt.__class__.__name__
-                targets['comment'] = debt_comment
+                return {
+                    'target': str(debt_target),
+                    'type': debt.__class__.__name__,
+                    'comment': debt_comment
+                }
 
-        self.metric_targets[metric_name] = targets
+        return {}
 
 class Subversion_Repository(object):
     def __init__(self, path='.'):
@@ -256,6 +266,103 @@ class Subversion_Repository(object):
     def get_contents(self, filename, revision=None):
         return self.svn.cat(filename, revision=revision)
 
+class Metric_Difference(object):
+    """
+    Class that determines whether metric options were changed.
+    """
+
+    def __init__(self, previous_targets=None):
+        if previous_targets is not None:
+            self._previous_metric_targets = previous_targets
+        else:
+            self._previous_metric_targets = {}
+
+        self._unique_versions = []
+        self._unique_metric_targets = []
+
+    def add_version(self, version, metric_targets):
+        """
+        Check whether this version contains unique changes.
+        """
+
+        # Detect whether the metrics and definitions have changed
+        if metric_targets != self._previous_metric_targets:
+            self._unique_versions.append(version)
+            for name, metric_target in metric_targets.iteritems():
+                if name in self._previous_metric_targets:
+                    previous_metric_target = self._previous_metric_targets[name]
+                else:
+                    previous_metric_target = {}
+
+                if metric_target != previous_metric_target:
+                    unique_target = dict(metric_target)
+                    unique_target['name'] = name
+                    unique_target['revision'] = version['revision']
+                    self._unique_metric_targets.append(unique_target)
+
+            self._previous_metric_targets = metric_targets
+
+    @property
+    def previous_metric_targets(self):
+        return self._previous_metric_targets
+
+    @property
+    def unique_versions(self):
+        return self._unique_versions
+
+    @property
+    def unique_metric_targets(self):
+        return self._unique_metric_targets
+
+class Update_Tracker(object):
+    def __init__(self, project_key):
+        self._project_key = project_key
+        self._filename = self._project_key + '/metric_options_update.json'
+
+        self._file_loaded = False
+        self._from_revision = None
+        self._previous_targets = None
+
+    def get_start_revision(self, from_revision=None):
+        if from_revision is not None:
+            return from_revision
+
+        if not self._file_loaded:
+            self._read()
+
+        if self._from_revision is None:
+            return None
+
+        return self._from_revision + 1
+
+    def get_previous_targets(self):
+        if not self._file_loaded:
+            self._read()
+
+        if self._previous_targets is None:
+            return {}
+
+        return self._previous_targets
+
+    def _read(self):
+        if os.path.exists(self._filename):
+            with open(self._filename, 'r') as f:
+                data = json.load(f)
+
+            self._from_revision = int(data['version'])
+            self._previous_targets = data['targets']
+
+        self._file_loaded = True
+
+    def set_end(self, end_revision, previous_targets):
+        if end_revision is not None:
+            data = {
+                'version': end_revision,
+                'targets': previous_targets
+            }
+            with open(self._filename, 'w') as f:
+                json.dump(data, f)
+
 def parse_svn_revision(rev):
     if rev.startswith('r'):
         rev = rev[1:]
@@ -273,8 +380,6 @@ def parse_args():
     return parser.parse_args()
 
 def main():
-    # TODO: Add incremental updates (track latest revision and use it as 
-    # from-revision by default)
     config = ConfigParser.RawConfigParser()
     config.read("settings.cfg")
     args = parse_args()
@@ -286,47 +391,40 @@ def main():
         print('No quality metrics options available for ' + project_key + ', skipping.')
         return
 
+    update_tracker = Update_Tracker(project_key)
+    from_revision = update_tracker.get_start_revision(args.from_revision)
+
     svn = Subversion_Repository(args.repo)
     filename = project_name + '/project_definition.py'
-    versions = svn.get_versions(filename, from_revision=args.from_revision,
+    versions = svn.get_versions(filename, from_revision=from_revision,
         to_revision=args.to_revision, descending=False
     )
-    previous_metric_targets = {}
 
-    unique_versions = []
-    unique_metric_targets = []
+    diff = Metric_Difference(update_tracker.get_previous_targets())
+    end_revision = None
     for version in versions:
-        parser = Project_Definition_Parser(file_time=version['commit_date'])
+        parser = Project_Definition_Parser(context_lines=args.context,
+            file_time=version['commit_date']
+        )
         contents = svn.get_contents(filename, revision=version['revision'])
         try:
             parser.load_definition(contents)
             metric_targets = parser.parse()
         except RuntimeError as e:
-            print("Problem with revision {}: {}".format(version['revision'], e))
+            print("Problem with revision {}: {}".format(version['revision'], e.message))
             continue
 
-        # Detect whether the metrics and definitions have changed
-        if metric_targets != previous_metric_targets:
-            unique_versions.append(version)
-            for name, metric_target in metric_targets.iteritems():
-                if name in previous_metric_targets:
-                    previous_metric_target = previous_metric_targets[name]
-                else:
-                    previous_metric_target = {}
-
-                if metric_target != previous_metric_targets:
-                    unique_target = dict(metric_target)
-                    unique_target['name'] = name
-                    unique_target['revision'] = version['revision']
-                    unique_metric_targets.append(unique_target)
-
-            previous_metric_targets = metric_targets
+        diff.add_version(version, metric_targets)
+        end_revision = version['revision']
 
     with open(project_key + '/data_metric_versions.json', 'w') as outfile:
-        json.dump(unique_versions, outfile, indent=4)
+        json.dump(diff.unique_versions, outfile, indent=4)
 
     with open(project_key + '/data_metric_targets.json', 'w') as outfile:
-        json.dump(unique_metric_targets, outfile, indent=4)
+        json.dump(diff.unique_metric_targets, outfile, indent=4)
+
+    update_tracker.set_end(end_revision, diff.previous_metric_targets)
+    print('{} revisions parsed'.format(len(versions)))
 
 if __name__ == "__main__":
     main()
