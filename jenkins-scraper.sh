@@ -13,7 +13,7 @@ if [ -z "$importerTasks" ]; then
 fi
 
 # Files that are backed up in case of errors for each project
-restoreFiles="jira-updated.txt git-commit.json history_line_count.txt"
+restoreFiles="jira-updated.txt git-commit.json history_line_count.txt metric_options_update.json"
 
 function error_handler() {
 	echo "Reverting workspace tracking data..."
@@ -105,5 +105,6 @@ do
 	status_handler python jira_to_json.py $project
 	status_handler python git_to_json.py $project
 	status_handler python history_to_json.py $project
+	status_handler python metric_options_to_json.py $project
 	status_handler java -jar importerjson.jar $project $importerTasks
 done
