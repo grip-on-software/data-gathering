@@ -6,7 +6,7 @@ gitpython
 # history_to_json.py
 requests
 # metric_options_to_json.py
-dateutil
+python-dateutil
 mock
 quality_report
 svn
