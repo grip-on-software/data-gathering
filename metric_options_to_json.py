@@ -128,23 +128,25 @@ class Project_Definition_Parser(object):
             'qualitylib': hqlib,
             'qualitylib.domain': domain
         }
+        open_mock = mock.mock_open()
 
         with mock.patch.dict('sys.modules', modules):
-            try:
-                # Load the project definition by executing the contents of the 
-                # file with altered module definitions.
-                exec(contents)
-            except SyntaxError as e:
-                # Most syntax errors have correct line marker information
-                if e.text is None:
+            with mock.patch('__main__.open', open_mock):
+                try:
+                    # Load the project definition by executing the contents of 
+                    # the file with altered module definitions.
+                    exec(contents)
+                except SyntaxError as e:
+                    # Most syntax errors have correct line marker information
+                    if e.text is None:
+                        self.format_exception(contents)
+                    else:
+                        self.format_exception(contents, emulate_context=False)
+                except Exception:
+                    # Because of string execution, the line number of the 
+                    # exception becomes incorrect. Attempt to emulate the 
+                    # context display using traceback extraction.
                     self.format_exception(contents)
-                else:
-                    self.format_exception(contents, emulate_context=False)
-            except Exception:
-                # Because of string execution, the line number of the exception 
-                # becomes incorrect. Attempt to emulate the context display 
-                # using traceback extraction.
-                self.format_exception(contents)
 
     def parse(self):
         """
@@ -250,10 +252,11 @@ class Subversion_Repository(object):
             # Convert to local timestamp
             commit_date = entry.date.replace(tzinfo=dateutil.tz.tzutc())
             commit_date = commit_date.astimezone(dateutil.tz.tzlocal())
+            message = entry.msg if entry.msg is not None else ''
             version = {
-                'revision': entry.revision,
+                'revision': str(entry.revision),
                 'developer': entry.author,
-                'message': entry.msg,
+                'message': message,
                 'commit_date': datetime.datetime.strftime(commit_date, '%Y-%m-%d %H:%M:%S')
             }
 

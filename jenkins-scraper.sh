@@ -71,10 +71,10 @@ python retrieve_importer.py
 
 if [ "$(ls -A kwaliteitsmetingen 2>/dev/null)" ]; then
 	cd kwaliteitsmetingen
-	svn update
+	svn update -q
 	cd ..
 else
-	svn checkout http://SUBVERSION_SERVER.localhost/commons/algemeen/kwaliteitsmetingen/
+	svn checkout -q http://SUBVERSION_SERVER.localhost/commons/algemeen/kwaliteitsmetingen/
 fi
 
 ## now loop through the list of projects
