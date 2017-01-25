@@ -1,5 +1,12 @@
 # Pip requirements file
+# jira_to_json.py
 jira
+# git_to_json.py
 gitpython
+# history_to_json.py
 requests
+# metric_options_to_json.py
+dateutil
+mock
 quality_report
+svn
