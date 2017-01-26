@@ -201,15 +201,15 @@ class Project_Definition_Parser(object):
         elif isinstance(metric, mock.Mock):
             # No default data available
             targets = {
-                'low_target': '',
-                'target': '',
+                'low_target': '0',
+                'target': '0',
                 'type': 'old_options',
                 'comment': ''
             }
         else:
             targets = {
-                'low_target': str(metric.low_target_value),
-                'target': str(metric.target_value),
+                'low_target': str(int(metric.low_target_value)),
+                'target': str(int(metric.target_value)),
                 'type': options_type,
                 'comment': ''
             }
