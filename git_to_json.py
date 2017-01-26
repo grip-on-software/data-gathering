@@ -114,6 +114,10 @@ class Git_Repository(object):
         cstotal = cs.total
         commit_datetime = datetime.fromtimestamp(commit.committed_date)
 
+        commit_type = str(commit.type)
+        if len(commit.parents) > 1:
+            commit_type = 'merge'
+
         git_commit = {
             # Primary data
             'git_repo': str(self.repo_name),
@@ -127,7 +131,7 @@ class Git_Repository(object):
             # More data
             'message': parse_unicode(commit.message),
             'size_of_commit': str(commit.size),
-            'type': str(commit.type),
+            'type': commit_type,
             'developer': commit.author.name,
             'developer_email': str(commit.author.email),
             'commit_date': datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
