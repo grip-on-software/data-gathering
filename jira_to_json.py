@@ -9,10 +9,24 @@ from jira import JIRA
 from utils import parse_date, parse_unicode
 
 ###
+# Abstract classes
+###
+
+class Table_Key_Source(object):
+    @property
+    def table_key(self):
+        """
+        Key to use for assigning unique rows to a table with parsed values of
+        this type, or `None` if there are no keyed tables for this type.
+        """
+
+        return None
+
+###
 # Type specific parsers
 ###
 
-class Field_Parser(object):
+class Field_Parser(Table_Key_Source):
     """
     Parser for JIRA fields. Different versions for each type exist.
     """
@@ -39,15 +53,6 @@ class Field_Parser(object):
         """
 
         return value
-
-    @property
-    def table_key(self):
-        """
-        Key to use for assigning unique rows to a table with parsed values of
-        this type, or `None` if there are no keyed tables for this type.
-        """
-
-        return None
 
 class String_Parser(Field_Parser):
     """
@@ -198,7 +203,6 @@ class Rank_Parser(Field_Parser):
         return str(0)
 
     def parse_changelog(self, change, value, diffs):
-        # TODO: Only toString is available
         if change["toString"] == "Ranked higher":
             return str(1)
         if change["toString"] == "Ranked lower":
@@ -260,7 +264,7 @@ class Ready_Status_Parser(Field_Parser):
 # Field definitions
 ###
 
-class Jira_Field(object):
+class Jira_Field(Table_Key_Source):
     """
     Field parser for the issue field data returned by the JIRA REST API.
     """
@@ -370,7 +374,6 @@ class Property_Field(Payload_Field):
                     prop = getattr(payload_field, name)
                     row[name] = self.jira.type_casts[datatype].parse(prop)
                 else:
-                    #print("missing data for {}, prop {}".format(self.name, name))
                     row[name] = str(0)
 
             if has_data:
@@ -430,14 +433,88 @@ class Changelog_Field(Jira_Field):
     def table_key(self):
         raise Exception("Changelog fields are not keyable at this moment")
 
+###
+# Special field parsers
+###
+
+class Special_Field(Table_Key_Source):
+    def __init__(self, jira, **info):
+        self.jira = jira
+        self.info = info
+
+    def parse(self, issue, field):
+        raise NotImplementedError("Subclasses must override this method")
+
+class Comment_Field(Special_Field):
+    def parse(self, issue, field):
+        if hasattr(field, 'comments'):
+            for comment in field.comments:
+                row = {}
+                for subfield, datatype in self.info["table"].iteritems():
+                    if subfield in self.info["fields"]:
+                        fieldname = self.info["fields"][subfield]
+                    else:
+                        fieldname = subfield
+
+                    if hasattr(comment, fieldname):
+                        prop = getattr(comment, fieldname)
+                        row[subfield] = self.jira.type_casts[datatype].parse(prop)
+                    else:
+                        row[subfield] = str(0)
+
+                    row["issue_id"] = str(issue.id)
+                    self.jira.get_table("comment").append(row)
+
+    @property
+    def table_key(self):
+        return "id"
+
+class Issue_Link_Field(Special_Field):
+    def parse(self, issue, field):
+        for issuelink in field:
+            if not hasattr(issuelink, 'type') or not hasattr(issuelink.type, 'id'):
+                continue
+
+            self.jira.get_table("relationshiptype").append({
+                'id': str(issuelink.type.id),
+                'name': str(issuelink.type.name),
+            })
+
+            if hasattr(issuelink, 'outwardIssue'):
+                self.jira.get_table("issuelinks").append({
+                    'from_id': str(issue.id),
+                    'to_id': str(issuelink.outwardIssue.id),
+                    'relationshiptype': str(issuelink.type.id)
+                })
+
+            if hasattr(issuelink, 'inwardIssue'):
+                self.jira.get_table("issuelinks").append({
+                    'from_id': str(issue.id),
+                    'to_id': str(issuelink.inwardIssue.id),
+                    'relationshiptype': str(issuelink.type.id)
+                })
+
+    @property
+    def table_key(self):
+        return ('from_id', 'to_id', 'relationshiptype')
+
+###
+# Table structures
+###
+
 class Table(object):
     """
     Data storage for eventual JSON output for the database importer.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, filename=None, **kwargs):
         self.name = name
         self.data = []
+
+        if filename is None:
+            self.filename = 'data_{}.json'.format(self.name)
+        else:
+            self.filename = filename
 
     def append(self, row):
         self.data.append(row)
@@ -445,6 +522,10 @@ class Table(object):
 
     def extend(self, rows):
         self.data.extend(rows)
+
+    def write(self, folder):
+        with open(folder + "/" + self.filename, 'w') as outfile:
+            json.dump(self.data, outfile, indent=4)
 
 class Key_Table(Table):
     """
@@ -454,8 +535,8 @@ class Key_Table(Table):
     accepting a new row with that key
     """
 
-    def __init__(self, name, key):
-        super(Key_Table, self).__init__(name)
+    def __init__(self, name, key, **kwargs):
+        super(Key_Table, self).__init__(name, **kwargs)
         self.key = key
         self.keys = set()
 
@@ -476,8 +557,8 @@ class Link_Table(Table):
     a primary key.
     """
 
-    def __init__(self, name, link_keys):
-        super(Link_Table, self).__init__(name)
+    def __init__(self, name, link_keys, **kwargs):
+        super(Link_Table, self).__init__(name, **kwargs)
         self.link_keys = link_keys
         self.links = set()
 
@@ -580,18 +661,15 @@ class Jira(object):
         self.changelog_fields = {}
         self.changelog_primary_fields = {}
 
-        self.extra_data_parsers = {
-            "comment": self.parse_comments,
-            "issuelinks": self.parse_issuelinks
+        self.special_parser_classes = {
+            "comment": Comment_Field,
+            "issuelink": Issue_Link_Field
         }
+        self.special_parsers = {}
 
         self.tables = {
-            "issue": Table("issue"),
-            "relationshiptype": Key_Table("relationshiptype", "id"),
-            "comments": Table("comments"),
-            "issueLinks": Link_Table("issuelinks",
-                ("from_id", "to_id", "relationshiptype")
-            )
+            "issue": Table("issue", filename="data.json"),
+            "relationshiptype": Key_Table("relationshiptype", "id")
         }
 
         self.type_casts = {
@@ -639,21 +717,15 @@ class Jira(object):
                 if search_field is not None:
                     jira_fields.append(search_field)
 
-                if "table" in data:
-                    if isinstance(data["table"], dict):
-                        table_name = name
-                    else:
-                        table_name = data["table"]
+                self.register_table(name, data, table_key_source=field)
 
-                    key = None
-                    if "type" in data:
-                        datatype = data["type"]
-                        key = self.type_casts[datatype].table_key
-
-                    if key is None:
-                        key = self.issue_fields[name].table_key
-
-                    self.tables[table_name] = Key_Table(table_name, key)
+            if "special_parser" in data:
+                parser_class = self.special_parser_classes[name]
+                self.special_parsers[name] = parser_class(self, **data)
+                self.register_table(data["special_parser"], data,
+                    table_key_source=self.special_parsers[name]
+                )
+                jira_fields.append(name)
 
             if "changelog_primary" in data:
                 changelog_name = data["changelog_primary"]
@@ -664,9 +736,29 @@ class Jira(object):
                 field = Changelog_Field(self, name, **data)
                 self.changelog_fields[changelog_name] = field
 
-        jira_fields.extend(self.extra_data_parsers.keys())
-
         self.jira_search_fields = ','.join(jira_fields)
+
+    def register_table(self, name, data, table_key_source=None):
+        if "table" in data:
+            if isinstance(data["table"], dict):
+                table_name = name
+            else:
+                table_name = data["table"]
+
+            key = None
+            if "type" in data:
+                datatype = data["type"]
+                key = self.type_casts[datatype].table_key
+
+            if key is None and table_key_source is not None:
+                key = table_key_source.table_key
+
+            if key is None:
+                self.tables[table_name] = Table(table_name)
+            elif isinstance(key, tuple):
+                self.tables[table_name] = Link_Table(table_name, key)
+            else:
+                self.tables[table_name] = Key_Table(table_name, key)
 
     def get_table(self, name):
         return self.tables[name]
@@ -692,8 +784,7 @@ class Jira(object):
                 versions = self.get_changelog_versions(issue, data)
                 self.tables["issue"].extend(versions)
 
-                for parse in self.extra_data_parsers.itervalues():
-                    parse(issue)
+                self.parse_special_fields(issue)
 
             start_at = start_at + iterate_size
             if start_at + iterate_size > iterate_max:
@@ -803,57 +894,16 @@ class Jira(object):
 
         return versions
 
-    def parse_comments(self, issue):
-        if hasattr(issue.fields, 'comment') and issue.fields.comment is not None:
-            if hasattr(issue.fields.comment, 'comments'):
-                for comment in issue.fields.comment.comments:
-                    if hasattr(comment, 'body') and hasattr(comment, 'author') and hasattr(comment, 'id') and hasattr(comment, 'created'):
-                        name = self.type_casts["developer"].parse(comment.author)
-                        self.tables["comments"].append({
-                            'id': str(comment.id),
-                            'issue_id': str(issue.id),
-                            'author': name,
-                            'comment': parse_unicode(comment.body),
-                            'created_at': parse_date(comment.created)
-                        })
-
-    def parse_issuelinks(self, issue):
-        if hasattr(issue.fields, 'issuelinks') and issue.fields.issuelinks is not None:
-            for issuelink in issue.fields.issuelinks:
-                if not hasattr(issuelink, 'type') or not hasattr(issuelink.type, 'id'):
-                    continue
-
-                self.tables["relationshiptype"].append({
-                    'id': str(issuelink.type.id), 
-                    'name': str(issuelink.type.name),
-                })
-
-                if hasattr(issuelink, 'outwardIssue'):
-                    self.tables["issueLinks"].append({
-                        'from_id': str(issue.id),
-                        'to_id': str(issuelink.outwardIssue.id),
-                        'relationshiptype': issuelink.type.id
-                    })
-
-                if hasattr(issuelink, 'inwardIssue'):
-                    self.tables["issueLinks"].append({
-                        'from_id': str(issue.id),
-                        'to_id': str(issuelink.inwardIssue.id),
-                        'relationshiptype': issuelink.type.id
-                    })
+    def parse_special_fields(self, issue):
+        for name, parser in self.special_parsers.iteritems():
+            if hasattr(issue, name):
+                field = getattr(issue, name)
+                if field is not None:
+                    parser.parse(issue, field)
 
     def write_tables(self):
         for table in self.tables.itervalues():
-            self.write_table(table)
-
-    def write_table(self, table):
-        if table.name == "issue":
-            filename = "data.json"
-        else:
-            filename = "data_" + table.name + ".json"
-
-        with open(self.data_folder + "/" + filename, 'w') as outfile:
-            json.dump(table.data, outfile, indent=4)
+            table.write(self.data_folder)
 
     def process(self):
         if not os.path.exists(self.data_folder):

@@ -160,5 +160,31 @@
         "changelog_name": "Ready status",
         "type": "ready_status",
         "table": "ready_status"
+    },
+    "comment": {
+        "special_parser": "comments",
+        "table": {
+            "id": "int",
+            "issue_id": "int",
+            "comment": "unicode",
+            "author": "developer",
+            "created_at": "date",
+            "updater": "developer",
+            "updated_at": "date"
+        },
+        "fields": {
+            "comment": "body",
+            "created_at": "created",
+            "updater": "updateAuthor",
+            "updated_at": "updated"
+        }
+    },
+    "issuelinks": {
+        "special_parser": "issueLinks",
+        "table": {
+            "from_id": "int",
+            "to_id": "int",
+            "relationshiptype": "int"
+        }
     }
 }
