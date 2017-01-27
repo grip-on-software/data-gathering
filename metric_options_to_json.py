@@ -1,36 +1,77 @@
+"""
+Script to parse historical project definitions and extract metric targets from
+these versions into JSON output.
+"""
+
 import argparse
 import ConfigParser
 import datetime
-import dateutil.tz
 import inspect
 import json
-import mock
 import os.path
 import sys
-import svn.local
 import traceback
+# Non-standard imports
+import dateutil.tz
+import mock
+import svn.local
 from hqlib import domain, metric
 
-replacements = {}
-
-# Define some classes that are backward compatible with earlier versions of 
+# Define some classes that are backward compatible with earlier versions of
 # hqlib (quality_report, qualitylib). This suppresses argument exceptions.
-def replaces(target):
-    def decorator(subject):
-        replacements[target] = subject
-        return subject
+class Compatibility(object):
+    """
+    Handler for classes that are backward compatible with earlier versions
+    of those classes in distributed modules.
+    """
 
-    return decorator
+    replacements = {}
 
-@replaces(domain.TechnicalDebtTarget)
+    @classmethod
+    def replaces(cls, target):
+        """
+        Decorator method for a class that replaces another class `target`.
+        """
+
+        def decorator(subject):
+            """
+            Decorator that registers the class `subject` as a replacement.
+            """
+
+            cls.replacements[target] = subject
+            return subject
+
+        return decorator
+
+    @classmethod
+    def get_replacement(cls, name, member):
+        """
+        Find a suitable replacement for a class whose interface should be
+        mostly adhered, but its functionality should not be executed.
+        """
+
+        if member in cls.replacements:
+            return cls.replacements[member]
+
+        replacement = mock.Mock(name=name, spec_set=member)
+        replacement.configure_mock(name=name)
+        return replacement
+
+@Compatibility.replaces(domain.TechnicalDebtTarget)
 class TechnicalDebtTarget(domain.TechnicalDebtTarget):
+    # pylint: disable=missing-docstring,too-few-public-methods,unused-argument
     def __init__(self, target_value, explanation='', unit=''):
         super(TechnicalDebtTarget, self).__init__(target_value, explanation)
 
-@replaces(domain.DynamicTechnicalDebtTarget)
+@Compatibility.replaces(domain.DynamicTechnicalDebtTarget)
 class DynamicTechnicalDebtTarget(domain.DynamicTechnicalDebtTarget):
-    def __init__(self, initial_target_value, initial_datetime, end_target_value, end_datetime, explanation='', unit=''):
-        super(DynamicTechnicalDebtTarget, self).__init__(initial_target_value, initial_datetime, end_target_value, end_datetime, explanation)
+    # pylint: disable=missing-docstring,too-few-public-methods,unused-argument
+    # pylint: disable=too-many-arguments
+    def __init__(self, initial_target_value, initial_datetime,
+                 end_target_value, end_datetime, explanation='', unit=''):
+        parent = super(DynamicTechnicalDebtTarget, self)
+        parent.__init__(initial_target_value, initial_datetime,
+                        end_target_value, end_datetime, explanation)
 
 class Project_Definition_Parser(object):
     """
@@ -72,21 +113,24 @@ class Project_Definition_Parser(object):
 
         domain_objects = {}
         for name, member in inspect.getmembers(domain, self.filter_member):
-            if member in replacements:
-                domain_objects[name] = replacements[member]
-            else:
-                domain_objects[name] = mock.Mock(name=name, spec_set=member)
+            replacement = Compatibility.get_replacement(name, member)
+            domain_objects[name] = replacement
 
         return domain_objects
 
     def format_exception(self, contents, emulate_context=True):
-        etype, value, tb = sys.exc_info()
+        """
+        Handle a problem parsing the project definition `content` from within
+        an exception context.
+        """
+
+        etype, value, trace = sys.exc_info()
         formatted_lines = traceback.format_exception_only(etype, value)
         message = "Could not parse project definition: " + formatted_lines[-1]
         if self.context_lines >= 0:
             message += ''.join(formatted_lines[:-1])
             if emulate_context:
-                line = traceback.extract_tb(tb)[-1][1]
+                line = traceback.extract_tb(trace)[-1][1]
                 lines = contents.split('\n')
                 range_start = max(0, line-self.context_lines-1)
                 range_end = min(len(lines), line+self.context_lines)
@@ -108,11 +152,11 @@ class Project_Definition_Parser(object):
         convention = mock.MagicMock()
         metric_source = mock.MagicMock()
         hqlib = mock.MagicMock(metric=mock.MagicMock(**metric.__dict__))
-        domain = mock.MagicMock(**self.domain_objects)
+        hqlib_domain = mock.MagicMock(**self.domain_objects)
 
-        # Mock the internal source module (ictu, backwards compatible: isd) and 
-        # the reporting module (hqlib, backwards compatible: quality_report, 
-        # qualitylib) as well as the submodules that the project definition 
+        # Mock the internal source module (ictu, backwards compatible: isd) and
+        # the reporting module (hqlib, backwards compatible: quality_report,
+        # qualitylib) as well as the submodules that the project definition
         # imports.
         modules = {
             'ictu': ictu,
@@ -122,29 +166,31 @@ class Project_Definition_Parser(object):
             'isd.convention': convention,
             'isd.metric_source': metric_source,
             'hqlib': hqlib,
-            'hqlib.domain': domain,
+            'hqlib.domain': hqlib_domain,
             'quality_report': hqlib,
-            'quality_report.domain': domain,
+            'quality_report.domain': hqlib_domain,
             'qualitylib': hqlib,
-            'qualitylib.domain': domain
+            'qualitylib.domain': hqlib_domain
         }
         open_mock = mock.mock_open()
 
         with mock.patch.dict('sys.modules', modules):
             with mock.patch('__main__.open', open_mock):
+                # Load the project definition by executing the contents of
+                # the file with altered module definitions. This should be safe
+                # since all relevant modules and context has been patched.
+                # pylint: disable=exec-used,broad-except
                 try:
-                    # Load the project definition by executing the contents of 
-                    # the file with altered module definitions.
                     exec(contents)
-                except SyntaxError as e:
+                except SyntaxError as exception:
                     # Most syntax errors have correct line marker information
-                    if e.text is None:
+                    if exception.text is None:
                         self.format_exception(contents)
                     else:
                         self.format_exception(contents, emulate_context=False)
                 except Exception:
-                    # Because of string execution, the line number of the 
-                    # exception becomes incorrect. Attempt to emulate the 
+                    # Because of string execution, the line number of the
+                    # exception becomes incorrect. Attempt to emulate the
                     # context display using traceback extraction.
                     self.format_exception(contents)
 
@@ -157,8 +203,8 @@ class Project_Definition_Parser(object):
         for mock_object in self.domain_objects.itervalues():
             if isinstance(mock_object, domain.DomainObject):
                 for call in mock_object.call_args_list:
-                    args, kwargs = call
-                    self.parse_domain_call(kwargs)
+                    keywords = call[1]
+                    self.parse_domain_call(keywords)
 
         return self.metric_targets
 
@@ -174,31 +220,31 @@ class Project_Definition_Parser(object):
             name = ""
 
         if "metric_options" in keywords:
-            for metric, options in keywords["metric_options"].iteritems():
-                self.parse_metric(name, metric, options=options)
+            for metric_type, options in keywords["metric_options"].iteritems():
+                self.parse_metric(name, metric_type, options=options)
 
         for old_keyword, new_key in self.old_metric_options.iteritems():
             if old_keyword in keywords:
-                for metric, option in keywords[old_keyword].iteritems():
-                    self.parse_metric(name, metric, options={new_key: option},
-                        options_type='old_options'
-                    )
+                for metric_type, option in keywords[old_keyword].iteritems():
+                    self.parse_metric(name, metric_type,
+                                      options={new_key: option},
+                                      options_type='old_options')
 
-    def parse_metric(self, name, metric, options, options_type='metric_options'):
+    def parse_metric(self, name, metric_type, options, options_type='metric_options'):
         """
         Update the metric targets for a metric specified in the project
         definition.
         """
 
         if isinstance(metric, mock.Mock):
-            class_name = metric._mock_name
+            class_name = metric_type.name
         else:
-            class_name = metric.__name__
-            
+            class_name = metric_type.__name__
+
         metric_name = class_name + name
         if metric_name in self.metric_targets:
             targets = self.metric_targets[metric_name]
-        elif isinstance(metric, mock.Mock):
+        elif isinstance(metric_type, mock.Mock):
             # No default data available
             targets = {
                 'low_target': '0',
@@ -208,8 +254,8 @@ class Project_Definition_Parser(object):
             }
         else:
             targets = {
-                'low_target': str(int(metric.low_target_value)),
-                'target': str(int(metric.target_value)),
+                'low_target': str(int(metric_type.low_target_value)),
+                'target': str(int(metric_type.target_value)),
                 'type': options_type,
                 'comment': ''
             }
@@ -223,10 +269,14 @@ class Project_Definition_Parser(object):
         self.metric_targets[metric_name] = targets
 
     def parse_debt_target(self, options):
+        """
+        Retrieve data regarding a technical debt target.
+        """
+
         if 'debt_target' in options:
             debt = options['debt_target']
 
-            datetime_args = {'now.return_value': self.file_time} 
+            datetime_args = {'now.return_value': self.file_time}
             with mock.patch('datetime.datetime', **datetime_args):
                 debt_target = debt.target_value()
                 debt_comment = debt.explanation()
@@ -240,14 +290,28 @@ class Project_Definition_Parser(object):
         return {}
 
 class Subversion_Repository(object):
+    """
+    Class representing a subversion repository from which files and their
+    histories (contents, logs) can be read.
+    """
+
     def __init__(self, path='.'):
         self.path = os.path.expanduser(path)
         self.svn = svn.local.LocalClient(self.path)
 
     def get_versions(self, filename, from_revision=None, to_revision=None, descending=False):
+        """
+        Retrieve data about each version of a specific file path `filename`.
+
+        The range of the log to retrieve can be set with `from_revision` and
+        `to_revision`, both are optional. The log is sorted by commit date,
+        either newest first (`descending`) or not (default)
+        """
+
         versions = []
         log = self.svn.log_default(rel_filepath=filename,
-            revision_from=from_revision, revision_to=to_revision)
+                                   revision_from=from_revision,
+                                   revision_to=to_revision)
         for entry in log:
             # Convert to local timestamp
             commit_date = entry.date.replace(tzinfo=dateutil.tz.tzutc())
@@ -263,10 +327,14 @@ class Subversion_Repository(object):
             versions.append(version)
 
         return sorted(versions, key=lambda version: version['revision'],
-            reverse=descending
-        )
+                      reverse=descending)
 
     def get_contents(self, filename, revision=None):
+        """
+        Retrieve the contents of a file with path `filename` at the given
+        `revision`, or the currently checked out revision if not given.
+        """
+
         return self.svn.cat(filename, revision=revision)
 
 class Metric_Difference(object):
@@ -274,7 +342,8 @@ class Metric_Difference(object):
     Class that determines whether metric options were changed.
     """
 
-    def __init__(self, previous_targets=None):
+    def __init__(self, project_key, previous_targets=None):
+        self._project_key = project_key
         if previous_targets is not None:
             self._previous_metric_targets = previous_targets
         else:
@@ -305,19 +374,48 @@ class Metric_Difference(object):
 
             self._previous_metric_targets = metric_targets
 
+    def export(self):
+        """
+        Save the unique data to JSON files.
+        """
+
+        with open(self._project_key + '/data_metric_versions.json', 'w') as out:
+            json.dump(self._unique_versions, out, indent=4)
+
+        with open(self._project_key + '/data_metric_targets.json', 'w') as out:
+            json.dump(self._unique_metric_targets, out, indent=4)
+
     @property
     def previous_metric_targets(self):
+        """
+        Retrieve the previous metric targets, which need to be retained for
+        later instances of this class.
+        """
+
         return self._previous_metric_targets
 
     @property
     def unique_versions(self):
+        """
+        Retrieve the unique versions that have changed metric targets.
+        """
+
         return self._unique_versions
 
     @property
     def unique_metric_targets(self):
+        """
+        Retrieve metric targets that changed within revisions.
+        """
+
         return self._unique_metric_targets
 
 class Update_Tracker(object):
+    """
+    Class that keeps track of the previous and current state of an incremental
+    update, so that the data gatherer can resume from a previous known state.
+    """
+
     def __init__(self, project_key):
         self._project_key = project_key
         self._filename = self._project_key + '/metric_options_update.json'
@@ -327,6 +425,13 @@ class Update_Tracker(object):
         self._previous_targets = None
 
     def get_start_revision(self, from_revision=None):
+        """
+        Retrieve the revision from which we should retrieve new versions from.
+
+        By default, this is the last revision that was parsed previously,
+        but this can be overridden using `from_revision`.
+        """
+
         if from_revision is not None:
             return from_revision
 
@@ -339,6 +444,11 @@ class Update_Tracker(object):
         return self._from_revision + 1
 
     def get_previous_targets(self):
+        """
+        Retrieve the metric targets of the latest unique revision that was
+        parsed previously.
+        """
+
         if not self._file_loaded:
             self._read()
 
@@ -349,8 +459,8 @@ class Update_Tracker(object):
 
     def _read(self):
         if os.path.exists(self._filename):
-            with open(self._filename, 'r') as f:
-                data = json.load(f)
+            with open(self._filename, 'r') as update_file:
+                data = json.load(update_file)
 
             self._from_revision = int(data['version'])
             self._previous_targets = data['targets']
@@ -358,31 +468,92 @@ class Update_Tracker(object):
         self._file_loaded = True
 
     def set_end(self, end_revision, previous_targets):
+        """
+        Store the new current state of the data retrieval. `end_revision` is
+        the latest revision that was parsed in this run, or `None` if no
+        revisions were parsed. `previous_targets` is a dictionary of metric
+        targets to compare against for checking if the next update has changes.
+        """
+
         if end_revision is not None:
             data = {
                 'version': end_revision,
                 'targets': previous_targets
             }
-            with open(self._filename, 'w') as f:
-                json.dump(data, f)
+            with open(self._filename, 'w') as update_file:
+                json.dump(data, update_file)
 
 def parse_svn_revision(rev):
+    """
+    Convert a Subversion revision number to an integer. Removes the leading 'r'
+    if it is present.
+    """
+
     if rev.startswith('r'):
         rev = rev[1:]
 
     return int(rev)
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Obtain quality metric project definition data and convert to JSON format readable by the database importer.")
+    """
+    Parse command line arguments.
+    """
+
+    description = "Obtain quality metric project definition and output JSON"
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--repo", default="kwaliteitsmetingen/trunk", help="Subversion repository containing the project definitions (checked out at trunk)")
-    parser.add_argument("--context", type=int, default=3, help="Number of lines of context to show for problematic definitions")
-    parser.add_argument("--from-revision", type=parse_svn_revision, dest="from_revision", default=None, help="revision to start from gathering historical definitions")
-    parser.add_argument("--to-revision", type=parse_svn_revision, dest="to_revision", default=None, help="revision to stop gathering historical definitions at")
+    parser.add_argument("--repo", default="kwaliteitsmetingen/trunk",
+                        help="Subversion directory with project definitions")
+    parser.add_argument("--context", type=int, default=3,
+                        help="Number of context lines for parser problems")
+    parser.add_argument("--from-revision", type=parse_svn_revision,
+                        dest="from_revision", default=None,
+                        help="revision to start from gathering definitions")
+    parser.add_argument("--to-revision", type=parse_svn_revision,
+                        dest="to_revision", default=None,
+                        help="revision to stop gathering definitions at")
 
     return parser.parse_args()
 
+def process(project_key, project_name, args):
+    """
+    Perform the revision traversal and project definition parsing.
+    """
+
+    update_tracker = Update_Tracker(project_key)
+    from_revision = update_tracker.get_start_revision(args.from_revision)
+
+    repo = Subversion_Repository(args.repo)
+    filename = project_name + '/project_definition.py'
+    versions = repo.get_versions(filename, from_revision=from_revision,
+                                 to_revision=args.to_revision, descending=False)
+
+    diff = Metric_Difference(project_key, update_tracker.get_previous_targets())
+    end_revision = None
+    for version in versions:
+        parser = Project_Definition_Parser(context_lines=args.context,
+                                           file_time=version['commit_date'])
+        contents = repo.get_contents(filename, revision=version['revision'])
+        try:
+            parser.load_definition(contents)
+            metric_targets = parser.parse()
+        except RuntimeError as error:
+            print "Problem with revision {}: {}".format(version['revision'], error.message)
+            continue
+
+        diff.add_version(version, metric_targets)
+        end_revision = version['revision']
+
+    diff.export()
+
+    update_tracker.set_end(end_revision, diff.previous_metric_targets)
+    print '{} revisions parsed'.format(len(versions))
+
 def main():
+    """
+    Main entry point.
+    """
+
     config = ConfigParser.RawConfigParser()
     config.read("settings.cfg")
     args = parse_args()
@@ -391,43 +562,10 @@ def main():
     if config.has_option('projects', project_key):
         project_name = config.get('projects', project_key)
     else:
-        print('No quality metrics options available for ' + project_key + ', skipping.')
+        print 'No quality metrics options available for {}, skipping.'.format(project_key)
         return
 
-    update_tracker = Update_Tracker(project_key)
-    from_revision = update_tracker.get_start_revision(args.from_revision)
-
-    svn = Subversion_Repository(args.repo)
-    filename = project_name + '/project_definition.py'
-    versions = svn.get_versions(filename, from_revision=from_revision,
-        to_revision=args.to_revision, descending=False
-    )
-
-    diff = Metric_Difference(update_tracker.get_previous_targets())
-    end_revision = None
-    for version in versions:
-        parser = Project_Definition_Parser(context_lines=args.context,
-            file_time=version['commit_date']
-        )
-        contents = svn.get_contents(filename, revision=version['revision'])
-        try:
-            parser.load_definition(contents)
-            metric_targets = parser.parse()
-        except RuntimeError as e:
-            print("Problem with revision {}: {}".format(version['revision'], e.message))
-            continue
-
-        diff.add_version(version, metric_targets)
-        end_revision = version['revision']
-
-    with open(project_key + '/data_metric_versions.json', 'w') as outfile:
-        json.dump(diff.unique_versions, outfile, indent=4)
-
-    with open(project_key + '/data_metric_targets.json', 'w') as outfile:
-        json.dump(diff.unique_metric_targets, outfile, indent=4)
-
-    update_tracker.set_end(end_revision, diff.previous_metric_targets)
-    print('{} revisions parsed'.format(len(versions)))
+    process(project_key, project_name, args)
 
 if __name__ == "__main__":
     main()

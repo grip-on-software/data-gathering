@@ -1,9 +1,14 @@
+"""
+Script to retrieve JIRA issue data and convert it to JSON format readable by
+the database importer.
+"""
+
 import argparse
 import ConfigParser
 import json
 import os
 import re
-import traceback
+from abc import ABCMeta, abstractproperty
 from datetime import datetime
 from jira import JIRA
 from utils import parse_date, parse_unicode
@@ -13,7 +18,16 @@ from utils import parse_date, parse_unicode
 ###
 
 class Table_Key_Source(object):
-    @property
+    # pylint: disable=too-few-public-methods
+
+    """
+    Abstract mixin class that indicates that subclasses might provide a key for
+    use in a `Table` instance.
+    """
+
+    __metaclass__ = ABCMeta
+
+    @abstractproperty
     def table_key(self):
         """
         Key to use for assigning unique rows to a table with parsed values of
@@ -44,6 +58,7 @@ class Field_Parser(Table_Key_Source):
         raise NotImplementedError("Must be overridden in subclass")
 
     def parse_changelog(self, change, value, diffs):
+        # pylint: disable=unused-argument,no-self-use
         """
         Parse a changelog row and its parsed value.
 
@@ -53,6 +68,10 @@ class Field_Parser(Table_Key_Source):
         """
 
         return value
+
+    @property
+    def table_key(self):
+        return None
 
 class String_Parser(Field_Parser):
     """
@@ -73,15 +92,28 @@ class Int_Parser(String_Parser):
         return str(int(value))
 
 class Date_Parser(Field_Parser):
+    """
+    Parser for timestamp fields, including date and time.
+    """
+
     def parse(self, value):
         return parse_date(value)
 
 class Unicode_Parser(Field_Parser):
+    """
+    Parser for fields that may include unicode characters.
+    """
+
     def parse(self, value):
         return parse_unicode(value)
 
 class Sprint_Parser(Field_Parser):
-    def _split_sprint(self, sprint):
+    """
+    Parser for sprint representations.
+    """
+
+    @classmethod
+    def _split_sprint(cls, sprint):
         sprint_data = {}
         sprint_string = str(sprint)
         if '[' not in sprint_string:
@@ -128,12 +160,21 @@ class Sprint_Parser(Field_Parser):
         return "id"
 
 class Point_Parser(Field_Parser):
+    """
+    Parser for fields with a decimal point in them.
+    """
+
     def parse(self, value):
         point_string = str(value)
-        head, sep, tail = point_string.partition('.')
+        head = point_string.partition('.')[0]
         return head
 
 class Developer_Parser(Field_Parser):
+    """
+    Parser for fields that contain information about a JIRA user, including
+    their account name and usually the display name.
+    """
+
     def parse(self, value):
         if value is not None and hasattr(value, "name"):
             encoded_name = parse_unicode(value.name)
@@ -154,6 +195,11 @@ class Developer_Parser(Field_Parser):
         return "name"
 
 class ID_List_Parser(Field_Parser):
+    """
+    Parser for fields that contain multiple items that have IDs, such as
+    attachments.
+    """
+
     def parse(self, value):
         if not isinstance(value, list):
             # Singular value (changelogs)
@@ -172,23 +218,28 @@ class ID_List_Parser(Field_Parser):
         return value
 
 class Fix_Version_Parser(Field_Parser):
+    """
+    Parser for fields that contain the version in which an issue was fixed.
+    """
+
     def parse(self, value):
         if value is None:
             return str(0)
 
         encoded_value = str(0)
 
-        for fixVersion in value:
-            if hasattr(fixVersion, 'id') and hasattr(fixVersion, 'name') and hasattr(fixVersion, 'description') and hasattr(fixVersion, 'released'):
+        required_properties = ('id', 'name', 'description', 'released')
+        for fix_version in value:
+            if all(hasattr(fix_version, prop) for prop in required_properties):
                 release_date = str(0)
-                if fixVersion.released and hasattr(fixVersion, 'releaseDate'):
-                    release_date = parse_date(fixVersion.releaseDate)
+                if fix_version.released and hasattr(fix_version, 'releaseDate'):
+                    release_date = parse_date(fix_version.releaseDate)
 
-                encoded_value = str(fixVersion.id)
+                encoded_value = str(fix_version.id)
                 self.jira.get_table("fixVersion").append({
                     "id": encoded_value,
-                    "name": str(fixVersion.name),
-                    "description": parse_unicode(fixVersion.description),
+                    "name": str(fix_version.name),
+                    "description": parse_unicode(fix_version.description),
                     "release_date": release_date
                 })
 
@@ -199,6 +250,11 @@ class Fix_Version_Parser(Field_Parser):
         return "id"
 
 class Rank_Parser(Field_Parser):
+    """
+    Parser for changelog fields that indicate whether the issue was ranked
+    higher or lower on the backlog/storyboard.
+    """
+
     def parse(self, value):
         return str(0)
 
@@ -211,6 +267,10 @@ class Rank_Parser(Field_Parser):
         return value
 
 class Issue_Key_Parser(String_Parser):
+    """
+    Parser for fields that link to another issue.
+    """
+
     def parse_changelog(self, change, value, diffs):
         if change["fromString"] is not None:
             return change["fromString"]
@@ -218,6 +278,10 @@ class Issue_Key_Parser(String_Parser):
         return str(0)
 
 class Flag_Parser(Field_Parser):
+    """
+    Parser for fields that mark the issue when it is set, such as an impediment.
+    """
+
     def parse(self, value):
         if isinstance(value, list):
             if len(value) > 0:
@@ -228,6 +292,11 @@ class Flag_Parser(Field_Parser):
         return str(0)
 
 class Ready_Status_Parser(Field_Parser):
+    """
+    Parser for the 'ready status' field, which contains a visual indicator
+    of whether the user story can be moved into a refinement or sprint.
+    """
+
     def _add_to_table(self, encoded_id, html):
         match = re.match(r'<font .*><b>(.*)</b></font>', html)
         if match:
@@ -275,13 +344,32 @@ class Jira_Field(Table_Key_Source):
         self.data = data
 
     def fetch(self, issue):
+        """
+        Retrieve the raw data from the issue.
+
+        This method is responsible for determining the correct field to use, and
+        to preprocess it as much as possible (such as extracting an ID from its
+        subproperties). The returned value is not yet parsed according to the
+        type of the field.
+        """
+
         raise NotImplementedError("Subclasses must extend this method")
 
     def parse(self, issue):
+        """
+        Retrieve the field from the issue and parse it so that it receives the
+        correct type and format.
+        """
+
         field = self.fetch(issue)
         return self.cast(field)
 
     def cast(self, field):
+        """
+        Use the appropriate type cast to convert the fetched field to a string
+        representation of the field.
+        """
+
         if field is None:
             return str(0)
 
@@ -291,6 +379,11 @@ class Jira_Field(Table_Key_Source):
         return field
 
     def get_types(self):
+        """
+        Retrieve the type parsers that this field uses in sequence to perform
+        its type casting actions.
+        """
+
         if "type" in self.data:
             if isinstance(self.data["type"], list):
                 types = self.data["type"]
@@ -303,6 +396,11 @@ class Jira_Field(Table_Key_Source):
 
     @property
     def search_field(self):
+        """
+        JIRA field name to be added to the search query, or `None` if this
+        field is always available within the result.
+        """
+
         raise NotImplementedError("Subclasses must extend this property")
 
     @property
@@ -419,6 +517,10 @@ class Changelog_Field(Jira_Field):
         return None
 
     def parse_changelog(self, issue, diffs):
+        """
+        Parse changelog information from a changelog entry.
+        """
+
         field = self.parse(issue)
         for parser in self.get_types():
             field = parser.parse_changelog(issue.__dict__, field, diffs)
@@ -438,14 +540,28 @@ class Changelog_Field(Jira_Field):
 ###
 
 class Special_Field(Table_Key_Source):
+    """
+    A special field with additional data that cannot be parsed in conventional
+    ways and is likely stored in a separate table.
+    """
+
     def __init__(self, jira, **info):
         self.jira = jira
         self.info = info
 
     def parse(self, issue, field):
+        """
+        Retrieve relevant data from the field belonging to the issue,
+        and store the data where appropriate.
+        """
+
         raise NotImplementedError("Subclasses must override this method")
 
 class Comment_Field(Special_Field):
+    """
+    Field parser for the comments of a JIRA issue.
+    """
+
     def parse(self, issue, field):
         if hasattr(field, 'comments'):
             for comment in field.comments:
@@ -470,6 +586,10 @@ class Comment_Field(Special_Field):
         return "id"
 
 class Issue_Link_Field(Special_Field):
+    """
+    Field parser for the issue links related to an issue.
+    """
+
     def parse(self, issue, field):
         for issuelink in field:
             if not hasattr(issuelink, 'type') or not hasattr(issuelink.type, 'id'):
@@ -510,6 +630,7 @@ class Table(object):
     def __init__(self, name, filename=None, **kwargs):
         self.name = name
         self.data = []
+        self.options = kwargs
 
         if filename is None:
             self.filename = 'data_{}.json'.format(self.name)
@@ -517,13 +638,27 @@ class Table(object):
             self.filename = filename
 
     def append(self, row):
+        """
+        Insert a row into the table.
+        Subclasses may check whether the row already exists and ignore it if
+        this is the case.
+        """
+
         self.data.append(row)
         return True
 
     def extend(self, rows):
+        """
+        Insert multiple rows at once into the table.
+        """
+
         self.data.extend(rows)
 
     def write(self, folder):
+        """
+        Export the table data into a file in the given `folder`.
+        """
+
         with open(folder + "/" + self.filename, 'w') as outfile:
             json.dump(self.data, outfile, indent=4)
 
@@ -580,35 +715,73 @@ class Link_Table(Table):
 ###
 
 class Updated_Time(object):
+    """
+    Tracker for the latest update time from which we query for newly updated
+    issues.
+    """
+
     def __init__(self, timestamp):
-        self.timestamp = timestamp
-        self.date = datetime.strptime(self.timestamp, '%Y-%m-%d %H:%M')
+        self._timestamp = timestamp
+        self._date = datetime.strptime(self._timestamp, '%Y-%m-%d %H:%M')
 
     def is_newer(self, timestamp, timestamp_format='%Y-%m-%d %H:%M:%S'):
-        if self.date < datetime.strptime(timestamp, timestamp_format):
+        """
+        Check whether a given `timestamp`, a string which is formatted according
+        to `timestamp_format`, is newer than the update date.
+        """
+
+        if self._date < datetime.strptime(timestamp, timestamp_format):
             return True
 
         return False
 
+    @property
+    def timestamp(self):
+        """
+        Retrieve the timestamp string of the latest update.
+        """
+
+        return self._timestamp
+
+    @property
+    def date(self):
+        """
+        Return the datetime object of the latest update.
+        """
+
+        return self._date
+
 class Update_Tracker(object):
+    """
+    Tracker for the update time which controls the storage of this timestamp.
+    """
+
     def __init__(self, project, updated_since=None):
         self.project = project
         self.updated_since = updated_since
         self.filename = self.project + '/jira-updated.txt'
 
     def get_updated_since(self):
+        """
+        Retrieve the latest update timestamp from a previous run.
+        """
+
         if self.updated_since is None:
             if os.path.exists(self.filename):
-                with open(self.filename, 'r') as f:
-                    self.updated_since = f.read().strip()
+                with open(self.filename, 'r') as update_file:
+                    self.updated_since = update_file.read().strip()
             else:
                 self.updated_since = "0001-01-01 01:01"
 
         return self.updated_since
 
     def save_updated_since(self, new_updated_since):
-        with open(self.filename, 'w') as f:
-            f.write(new_updated_since)
+        """
+        Store a new latest update time for later reuse.
+        """
+
+        with open(self.filename, 'w') as update_file:
+            update_file.write(new_updated_since)
 
 ###
 # Main class
@@ -617,17 +790,15 @@ class Update_Tracker(object):
 class Jira(object):
     """
     JIRA parser and extraction tool.
-    """
 
-    """
-    Fields extracted from JIRA.
+    This class extracts fields from JIRA according to a field specification.
 
     Each field has a dictionary of configuration, containing some of:
     - "primary": if given, the property name of the field within the main
       issue's response data.
     - "field": if given, the property name within the "fields" dictionary
       of the issue.
-    - "property": if given, the property name within the dictionary 
+    - "property": if given, the property name within the dictionary
       pointed at by "field".
     - "type": the type of the field value, can be "str", "int", "date",
       "unicode", "point", "sprint", "name" or "id_list".
@@ -644,18 +815,14 @@ class Jira(object):
     """
 
     def __init__(self, project_key, username, password, options, updated_since):
-        self.jira_project_key = project_key
-        self.jira_username = username
-        self.jira_password = password
-        self.jira_api = JIRA(options,
-            basic_auth=(self.jira_username, self.jira_password)
-        )
+        self.project_key = project_key
+        self.jira_api = JIRA(options, basic_auth=(username, password))
         self.updated_since = Updated_Time(updated_since)
         self.latest_update = str(0)
 
-        self.query = 'project={} AND updated > "{}"'.format(self.jira_project_key, self.updated_since.timestamp)
-
-        self.data_folder = self.jira_project_key
+        query = 'project={} AND updated > "{}"'
+        self.query = query.format(self.project_key,
+                                  self.updated_since.timestamp)
 
         self.issue_fields = {}
         self.changelog_fields = {}
@@ -687,7 +854,7 @@ class Jira(object):
             "flag": Flag_Parser(self),
             "ready_status": Ready_Status_Parser(self)
         }
-        
+
         self._import_field_specifications()
 
     def _make_issue_field(self, name, data):
@@ -698,12 +865,12 @@ class Jira(object):
                 return Property_Field(self, name, **data)
             else:
                 return Payload_Field(self, name, **data)
-        
+
         return None
 
     def _import_field_specifications(self):
-        # Parse the JIRA field specifications and create field objects as well 
-        # as the search fields string.
+        # Parse the JIRA field specifications and create field objects,
+        # as well as the search fields string.
         jira_fields = []
 
         with open("jira_fields.json", "r") as fields_file:
@@ -721,24 +888,37 @@ class Jira(object):
 
             if "special_parser" in data:
                 parser_class = self.special_parser_classes[name]
-                self.special_parsers[name] = parser_class(self, **data)
+                parser = parser_class(self, **data)
+                self.special_parsers[name] = parser
                 self.register_table(data["special_parser"], data,
-                    table_key_source=self.special_parsers[name]
-                )
+                                    table_key_source=parser)
                 jira_fields.append(name)
-
-            if "changelog_primary" in data:
+            elif "changelog_primary" in data:
                 changelog_name = data["changelog_primary"]
-                field = Changelog_Primary_Field(self, name, **data)
-                self.changelog_primary_fields[changelog_name] = field
+                primary_field = Changelog_Primary_Field(self, name, **data)
+                self.changelog_primary_fields[changelog_name] = primary_field
             elif "changelog_name" in data:
                 changelog_name = data["changelog_name"]
-                field = Changelog_Field(self, name, **data)
-                self.changelog_fields[changelog_name] = field
+                changelog_field = Changelog_Field(self, name, **data)
+                self.changelog_fields[changelog_name] = changelog_field
 
         self.jira_search_fields = ','.join(jira_fields)
 
     def register_table(self, name, data, table_key_source=None):
+        """
+        Create a new table storage according to a specification.
+
+        The table can be addressable through either `name` or `data`, which is
+        also used by the table for filenames; `data` receives preference.
+        In that case where `data` is a string, then `name` is simply the name
+        of the field or other source that is registering the table.
+        The `data` can also be a dictionary, which is used by some table sources
+        for specifying which fields they are going to extract and parse.
+        The `table_key_source` provides a table key, which can be `None`,
+        a string or a tuple, which leads to a normal `Table`, `Key_Table` or
+        `Link_Table` respectively.
+        """
+
         if "table" in data:
             if isinstance(data["table"], dict):
                 table_name = name
@@ -761,18 +941,25 @@ class Jira(object):
                 self.tables[table_name] = Key_Table(table_name, key)
 
     def get_table(self, name):
+        """
+        Retrieve a table registered under `name`.
+        """
+
         return self.tables[name]
 
     def _perform_batched_query(self, start_at, iterate_size):
         self.latest_update = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M")
         return self.jira_api.search_issues(self.query,
-            startAt=start_at,
-            maxResults=iterate_size,
-            expand='attachment,changelog',
-            fields=self.jira_search_fields
-        )
+                                           startAt=start_at,
+                                           maxResults=iterate_size,
+                                           expand='attachment,changelog',
+                                           fields=self.jira_search_fields)
 
     def search_issues(self):
+        """
+        Search for issues in batches and extract field data from them.
+        """
+
         start_at = 0
         iterate_size = 100
         iterate_max = 100000
@@ -793,23 +980,29 @@ class Jira(object):
             issues = self._perform_batched_query(start_at, iterate_size)
 
     def collect_fields(self, issue):
+        """
+        Extract simple field data from one issue.
+        """
+
         data = {}
         for name, field in self.issue_fields.iteritems():
-            try:
-                data[name] = field.parse(issue)
-            except:
-                print("Error trying to parse field '" + name + "', issue: " + repr(issue) + " fields: " + repr(issue.fields.__dict__))
-                raise
+            data[name] = field.parse(issue)
 
         return data
 
     def fetch_changelog(self, issue):
+        """
+        Extract fields from the changelog of one issue. The resulting dictionary
+        holds the differences of one change and is keyed by the update time,
+        but it requires more postprocessing to be used in the output data.
+        """
+
         changelog = issue.changelog.histories
         issue_diffs = {}
         for changes in changelog:
             diffs = {}
 
-            for name, field in self.changelog_primary_fields.iteritems():
+            for field in self.changelog_primary_fields.itervalues():
                 value = field.parse(changes)
                 diffs[field.name] = value
 
@@ -821,7 +1014,7 @@ class Jira(object):
                     diffs[field.name] = value
 
             if "updated" not in diffs:
-                print("No updated date: " + repr(diffs))
+                print "No updated date: " + repr(diffs)
                 continue
 
             updated = diffs["updated"]
@@ -832,7 +1025,8 @@ class Jira(object):
 
         return issue_diffs
 
-    def _create_change_transition(self, source_data, diffs):
+    @classmethod
+    def _create_change_transition(cls, source_data, diffs):
         """
         Returns a copy of `source_data`, updated with the new key-value pairs
         in `diffs`.
@@ -843,20 +1037,24 @@ class Jira(object):
 
         # Count attachments
         if "attachment" in diffs:
-            result["attachment"] = str(max(0,
-                int(result["attachment"]) + diffs["attachment"]
-            ))
-
+            total = int(result["attachment"]) + diffs["attachment"]
+            result["attachment"] = str(max(0, total))
             diffs.pop("attachment")
 
         result.update(diffs)
         return result
 
-    def _alter_change_metdata(self, data, diffs):
+    @classmethod
+    def _alter_change_metdata(cls, data, diffs):
         data["updated_by"] = diffs.pop("updated_by", str(0))
         data["rank_change"] = diffs.pop("rank_change", str(0))
 
     def get_changelog_versions(self, issue, data):
+        """
+        Fetch the versions of the issue based on changelog data as well as
+        the current version of the issue.
+        """
+
         issue_diffs = self.fetch_changelog(issue)
 
         changelog_count = len(issue_diffs)
@@ -865,7 +1063,8 @@ class Jira(object):
         versions = []
 
         # reestablish issue data from differences
-        for updated in sorted(issue_diffs.keys(), reverse=True):
+        sorted_diffs = sorted(issue_diffs.keys(), reverse=True)
+        for updated in sorted_diffs:
             if not self.updated_since.is_newer(updated):
                 break
 
@@ -895,6 +1094,10 @@ class Jira(object):
         return versions
 
     def parse_special_fields(self, issue):
+        """
+        Parse more complicated fields to let these parsers augment the data.
+        """
+
         for name, parser in self.special_parsers.iteritems():
             if hasattr(issue, name):
                 field = getattr(issue, name)
@@ -902,38 +1105,70 @@ class Jira(object):
                     parser.parse(issue, field)
 
     def write_tables(self):
+        """
+        Export all data to separate table-based JSON output files.
+        """
+
         for table in self.tables.itervalues():
-            table.write(self.data_folder)
+            table.write(self.project_key)
 
     def process(self):
-        if not os.path.exists(self.data_folder):
-            os.mkdir(self.data_folder)
+        """
+        Perform all steps to export the issues, fields and additional data
+        gathered from a JIRA search.
+        """
+
+        if not os.path.exists(self.project_key):
+            os.mkdir(self.project_key)
 
         self.search_issues()
         self.write_tables()
 
     def get_latest_update(self):
+        """
+        Return the time of the latest query update.
+        """
+
         return self.latest_update
 
 def validate_date(value):
+    """
+    Check whether a given value can be correctly parsed as a timestamp with
+    a date and time.
+    """
+
     try:
         return Updated_Time(value).timestamp
-    except ValueError as e:
-        raise argparse.ArgumentTypeError("Not a valid date: " + e.message)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Not a valid date: " + error.message)
 
 def parse_args():
+    """
+    Parse command line arguments.
+    """
+
     config = ConfigParser.RawConfigParser()
     config.read("settings.cfg")
 
-    parser = argparse.ArgumentParser(description="Obtain JIRA issue information and convert it to JSON format readable by the database importer.")
+    description = "Obtain JIRA issue data and output JSON"
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="JIRA project key")
-    parser.add_argument("--username", default=config.get("jira", "username"), help="JIRA username")
-    parser.add_argument("--password", default=config.get("jira", "password"), help="JIRA password")
-    parser.add_argument("--server", default=config.get("jira", "server"), help="JIRA server URL")
-    parser.add_argument("--updated-since", default=None, dest="updated_since", type=validate_date, help="Only fetch issues that were changed since the given timestamp (YYYY-MM-DD HH:MM)")
+    parser.add_argument("--username", default=config.get("jira", "username"),
+                        help="JIRA username")
+    parser.add_argument("--password", default=config.get("jira", "password"),
+                        help="JIRA password")
+    parser.add_argument("--server", default=config.get("jira", "server"),
+                        help="JIRA server URL")
+    parser.add_argument("--updated-since", default=None, dest="updated_since",
+                        type=validate_date,
+                        help="Only fetch issues changed since the timestamp (YYYY-MM-DD HH:MM)")
     return parser.parse_args()
 
 def main():
+    """
+    Main entry point.
+    """
+
     args = parse_args()
 
     tracker = Update_Tracker(args.project, args.updated_since)
@@ -943,8 +1178,7 @@ def main():
         "server": args.server
     }
     jira = Jira(args.project, args.username, args.password, options,
-        updated_since
-    )
+                updated_since)
     jira.process()
 
     tracker.save_updated_since(jira.get_latest_update())

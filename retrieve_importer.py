@@ -1,14 +1,29 @@
+"""
+Script for downloading the Java database importer from a URL and extracting it
+such that the Jenkins scraper can run all programs.
+"""
+
+import ConfigParser
 import os
-import requests
 import shutil
 from zipfile import ZipFile
+# Not-standard imports
+import requests
 
 def main():
-    jenkins_url = 'http://www.JENKINS_SERVER.localhost:8080/view/GROS/job/build-importerjson/lastSuccessfulBuild/artifact/Code/importerjson/dist/*zip*/dist.zip'
+    """
+    Main entry point.
+    """
+
+    config = ConfigParser.RawConfigParser()
+    config.read("settings.cfg")
+
+    jenkins_url = config.get('importer', 'url')
+
     request = requests.get(jenkins_url, stream=True)
-    with open('dist.zip', 'wb') as f:
+    with open('dist.zip', 'wb') as output_file:
         for chunk in request.iter_content(chunk_size=128):
-            f.write(chunk)
+            output_file.write(chunk)
 
     with ZipFile('dist.zip', 'r') as dist_zip:
         dist_zip.extractall()

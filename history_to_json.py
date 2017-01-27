@@ -1,3 +1,8 @@
+"""
+Script to obtain a metrics history file and convert it to a JSON format
+readable by the database importer.
+"""
+
 import argparse
 import ConfigParser
 import ast
@@ -6,21 +11,35 @@ import io
 import itertools
 import json
 import os
+# Non-standard imports
 import requests
-import traceback
-from pprint import pprint
 from utils import parse_date
 
 def parse_args(config):
-    parser = argparse.ArgumentParser(description="Obtain and convert a metrics history file in a JSON format readable by the database importer.")
+    """
+    Parse command line arguments.
+    """
+
+    description = "Obtain a metrics history file and output JSON"
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--start-from", dest="start_from", type=int, default=None, help="line number to start reading from")
+    parser.add_argument("--start-from", dest="start_from", type=int,
+                        default=None, help="line number to start reading from")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--url", default=config.get('history', 'url'), help="url prefix to obtain the file from")
+    group.add_argument("--url", default=config.get('history', 'url'),
+                       help="url prefix to obtain the file from")
     group.add_argument("--file", help="local file to read from")
     return parser.parse_args()
 
 def read_project_file(data_file, start_from=0):
+    """
+    Read metric data from a project history file.
+
+    The `data_file` is an open file or similar stream from which we can read
+    the lines of metrics results. `start_from` indicates the line at which we
+    start reading new metrics data.
+    """
+
     metric_data = []
     line_count = 0
 
@@ -47,6 +66,10 @@ def read_project_file(data_file, start_from=0):
     return metric_data, line_count
 
 def main():
+    """
+    Main entry point.
+    """
+
     config = ConfigParser.RawConfigParser()
     config.read("settings.cfg")
     args = parse_args(config)
@@ -55,8 +78,8 @@ def main():
     line_filename = project_key + '/history_line_count.txt'
     if start_from is None:
         if os.path.exists(line_filename):
-            with open(line_filename, 'r') as f:
-                start_from = int(f.read())
+            with open(line_filename, 'r') as line_file:
+                start_from = int(line_file.read())
         else:
             start_from = 0
 
@@ -67,17 +90,13 @@ def main():
         if config.has_option('projects', project_key):
             project_name = config.get('projects', project_key)
         else:
-            print("No metrics history files available for " + project_key + ", skipping.")
+            print "No metrics history file available for {}, skipping.".format(project_key)
             return
 
         url = args.url + project_name + "/history.json.gz"
         request = requests.get(url)
         stream = io.BytesIO(request.content)
-        try:
-            data_file = gzip.GzipFile(mode='r', fileobj=stream)
-        except:
-            traceback.print_exc()
-            return
+        data_file = gzip.GzipFile(mode='r', fileobj=stream)
 
         metric_data, line_count = read_project_file(data_file, start_from)
 
