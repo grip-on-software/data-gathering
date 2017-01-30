@@ -185,7 +185,7 @@
         }
     },
     "issuelinks": {
-        "special_parser": "issueLinks",
+        "special_parser": "issuelinks",
         "table": {
             "from_id": "int",
             "to_id": "int",
