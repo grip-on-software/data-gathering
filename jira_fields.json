@@ -113,7 +113,7 @@
     "storypoint": {
         "field": "customfield_10002", 
         "changelog_name": "Story Points",
-        "type": ["unicode", "point", "int"]
+        "type": "decimal"
     }, 
     "resolution_date": {
         "field": "resolutiondate", 
@@ -160,6 +160,11 @@
         "changelog_name": "Ready status",
         "type": "ready_status",
         "table": "ready_status"
+    },
+    "labels": {
+        "field": "labels",
+        "changelog_name": "labels",
+        "type": "labels"
     },
     "comment": {
         "special_parser": "comments",

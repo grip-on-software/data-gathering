@@ -159,15 +159,13 @@ class Sprint_Parser(Field_Parser):
     def table_key(self):
         return "id"
 
-class Point_Parser(Field_Parser):
+class Decimal_Parser(Field_Parser):
     """
-    Parser for fields with a decimal point in them.
+    Parser for numerical fields with possibly a decimal point in them.
     """
 
     def parse(self, value):
-        point_string = str(value)
-        head = point_string.partition('.')[0]
-        return head
+        return str(float(value))
 
 class Developer_Parser(Field_Parser):
     """
@@ -328,6 +326,19 @@ class Ready_Status_Parser(Field_Parser):
     @property
     def table_key(self):
         return "id"
+
+class Labels_Parser(Field_Parser):
+    """
+    Parser for fields that hold a list of labels.
+    """
+
+    def parse(self, value):
+        if isinstance(value, list):
+            return len(value)
+        elif isinstance(value, (str, unicode)) and value != "":
+            return len(value.split(' '))
+
+        return str(0)
 
 ###
 # Field definitions
@@ -800,8 +811,7 @@ class Jira(object):
       of the issue.
     - "property": if given, the property name within the dictionary
       pointed at by "field".
-    - "type": the type of the field value, can be "str", "int", "date",
-      "unicode", "point", "sprint", "name" or "id_list".
+    - "type": the type of the field value, see Jira.type_casts keys for values.
       This is the type as it will be stored in the issues data, and is
       independent from other data relevant to that field. It is mostly used
       for ensuring we convert to strings correctly. Can have multiple types
@@ -809,6 +819,7 @@ class Jira(object):
     - "changelog_primary"
     - "changelog_name"
     - "table"
+    - "special_parser"
 
     Fields that are retrieved or deduced from only changelog data are those
     without "primary" or "field", i.e., "changelog_id" and "updated_by".
@@ -830,7 +841,7 @@ class Jira(object):
 
         self.special_parser_classes = {
             "comment": Comment_Field,
-            "issuelink": Issue_Link_Field
+            "issuelinks": Issue_Link_Field
         }
         self.special_parsers = {}
 
@@ -846,13 +857,14 @@ class Jira(object):
             "unicode": Unicode_Parser(self),
             "sprint": Sprint_Parser(self),
             "developer": Developer_Parser(self),
-            "point": Point_Parser(self),
+            "decimal": Decimal_Parser(self),
             "id_list": ID_List_Parser(self),
             "fix_version": Fix_Version_Parser(self),
             "rank": Rank_Parser(self),
             "issue_key": Issue_Key_Parser(self),
             "flag": Flag_Parser(self),
-            "ready_status": Ready_Status_Parser(self)
+            "ready_status": Ready_Status_Parser(self),
+            "labels": Labels_Parser(self)
         }
 
         self._import_field_specifications()
