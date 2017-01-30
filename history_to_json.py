@@ -13,7 +13,7 @@ import json
 import os
 # Non-standard imports
 import requests
-from utils import parse_date
+from gatherer.utils import parse_date
 
 def parse_args(config):
     """

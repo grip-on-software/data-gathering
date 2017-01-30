@@ -8,7 +8,7 @@ import json
 import os
 from datetime import datetime
 from git import Repo
-from utils import parse_unicode, Sprint_Data
+from gatherer.utils import parse_unicode, Sprint_Data
 
 class Git_Holder(object):
     """
