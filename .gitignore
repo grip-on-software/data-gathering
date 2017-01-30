@@ -1,0 +1,8 @@
+.DS_Store
+*~
+*.pyc
+*.swp
+importerjson.jar
+data_gitdev_to_dev.json
+lib/
+project-git-repos/
