@@ -170,7 +170,9 @@ class Project_Definition_Parser(object):
             'quality_report': hqlib,
             'quality_report.domain': hqlib_domain,
             'qualitylib': hqlib,
-            'qualitylib.domain': hqlib_domain
+            'qualitylib.domain': hqlib_domain,
+            'python.qualitylib': hqlib,
+            'python.qualitylib.domain': hqlib_domain
         }
         open_mock = mock.mock_open()
 
@@ -236,8 +238,11 @@ class Project_Definition_Parser(object):
         definition.
         """
 
-        if isinstance(metric, mock.Mock):
+        if isinstance(metric_type, mock.Mock):
             class_name = metric_type.name
+            if isinstance(class_name, mock.Mock):
+                # pylint: disable=protected-access
+                class_name = metric_type._mock_name
         else:
             class_name = metric_type.__name__
 
