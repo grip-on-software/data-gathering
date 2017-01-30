@@ -199,6 +199,8 @@ class Git_Repository(object):
             count = self.iterator_limiter.size + self.iterator_limiter.skip
             print 'Analysed commits up to {}'.format(count)
 
+            self.iterator_limiter.update()
+
             if self.iterator_limiter.check(had_commits):
                 commits = self._query()
 
