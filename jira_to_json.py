@@ -334,9 +334,9 @@ class Labels_Parser(Field_Parser):
 
     def parse(self, value):
         if isinstance(value, list):
-            return len(value)
+            return str(len(value))
         elif isinstance(value, (str, unicode)) and value != "":
-            return len(value.split(' '))
+            return str(len(value.split(' ')))
 
         return str(0)
 
