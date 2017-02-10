@@ -6,7 +6,7 @@ these versions into JSON output.
 import argparse
 import ConfigParser
 
-from gatherer.project_definition import Project_Definition_Parser
+from gatherer.project_definition import Metric_Options_Parser
 from gatherer.project_definition.metric import Metric_Difference
 from gatherer.project_definition.update import Update_Tracker
 from gatherer.svn import Subversion_Repository
@@ -59,8 +59,8 @@ def process(project_key, project_name, args):
     diff = Metric_Difference(project_key, update_tracker.get_previous_targets())
     end_revision = None
     for version in versions:
-        parser = Project_Definition_Parser(context_lines=args.context,
-                                           file_time=version['commit_date'])
+        parser = Metric_Options_Parser(context_lines=args.context,
+                                       file_time=version['commit_date'])
         contents = repo.get_contents(filename, revision=version['revision'])
         try:
             parser.load_definition(contents)
