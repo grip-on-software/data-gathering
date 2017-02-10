@@ -39,7 +39,8 @@ class Comment_Field(Special_Field):
 
                     if hasattr(comment, fieldname):
                         prop = getattr(comment, fieldname)
-                        row[subfield] = self.jira.type_casts[datatype].parse(prop)
+                        parser = self.jira.get_type_cast(datatype)
+                        row[subfield] = parser.parse(prop)
                     else:
                         row[subfield] = str(0)
 

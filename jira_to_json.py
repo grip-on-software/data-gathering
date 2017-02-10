@@ -53,11 +53,10 @@ def main():
     options = {
         "server": args.server
     }
-    jira = Jira(args.project, args.username, args.password, options,
-                updated_since)
-    jira.process()
+    jira = Jira(args.project, updated_since)
+    latest_update = jira.process(args.username, args.password, options)
 
-    tracker.save_updated_since(jira.get_latest_update())
+    tracker.save_updated_since(latest_update)
 
 if __name__ == "__main__":
     main()

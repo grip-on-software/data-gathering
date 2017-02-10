@@ -65,7 +65,7 @@ class Jira_Field(Table_Key_Source):
             else:
                 types = (self.data["type"],)
 
-            return [self.jira.type_casts[datatype] for datatype in types]
+            return [self.jira.get_type_cast(datatype) for datatype in types]
 
         return []
 
@@ -145,7 +145,7 @@ class Property_Field(Payload_Field):
                 if hasattr(payload_field, name):
                     has_data = True
                     prop = getattr(payload_field, name)
-                    row[name] = self.jira.type_casts[datatype].parse(prop)
+                    row[name] = self.jira.get_type_cast(datatype).parse(prop)
                 else:
                     row[name] = str(0)
 
