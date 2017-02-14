@@ -57,6 +57,7 @@ def main():
     """
 
     args = parse_args()
+
     project = args.project
     project_name = groups[project]["name"]
     project_repos = groups[project]["projects"]
