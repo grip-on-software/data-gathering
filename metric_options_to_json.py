@@ -51,7 +51,7 @@ def process(project_key, project_name, args):
     update_tracker = Update_Tracker(project_key)
     from_revision = update_tracker.get_start_revision(args.from_revision)
 
-    repo = Subversion_Repository(args.repo)
+    repo = Subversion_Repository('kwaliteitsmetingen', args.repo)
     filename = project_name + '/project_definition.py'
     versions = repo.get_versions(filename, from_revision=from_revision,
                                  to_revision=args.to_revision, descending=False)

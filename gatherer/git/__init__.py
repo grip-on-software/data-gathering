@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 from git import Repo
 from ..utils import parse_unicode, Iterator_Limiter, Sprint_Data
+from ..version_control import Version_Control_Repository
 
 __all__ = ["Git_Holder"]
 
@@ -84,9 +85,8 @@ class Git_Holder(object):
 
         for repo_name, repo in self.repos.iteritems():
             print repo_name
-            repo.parse()
+            self.data.extend(repo.parse())
             self.latest_commits[repo_name] = repo.latest_commit
-            self.data.extend(repo.data)
 
     def write_data(self):
         """
@@ -101,54 +101,99 @@ class Git_Holder(object):
             json.dump(self.latest_commits, latest_commits_file)
 
 
-class Git_Repository(object):
+class Git_Repository(Version_Control_Repository):
     """
     A single Git repository that has commit data that can be read.
     """
 
     def __init__(self, repo_name, repo_directory, latest_commit=None, sprints=None):
-        self.repo_name = repo_name
-        self.repo = Repo(repo_directory + '/' + self.repo_name)
-        self.latest_commit = latest_commit
-        self.sprints = sprints
+        super(Git_Repository, self).__init__(repo_name, repo_directory)
+        self.repo = Repo(self.repo_directory + '/' + self.repo_name)
+        self._latest_commit = latest_commit
+        self._sprints = sprints
 
-        self._data = []
+        self._data = None
+        self._iterator_limiter = None
+        self._refspec = None
+        self._reset_limiter()
 
-        self.iterator_limiter = Iterator_Limiter()
+    def _reset_limiter(self):
+        self._iterator_limiter = Iterator_Limiter()
 
-        if self.latest_commit is not None:
-            self.refspec = '{}...master'.format(self.latest_commit)
+        # Update refspec
+        if self._latest_commit is not None:
+            self._refspec = '{}...master'.format(self._latest_commit)
         else:
-            self.refspec = 'master'
+            self._refspec = 'master'
 
-    def _query(self):
-        return self.repo.iter_commits(self.refspec,
-                                      max_count=self.iterator_limiter.size,
-                                      skip=self.iterator_limiter.skip)
+    @classmethod
+    def from_url(cls, repo_name, repo_directory, url):
+        """
+        Initialize a Git repository from its clone URL if it does not yet exist.
+
+        Returns a Git_Repository object with a cloned and up-to-date repository,
+        even if the repository already existed beforehand.
+        """
+
+        if os.path.exists(repo_directory + '/' + repo_name):
+            # Update the repository from the origin URL.
+            repository = cls(repo_name, repo_directory)
+            repository.repo.remotes.origin.pull('master')
+            return repository
+
+        Repo.clone_from(url, repo_directory + '/' + repo_name)
+        return cls(repo_name, repo_directory)
+
+    def _query(self, refspec, paths='', descending=True):
+        return self.repo.iter_commits(refspec, paths=paths,
+                                      max_count=self._iterator_limiter.size,
+                                      skip=self._iterator_limiter.skip,
+                                      reverse=not descending)
 
     def parse(self):
         """
         Retrieve commit data from the repository.
         """
 
-        commits = self._query()
+        data = self._parse(self._refspec)
+        self._latest_commit = self.repo.rev_parse('master').hexsha
+        return data
+
+    def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
+        if from_revision is not None and to_revision is not None:
+            refspec = '{}...{}'.format(from_revision, to_revision)
+        elif from_revision is not None:
+            refspec = '{}...master'.format(from_revision)
+        elif to_revision is not None:
+            refspec = to_revision
+        else:
+            refspec = None
+
+        return self._parse(refspec, paths=filename, descending=descending)
+
+    def _parse(self, refspec, paths='', descending=True):
+        self._reset_limiter()
+
+        data = []
+        commits = self._query(refspec, paths=paths, descending=descending)
         had_commits = True
-        while self.iterator_limiter.check(had_commits):
+        while self._iterator_limiter.check(had_commits):
             had_commits = False
 
             for commit in commits:
                 had_commits = True
-                self.parse_commit(commit)
+                data.append(self.parse_commit(commit))
 
-            count = self.iterator_limiter.size + self.iterator_limiter.skip
+            count = self._iterator_limiter.size + self._iterator_limiter.skip
             print 'Analysed commits up to {}'.format(count)
 
-            self.iterator_limiter.update()
+            self._iterator_limiter.update()
 
-            if self.iterator_limiter.check(had_commits):
-                commits = self._query()
+            if self._iterator_limiter.check(had_commits):
+                commits = self._query(refspec, paths=paths, descending=descending)
 
-        self.latest_commit = self.repo.rev_parse('master').hexsha
+        return data
+
 
     def parse_commit(self, commit):
         """
@@ -181,17 +226,17 @@ class Git_Repository(object):
             'commit_date': datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
         }
 
-        sprint_id = self.sprints.find_sprint(commit_datetime)
-        if sprint_id is not None:
-            git_commit['sprint_id'] = str(sprint_id)
+        if self._sprints is not None:
+            sprint_id = self._sprints.find_sprint(commit_datetime)
+            if sprint_id is not None:
+                git_commit['sprint_id'] = str(sprint_id)
 
-        self._data.append(git_commit)
+        return git_commit
 
     @property
-    def data(self):
+    def latest_commit(self):
         """
-        Retrieve the commit data from this repository, after `parse` has been
-        called.
+        Retrieve the latest commit date that was collected during `parse`.
         """
 
-        return self._data
+        return self._latest_commit

@@ -7,26 +7,39 @@ import os.path
 # Non-standard imports
 import dateutil.tz
 import svn.local
+import svn.remote
+
+from ..version_control import Version_Control_Repository
 
 __all__ = ["Subversion_Repository"]
 
-class Subversion_Repository(object):
+class Subversion_Repository(Version_Control_Repository):
     """
     Class representing a subversion repository from which files and their
     histories (contents, logs) can be read.
     """
 
-    def __init__(self, path='.'):
-        self.path = os.path.expanduser(path)
-        self.svn = svn.local.LocalClient(self.path)
+    def __init__(self, repo_name, repo_directory):
+        super(Subversion_Repository, self).__init__(repo_name, repo_directory)
+        self.svn = svn.local.LocalClient(os.path.expanduser(repo_directory))
 
-    def get_versions(self, filename, from_revision=None, to_revision=None, descending=False):
+    @classmethod
+    def from_url(cls, repo_name, repo_directory, url):
+        """
+        Initialize a Subversion repository from its checkout URL.
+        """
+
+        repository = cls(repo_name, repo_directory)
+        repository.svn = svn.remote.RemoteClient(url)
+        return repository
+
+    def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
         """
         Retrieve data about each version of a specific file path `filename`.
 
         The range of the log to retrieve can be set with `from_revision` and
         `to_revision`, both are optional. The log is sorted by commit date,
-        either newest first (`descending`) or not (default)
+        either newest first (`descending`) or not (default).
         """
 
         versions = []
