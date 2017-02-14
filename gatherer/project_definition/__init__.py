@@ -294,21 +294,20 @@ class Sources_Parser(Project_Definition_Parser):
         self.sys_path = path
         self.source_objects = self.get_mock_domain_objects(metric_source,
                                                            self.METRIC_SOURCE)
+        self.source_objects['Git'] = metric_source.Git
+        self.source_objects['Subversion'] = metric_source.Subversion
 
     def get_hqlib_submodules(self):
         return {
-            'metric_source': mock.MagicMock(**metric_source.__dict__)
+            'metric_source': mock.MagicMock(**self.source_objects)
         }
 
     def get_mock_modules(self):
         modules = super(Sources_Parser, self).get_mock_modules()
 
-        try:
-            modules['ictu'] = importlib.import_module('ictu')
-            modules['ictu.convention'] = importlib.import_module('ictu.convention')
-            modules['ictu.metric_source'] = importlib.import_module('ictu.metric_source')
-        except:
-            raise
+        modules['ictu'] = importlib.import_module('ictu')
+        modules['ictu.convention'] = importlib.import_module('ictu.convention')
+        modules['ictu'].person = mock.MagicMock()
 
         hqlib_metric_source = mock.MagicMock(**self.source_objects)
         modules.update(self.get_compatibility_modules(self.METRIC_SOURCE,
@@ -326,8 +325,11 @@ class Sources_Parser(Project_Definition_Parser):
     def parse_domain_call(self, args, keywords):
         if "name" in keywords:
             name = keywords["name"]
-        else:
+        elif len(args) > 1:
             name = args[1]
+        else:
+            # Likely a call to a superclass constructor
+            return
 
         if "metric_source_ids" not in keywords:
             return
