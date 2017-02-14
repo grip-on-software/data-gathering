@@ -66,7 +66,10 @@ def main():
         repos[repo] = {
             'info': project_repo._get_data(),
             'merge_requests': [
-                mr._get_data() for mr in project_repo.merge_requests()
+                {
+                    "info": mr._get_data(),
+                    "notes": [n._get_data() for n in mr.notes()]
+                } for mr in project_repo.merge_requests()
             ]
         }
 
