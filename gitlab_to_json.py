@@ -15,6 +15,10 @@ groups = {
         "name": "project4",
         "projects": "REPO1 REPO2 REPON".split(' ')
     },
+    "PROJN": {
+        "name": "project4",
+        "projects": ["REPO1", "REPO2", "REPO3"]
+    },
     "PROJ3": {
         "name": "project3",
         "projects": ["REPO1", "REPO2", "REPO3"]
@@ -87,7 +91,7 @@ def main():
                     print(sha)
                     data['commit_comments'][sha] = comments
         else:
-            print 'No local clone of the repository, skipping commit comment gathering.'
+            print "No local clone of repository '{0}/{1}', skipping commit comment gathering.".format(project_name, repo)
 
         repos[repo] = data
 
