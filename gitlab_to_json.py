@@ -6,7 +6,9 @@ a GitLab in order to consolidate this data for later import.
 import argparse
 from datetime import datetime
 import json
+import os.path
 import gitlab3
+from gatherer.git import Git_Repository
 
 groups = {
     "PROJ4": {
@@ -63,15 +65,31 @@ def main():
     repos = {}
     for repo in project_repos:
         project_repo = api.find_project(path_with_namespace='{0}/{1}'.format(project_name, repo))
-        repos[repo] = {
+        data = {
             'info': project_repo._get_data(),
             'merge_requests': [
                 {
-                    "info": mr._get_data(),
-                    "notes": [n._get_data() for n in mr.notes()]
+                    'info': mr._get_data(),
+                    'notes': [n._get_data() for n in mr.notes()]
                 } for mr in project_repo.merge_requests()
-            ]
+            ],
+            'commit_comments': {}
         }
+
+        repo_dir = 'project-git-repos/{0}'.format(project)
+        if os.path.exists('{0}/{1}'.format(repo_dir, repo)):
+            git_repo = Git_Repository(repo, repo_dir)
+            commits = git_repo.repo.iter_commits('master', remotes=True)
+            for commit in commits:
+                sha = commit.hexsha
+                comments = project_repo.get_comments(sha)
+                if comments:
+                    print(sha)
+                    data['commit_comments'][sha] = comments
+        else:
+            print 'No local clone of the repository, skipping commit comment gathering.'
+
+        repos[repo] = data
 
     with open(project + '/data_gitlab.json', 'w') as output_file:
         json.dump(repos, output_file, indent=4, default=json_serial)

@@ -10,3 +10,5 @@ python-dateutil
 mock
 quality_report
 svn
+# gitlab_to_json.py
+-e git+git://github.com/lhelwerd/python-gitlab3.git@commit-comments#egg=gitlab3
