@@ -74,7 +74,6 @@ def retrieve_repos(project):
         repo_name = project_repo.name
         repo_dir = 'project-git-repos/{0}'.format(project.export_key)
         url = project.get_url_credentials(project_repo.http_url_to_repo)
-        print url
         git_repo = Git_Repository.from_url(repo_name, repo_dir, url)
         commits = git_repo.repo.iter_commits('master', remotes=True)
         for commit in commits:

@@ -44,8 +44,8 @@ class Comment_Field(Special_Field):
                     else:
                         row[subfield] = str(0)
 
-                    row["issue_id"] = str(issue.id)
-                    self.jira.get_table("comment").append(row)
+                row["issue_id"] = str(issue.id)
+                self.jira.get_table("comments").append(row)
 
     @property
     def table_key(self):

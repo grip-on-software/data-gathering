@@ -396,8 +396,8 @@ class Jira(object):
         """
 
         for name, parser in self._special_parsers.iteritems():
-            if hasattr(issue, name):
-                field = getattr(issue, name)
+            if hasattr(issue.fields, name):
+                field = getattr(issue.fields, name)
                 if field is not None:
                     parser.parse(issue, field)
 
