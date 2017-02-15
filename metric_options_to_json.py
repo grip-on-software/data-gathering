@@ -10,6 +10,7 @@ from gatherer.project_definition import Metric_Options_Parser
 from gatherer.project_definition.metric import Metric_Difference
 from gatherer.project_definition.update import Update_Tracker
 from gatherer.svn import Subversion_Repository
+from gatherer.utils import Project
 
 def parse_svn_revision(rev):
     """
@@ -43,20 +44,22 @@ def parse_args():
 
     return parser.parse_args()
 
-def process(project_key, project_name, args):
+def process(project, args):
     """
     Perform the revision traversal and project definition parsing.
     """
 
-    update_tracker = Update_Tracker(project_key)
+    update_tracker = Update_Tracker(project.export_key)
     from_revision = update_tracker.get_start_revision(args.from_revision)
 
     repo = Subversion_Repository('kwaliteitsmetingen', args.repo, stats=False)
-    filename = project_name + '/project_definition.py'
+    filename = project.quality_metrics_name + '/project_definition.py'
     versions = repo.get_versions(filename, from_revision=from_revision,
                                  to_revision=args.to_revision, descending=False)
 
-    diff = Metric_Difference(project_key, update_tracker.get_previous_targets())
+    diff = Metric_Difference(project.export_key,
+                             update_tracker.get_previous_targets())
+
     end_revision = None
     for version in versions:
         parser = Metric_Options_Parser(context_lines=args.context,
@@ -87,13 +90,12 @@ def main():
     args = parse_args()
 
     project_key = args.project
-    if config.has_option('projects', project_key):
-        project_name = config.get('projects', project_key)
-    else:
+    project = Project(project_key)
+    if project.quality_metrics_name is None:
         print 'No quality metrics options available for {}, skipping.'.format(project_key)
         return
 
-    process(project_key, project_name, args)
+    process(project, args)
 
 if __name__ == "__main__":
     main()

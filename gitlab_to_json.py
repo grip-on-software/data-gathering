@@ -9,28 +9,7 @@ import json
 import os.path
 import gitlab3
 from gatherer.git import Git_Repository
-
-groups = {
-    "PROJ4": {
-        "name": "project4",
-        "projects": "REPO1 REPO2 REPON".split(' ')
-    },
-    "PROJN": {
-        "name": "project4",
-        "projects": ["REPO1", "REPO2", "REPO3"]
-    },
-    "PROJ3": {
-        "name": "project3",
-        "projects": ["REPO1", "REPO2", "REPO3"]
-    },
-    "PROJ2": {
-        "name": "project2",
-        "projects": "REPO1 REPO2 REPON".split(' ')
-    }
-}
-
-url = 'http://GITLAB_SERVER.localhost/'
-token = 'TOKEN'
+from gatherer.utils import Project
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -49,27 +28,38 @@ def parse_args():
     description = "Gather metadata and merge request notes from repositories"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
+    parser.add_argument("--ignore-host-change", dest="follow_host_change",
+                        action="store_false", default=True,
+                        help="Ignore credential host changes and use the original host instead")
     return parser.parse_args()
 
-def main():
+# pylint: disable=no-member
+def retrieve_repos(project):
     """
-    Main entry point.
+    Retrieve data from GitLab repositories for a specific project.
     """
 
-    args = parse_args()
+    source = project.gitlab_source
+    if source is None:
+        print 'Project {} has no GitLab instance with credentials, skipping.'.format(project.export_key)
+        return
 
-    project = args.project
-    project_name = groups[project]["name"]
-    project_repos = groups[project]["projects"]
+    api = gitlab3.GitLab(source['host'], source['gitlab_token'])
+    group_name = project.gitlab_group_name
+    group = api.find_group(name=group_name)
+    if not group:
+        raise RuntimeError('Could not find group for project group {0}'.format(group_name))
 
-    print '{0}: {1} ({2} repos)'.format(project, project_name, len(project_repos))
+    # Fetch the group projects by requesting the group to the API again
+    project_repos = api.group(group.id).projects
 
-    api = gitlab3.GitLab(url, token)
+    names = ', '.join([repo['name'] for repo in project_repos])
+    print '{0} has {1} repos: {2}'.format(group_name, len(project_repos), names)
 
-    # pylint: disable=no-member
     repos = {}
     for repo in project_repos:
-        project_repo = api.find_project(path_with_namespace='{0}/{1}'.format(project_name, repo))
+        project_repo = api.project(repo['id'])
+        # Retrieve relevant data from the API.
         data = {
             'info': project_repo._get_data(),
             'merge_requests': [
@@ -81,22 +71,36 @@ def main():
             'commit_comments': {}
         }
 
-        repo_dir = 'project-git-repos/{0}'.format(project)
-        if os.path.exists('{0}/{1}'.format(repo_dir, repo)):
-            git_repo = Git_Repository(repo, repo_dir)
-            commits = git_repo.repo.iter_commits('master', remotes=True)
-            for commit in commits:
-                sha = commit.hexsha
-                comments = project_repo.get_comments(sha)
-                if comments:
-                    print(sha)
-                    data['commit_comments'][sha] = comments
-        else:
-            print "No local clone of repository '{0}/{1}', skipping commit comment gathering.".format(project_name, repo)
+        repo_name = project_repo.name
+        repo_dir = 'project-git-repos/{0}'.format(project.export_key)
+        url = project.get_url_credentials(project_repo.http_url_to_repo)
+        print url
+        git_repo = Git_Repository.from_url(repo_name, repo_dir, url)
+        commits = git_repo.repo.iter_commits('master', remotes=True)
+        for commit in commits:
+            sha = commit.hexsha
+            comments = project_repo.get_comments(sha)
+            if comments:
+                data['commit_comments'][sha] = comments
 
         repos[repo] = data
 
-    with open(project + '/data_gitlab.json', 'w') as output_file:
+    return repos
+
+def main():
+    """
+    Main entry point.
+    """
+
+    args = parse_args()
+
+    project_key = args.project
+    project = Project(project_key, follow_host_change=args.follow_host_change)
+
+    repos = retrieve_repos(project)
+
+    path = os.path.join(project.export_key, 'data_gitlab.json')
+    with open(path, 'w') as output_file:
         json.dump(repos, output_file, indent=4, default=json_serial)
 
 if __name__ == "__main__":

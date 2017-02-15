@@ -4,10 +4,10 @@ the products and components.
 """
 
 import argparse
-import ConfigParser
-import urlparse
+import json
 
 from gatherer.project_definition import Sources_Parser
+from gatherer.utils import Project
 
 def parse_args():
     """
@@ -22,49 +22,45 @@ def parse_args():
 
     return parser.parse_args()
 
-def parse_sources(sources):
+def parse_sources(project_key, sources):
     """
-    Read a list of source repositories, clone or update them if necessary,
-    and output data that can be used by other gatherer scripts.
+    Given a list of source repositories parsed from the project definition,
+    output data that can be used by other gatherer scripts.
     """
 
-    credentials = ConfigParser.RawConfigParser()
-    credentials.read("credentials.cfg")
+    data = []
+    for name, metric_source in sources.items():
+        source = {
+            'name': name
+        }
+        if 'Subversion' in metric_source:
+            source['type'] = 'subversion'
+            source['url'] = metric_source['Subversion']
+        elif 'Git' in metric_source:
+            source['type'] = 'git'
+            source['url'] = metric_source['Git']
 
-    urls = set()
-    for name, source in sources.items():
-        url = source['Subversion'] if 'Subversion' in source else source['Git']
-        print '{}: {} ({})'.format(name, url, 'Subversion' if 'Subversion' in source else 'Git')
-        parts = urlparse.urlsplit(url)
-        host = parts.netloc
-        if credentials.has_section(host):
-            username = credentials.get(host, 'username')
-            password = credentials.get(host, 'password')
-            if credentials.has_option(host, 'host'):
-                host = credentials.get(host, 'host')
+        data.append(source)
 
-            auth = '{0}:{1}'.format(username, password)
-            host = auth + '@' + host
-
-        url = urlparse.urlunsplit((parts.scheme, host, parts.path, parts.query, parts.fragment))
-        urls.add(url)
-
-    print urls
+    with open(project_key + '/data_sources.json', 'w') as sources_file:
+        json.dump(data, sources_file)
 
 def main():
     """
     Main entry point.
     """
 
-    config = ConfigParser.RawConfigParser()
-    config.read("settings.cfg")
     args = parse_args()
-
     project_key = args.project
-    if config.has_option('projects', project_key):
-        project_name = config.get('projects', project_key)
-    else:
-        print 'No project sources available for {}, skipping.'.format(project_key)
+    project = Project(project_key)
+
+    project_name = project.quality_metrics_name
+    if project_name is None:
+        if project.main_project is not None:
+            reason = 'main project is {}'.format(project.main_project)
+        else:
+            reason = 'no long name or main project defined'
+        print 'No project sources available for {} ({}), skipping.'.format(project_key, reason)
         return
 
     filename = args.repo + '/' + project_name + '/project_definition.py'
@@ -74,7 +70,7 @@ def main():
         parser.load_definition(definition_file.read())
 
     sources = parser.parse()
-    parse_sources(sources)
+    parse_sources(project_key, sources)
 
 if __name__ == "__main__":
     main()

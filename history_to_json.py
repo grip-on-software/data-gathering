@@ -13,7 +13,7 @@ import json
 import os
 # Non-standard imports
 import requests
-from gatherer.utils import parse_date
+from gatherer.utils import parse_date, Project
 
 def parse_args(config):
     """
@@ -75,7 +75,10 @@ def main():
     args = parse_args(config)
     project_key = args.project
     start_from = args.start_from
-    line_filename = project_key + '/history_line_count.txt'
+
+    project = Project(project_key)
+
+    line_filename = project.export_key + '/history_line_count.txt'
     if start_from is None:
         if os.path.exists(line_filename):
             with open(line_filename, 'r') as line_file:
@@ -87,9 +90,8 @@ def main():
         with open(args.file, 'r') as data_file:
             metric_data, line_count = read_project_file(data_file, start_from)
     else:
-        if config.has_option('projects', project_key):
-            project_name = config.get('projects', project_key)
-        else:
+        project_name = project.quality_metrics_name
+        if project_name is None:
             print "No metrics history file available for {}, skipping.".format(project_key)
             return
 
