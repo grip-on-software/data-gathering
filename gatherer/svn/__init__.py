@@ -9,6 +9,7 @@ import dateutil.tz
 import svn.local
 import svn.remote
 
+from ..utils import parse_unicode, Sprint_Data
 from ..version_control import Version_Control_Repository
 
 __all__ = ["Subversion_Repository"]
@@ -19,8 +20,8 @@ class Subversion_Repository(Version_Control_Repository):
     histories (contents, logs) can be read.
     """
 
-    def __init__(self, repo_name, repo_directory):
-        super(Subversion_Repository, self).__init__(repo_name, repo_directory)
+    def __init__(self, repo_name, repo_directory, **kwargs):
+        super(Subversion_Repository, self).__init__(repo_name, repo_directory, **kwargs)
         self.svn = svn.local.LocalClient(os.path.expanduser(repo_directory))
 
     @classmethod
@@ -52,16 +53,71 @@ class Subversion_Repository(Version_Control_Repository):
             commit_date = commit_date.astimezone(dateutil.tz.tzlocal())
             message = entry.msg if entry.msg is not None else ''
             version = {
+                # Primary data
+                'svn_repo': str(self.repo_name),
                 'revision': str(entry.revision),
+                'sprint_id': str(0),
+                # Additional data
                 'developer': entry.author,
-                'message': message,
+                'message': parse_unicode(message),
                 'commit_date': datetime.datetime.strftime(commit_date, '%Y-%m-%d %H:%M:%S')
             }
+
+            if self.retrieve_stats:
+                version.update(self.get_diff_stats(to_revision=version['revision']))
 
             versions.append(version)
 
         return sorted(versions, key=lambda version: version['revision'],
                       reverse=descending)
+
+    def get_diff_stats(self, from_revision=None, to_revision=None):
+        """
+        Retrieve statistics about the difference between two revisions.
+        """
+
+        if from_revision is None and to_revision is None:
+            args = []
+        else:
+            if from_revision is None:
+                from_revision = int(to_revision)-1
+            elif to_revision is None:
+                to_revision = int(from_revision)+1
+
+            args = [
+                '--old', self.repo_directory + '@' + from_revision,
+                '--new', self.repo_directory + '@' + to_revision
+            ]
+
+        diff_result = self.svn.run_command('diff', args)
+
+        insertions = 0
+        deletions = 0
+        number_of_lines = 0
+        number_of_files = 0
+        size = 0
+        for line in diff_result:
+            if line.startswith('==='):
+                head = True
+                number_of_files += 1
+            elif head and line.startswith('@@ '):
+                head = False
+
+            if not head:
+                insertions += line.startwith('+')
+                deletions += line.startswith('-')
+                size += len(line) - 1
+
+        number_of_lines = insertions + deletions
+
+        return {
+            # Statistics
+            'insertions': str(insertions),
+            'deletions': str(deletions),
+            'number_of_lines': str(number_of_lines),
+            'number_of_files': str(number_of_files),
+            'size': str(size)
+        }
 
     def get_contents(self, filename, revision=None):
         """

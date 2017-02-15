@@ -7,9 +7,10 @@ class Version_Control_Repository(object):
     Abstract repository interface for a version control system.
     """
 
-    def __init__(self, repo_name, repo_directory):
+    def __init__(self, repo_name, repo_directory, stats=True):
         self.repo_name = repo_name
         self.repo_directory = repo_directory
+        self.retrieve_stats = stats
 
     @classmethod
     def from_url(cls, repo_name, repo_directory, url):

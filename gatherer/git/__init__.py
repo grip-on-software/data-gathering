@@ -200,7 +200,6 @@ class Git_Repository(Version_Control_Repository):
         Convert one commit instance to a dictionary of properties.
         """
 
-        cstotal = commit.stats.total
         commit_datetime = datetime.fromtimestamp(commit.committed_date)
 
         commit_type = str(commit.type)
@@ -212,19 +211,16 @@ class Git_Repository(Version_Control_Repository):
             'git_repo': str(self.repo_name),
             'commit_id': str(commit.hexsha),
             'sprint_id': str(0),
-            # Statistics
-            'insertions': str(cstotal['insertions']),
-            'deletions': str(cstotal['deletions']),
-            'number_of_files': str(cstotal['files']),
-            'number_of_lines': str(cstotal['lines']),
-            # More data
+            # Additional data
             'message': parse_unicode(commit.message),
-            'size_of_commit': str(commit.size),
             'type': commit_type,
             'developer': commit.author.name,
             'developer_email': str(commit.author.email),
             'commit_date': datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
         }
+
+        if self.retrieve_stats:
+            git_commit.update(self._get_diff_stats(commit))
 
         if self._sprints is not None:
             sprint_id = self._sprints.find_sprint(commit_datetime)
@@ -232,6 +228,19 @@ class Git_Repository(Version_Control_Repository):
                 git_commit['sprint_id'] = str(sprint_id)
 
         return git_commit
+
+    @staticmethod
+    def _get_diff_stats(commit):
+        cstotal = commit.stats.total
+
+        return {
+            # Statistics
+            'insertions': str(cstotal['insertions']),
+            'deletions': str(cstotal['deletions']),
+            'number_of_files': str(cstotal['files']),
+            'number_of_lines': str(cstotal['lines']),
+            'size_of_commit': str(commit.size)
+        }
 
     @property
     def latest_commit(self):
