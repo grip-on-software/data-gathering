@@ -59,7 +59,7 @@ class Git_Holder(object):
             else:
                 latest_commit = None
 
-            repo = Git_Repository(repo_name, self.repo_directory,
+            repo = Git_Repository(repo_name, self.repo_directory + '/' + repo_name,
                                   latest_commit=latest_commit,
                                   sprints=self.sprints)
             self.repos[repo_name] = repo
@@ -108,7 +108,7 @@ class Git_Repository(Version_Control_Repository):
 
     def __init__(self, repo_name, repo_directory, latest_commit=None, sprints=None):
         super(Git_Repository, self).__init__(repo_name, repo_directory)
-        self.repo = Repo(self.repo_directory + '/' + self.repo_name)
+        self.repo = Repo(self.repo_directory)
         self._latest_commit = latest_commit
         self._sprints = sprints
 
@@ -135,7 +135,7 @@ class Git_Repository(Version_Control_Repository):
         even if the repository already existed beforehand.
         """
 
-        if os.path.exists(repo_directory + '/' + repo_name):
+        if os.path.exists(repo_directory):
             # Update the repository from the origin URL.
             repository = cls(repo_name, repo_directory)
             repository.repo.remotes.origin.pull('master')
