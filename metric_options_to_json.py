@@ -6,11 +6,11 @@ these versions into JSON output.
 import argparse
 import ConfigParser
 
+from gatherer.domain import Project
 from gatherer.project_definition import Metric_Options_Parser
 from gatherer.project_definition.metric import Metric_Difference
 from gatherer.project_definition.update import Update_Tracker
 from gatherer.svn import Subversion_Repository
-from gatherer.utils import Project
 
 def parse_svn_revision(rev):
     """

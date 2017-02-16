@@ -7,7 +7,7 @@ import argparse
 import json
 
 from gatherer.project_definition import Sources_Parser
-from gatherer.utils import Project
+from gatherer.domain import Project, Source
 
 def parse_args():
     """
@@ -30,17 +30,14 @@ def parse_sources(project_key, sources):
 
     data = []
     for name, metric_source in sources.items():
-        source = {
-            'name': name
-        }
         if 'Subversion' in metric_source:
-            source['type'] = 'subversion'
-            source['url'] = metric_source['Subversion']
+            source = Source('subversion', name=name, url=metric_source['Subversion'])
         elif 'Git' in metric_source:
-            source['type'] = 'git'
-            source['url'] = metric_source['Git']
+            source = Source('git', name=name, url=metric_source['Git'])
+        else:
+            continue
 
-        data.append(source)
+        data.append(source.export())
 
     with open(project_key + '/data_sources.json', 'w') as sources_file:
         json.dump(data, sources_file)

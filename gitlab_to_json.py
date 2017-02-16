@@ -9,7 +9,7 @@ import json
 import os.path
 import gitlab3
 from gatherer.git import Git_Repository
-from gatherer.utils import Project
+from gatherer.domain import Project
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -44,7 +44,7 @@ def retrieve_repos(project):
         print 'Project {} has no GitLab instance with credentials, skipping.'.format(project.export_key)
         return
 
-    api = gitlab3.GitLab(source['host'], source['gitlab_token'])
+    api = gitlab3.GitLab(source.host, source.gitlab_token)
     group_name = project.gitlab_group_name
     group = api.find_group(name=group_name)
     if not group:
