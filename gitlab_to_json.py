@@ -86,6 +86,10 @@ def retrieve_repos(project):
                                   follow_host_change=False)
         git_repo = Git_Repository.from_url(repo_name, repo_dir, source.url,
                                            progress=True)
+
+        if git_repo.is_empty():
+            continue
+
         if source.url != gitlab_source.url:
             project.add_source(source)
 

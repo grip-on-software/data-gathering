@@ -191,6 +191,14 @@ class Git_Repository(Version_Control_Repository):
         Repo.clone_from(url, repo_directory, progress=progress)
         return cls(repo_name, repo_directory)
 
+    def is_empty(self):
+        """
+        Check whether the repository is empty, i.e. no commits have been made
+        at all.
+        """
+
+        return not self.repo.branches
+
     def _query(self, refspec, paths='', descending=True):
         return self.repo.iter_commits(refspec, paths=paths,
                                       max_count=self._iterator_limiter.size,
