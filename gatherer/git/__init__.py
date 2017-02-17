@@ -32,8 +32,9 @@ class Git_Progress(RemoteProgress):
         action_op = op_code & RemoteProgress.OP_MASK
         if action_op in self._op_codes:
             if max_count is not None and max_count != '':
-                count = '{0:>3.0%} ({1}/{2})'.format(cur_count/float(max_count),
-                                                     cur_count, max_count)
+                ratio = cur_count / float(max_count)
+                count = '{0:>3.0%} ({1:.0}/{2:.0})'.format(ratio, cur_count,
+                                                           max_count)
             else:
                 count = cur_count
 
@@ -42,10 +43,10 @@ class Git_Progress(RemoteProgress):
             else:
                 token = ''
 
-            line = '{0}: {1} {2}'.format(self._op_codes[action_op], count, token)
+            line = '{0}: {1}{2}'.format(self._op_codes[action_op], count, token)
             logging.info('Git: %s', line)
         else:
-            logging.info('unexpected opcode: %s %s', op_code, action_op)
+            logging.info('Unexpected Git progress opcode: %s', op_code)
 
     def line_dropped(self, line):
         logging.info('Git: %s', line)
