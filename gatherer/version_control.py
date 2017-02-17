@@ -13,7 +13,7 @@ class Version_Control_Repository(object):
         self.retrieve_stats = stats
 
     @classmethod
-    def from_url(cls, repo_name, repo_directory, url):
+    def from_url(cls, repo_name, repo_directory, url, **kwargs):
         """
         Retrieve a repository handle from an external URL.
 

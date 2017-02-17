@@ -3,13 +3,52 @@ Package for classes related to extracting data from multiple Git repositories.
 """
 
 import json
+import logging
 import os
 from datetime import datetime
-from git import Repo
+from git import Repo, RemoteProgress
 from ..utils import parse_unicode, Iterator_Limiter, Sprint_Data
 from ..version_control import Version_Control_Repository
 
 __all__ = ["Git_Holder"]
+
+class Git_Progress(RemoteProgress):
+    """
+    Progress delegate which outputs Git progress to logging.
+    """
+
+    _op_codes = {
+        RemoteProgress.COUNTING: 'Counting objects',
+        RemoteProgress.COMPRESSING: 'Compressing objects',
+        RemoteProgress.WRITING: 'Writing objects',
+        RemoteProgress.RECEIVING: 'Receiving objects',
+        RemoteProgress.RESOLVING: 'Resolving deltas',
+        RemoteProgress.FINDING_SOURCES: 'Finding sources',
+        RemoteProgress.CHECKING_OUT: 'Checking out files'
+    }
+
+    def update(self, op_code, cur_count, max_count=None, message=''):
+        stage_op = op_code & RemoteProgress.STAGE_MASK
+        action_op = op_code & RemoteProgress.OP_MASK
+        if action_op in self._op_codes:
+            if max_count is not None and max_count != '':
+                count = '{0:>3.0%} ({1}/{2})'.format(cur_count/float(max_count),
+                                                     cur_count, max_count)
+            else:
+                count = cur_count
+
+            if stage_op == RemoteProgress.END:
+                token = RemoteProgress.TOKEN_SEPARATOR + RemoteProgress.DONE_TOKEN
+            else:
+                token = ''
+
+            line = '{0}: {1} {2}'.format(self._op_codes[action_op], count, token)
+            logging.info('Git: %s', line)
+        else:
+            logging.info('unexpected opcode: %s %s', op_code, action_op)
+
+    def line_dropped(self, line):
+        logging.info('Git: %s', line)
 
 class Git_Holder(object):
     """
@@ -100,7 +139,6 @@ class Git_Holder(object):
         with open(self.latest_filename, 'w') as latest_commits_file:
             json.dump(self.latest_commits, latest_commits_file)
 
-
 class Git_Repository(Version_Control_Repository):
     """
     A single Git repository that has commit data that can be read.
@@ -127,21 +165,29 @@ class Git_Repository(Version_Control_Repository):
             self._refspec = 'master'
 
     @classmethod
-    def from_url(cls, repo_name, repo_directory, url):
+    def from_url(cls, repo_name, repo_directory, url, progress=False, **kwargs):
         """
         Initialize a Git repository from its clone URL if it does not yet exist.
+
+        If `progress` is `True`, then add progress lines from Git commands to
+        the logging output.
 
         Returns a Git_Repository object with a cloned and up-to-date repository,
         even if the repository already existed beforehand.
         """
 
+        if progress is True:
+            progress = Git_Progress()
+        elif progress is False:
+            progress = None
+
         if os.path.exists(repo_directory):
             # Update the repository from the origin URL.
             repository = cls(repo_name, repo_directory)
-            repository.repo.remotes.origin.pull('master')
+            repository.repo.remotes.origin.pull('master', progress=progress)
             return repository
 
-        Repo.clone_from(url, repo_directory + '/' + repo_name)
+        Repo.clone_from(url, repo_directory, progress=progress)
         return cls(repo_name, repo_directory)
 
     def _query(self, refspec, paths='', descending=True):
