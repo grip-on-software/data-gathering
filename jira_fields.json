@@ -49,7 +49,7 @@
         "changelog_name": "Version",
         "type": "version",
         "table": "fixVersion"
-    }
+    },
     "bugfix": {
         "field": "customfield_10404", 
         "changelog_name": "Bug fix", 
