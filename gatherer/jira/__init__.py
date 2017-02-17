@@ -406,7 +406,7 @@ class Jira(object):
                 prev_diffs = diffs
                 changelog_count -= 1
 
-        if prev_diffs and self._updated_since.is_newer(data["created"]):
+        if self._updated_since.is_newer(data["created"]):
             prev_diffs["updated"] = data["created"]
             new_data = self._create_change_transition(prev_data, prev_diffs)
             new_data["changelog_id"] = str(0)
