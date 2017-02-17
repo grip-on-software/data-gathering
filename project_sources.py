@@ -54,7 +54,9 @@ def main():
             reason = 'main project is {}'.format(project.main_project)
         else:
             reason = 'no long name or main project defined'
+
         print 'No project sources available for {} ({}), skipping.'.format(project_key, reason)
+        project.export_sources()
         return
 
     filename = args.repo + '/' + project_name + '/project_definition.py'
