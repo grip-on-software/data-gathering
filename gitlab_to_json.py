@@ -94,7 +94,11 @@ def retrieve_repos(project):
             sha = commit.hexsha
             comments = project_repo.get_comments(sha)
             if comments:
-                data['commit_comments'][sha] = comments
+                data['commit_comments'][sha] = {
+                    'commit_info': project_repo.commit(sha)._get_data(),
+                    'notes': comments
+                }
+        repos[repo_name] = data
 
     project.export_sources()
 
