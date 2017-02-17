@@ -74,9 +74,9 @@ class Jira(object):
 
     This class extracts fields from JIRA according to a field specification.
 
-    Each field has a dictionary of configuration. Each field must have at most
-    one of the following:
-
+    Each field has a dictionary of configuration. Each field can have at most
+    one of the following, although this is not required if the field only
+    exists within the changelog:
     - "primary": If given, the property name of the field within the main
       issue's response data.
     - "field": If given, the property name within the "fields" dictionary
@@ -194,7 +194,7 @@ class Jira(object):
                                     table_key_source=parser)
                 jira_fields.append(name)
 
-            elif "changelog_primary" in data:
+            if "changelog_primary" in data:
                 changelog_name = data["changelog_primary"]
                 primary_field = Changelog_Primary_Field(self, name, **data)
                 self._changelog_primary_fields[changelog_name] = primary_field
