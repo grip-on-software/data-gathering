@@ -12,7 +12,7 @@ from .field import Jira_Field, Primary_Field, Payload_Field, Property_Field, \
     Changelog_Primary_Field, Changelog_Field
 from .parser import Int_Parser, String_Parser, Date_Parser, Unicode_Parser, \
     Sprint_Parser, Developer_Parser, Decimal_Parser, ID_List_Parser, \
-    Fix_Version_Parser, Rank_Parser, Issue_Key_Parser, Flag_Parser, \
+    Version_Parser, Rank_Parser, Issue_Key_Parser, Flag_Parser, \
     Ready_Status_Parser, Labels_Parser
 from .special_field import Comment_Field, Issue_Link_Field
 from .table import Table, Key_Table, Link_Table
@@ -124,7 +124,7 @@ class Jira(object):
             "developer": Developer_Parser(self),
             "decimal": Decimal_Parser(self),
             "id_list": ID_List_Parser(self),
-            "fix_version": Fix_Version_Parser(self),
+            "version": Version_Parser(self),
             "rank": Rank_Parser(self),
             "issue_key": Issue_Key_Parser(self),
             "flag": Flag_Parser(self),

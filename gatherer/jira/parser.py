@@ -181,14 +181,17 @@ class ID_List_Parser(Field_Parser):
 
         return value
 
-class Fix_Version_Parser(Field_Parser):
+class Version_Parser(Field_Parser):
     """
-    Parser for fields that contain the version in which an issue was fixed.
+    Parser for fields that contain the version in which an issue was fixed or
+    which is affected by the issue.
     """
 
     def parse(self, value):
         if value is None:
             return str(0)
+        if not isinstance(value, list):
+            return str(value)
 
         encoded_value = str(0)
 

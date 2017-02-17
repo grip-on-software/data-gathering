@@ -40,10 +40,16 @@
     }, 
     "fixVersions": {
         "field": "fixVersions", 
-        "changelog_name": "fixVersions", 
-        "type": "fix_version",
+        "changelog_name": "Fix Version", 
+        "type": "version",
         "table": "fixVersion"
-    }, 
+    },
+    "versions": {
+        "field": "versions",
+        "changelog_name": "Version",
+        "type": "version",
+        "table": "fixVersion"
+    }
     "bugfix": {
         "field": "customfield_10404", 
         "changelog_name": "Bug fix", 
