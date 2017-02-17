@@ -52,7 +52,7 @@ class Project(object):
         if self._sources is not None:
             return
 
-        self._sources = []
+        self._sources = set()
         if os.path.exists(self._sources_path):
             with open(self._sources_path, 'r') as sources_file:
                 sources = json.load(sources_file)
@@ -61,16 +61,42 @@ class Project(object):
                     source = Source.from_type(source_type,
                                               follow_host_change=self._follow_host_change,
                                               **source_data)
-                    self._sources.append(source)
+                    self.add_source(source)
 
-    @staticmethod
-    def get_url_credentials(url):
+    def add_source(self, source):
         """
-        Convert a URL to one that has credentials, if they can be found.
+        Add a new source to the project domain.
+
+        This source only becomes persistent if the sources are exported later on
+        using `export_sources`.
         """
 
-        source = Source('plain', url=url, follow_host_change=False)
-        return source.url
+        self._sources.add(source)
+
+    def remove_source(self, source):
+        """
+        Remove an existing source from the project domain.
+
+        This method raises a `KeyError` if the source cannot be found.
+
+        The removal only becomes persistent if the sources are exported later on
+        using `export_sources`.
+        """
+
+        self._sources.remove(source)
+
+    def export_sources(self):
+        """
+        Export data about all registered sources so that they can be
+        reestablished in another process.
+        """
+
+        data = []
+        for source in self._sources:
+            data.append(source.export())
+
+        with open(self._sources_path, 'w') as sources_file:
+            json.dump(data, sources_file)
 
     @property
     def export_key(self):

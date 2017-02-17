@@ -9,7 +9,7 @@ import json
 import os.path
 import gitlab3
 from gatherer.git import Git_Repository
-from gatherer.domain import Project
+from gatherer.domain import Project, Source
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -39,12 +39,12 @@ def retrieve_repos(project):
     Retrieve data from GitLab repositories for a specific project.
     """
 
-    source = project.gitlab_source
-    if source is None:
+    gitlab_source = project.gitlab_source
+    if gitlab_source is None:
         print 'Project {} has no GitLab instance with credentials, skipping.'.format(project.export_key)
         return
 
-    api = gitlab3.GitLab(source.host, source.gitlab_token)
+    api = gitlab3.GitLab(gitlab_source.host, gitlab_source.gitlab_token)
     group_name = project.gitlab_group_name
     group = api.find_group(name=group_name)
     if not group:
@@ -73,8 +73,17 @@ def retrieve_repos(project):
 
         repo_name = project_repo.name
         repo_dir = 'project-git-repos/{0}/{1}'.format(project.export_key, repo_name)
-        url = project.get_url_credentials(project_repo.http_url_to_repo)
-        git_repo = Git_Repository.from_url(repo_name, repo_dir, url)
+        if project_repo.description is not None:
+            repo_description = project_repo.description
+        else:
+            repo_description = repo_name
+        source = Source.from_type('gitlab', name=repo_description,
+                                  url=project_repo.http_url_to_repo,
+                                  follow_host_change=False)
+        git_repo = Git_Repository.from_url(repo_name, repo_dir, source.url)
+        if source.url != gitlab_source.url:
+            project.add_source(source)
+
         commits = git_repo.repo.iter_commits('master', remotes=True)
         for commit in commits:
             sha = commit.hexsha
@@ -82,7 +91,7 @@ def retrieve_repos(project):
             if comments:
                 data['commit_comments'][sha] = comments
 
-        repos[repo] = data
+    project.export_sources()
 
     return repos
 

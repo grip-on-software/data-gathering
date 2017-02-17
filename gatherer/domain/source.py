@@ -132,6 +132,24 @@ class Source(object):
             'type': self._type
         }
 
+    def __repr__(self):
+        return repr(self.export())
+
+    def __hash__(self):
+        data = self.export()
+        keys = sorted(data.keys())
+        values = tuple(data[key] for key in keys)
+        return hash(values)
+
+    def __eq__(self, other):
+        if not isinstance(other, Source):
+            return False
+
+        return self.export() == other.export()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 @Source_Types.register('subversion')
 class Subversion(Source):
     """
@@ -196,8 +214,6 @@ class GitLab(Git):
         Retrieve the host name with scheme part of the GitLab instance.
         """
 
-        print self._plain_url
-        print self._host
         return self._host
 
     @property

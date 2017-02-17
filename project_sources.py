@@ -4,7 +4,6 @@ the products and components.
 """
 
 import argparse
-import json
 
 from gatherer.project_definition import Sources_Parser
 from gatherer.domain import Project, Source
@@ -22,13 +21,12 @@ def parse_args():
 
     return parser.parse_args()
 
-def parse_sources(project_key, sources):
+def parse_sources(project, sources):
     """
     Given a list of source repositories parsed from the project definition,
     output data that can be used by other gatherer scripts.
     """
 
-    data = []
     for name, metric_source in sources.items():
         if 'Subversion' in metric_source:
             source = Source('subversion', name=name, url=metric_source['Subversion'])
@@ -37,10 +35,9 @@ def parse_sources(project_key, sources):
         else:
             continue
 
-        data.append(source.export())
+        project.add_source(source)
 
-    with open(project_key + '/data_sources.json', 'w') as sources_file:
-        json.dump(data, sources_file)
+    project.export_sources()
 
 def main():
     """
@@ -67,7 +64,7 @@ def main():
         parser.load_definition(definition_file.read())
 
     sources = parser.parse()
-    parse_sources(project_key, sources)
+    parse_sources(project, sources)
 
 if __name__ == "__main__":
     main()
