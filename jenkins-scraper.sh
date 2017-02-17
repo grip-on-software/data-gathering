@@ -65,6 +65,7 @@ pip install -r scripts/requirements.txt
 
 # Retrieve Python scripts
 cp scripts/*.py scripts/*.json scripts/*.cfg .
+cp -r scripts/gatherer/ gatherer/
 
 # Retrieve Java importer
 python retrieve_importer.py
@@ -92,25 +93,11 @@ do
 
 	mkdir -p project-git-repos/$project
 	cd project-git-repos/$project
-	if [ $project = "PROJ2" ]; then
-		listOfRepos="REPO1 REPO2 REPON"
-		update_repositories "http://GITLAB_SERVER.localhost/project/%s.git" $listOfRepos
-	elif [ $project = "PROJ1" ]; then
-		listOfRepos="REPO1 REPO2 REPON"
-		update_repositories "http://GITLAB_SERVER.localhost/project/%s" $listOfRepos
-	elif [ $project = "PROJ4" ]; then
-		listOfRepos="REPO1 REPO2 REPON"
-		update_repositories "http://GITLAB_SERVER.localhost/project/%s.git" $listOfRepos
-	elif [ $project = "PROJN" ]; then
-		listOfRepos="REPO1 REPO2 REPON"
-		update_repositories "http://GITLAB_SERVER.localhost/project/%s.git" $listOfRepos
-	elif [ $project = "PROJ3" ]; then
-		listOfRepos="REPO1 REPO2 REPON"
-		update_repositories "http://GITLAB_SERVER.localhost/project/%s.git" $listOfRepos
-	fi
 
 	cd ../..
+	status_handler python project_sources $project
 	status_handler python jira_to_json.py $project
+	status_handler python gitlab_to_json.py $project --log INFO
 	status_handler python git_to_json.py $project
 	status_handler python history_to_json.py $project
 	status_handler python metric_options_to_json.py $project --context -1

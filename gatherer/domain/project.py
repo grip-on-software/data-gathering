@@ -95,6 +95,9 @@ class Project(object):
         for source in self._sources:
             data.append(source.export())
 
+        if not os.path.exists(self.export_key):
+            os.mkdir(self.export_key)
+
         with open(self._sources_path, 'w') as sources_file:
             json.dump(data, sources_file)
 

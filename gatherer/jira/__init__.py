@@ -328,9 +328,6 @@ class Jira(object):
         gathered from a JIRA search. Return the update time of the query.
         """
 
-        if not os.path.exists(self._project_key):
-            os.mkdir(self._project_key)
-
         query = Query(self, username, password, options)
         self.search_issues(query)
         self.write_tables()
