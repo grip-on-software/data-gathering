@@ -197,5 +197,12 @@
             "to_id": "int",
             "relationshiptype": "int"
         }
+    },
+    "subtasks": {
+        "special_parser": "subtasks",
+        "table": {
+            "from_id": "int",
+            "to_id": "int"
+        }
     }
 }

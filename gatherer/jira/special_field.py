@@ -83,3 +83,19 @@ class Issue_Link_Field(Special_Field):
     @property
     def table_key(self):
         return ('from_id', 'to_id', 'relationshiptype')
+
+class Subtask_Field(Special_Field):
+    """
+    Field parser for the subtasks related to an issue.
+    """
+
+    def parse(self, issue, field):
+        for subtask in field:
+            self.jira.get_table("subtasks").append({
+                'from_id': str(issue.id),
+                'to_id': str(subtask.id)
+            })
+
+    @property
+    def table_key(self):
+        return ('from_id', 'to_id')

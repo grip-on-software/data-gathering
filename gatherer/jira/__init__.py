@@ -14,7 +14,7 @@ from .parser import Int_Parser, String_Parser, Date_Parser, Unicode_Parser, \
     Sprint_Parser, Developer_Parser, Decimal_Parser, ID_List_Parser, \
     Version_Parser, Rank_Parser, Issue_Key_Parser, Flag_Parser, \
     Ready_Status_Parser, Labels_Parser
-from .special_field import Comment_Field, Issue_Link_Field
+from .special_field import Comment_Field, Issue_Link_Field, Subtask_Field
 from .table import Table, Key_Table, Link_Table
 from .update import Updated_Time, Update_Tracker
 from ..utils import Iterator_Limiter
@@ -74,22 +74,45 @@ class Jira(object):
 
     This class extracts fields from JIRA according to a field specification.
 
-    Each field has a dictionary of configuration, containing some of:
-    - "primary": if given, the property name of the field within the main
+    Each field has a dictionary of configuration. Each field must have at most
+    one of the following:
+
+    - "primary": If given, the property name of the field within the main
       issue's response data.
-    - "field": if given, the property name within the "fields" dictionary
+    - "field": If given, the property name within the "fields" dictionary
       of the issue.
-    - "property": if given, the property name within the dictionary
+    - "special_parser": If given, the name of the table used for this field.
+      The field itself lives within the main issue's response data and uses the
+      field key for retrieval, if possible. A special field parser needs to
+      perform all the fetching, parsing and table addition by itself.
+
+    If the field has a "field" key, then the following setting is accepted:
+    - "property": If given, the property name within the dictionary
       pointed at by "field".
-    - "type": the type of the field value, see Jira.type_casts keys for values.
-      This is the type as it will be stored in the issues data, and is
-      independent from other data relevant to that field. It is mostly used
-      for ensuring we convert to strings correctly. Can have multiple types
+
+    Additionally, fields may have at most one of the following settings:
+    - "changelog_primary": The name of the field within the main changelog
+      holder.
+    - "changelog_name": The name of the field within one change.
+
+    All kinds of fields may have the following settings:
+    - "type": The type of the field value, see Jira.type_casts keys for values.
+      This is the type as it will be stored in the exported issues data. It is
+      independent from other data relevant to that field, i.e., for "property"
+      fields it is the type of that property. The type cast parser classes
+      ensure that we convert to strings correctly. Can have multiple types
       in a tuple, which are applied in order.
-    - "changelog_primary"
-    - "changelog_name"
-    - "table"
-    - "special_parser"
+    - "table": Either the name of a table to store additional data in, or
+      the specification of a table using property names and type cast parsers.
+      In the former situation, the table configuration (e.g. key) is defined by
+      the field type object or the (special) parser used, while the latter
+      is only used when the field is a property field whose property is used
+      as the main key.
+
+    The specification may also include any other keys and values, which are
+    supplied to the fields, parsers and special field parsers. For example,
+    the comment field has a "fields" mapping for its properties and exported
+    subfield names.
 
     Fields that are retrieved or deduced from only changelog data are those
     without "primary" or "field", i.e., "changelog_id" and "updated_by".
@@ -97,7 +120,8 @@ class Jira(object):
 
     _special_parser_classes = {
         "comment": Comment_Field,
-        "issuelinks": Issue_Link_Field
+        "issuelinks": Issue_Link_Field,
+        "subtasks": Subtask_Field
     }
 
     def __init__(self, project_key, updated_since):
@@ -162,14 +186,14 @@ class Jira(object):
                     jira_fields.append(search_field)
 
                 self.register_table(name, data, table_key_source=field)
-
-            if "special_parser" in data:
+            elif "special_parser" in data:
                 parser_class = self._special_parser_classes[name]
                 parser = parser_class(self, **data)
                 self._special_parsers[name] = parser
                 self.register_table(data["special_parser"], data,
                                     table_key_source=parser)
                 jira_fields.append(name)
+
             elif "changelog_primary" in data:
                 changelog_name = data["changelog_primary"]
                 primary_field = Changelog_Primary_Field(self, name, **data)
