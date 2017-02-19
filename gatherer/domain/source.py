@@ -4,6 +4,8 @@ Data source domain object
 
 import ConfigParser
 import urlparse
+from ..svn import Subversion_Repository
+from ..git import Git_Repository
 
 class Source_Types(object):
     """
@@ -120,6 +122,29 @@ class Source(object):
 
         return self._url
 
+    @property
+    def name(self):
+        """
+        Retrieve the name of the source.
+
+        This is a potentially human-readable name of the source, but should be
+        valid for use as an identifier, altough it may be non-unique and
+        different between different source data.
+        """
+
+        return self._name
+
+    @property
+    def repository_class(self):
+        """
+        Retrieve the class that implements a version control repository pointing
+        to this source.
+
+        If this source has no repository, then this property returns `None`.
+        """
+
+        return None
+
     def export(self):
         """
         Retrieve a dictionary that can be exported to JSON with data about
@@ -156,7 +181,9 @@ class Subversion(Source):
     Subversion source information
     """
 
-    pass
+    @property
+    def repository_class(self):
+        return Subversion_Repository
 
 @Source_Types.register('git')
 class Git(Source):
@@ -164,7 +191,9 @@ class Git(Source):
     Git source information
     """
 
-    pass
+    @property
+    def repository_class(self):
+        return Git_Repository
 
 @Source_Types.register('gitlab')
 @Source_Types.register('git', lambda cls, **source_data: cls.is_gitlab_url(source_data['url']))

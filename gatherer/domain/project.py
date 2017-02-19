@@ -102,6 +102,14 @@ class Project(object):
             json.dump(data, sources_file)
 
     @property
+    def sources(self):
+        """
+        Retrieve all sources of the project.
+        """
+
+        return self._sources
+
+    @property
     def export_key(self):
         """
         Retrieve the key used for project data exports.

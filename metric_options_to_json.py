@@ -64,16 +64,16 @@ def process(project, args):
     for version in versions:
         parser = Metric_Options_Parser(context_lines=args.context,
                                        file_time=version['commit_date'])
-        contents = repo.get_contents(filename, revision=version['revision'])
+        contents = repo.get_contents(filename, revision=version['version_id'])
         try:
             parser.load_definition(contents)
             metric_targets = parser.parse()
         except RuntimeError as error:
-            print "Problem with revision {}: {}".format(version['revision'], error.message)
+            print "Problem with revision {}: {}".format(version['version_id'], error.message)
             continue
 
         diff.add_version(version, metric_targets)
-        end_revision = version['revision']
+        end_revision = version['version_id']
 
     diff.export()
 

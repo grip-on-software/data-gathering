@@ -48,36 +48,44 @@ class Subversion_Repository(Version_Control_Repository):
                                    revision_from=from_revision,
                                    revision_to=to_revision)
         for entry in log:
-            # Convert to local timestamp
-            commit_date = entry.date.replace(tzinfo=dateutil.tz.tzutc())
-            commit_date = commit_date.astimezone(dateutil.tz.tzlocal())
-            message = entry.msg if entry.msg is not None else ''
-            version = {
-                # Primary data
-                'svn_repo': str(self.repo_name),
-                'revision': str(entry.revision),
-                'sprint_id': str(0),
-                # Additional data
-                'developer': entry.author,
-                'message': parse_unicode(message),
-                'commit_date': datetime.datetime.strftime(commit_date, '%Y-%m-%d %H:%M:%S')
-            }
+            versions.append(self._parse_entry(entry))
 
-            if self.retrieve_stats:
-                version.update(self.get_diff_stats(to_revision=version['revision']))
-
-            versions.append(version)
-
-        return sorted(versions, key=lambda version: version['revision'],
+        return sorted(versions, key=lambda version: version['version_id'],
                       reverse=descending)
 
-    def get_diff_stats(self, from_revision=None, to_revision=None):
+    def _parse_entry(self, entry, filename=''):
+        # Convert to local timestamp
+        commit_date = entry.date.replace(tzinfo=dateutil.tz.tzutc())
+        commit_datetime = commit_date.astimezone(dateutil.tz.tzlocal())
+        message = entry.msg if entry.msg is not None else ''
+        version = {
+            # Primary data
+            'repo_name': str(self.repo_name),
+            'version_id': str(entry.revision),
+            'sprint_id': self._get_sprint_id(commit_datetime),
+            # Additional data
+            'message': parse_unicode(message),
+            'type': 'commit',
+            'developer': entry.author,
+            'developer_email': '',
+            'commit_date': datetime.datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
+        }
+
+        if self.retrieve_stats:
+            version.update(self.get_diff_stats(filename=filename,
+                                               to_revision=version['revision']))
+
+        return version
+
+    def get_diff_stats(self, filename='', from_revision=None, to_revision=None):
         """
         Retrieve statistics about the difference between two revisions.
         """
 
+        path = self.repo_directory + '/' + filename
+
         if from_revision is None and to_revision is None:
-            args = []
+            args = [path]
         else:
             if from_revision is None:
                 from_revision = int(to_revision)-1
@@ -85,8 +93,8 @@ class Subversion_Repository(Version_Control_Repository):
                 to_revision = int(from_revision)+1
 
             args = [
-                '--old', self.repo_directory + '@' + from_revision,
-                '--new', self.repo_directory + '@' + to_revision
+                '--old', path + '@' + from_revision,
+                '--new', path + '@' + to_revision
             ]
 
         diff_result = self.svn.run_command('diff', args)
@@ -126,3 +134,7 @@ class Subversion_Repository(Version_Control_Repository):
         """
 
         return self.svn.cat(filename, revision=revision)
+
+    def get_latest_version(self):
+        info = self.svn.info()
+        return info['entry_revision']
