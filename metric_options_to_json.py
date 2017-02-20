@@ -5,8 +5,10 @@ these versions into JSON output.
 
 import argparse
 import ConfigParser
+import logging
 
 from gatherer.domain import Project
+from gatherer.log import Log_Setup
 from gatherer.project_definition import Metric_Options_Parser
 from gatherer.project_definition.metric import Metric_Difference
 from gatherer.project_definition.update import Update_Tracker
@@ -42,7 +44,10 @@ def parse_args():
                         dest="to_revision", default=None,
                         help="revision to stop gathering definitions at")
 
-    return parser.parse_args()
+    Log_Setup.add_argument(parser)
+    args = parser.parse_args()
+    Log_Setup.parse_args(args)
+    return args
 
 def process(project, args):
     """
@@ -69,7 +74,8 @@ def process(project, args):
             parser.load_definition(contents)
             metric_targets = parser.parse()
         except RuntimeError as error:
-            print "Problem with revision {}: {}".format(version['version_id'], error.message)
+            logging.warning("Problem with revision %s: %s",
+                            version['version_id'], error.message)
             continue
 
         diff.add_version(version, metric_targets)
@@ -78,7 +84,7 @@ def process(project, args):
     diff.export()
 
     update_tracker.set_end(end_revision, diff.previous_metric_targets)
-    print '{} revisions parsed'.format(len(versions))
+    logging.info('Metric options: %d revisions parsed', len(versions))
 
 def main():
     """

@@ -60,13 +60,13 @@ class Git_Repository(Version_Control_Repository):
         super(Git_Repository, self).__init__(repo_name, repo_directory, **kwargs)
         self.repo = Repo(self.repo_directory)
 
-        self._data = None
         self._iterator_limiter = None
-        self._refspec = None
+        self._batch_size = 10000
+        self._log_size = 1000
         self._reset_limiter()
 
     def _reset_limiter(self):
-        self._iterator_limiter = Iterator_Limiter()
+        self._iterator_limiter = Iterator_Limiter(size=self._batch_size)
 
     @staticmethod
     def _get_refspec(from_revision=None, to_revision=None):
@@ -129,15 +129,19 @@ class Git_Repository(Version_Control_Repository):
         data = []
         commits = self._query(refspec, paths=paths, descending=descending)
         had_commits = True
+        count = 0
         while self._iterator_limiter.check(had_commits):
             had_commits = False
 
             for commit in commits:
                 had_commits = True
+                count += 1
                 data.append(self.parse_commit(commit))
 
-            count = self._iterator_limiter.size + self._iterator_limiter.skip
-            logging.info('Analysed commits up to %d', count)
+                if count % self._log_size == 0:
+                    logging.info('Analysed commits up to %d', count)
+
+            logging.info('Analysed batch of commits, now at %d', count)
 
             self._iterator_limiter.update()
 

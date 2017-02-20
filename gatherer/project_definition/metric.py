@@ -36,7 +36,7 @@ class Metric_Difference(object):
                 if metric_target != previous_metric_target:
                     unique_target = dict(metric_target)
                     unique_target['name'] = name
-                    unique_target['revision'] = version['revision']
+                    unique_target['revision'] = version['version_id']
                     self._unique_metric_targets.append(unique_target)
 
             self._previous_metric_targets = metric_targets

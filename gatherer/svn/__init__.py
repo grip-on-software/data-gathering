@@ -3,13 +3,14 @@ Module for parsing Subversion repositories.
 """
 
 import datetime
+import logging
 import os.path
 # Non-standard imports
 import dateutil.tz
 import svn.local
 import svn.remote
 
-from ..utils import parse_unicode, Sprint_Data
+from ..utils import parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
 
 __all__ = ["Subversion_Repository"]
@@ -23,6 +24,11 @@ class Subversion_Repository(Version_Control_Repository):
     def __init__(self, repo_name, repo_directory, **kwargs):
         super(Subversion_Repository, self).__init__(repo_name, repo_directory, **kwargs)
         self.svn = svn.local.LocalClient(os.path.expanduser(repo_directory))
+        self._iterator_limiter = None
+        self._reset_limiter()
+
+    def _reset_limiter(self):
+        self._iterator_limiter = Iterator_Limiter()
 
     @classmethod
     def from_url(cls, repo_name, repo_directory, url):
@@ -34,6 +40,12 @@ class Subversion_Repository(Version_Control_Repository):
         repository.svn = svn.remote.RemoteClient(url)
         return repository
 
+    def _query(self, filename, from_revision, to_revision):
+        return self.svn.log_default(rel_filepath=filename,
+                                    revision_from=from_revision,
+                                    revision_to=to_revision,
+                                    limit=self._iterator_limiter.size)
+
     def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
         """
         Retrieve data about each version of a specific file path `filename`.
@@ -43,12 +55,47 @@ class Subversion_Repository(Version_Control_Repository):
         either newest first (`descending`) or not (default).
         """
 
+        if from_revision is None:
+            from_revision = '1'
+        if to_revision is None:
+            to_revision = 'HEAD'
+
         versions = []
-        log = self.svn.log_default(rel_filepath=filename,
-                                   revision_from=from_revision,
-                                   revision_to=to_revision)
-        for entry in log:
-            versions.append(self._parse_entry(entry))
+        self._reset_limiter()
+        log = self._query(filename, from_revision, to_revision)
+        log_descending = None
+        had_versions = True
+        while self._iterator_limiter.check(had_versions):
+            had_versions = False
+            for entry in log:
+                had_versions = True
+                new_version = self._parse_entry(entry)
+                versions.append(new_version)
+
+            count = self._iterator_limiter.size + self._iterator_limiter.skip
+            logging.info('Analysed batch of revisions, now at %d (r%s)',
+                         count, versions[-1]['version_id'])
+
+            self._iterator_limiter.update()
+            if self._iterator_limiter.check(had_versions):
+                # Check whether the log is being followed in a descending order
+                if log_descending is None and len(versions) > 1:
+                    log_descending = int(versions[-2]['version_id']) > \
+                                     int(versions[-1]['version_id'])
+
+                # Update the revision range. Because Subversion does not allow
+                # logs on ranges where the target path does not exist, always
+                # keep the latest revision within the range but trim it off.
+                from_revision = versions[-1]['version_id']
+                log = self._query(filename, from_revision, to_revision)
+                try:
+                    log.next()
+                except StopIteration:
+                    break
+
+        # Sort the log if it is not already in the preferred order
+        if descending == log_descending:
+            return versions
 
         return sorted(versions, key=lambda version: version['version_id'],
                       reverse=descending)
