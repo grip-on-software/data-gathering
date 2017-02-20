@@ -9,8 +9,8 @@ class Metric_Difference(object):
     Class that determines whether metric options were changed.
     """
 
-    def __init__(self, project_key, previous_targets=None):
-        self._project_key = project_key
+    def __init__(self, project, previous_targets=None):
+        self._project_key = project.export_key
         if previous_targets is not None:
             self._previous_metric_targets = previous_targets
         else:

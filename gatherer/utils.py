@@ -4,6 +4,7 @@ Utilities for various parts of the data gathering chain.
 
 import bisect
 import json
+import os
 from datetime import datetime
 
 class Iterator_Limiter(object):
@@ -72,9 +73,9 @@ class Sprint_Data(object):
     """
 
     def __init__(self, project):
-        self._project = project
+        sprint_filename = os.path.join(project.export_key, 'data_sprint.json')
 
-        with open(self._project + '/data_sprint.json', 'r') as sprint_file:
+        with open(sprint_filename, 'r') as sprint_file:
             self._data = json.load(sprint_file)
 
         self._sprint_ids = []

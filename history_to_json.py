@@ -107,7 +107,7 @@ def main():
 
     project = Project(project_key)
 
-    line_filename = project.export_key + '/history_line_count.txt'
+    line_filename = os.path.join(project.export_key, 'history_line_count.txt')
     if start_from is None:
         if os.path.exists(line_filename):
             with open(line_filename, 'r') as line_file:
@@ -122,7 +122,8 @@ def main():
         logging.info('Skipping quality metrics history import for %s: %s',
                      project_key, error.message)
 
-    with open(project_key + '/data_metrics.json', 'w') as outfile:
+    output_filename = os.path.join(project.export_key, 'data_metrics.json')
+    with open(output_filename, 'w') as outfile:
         json.dump(metric_data, outfile, indent=4)
 
     with open(line_filename, 'w') as line_file:

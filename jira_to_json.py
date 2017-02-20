@@ -6,6 +6,7 @@ the database importer.
 import argparse
 import ConfigParser
 from gatherer.jira import Jira, Updated_Time, Update_Tracker
+from gatherer.domain import Project
 
 def validate_date(value):
     """
@@ -46,14 +47,15 @@ def main():
     """
 
     args = parse_args()
+    project = Project(args.project)
 
-    tracker = Update_Tracker(args.project, args.updated_since)
+    tracker = Update_Tracker(project, args.updated_since)
     updated_since = tracker.get_updated_since()
 
     options = {
         "server": args.server
     }
-    jira = Jira(args.project, updated_since)
+    jira = Jira(project, updated_since)
     latest_update = jira.process(args.username, args.password, options)
 
     tracker.save_updated_since(latest_update)

@@ -48,9 +48,8 @@ class Update_Tracker(object):
     """
 
     def __init__(self, project, updated_since=None):
-        self.project = project
         self.updated_since = updated_since
-        self.filename = self.project + '/jira-updated.txt'
+        self.filename = os.path.join(project.export_key, 'jira-updated.txt')
 
     def get_updated_since(self):
         """

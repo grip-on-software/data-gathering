@@ -15,8 +15,8 @@ class Repositories_Holder(object):
 
     def __init__(self, project, repo_directory):
         self._project = project
-        self._repo_directory = os.path.join(repo_directory, project.export_key)
-        self._sprints = Sprint_Data(project.export_key)
+        self._repo_directory = os.path.join(repo_directory, project.key)
+        self._sprints = Sprint_Data(project)
 
         self._latest_versions = {}
 

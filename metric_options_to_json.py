@@ -54,7 +54,7 @@ def process(project, args):
     Perform the revision traversal and project definition parsing.
     """
 
-    update_tracker = Update_Tracker(project.export_key)
+    update_tracker = Update_Tracker(project)
     from_revision = update_tracker.get_start_revision(args.from_revision)
 
     repo = Subversion_Repository('kwaliteitsmetingen', args.repo, stats=False)
@@ -62,8 +62,7 @@ def process(project, args):
     versions = repo.get_versions(filename, from_revision=from_revision,
                                  to_revision=args.to_revision, descending=False)
 
-    diff = Metric_Difference(project.export_key,
-                             update_tracker.get_previous_targets())
+    diff = Metric_Difference(project, update_tracker.get_previous_targets())
 
     end_revision = None
     for version in versions:

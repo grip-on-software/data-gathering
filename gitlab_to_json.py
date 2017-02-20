@@ -76,7 +76,7 @@ def retrieve_repos(project):
         }
 
         repo_name = project_repo.name
-        repo_dir = 'project-git-repos/{0}/{1}'.format(project.export_key, repo_name)
+        repo_dir = 'project-git-repos/{0}/{1}'.format(project.key, repo_name)
         source = Source.from_type('gitlab', name=repo_name,
                                   url=project_repo.http_url_to_repo,
                                   follow_host_change=False)

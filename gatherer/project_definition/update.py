@@ -11,9 +11,9 @@ class Update_Tracker(object):
     update, so that the data gatherer can resume from a previous known state.
     """
 
-    def __init__(self, project_key):
-        self._project_key = project_key
-        self._filename = self._project_key + '/metric_options_update.json'
+    def __init__(self, project):
+        export_key = project.export_key
+        self._filename = os.path.join(export_key, 'metric_options_update.json')
 
         self._file_loaded = False
         self._from_revision = None

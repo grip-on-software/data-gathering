@@ -124,8 +124,8 @@ class Jira(object):
         "subtasks": Subtask_Field
     }
 
-    def __init__(self, project_key, updated_since):
-        self._project_key = project_key
+    def __init__(self, project, updated_since):
+        self._project = project
         self._updated_since = Updated_Time(updated_since)
 
         self._changelog = Changelog(self)
@@ -253,7 +253,7 @@ class Jira(object):
         Retrieve the JIRA project key.
         """
 
-        return self._project_key
+        return self._project.jira_key
 
     @property
     def updated_since(self):
@@ -320,7 +320,7 @@ class Jira(object):
         """
 
         for table in self._tables.itervalues():
-            table.write(self._project_key)
+            table.write(self._project.export_key)
 
     def process(self, username, password, options):
         """

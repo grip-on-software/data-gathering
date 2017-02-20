@@ -112,7 +112,16 @@ class Project(object):
     @property
     def export_key(self):
         """
-        Retrieve the key used for project data exports.
+        Retrieve the directory path used for project data exports.
+        """
+
+        return self._project_key
+
+    @property
+    def key(self):
+        """
+        Retrieve the key that can be used for identifying data belonging
+        to this project.
         """
 
         return self._project_key
