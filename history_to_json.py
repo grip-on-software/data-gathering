@@ -5,17 +5,20 @@ readable by the database importer.
 
 import argparse
 import ConfigParser
+from contextlib import contextmanager
 import ast
 import gzip
 import io
 import itertools
 import json
+import logging
 import os
 # Non-standard imports
 import requests
-from gatherer.utils import parse_date, Project
+from gatherer.domain import Project
+from gatherer.utils import parse_date
 
-def parse_args(config):
+def parse_args():
     """
     Parse command line arguments.
     """
@@ -26,7 +29,7 @@ def parse_args(config):
     parser.add_argument("--start-from", dest="start_from", type=int,
                         default=None, help="line number to start reading from")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--url", default=config.get('history', 'url'),
+    group.add_argument("--url", default=None,
                        help="url prefix to obtain the file from")
     group.add_argument("--file", help="local file to read from")
     return parser.parse_args()
@@ -65,14 +68,40 @@ def read_project_file(data_file, start_from=0):
     print 'Number of new metric values: {}'.format(str(len(metric_data)))
     return metric_data, line_count
 
+@contextmanager
+def get_data_file(project, args):
+    """
+    Yield an open file containing the historical metric values of the project.
+    """
+
+    config = ConfigParser.RawConfigParser()
+    config.read("settings.cfg")
+
+    if args.file is not None:
+        yield open(args.file, 'r')
+    else:
+        url_prefix = args.url
+        if args.url is None:
+            if config.has_option('history', project.export_key):
+                url_prefix = config.get('history', project.export_key)
+            else:
+                url_prefix = config.get('history', 'url')
+
+        project_name = project.quality_metrics_name
+        if project_name is None:
+            raise RuntimeError('No metrics history file available')
+
+        url = url_prefix + project_name + "/history.json.gz"
+        request = requests.get(url)
+        stream = io.BytesIO(request.content)
+        yield gzip.GzipFile(mode='r', fileobj=stream)
+
 def main():
     """
     Main entry point.
     """
 
-    config = ConfigParser.RawConfigParser()
-    config.read("settings.cfg")
-    args = parse_args(config)
+    args = parse_args()
     project_key = args.project
     start_from = args.start_from
 
@@ -86,21 +115,12 @@ def main():
         else:
             start_from = 0
 
-    if args.file is not None:
-        with open(args.file, 'r') as data_file:
+    try:
+        with get_data_file(project, args) as data_file:
             metric_data, line_count = read_project_file(data_file, start_from)
-    else:
-        project_name = project.quality_metrics_name
-        if project_name is None:
-            print "No metrics history file available for {}, skipping.".format(project_key)
-            return
-
-        url = args.url + project_name + "/history.json.gz"
-        request = requests.get(url)
-        stream = io.BytesIO(request.content)
-        data_file = gzip.GzipFile(mode='r', fileobj=stream)
-
-        metric_data, line_count = read_project_file(data_file, start_from)
+    except RuntimeError as error:
+        logging.info('Skipping quality metrics history import for %s: %s',
+                     project_key, error.message)
 
     with open(project_key + '/data_metrics.json', 'w') as outfile:
         json.dump(metric_data, outfile, indent=4)
