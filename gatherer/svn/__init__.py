@@ -7,6 +7,7 @@ import logging
 import os.path
 # Non-standard imports
 import dateutil.tz
+import svn.common
 import svn.local
 import svn.remote
 
@@ -23,7 +24,7 @@ class Subversion_Repository(Version_Control_Repository):
 
     def __init__(self, repo_name, repo_directory, **kwargs):
         super(Subversion_Repository, self).__init__(repo_name, repo_directory, **kwargs)
-        self.svn = svn.local.LocalClient(os.path.expanduser(repo_directory))
+        self._repo = None
         self._iterator_limiter = None
         self._reset_limiter()
 
@@ -31,20 +32,35 @@ class Subversion_Repository(Version_Control_Repository):
         self._iterator_limiter = Iterator_Limiter()
 
     @classmethod
-    def from_url(cls, repo_name, repo_directory, url):
+    def from_url(cls, repo_name, repo_directory, url, **kwargs):
         """
         Initialize a Subversion repository from its checkout URL.
         """
 
-        repository = cls(repo_name, repo_directory)
-        repository.svn = svn.remote.RemoteClient(url)
+        repository = cls(repo_name, repo_directory, **kwargs)
+        repository.repo = svn.remote.RemoteClient(url)
         return repository
 
+    @property
+    def repo(self):
+        if self._repo is None:
+            path = os.path.expanduser(self.repo_directory)
+            self._repo = svn.local.LocalClient(path)
+
+        return self._repo
+
+    @repo.setter
+    def repo(self, repo):
+        if not isinstance(repo, svn.common.CommonClient):
+            raise TypeError('Repository must be a PySvn Client instance')
+
+        self._repo = repo
+
     def _query(self, filename, from_revision, to_revision):
-        return self.svn.log_default(rel_filepath=filename,
-                                    revision_from=from_revision,
-                                    revision_to=to_revision,
-                                    limit=self._iterator_limiter.size)
+        return self._repo.log_default(rel_filepath=filename,
+                                      revision_from=from_revision,
+                                      revision_to=to_revision,
+                                      limit=self._iterator_limiter.size)
 
     def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
         """
@@ -119,8 +135,9 @@ class Subversion_Repository(Version_Control_Repository):
         }
 
         if self.retrieve_stats:
-            version.update(self.get_diff_stats(filename=filename,
-                                               to_revision=version['revision']))
+            stats = self.get_diff_stats(filename=filename,
+                                        to_revision=version['version_id'])
+            version.update(stats)
 
         return version
 
@@ -129,7 +146,10 @@ class Subversion_Repository(Version_Control_Repository):
         Retrieve statistics about the difference between two revisions.
         """
 
-        path = self.repo_directory + '/' + filename
+        if isinstance(self.repo, svn.remote.RemoteClient):
+            path = self.repo.url + '/' + filename
+        else:
+            path = self.repo_directory + '/' + filename
 
         if from_revision is None and to_revision is None:
             args = [path]
@@ -140,17 +160,17 @@ class Subversion_Repository(Version_Control_Repository):
                 to_revision = int(from_revision)+1
 
             args = [
-                '--old', path + '@' + from_revision,
-                '--new', path + '@' + to_revision
+                '-r', '{0}:{1}'.format(from_revision, to_revision), path
             ]
 
-        diff_result = self.svn.run_command('diff', args)
+        diff_result = self.repo.run_command('diff', args)
 
         insertions = 0
         deletions = 0
         number_of_lines = 0
         number_of_files = 0
         size = 0
+        head = True
         for line in diff_result:
             if line.startswith('==='):
                 head = True
@@ -159,7 +179,7 @@ class Subversion_Repository(Version_Control_Repository):
                 head = False
 
             if not head:
-                insertions += line.startwith('+')
+                insertions += line.startswith('+')
                 deletions += line.startswith('-')
                 size += len(line) - 1
 
@@ -180,8 +200,8 @@ class Subversion_Repository(Version_Control_Repository):
         `revision`, or the currently checked out revision if not given.
         """
 
-        return self.svn.cat(filename, revision=revision)
+        return self.repo.cat(filename, revision=revision)
 
     def get_latest_version(self):
-        info = self.svn.info()
+        info = self.repo.info()
         return info['entry_revision']

@@ -108,6 +108,24 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError("Must be implemented by subclass")
 
+    @property
+    def repo(self):
+        """
+        Property that retrieves the back-end repository interface (lazy-loaded).
+        """
+
+        raise NotImplementedError("Must be implemented by subclass")
+
+    @repo.setter
+    def repo(self, repo):
+        """
+        Property that changes the back-end repository interface.
+
+        The subclass may enforce type restrictions on the back-end object.
+        """
+
+        raise NotImplementedError("Must be implemented by subclass")
+
     def get_latest_version(self):
         """
         Retrieve the identifier of the latest version within the version

@@ -58,7 +58,7 @@ class Git_Repository(Version_Control_Repository):
 
     def __init__(self, repo_name, repo_directory, **kwargs):
         super(Git_Repository, self).__init__(repo_name, repo_directory, **kwargs)
-        self.repo = Repo(self.repo_directory)
+        self._repo = None
 
         self._iterator_limiter = None
         self._batch_size = 10000
@@ -96,14 +96,29 @@ class Git_Repository(Version_Control_Repository):
         elif progress is False:
             progress = None
 
+        repository = cls(repo_name, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
             # Update the repository from the origin URL.
-            repository = cls(repo_name, repo_directory, **kwargs)
             repository.repo.remotes.origin.pull('master', progress=progress)
-            return repository
+        else:
+            repository.repo = Repo.clone_from(url, repo_directory,
+                                              progress=progress)
 
-        Repo.clone_from(url, repo_directory, progress=progress)
-        return cls(repo_name, repo_directory, **kwargs)
+        return repository
+
+    @property
+    def repo(self):
+        if self._repo is None:
+            self._repo = Repo(self.repo_directory)
+
+        return self._repo
+
+    @repo.setter
+    def repo(self, repo):
+        if not isinstance(repo, Repo):
+            raise TypeError('Repository must be a gitpython Repo instance')
+
+        self._repo = repo
 
     def is_empty(self):
         """

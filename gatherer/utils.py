@@ -4,6 +4,7 @@ Utilities for various parts of the data gathering chain.
 
 import bisect
 import json
+import logging
 import os
 from datetime import datetime
 
@@ -75,8 +76,12 @@ class Sprint_Data(object):
     def __init__(self, project):
         sprint_filename = os.path.join(project.export_key, 'data_sprint.json')
 
-        with open(sprint_filename, 'r') as sprint_file:
-            self._data = json.load(sprint_file)
+        if os.path.exists(sprint_filename):
+            with open(sprint_filename, 'r') as sprint_file:
+                self._data = json.load(sprint_file)
+        else:
+            logging.warning('Could not load sprint data, no sprint matching possible.')
+            self._data = []
 
         self._sprint_ids = []
         self._start_dates = []
