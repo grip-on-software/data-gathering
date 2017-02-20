@@ -31,6 +31,9 @@ def parse_args():
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--url", default=None,
                        help="url prefix to obtain the file from")
+    group.add_argument("--export-url", default=None, dest="export_url",
+                       nargs='?', const=True,
+                       help="url prefix to use as a reference rather than reading all data")
     group.add_argument("--file", help="local file to read from")
     return parser.parse_args()
 
@@ -68,33 +71,50 @@ def read_project_file(data_file, start_from=0):
     print 'Number of new metric values: {}'.format(str(len(metric_data)))
     return metric_data, line_count
 
+def make_url(project, url_prefix):
+    """
+    Create a URL to the metrics history file for the given project.
+    """
+
+    project_name = project.quality_metrics_name
+    if project_name is None:
+        raise RuntimeError('No metrics history file URL available')
+
+    return url_prefix + project_name + "/history.json.gz"
+
 @contextmanager
-def get_data_file(project, args):
+def get_data_source(project, args):
     """
     Yield an open file containing the historical metric values of the project.
     """
 
-    config = ConfigParser.RawConfigParser()
-    config.read("settings.cfg")
-
     if args.file is not None:
         yield open(args.file, 'r')
     else:
-        url_prefix = args.url
-        if args.url is None:
-            if config.has_option('history', project.key):
-                url_prefix = config.get('history', project.key)
+        config = ConfigParser.RawConfigParser()
+        config.read("settings.cfg")
+        if config.has_option('history', project.key):
+            default_url_prefix = config.get('history', project.key)
+        else:
+            default_url_prefix = config.get('history', 'url')
+
+        if args.export_url is not None:
+            if args.export_url is True:
+                export_url = default_url_prefix
             else:
-                url_prefix = config.get('history', 'url')
+                export_url = args.export_url
 
-        project_name = project.quality_metrics_name
-        if project_name is None:
-            raise RuntimeError('No metrics history file available')
+            yield make_url(project, export_url)
+        else:
+            if args.url is None:
+                url_prefix = default_url_prefix
+            else:
+                url_prefix = args.url
 
-        url = url_prefix + project_name + "/history.json.gz"
-        request = requests.get(url)
-        stream = io.BytesIO(request.content)
-        yield gzip.GzipFile(mode='r', fileobj=stream)
+            url = make_url(project, url_prefix)
+            request = requests.get(url)
+            stream = io.BytesIO(request.content)
+            yield gzip.GzipFile(mode='r', fileobj=stream)
 
 def main():
     """
@@ -116,11 +136,16 @@ def main():
             start_from = 0
 
     try:
-        with get_data_file(project, args) as data_file:
-            metric_data, line_count = read_project_file(data_file, start_from)
+        with get_data_source(project, args) as data:
+            if isinstance(data, str):
+                metric_data = '{0}#{1}'.format(data, start_from)
+                line_count = 0
+            else:
+                metric_data, line_count = read_project_file(data, start_from)
     except RuntimeError as error:
         logging.info('Skipping quality metrics history import for %s: %s',
                      project_key, error.message)
+        return
 
     output_filename = os.path.join(project.export_key, 'data_metrics.json')
     with open(output_filename, 'w') as outfile:
