@@ -82,8 +82,8 @@ def get_data_file(project, args):
     else:
         url_prefix = args.url
         if args.url is None:
-            if config.has_option('history', project.export_key):
-                url_prefix = config.get('history', project.export_key)
+            if config.has_option('history', project.key):
+                url_prefix = config.get('history', project.key)
             else:
                 url_prefix = config.get('history', 'url')
 

@@ -45,7 +45,7 @@ def retrieve_repos(project):
 
     gitlab_source = project.gitlab_source
     if gitlab_source is None:
-        print 'Project {} has no GitLab instance with credentials, skipping.'.format(project.export_key)
+        print 'Project {} has no GitLab instance with credentials, skipping.'.format(project.key)
         return
 
     api = gitlab3.GitLab(gitlab_source.host, gitlab_source.gitlab_token)
