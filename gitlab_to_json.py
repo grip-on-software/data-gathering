@@ -6,6 +6,7 @@ a GitLab in order to consolidate this data for later import.
 import argparse
 from datetime import datetime
 import json
+import logging
 import os.path
 import gitlab3
 from gatherer.git import Git_Repository
@@ -45,7 +46,8 @@ def retrieve_repos(project):
 
     gitlab_source = project.gitlab_source
     if gitlab_source is None:
-        print 'Project {} has no GitLab instance with credentials, skipping.'.format(project.key)
+        logging.warning('Project %s has no GitLab instance with credentials, skipping.',
+                        project.key)
         return
 
     api = gitlab3.GitLab(gitlab_source.host, gitlab_source.gitlab_token)
@@ -58,7 +60,7 @@ def retrieve_repos(project):
     project_repos = api.group(group.id).projects
 
     names = ', '.join([repo['name'] for repo in project_repos])
-    print '{0} has {1} repos: {2}'.format(group_name, len(project_repos), names)
+    logging.info('%s has %d repos: %s', group_name, len(project_repos), names)
 
     repos = {}
     for repo in project_repos:

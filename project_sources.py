@@ -4,7 +4,9 @@ the products and components.
 """
 
 import argparse
+import logging
 
+from gatherer.log import Log_Setup
 from gatherer.project_definition import Sources_Parser
 from gatherer.domain import Project, Source
 
@@ -19,7 +21,10 @@ def parse_args():
     parser.add_argument("--repo", default="kwaliteitsmetingen/trunk",
                         help="Subversion directory with project definitions")
 
-    return parser.parse_args()
+    Log_Setup.add_argument(parser)
+    args = parser.parse_args()
+    Log_Setup.parse_args(args)
+    return args
 
 def parse_sources(project, sources):
     """
@@ -55,7 +60,8 @@ def main():
         else:
             reason = 'no long name or main project defined'
 
-        print 'No project sources available for {} ({}), skipping.'.format(project_key, reason)
+        logging.warning('No project sources available for %s (%s), skipping.',
+                        project_key, reason)
         project.export_sources()
         return
 

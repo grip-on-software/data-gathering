@@ -143,8 +143,8 @@ def main():
             else:
                 metric_data, line_count = read_project_file(data, start_from)
     except RuntimeError as error:
-        logging.info('Skipping quality metrics history import for %s: %s',
-                     project_key, error.message)
+        logging.warning('Skipping quality metrics history import for %s: %s',
+                        project_key, error.message)
         return
 
     output_filename = os.path.join(project.export_key, 'data_metrics.json')

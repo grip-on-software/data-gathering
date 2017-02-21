@@ -2,6 +2,8 @@
 Module that handles issue changelog data.
 """
 
+import logging
+
 from .field import Changelog_Primary_Field, Changelog_Field
 
 class Changelog(object):
@@ -56,7 +58,8 @@ class Changelog(object):
                     diffs[field.name] = value
 
             if "updated" not in diffs:
-                print "No updated date: " + repr(diffs)
+                logging.warning('Changelog entry has no updated date: %s',
+                                repr(diffs))
                 continue
 
             updated = diffs["updated"]

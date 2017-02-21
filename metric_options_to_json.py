@@ -97,7 +97,8 @@ def main():
     project_key = args.project
     project = Project(project_key)
     if project.quality_metrics_name is None:
-        print 'No quality metrics options available for {}, skipping.'.format(project_key)
+        logging.warning('No metrics options available for %s, skipping.',
+                        project_key)
         return
 
     process(project, args)

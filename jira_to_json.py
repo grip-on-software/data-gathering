@@ -6,6 +6,7 @@ the database importer.
 import argparse
 import ConfigParser
 from gatherer.jira import Jira, Updated_Time, Update_Tracker
+from gatherer.log import Log_Setup
 from gatherer.domain import Project
 
 def validate_date(value):
@@ -39,7 +40,10 @@ def parse_args():
     parser.add_argument("--updated-since", default=None, dest="updated_since",
                         type=validate_date,
                         help="Only fetch issues changed since the timestamp (YYYY-MM-DD HH:MM)")
-    return parser.parse_args()
+    Log_Setup.add_argument(parser)
+    args = parser.parse_args()
+    Log_Setup.parse_args(args)
+    return args
 
 def main():
     """
