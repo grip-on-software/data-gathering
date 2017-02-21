@@ -12,6 +12,11 @@ if [ -z "$importerTasks" ]; then
 	importerTasks="all"
 fi
 
+# Declare log level
+if [ -z "$logLevel" ]; then
+	logLevel="INFO"
+fi
+
 # Files that are backed up in case of errors for each project
 restoreFiles="jira-updated.txt git-commit.json history_line_count.txt metric_options_update.json"
 
@@ -40,24 +45,6 @@ function status_handler() {
 		error_handler
 	fi
 	return $status
-}
-
-function update_repositories() {
-	url=$1
-	shift
-	listOfRepos=$*
-	for repo in $listOfRepos
-	do
-		# look for empty dir
-		if [ "$(ls -A $repo 2>/dev/null)" ]; then
-			echo "$repo is not Empty"
-			cd "$repo"
-			git pull $(printf $url $repo)
-			cd ..
-		else
-			git clone $(printf $url $repo)
-		fi
-	done
 }
 
 # Install Python dependencies
@@ -91,15 +78,14 @@ do
 		fi
 	done
 
+	mkdir -p export/$project
 	mkdir -p project-git-repos/$project
-	cd project-git-repos/$project
 
-	cd ../..
-	status_handler python project_sources $project
-	status_handler python jira_to_json.py $project
-	status_handler python gitlab_to_json.py $project --log INFO
-	status_handler python git_to_json.py $project
-	status_handler python history_to_json.py $project
-	status_handler python metric_options_to_json.py $project --context -1
+	status_handler python project_sources $project --log $logLevel
+	status_handler python jira_to_json.py $project --log $logLevel
+	status_handler python gitlab_to_json.py $project --log $logLevel
+	status_handler python git_to_json.py $project --log $logLevel
+	status_handler python history_to_json.py $project --log $logLevel
+	status_handler python metric_options_to_json.py $project --context -1 --log $logLevel
 	status_handler java -jar importerjson.jar $project $importerTasks
 done

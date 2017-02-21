@@ -96,7 +96,7 @@ class Project(object):
             data.append(source.export())
 
         if not os.path.exists(self.export_key):
-            os.mkdir(self.export_key)
+            os.makedirs(self.export_key)
 
         with open(self._sources_path, 'w') as sources_file:
             json.dump(data, sources_file)
@@ -115,7 +115,7 @@ class Project(object):
         Retrieve the directory path used for project data exports.
         """
 
-        return self._project_key
+        return os.path.join('export', self._project_key)
 
     @property
     def key(self):
