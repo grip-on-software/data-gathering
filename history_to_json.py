@@ -16,6 +16,7 @@ import os
 # Non-standard imports
 import requests
 from gatherer.domain import Project
+from gatherer.log import Log_Setup
 from gatherer.utils import parse_date
 
 def parse_args():
@@ -35,7 +36,10 @@ def parse_args():
                        nargs='?', const=True,
                        help="url prefix to use as a reference rather than reading all data")
     group.add_argument("--file", help="local file to read from")
-    return parser.parse_args()
+    Log_Setup.add_argument(parser)
+    args = parser.parse_args()
+    Log_Setup.parse_args(args)
+    return args
 
 def read_project_file(data_file, start_from=0):
     """
