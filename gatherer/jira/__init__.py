@@ -5,8 +5,6 @@ Package for classes and utilities related to extracting data from the JIRA API.
 import json
 import os
 from copy import copy
-from datetime import datetime
-from jira import JIRA
 
 from .changelog import Changelog
 from .field import Jira_Field, Primary_Field, Payload_Field, Property_Field
@@ -14,59 +12,12 @@ from .parser import Int_Parser, String_Parser, Date_Parser, Unicode_Parser, \
     Sprint_Parser, Developer_Parser, Decimal_Parser, ID_List_Parser, \
     Version_Parser, Rank_Parser, Issue_Key_Parser, Flag_Parser, \
     Ready_Status_Parser, Labels_Parser
-from .special_field import Comment_Field, Issue_Link_Field, Subtask_Field
+from .query import Query
+from .special_field import Special_Field
 from .table import Table, Key_Table, Link_Table
 from .update import Updated_Time, Update_Tracker
-from ..utils import Iterator_Limiter
 
 __all__ = ["Jira"]
-
-class Query(object):
-    """
-    Object that handles the JIRA API query using limiting.
-    """
-
-    def __init__(self, jira, username, password, options):
-        self._jira = jira
-        self._api = JIRA(options, basic_auth=(username, password))
-
-        query = 'project={} AND updated > "{}"'
-        self._query = query.format(self._jira.project_key,
-                                   self._jira.updated_since.timestamp)
-        self._search_fields = self._jira.search_fields
-        self._latest_update = str(0)
-
-        self._iterator_limiter = Iterator_Limiter(size=100, maximum=100000)
-
-    def update(self):
-        """
-        Update the internal iteration tracker after processing a query.
-        """
-
-        self._iterator_limiter.update()
-
-    def perform_batched_query(self, had_issues):
-        """
-        Retrieve a batch of issue results from the JIRA API.
-        """
-
-        if not self._iterator_limiter.check(had_issues):
-            return []
-
-        self._latest_update = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M")
-        return self._api.search_issues(self._query,
-                                       startAt=self._iterator_limiter.skip,
-                                       maxResults=self._iterator_limiter.size,
-                                       expand='attachment,changelog',
-                                       fields=self._search_fields)
-
-    @property
-    def latest_update(self):
-        """
-        Retrieve the latest time that the query retrieved data.
-        """
-
-        return self._latest_update
 
 class Jira(object):
     """
@@ -118,12 +69,6 @@ class Jira(object):
     without "primary" or "field", i.e., "changelog_id" and "updated_by".
     """
 
-    _special_parser_classes = {
-        "comment": Comment_Field,
-        "issuelinks": Issue_Link_Field,
-        "subtasks": Subtask_Field
-    }
-
     def __init__(self, project, updated_since):
         self._project = project
         self._updated_since = Updated_Time(updated_since)
@@ -131,7 +76,7 @@ class Jira(object):
         self._changelog = Changelog(self)
 
         self._issue_fields = {}
-        self._special_parsers = {}
+        self._search_fields = None
 
         self._tables = {
             "issue": Table("issue", filename="data.json"),
@@ -186,9 +131,9 @@ class Jira(object):
 
                 self.register_table(name, data, table_key_source=field)
             elif "special_parser" in data:
-                parser_class = self._special_parser_classes[name]
-                parser = parser_class(self, **data)
-                self._special_parsers[name] = parser
+                parser_class = Special_Field.get_field_class(name)
+                parser = parser_class(self, name, **data)
+                self._issue_fields[name] = parser
                 self.register_table(data["special_parser"], data,
                                     table_key_source=parser)
                 jira_fields.append(name)
@@ -288,8 +233,6 @@ class Jira(object):
                 versions = self._changelog.get_versions(issue, data)
                 self._tables["issue"].extend(versions)
 
-                self.parse_special_fields(issue)
-
             query.update()
             issues = query.perform_batched_query(had_issues)
 
@@ -300,20 +243,11 @@ class Jira(object):
 
         data = {}
         for name, field in self._issue_fields.iteritems():
-            data[name] = field.parse(issue)
+            result = field.parse(issue)
+            if result is not None:
+                data[name] = result
 
         return data
-
-    def parse_special_fields(self, issue):
-        """
-        Parse more complicated fields to let these parsers augment the data.
-        """
-
-        for name, parser in self._special_parsers.iteritems():
-            if hasattr(issue.fields, name):
-                field = getattr(issue.fields, name)
-                if field is not None:
-                    parser.parse(issue, field)
 
     def write_tables(self):
         """
