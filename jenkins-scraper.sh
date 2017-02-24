@@ -26,10 +26,10 @@ function error_handler() {
 	do
 		for restoreFile in $restoreFiles
 		do
-			if [ -e "$ROOT/$project/$restoreFile.bak" ]; then
-				mv "$ROOT/$project/$restoreFile.bak" "$ROOT/$project/$restoreFile"
+			if [ -e "$ROOT/export/$project/$restoreFile.bak" ]; then
+				mv "$ROOT/export/$project/$restoreFile.bak" "$ROOT/export/$project/$restoreFile"
 			else
-				rm -f "$ROOT/$project/$restoreFile"
+				rm -f "$ROOT/export/$project/$restoreFile"
 			fi
 		done
 	done
@@ -73,8 +73,8 @@ do
 	# Create backups of tracking files
 	for restoreFile in $restoreFiles
 	do
-		if [ -e "$project/$restoreFile" ]; then
-			cp "$project/$restoreFile" "$project/$restoreFile.bak"
+		if [ -e "export/$project/$restoreFile" ]; then
+			cp "export/$project/$restoreFile" "export/$project/$restoreFile.bak"
 		fi
 	done
 
