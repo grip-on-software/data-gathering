@@ -85,7 +85,7 @@ do
 	status_handler python jira_to_json.py $project --log $logLevel
 	status_handler python gitlab_to_json.py $project --log $logLevel
 	status_handler python git_to_json.py $project --log $logLevel
-	status_handler python history_to_json.py $project --log $logLevel
+	status_handler python history_to_json.py $project --export-url --log $logLevel
 	status_handler python metric_options_to_json.py $project --context -1 --log $logLevel
 	status_handler java -jar importerjson.jar $project $importerTasks
 done
