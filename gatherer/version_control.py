@@ -50,7 +50,8 @@ class Repositories_Holder(object):
             repo = repo_class.from_url(source.name, path, source.url,
                                        sprints=self._sprints)
 
-            yield repo
+            if not repo.is_empty():
+                yield repo
 
     def process(self):
         """
@@ -122,6 +123,13 @@ class Version_Control_Repository(object):
         Property that changes the back-end repository interface.
 
         The subclass may enforce type restrictions on the back-end object.
+        """
+
+        raise NotImplementedError("Must be implemented by subclass")
+
+    def is_empty(self):
+        """
+        Check if the repository has no versions.
         """
 
         raise NotImplementedError("Must be implemented by subclass")

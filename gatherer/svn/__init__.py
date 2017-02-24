@@ -56,6 +56,14 @@ class Subversion_Repository(Version_Control_Repository):
 
         self._repo = repo
 
+    def is_empty(self):
+        try:
+            self.repo.info()
+        except svn.common.SvnException:
+            return False
+        else:
+            return True
+
     def _query(self, filename, from_revision, to_revision):
         return self._repo.log_default(rel_filepath=filename,
                                       revision_from=from_revision,
