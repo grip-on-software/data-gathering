@@ -99,6 +99,16 @@ class Sprint_Parser(Field_Parser):
         return sprint_data
 
     def parse(self, sprint):
+        if isinstance(sprint, list):
+            latest_sprint = str(0)
+            for sprint_field in sprint:
+                latest_sprint = self._parse(sprint_field)
+
+            return latest_sprint
+        else:
+            return self._parse(sprint)
+
+    def _parse(self, sprint):
         sprint_data = self._split_sprint(sprint)
         if not sprint_data:
             return str(0)
