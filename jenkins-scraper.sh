@@ -81,7 +81,7 @@ do
 	mkdir -p export/$project
 	mkdir -p project-git-repos/$project
 
-	status_handler python project_sources $project --log $logLevel
+	status_handler python project_sources.py $project --log $logLevel
 	status_handler python jira_to_json.py $project --log $logLevel
 	status_handler python gitlab_to_json.py $project --log $logLevel
 	status_handler python git_to_json.py $project --log $logLevel
