@@ -71,8 +71,8 @@ def read_project_file(data_file, start_from=0):
                 }
                 metric_data.append(metric_row_data)
 
-    print 'Number of lines read: {}'.format(str(line_count))
-    print 'Number of new metric values: {}'.format(str(len(metric_data)))
+    logging.info('Number of lines read: %d', line_count)
+    logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
 
 def make_url(project, url_prefix):
