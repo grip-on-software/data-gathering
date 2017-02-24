@@ -65,10 +65,10 @@ class Subversion_Repository(Version_Control_Repository):
             return True
 
     def _query(self, filename, from_revision, to_revision):
-        return self._repo.log_default(rel_filepath=filename,
-                                      revision_from=from_revision,
-                                      revision_to=to_revision,
-                                      limit=self._iterator_limiter.size)
+        return self.repo.log_default(rel_filepath=filename,
+                                     revision_from=from_revision,
+                                     revision_to=to_revision,
+                                     limit=self._iterator_limiter.size)
 
     def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
         """
