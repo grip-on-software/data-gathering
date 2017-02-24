@@ -98,8 +98,9 @@ class Git_Repository(Version_Control_Repository):
 
         repository = cls(repo_name, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
-            # Update the repository from the origin URL.
-            repository.repo.remotes.origin.pull('master', progress=progress)
+            if not repository.is_empty():
+                # Update the repository from the origin URL.
+                repository.repo.remotes.origin.pull('master', progress=progress)
         else:
             repository.repo = Repo.clone_from(url, repo_directory,
                                               progress=progress)
