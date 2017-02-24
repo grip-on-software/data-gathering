@@ -93,6 +93,14 @@ class Source(object):
 
         return Source_Types.get_source(source_type, **kwargs)
 
+    @classmethod
+    def _get_changed_host(cls, host):
+        # Retrieve the changed host in the credentials configuration.
+        if cls._credentials.has_option(host, 'host'):
+            return cls._credentials.get(host, 'host')
+
+        return host
+
     def _update_credentials(self):
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
@@ -100,8 +108,8 @@ class Source(object):
         host = parts.netloc
         full_host = host
         if self._credentials.has_section(host):
-            if self._follow_host_change and self._credentials.has_option(host, 'host'):
-                host = self._credentials.get(host, 'host')
+            if self._follow_host_change:
+                host = self._get_changed_host(host)
 
             username = self._credentials.get(host, 'username')
             password = self._credentials.get(host, 'password')
@@ -196,7 +204,10 @@ class Git(Source):
         return Git_Repository
 
 @Source_Types.register('gitlab')
-@Source_Types.register('git', lambda cls, **source_data: cls.is_gitlab_url(source_data['url']))
+@Source_Types.register('git',
+                       lambda cls, follow_host_change=True, **source_data: \
+                       cls.is_gitlab_url(source_data['url'],
+                                         follow_host_change=follow_host_change))
 class GitLab(Git):
     """
     GitLab source repository
@@ -209,21 +220,25 @@ class GitLab(Git):
         super(GitLab, self).__init__(*args, **kwargs)
 
     @classmethod
-    def is_gitlab_url(cls, url):
+    def is_gitlab_url(cls, url, follow_host_change=True):
         """
         Check whether a given URL is part of a GitLab instance.
         """
 
         parts = urlparse.urlsplit(url)
-        return cls.is_gitlab_host(parts.netloc)
+        return cls.is_gitlab_host(parts.netloc,
+                                  follow_host_change=follow_host_change)
 
     @classmethod
-    def is_gitlab_host(cls, host):
+    def is_gitlab_host(cls, host, follow_host_change=True):
         """
         Check whether a given host (without scheme part) is a GitLab host.
         """
 
         cls._init_credentials()
+        if follow_host_change:
+            host = cls._get_changed_host(host)
+
         return cls._credentials.has_option(host, 'gitlab_token')
 
     def _update_credentials(self):
