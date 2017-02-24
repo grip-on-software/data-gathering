@@ -18,7 +18,7 @@ if [ -z "$logLevel" ]; then
 fi
 
 # Files that are backed up in case of errors for each project
-restoreFiles="jira-updated.txt git-commit.json history_line_count.txt metric_options_update.json"
+restoreFiles="jira-updated.txt vcs_versions.json history_line_count.txt metric_options_update.json"
 
 function error_handler() {
 	echo "Reverting workspace tracking data..."
