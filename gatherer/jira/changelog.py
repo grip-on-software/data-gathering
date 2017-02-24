@@ -132,8 +132,19 @@ class Changelog(object):
 
         if self._updated_since.is_newer(data["created"]):
             prev_diffs["updated"] = data["created"]
+            parser = self._jira.get_type_cast("developer")
+            prev_diffs["updated_by"] = parser.parse(issue.fields.creator)
+
             new_data = self._create_change_transition(prev_data, prev_diffs)
             new_data["changelog_id"] = str(0)
             versions.append(new_data)
 
         return versions
+
+    @property
+    def search_field(self):
+        """
+        Retrieve the field name necessary for changelog parsing.
+        """
+
+        return 'creator'

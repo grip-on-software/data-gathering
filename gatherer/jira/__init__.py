@@ -195,6 +195,7 @@ class Jira(object):
 
             self._changelog.import_field_specification(name, data)
 
+        jira_fields.append(self._changelog.search_field)
         self._search_fields = ','.join(jira_fields)
 
     def register_table(self, name, data, table_key_source=None):
