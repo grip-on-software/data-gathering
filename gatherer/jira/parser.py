@@ -81,7 +81,7 @@ class Sprint_Parser(Field_Parser):
     @classmethod
     def _split_sprint(cls, sprint):
         sprint_data = {}
-        sprint_string = str(sprint)
+        sprint_string = parse_unicode(sprint)
         if '[' not in sprint_string:
             return sprint_data
 
@@ -90,8 +90,8 @@ class Sprint_Parser(Field_Parser):
         for part in sprint_parts:
             try:
                 pair = part.split('=')
-                key = pair[0].encode('utf-8')
-                value = pair[1].encode('utf-8')
+                key = pair[0]
+                value = pair[1]
                 sprint_data[key] = value
             except IndexError:
                 return False
@@ -102,7 +102,9 @@ class Sprint_Parser(Field_Parser):
         if isinstance(sprint, list):
             latest_sprint = str(0)
             for sprint_field in sprint:
-                latest_sprint = self._parse(sprint_field)
+                sprint_id = self._parse(sprint_field)
+                if sprint_id != str(0):
+                    latest_sprint = sprint_id
 
             return latest_sprint
         else:
