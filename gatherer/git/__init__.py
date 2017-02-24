@@ -33,8 +33,8 @@ class Git_Progress(RemoteProgress):
         if action_op in self._op_codes:
             if max_count is not None and max_count != '':
                 ratio = cur_count / float(max_count)
-                count = '{0:>3.0%} ({1:.0}/{2:.0})'.format(ratio, cur_count,
-                                                           max_count)
+                count = '{0:>3.0%} ({1:.0f}/{2:.0f})'.format(ratio, cur_count,
+                                                             max_count)
             else:
                 count = cur_count
 
