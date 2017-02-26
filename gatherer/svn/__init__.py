@@ -97,8 +97,9 @@ class Subversion_Repository(Version_Control_Repository):
                 versions.append(new_version)
 
             count = self._iterator_limiter.size + self._iterator_limiter.skip
-            logging.info('Analysed batch of revisions, now at %d (r%s)',
-                         count, versions[-1]['version_id'])
+            if had_versions:
+                logging.info('Analysed batch of revisions, now at %d (r%s)',
+                             count, versions[-1]['version_id'])
 
             self._iterator_limiter.update()
             if self._iterator_limiter.check(had_versions):
