@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument("project", help="project key")
     parser.add_argument("--start-from", dest="start_from", type=int,
                         default=None, help="line number to start reading from")
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--url", default=None,
                        help="url prefix to obtain the file from")
@@ -36,6 +37,10 @@ def parse_args():
                        nargs='?', const=True,
                        help="url prefix to use as a reference rather than reading all data")
     group.add_argument("--file", help="local file to read from")
+    group.add_argument("--export-path", default=None, dest="export_path",
+                       nargs='?', const=True,
+                       help="path prefix to use as a reference rather than reading all data")
+
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
@@ -75,16 +80,32 @@ def read_project_file(data_file, start_from=0):
     logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
 
-def make_url(project, url_prefix):
+def make_path(project, prefix):
     """
-    Create a URL to the metrics history file for the given project.
+    Create a path or URL to the metrics history file for the given project.
     """
 
     project_name = project.quality_metrics_name
     if project_name is None:
         raise RuntimeError('No metrics history file URL available')
 
-    return url_prefix + project_name + "/history.json.gz"
+    return prefix + project_name + "/history.json.gz"
+
+def get_setting(config, arg, key, project):
+    """
+    Retrieve a configuration setting from the history section using the `key`
+    as well as the project key for the option name, using multiple variants.
+
+    If `arg` is set to a valid setting then this value is used instead.
+    """
+
+    if arg is None or arg is True:
+        if config.has_option('history', '{}.{}'.format(key, project.key)):
+            return config.get('history', '{}.{}'.format(key, project.key))
+        else:
+            return config.get('history', key)
+    else:
+        return arg
 
 @contextmanager
 def get_data_source(project, args):
@@ -92,33 +113,23 @@ def get_data_source(project, args):
     Yield an open file containing the historical metric values of the project.
     """
 
-    if args.file is not None:
+    config = ConfigParser.RawConfigParser()
+    config.read("settings.cfg")
+
+    if args.export_path is not None:
+        export_path = get_setting(config, args.export_path, 'path', project)
+        yield make_path(project, export_path) + "|"
+    elif args.file is not None:
         yield open(args.file, 'r')
+    elif args.export_url is not None:
+        export_url = get_setting(config, args.export_url, 'url', project)
+        yield make_path(project, export_url)
     else:
-        config = ConfigParser.RawConfigParser()
-        config.read("settings.cfg")
-        if config.has_option('history', project.key):
-            default_url_prefix = config.get('history', project.key)
-        else:
-            default_url_prefix = config.get('history', 'url')
-
-        if args.export_url is not None:
-            if args.export_url is True:
-                export_url = default_url_prefix
-            else:
-                export_url = args.export_url
-
-            yield make_url(project, export_url)
-        else:
-            if args.url is None:
-                url_prefix = default_url_prefix
-            else:
-                url_prefix = args.url
-
-            url = make_url(project, url_prefix)
-            request = requests.get(url)
-            stream = io.BytesIO(request.content)
-            yield gzip.GzipFile(mode='r', fileobj=stream)
+        url_prefix = get_setting(config, args.url, 'url', project)
+        url = make_path(project, url_prefix)
+        request = requests.get(url)
+        stream = io.BytesIO(request.content)
+        yield gzip.GzipFile(mode='r', fileobj=stream)
 
 def main():
     """
