@@ -27,6 +27,10 @@ class Git_Progress(RemoteProgress):
         RemoteProgress.CHECKING_OUT: 'Checking out files'
     }
 
+    def __init__(self, update_ratio=1):
+        super(Git_Progress, self).__init__()
+        self._update_ratio = update_ratio
+
     def update(self, op_code, cur_count, max_count=None, message=''):
         stage_op = op_code & RemoteProgress.STAGE_MASK
         action_op = op_code & RemoteProgress.OP_MASK
@@ -40,6 +44,8 @@ class Git_Progress(RemoteProgress):
 
             if stage_op == RemoteProgress.END:
                 token = RemoteProgress.TOKEN_SEPARATOR + RemoteProgress.DONE_TOKEN
+            elif cur_count % self._update_ratio != 0:
+                return
             else:
                 token = ''
 
@@ -85,7 +91,9 @@ class Git_Repository(Version_Control_Repository):
         Initialize a Git repository from its clone URL if it does not yet exist.
 
         If `progress` is `True`, then add progress lines from Git commands to
-        the logging output.
+        the logging output. If `progress` is a nonzero number, then sample from
+        this number of lines. If it is not `False`, then use it as a progress
+        callback function.
 
         Returns a Git_Repository object with a cloned and up-to-date repository,
         even if the repository already existed beforehand.
@@ -93,8 +101,10 @@ class Git_Repository(Version_Control_Repository):
 
         if progress is True:
             progress = Git_Progress()
-        elif progress is False:
+        elif not progress:
             progress = None
+        elif isinstance(progress, int):
+            progress = Git_Progress(update_ratio=progress)
 
         repository = cls(repo_name, repo_directory, **kwargs)
         if os.path.exists(repo_directory):

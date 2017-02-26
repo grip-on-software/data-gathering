@@ -33,13 +33,15 @@ def parse_args():
     parser.add_argument("--ignore-host-change", dest="follow_host_change",
                         action="store_false", default=True,
                         help="Ignore credential host changes and use the original host instead")
+    parser.add_argument("--log-ratio", dest="log_ratio", default=5, type=int,
+                        help="Number of lines to sample from Git progress")
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
     return args
 
 # pylint: disable=no-member
-def retrieve_repos(project):
+def retrieve_repos(project, log_ratio):
     """
     Retrieve data from GitLab repositories for a specific project.
     """
@@ -83,7 +85,7 @@ def retrieve_repos(project):
                                   url=project_repo.http_url_to_repo,
                                   follow_host_change=False)
         git_repo = Git_Repository.from_url(repo_name, repo_dir, source.url,
-                                           progress=True)
+                                           progress=log_ratio)
 
         if git_repo.is_empty():
             continue
@@ -116,7 +118,7 @@ def main():
     project_key = args.project
     project = Project(project_key, follow_host_change=args.follow_host_change)
 
-    repos = retrieve_repos(project)
+    repos = retrieve_repos(project, args.log_ratio)
 
     path = os.path.join(project.export_key, 'data_gitlab.json')
     with open(path, 'w') as output_file:
