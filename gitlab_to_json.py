@@ -90,7 +90,8 @@ def retrieve_repos(project, log_ratio):
         if git_repo.is_empty():
             continue
 
-        if source.url != gitlab_source.url:
+        # Check if there is already another (Git) source with the same URL.
+        if all(source.url != existing.url for existing in project.sources):
             project.add_source(source)
 
         commits = git_repo.repo.iter_commits('master', remotes=True)
