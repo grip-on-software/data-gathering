@@ -6,6 +6,7 @@ import bisect
 import json
 import logging
 import os
+from copy import deepcopy
 from datetime import datetime
 
 class Iterator_Limiter(object):
@@ -70,18 +71,15 @@ class Sprint_Data(object):
     Object that loads sprint data and allows matching timestamps to sprints
     based on their date ranges.
 
-    Only works after jira_to_json.py has retrieved the sprint data.
+    Only works after jira_to_json.py has retrieved the sprint data or if
+    a `sprints` argument is provided.
     """
 
-    def __init__(self, project):
-        sprint_filename = os.path.join(project.export_key, 'data_sprint.json')
-
-        if os.path.exists(sprint_filename):
-            with open(sprint_filename, 'r') as sprint_file:
-                self._data = json.load(sprint_file)
+    def __init__(self, project, sprints=None):
+        if sprints is not None:
+            self._data = deepcopy(sprints)
         else:
-            logging.warning('Could not load sprint data, no sprint matching possible.')
-            self._data = []
+            self._data = self._import_sprints(project)
 
         self._sprint_ids = []
         self._start_dates = []
@@ -90,10 +88,25 @@ class Sprint_Data(object):
 
         for sprint in self.get_sorted_sprints():
             self._sprint_ids.append(int(sprint['id']))
-            self._start_dates.append(self._parse_date(sprint['start_date']))
-            self._end_dates.append(self._parse_date(sprint['end_date']))
+            self._start_dates.append(self.parse_date(sprint['start_date']))
+            self._end_dates.append(self.parse_date(sprint['end_date']))
 
-    def _parse_date(self, date):
+    @staticmethod
+    def _import_sprints(project):
+        sprint_filename = os.path.join(project.export_key, 'data_sprint.json')
+
+        if os.path.exists(sprint_filename):
+            with open(sprint_filename, 'r') as sprint_file:
+                return json.load(sprint_file)
+        else:
+            logging.warning('Could not load sprint data, no sprint matching possible.')
+            return []
+
+    def parse_date(self, date):
+        """
+        Parse a date string `date` such that it can be used for sprint searches.
+        """
+
         return datetime.strptime(date, self._date_format)
 
     def get_sorted_sprints(self):
@@ -103,25 +116,50 @@ class Sprint_Data(object):
 
         return sorted(self._data, key=lambda sprint: sprint['start_date'])
 
-    def find_sprint(self, time):
+    def find_sprint(self, time, sprint_ids=None):
         """
         Retrieve a sprint ID of a sprint that encompasses the given datetime
-        object `time`. If not such sprint exists, `None` is returned.
+        object `time`. If `sprint_ids` is given, then only consider the given
+        sprint IDs for matching. If not such sprint exists, `None` is returned.
         """
 
+        return self._bisect(time, sprint_ids=sprint_ids, overlap=True)
+
+    def _bisect(self, time, sprint_ids=None, overlap=False, end=None):
+        if end is None:
+            end = len(self._start_dates)
+
         # Find start date
-        i = bisect.bisect_left(self._start_dates, time)
-        if i == 0:
+        index = bisect.bisect_right(self._start_dates, time, hi=end)
+        if index == 0:
             # Older than all sprints
             return None
 
-        # Find end date
-        if time >= self._end_dates[i-1]:
-            # Not actually inside this sprint (either later than the sprint
-            # end, or partially overlapping sprints that interfere)
-            return None
+        # Check end date
+        if time > self._end_dates[index-1]:
+            # The moment is not actually encompassed inside this sprint.
+            # Either it is actually later than the sprint end, or there are
+            # partially overlapping sprints that interfere. Try the former
+            # sprint that starts earlier it see if it and overlaps, but do not
+            # try to search further if that fails.
+            if overlap and index > 1 and time <= self._end_dates[index-2]:
+                index = index-1
+            else:
+                return None
 
-        return self._sprint_ids[i-1]
+        # We found a sprint that encompasses the time moment. Check whether
+        # this sprint is within the list of allowed IDs before returning it.
+        sprint_id = self._sprint_ids[index-1]
+        if sprint_ids is not None and sprint_id not in sprint_ids:
+            # Attempt to find a sprint that started earlier than this one, but
+            # overlaps in such as way that the time is within that sprint.
+            # We do not need to search for later sprints since they will always
+            # have a later start time than the time we search for, due to the
+            # right bisection search we use.
+            return self._bisect(time, sprint_ids=sprint_ids, overlap=False,
+                                end=index-1)
+        else:
+            return sprint_id
 
 def parse_date(date):
     """

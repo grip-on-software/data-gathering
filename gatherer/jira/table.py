@@ -3,6 +3,7 @@ Table structures.
 """
 
 import json
+from copy import deepcopy
 
 class Table(object):
     """
@@ -18,6 +19,13 @@ class Table(object):
             self.filename = 'data_{}.json'.format(self.name)
         else:
             self.filename = filename
+
+    def get(self):
+        """
+        Retrieve a copy of the table data.
+        """
+
+        return deepcopy(self.data)
 
     def append(self, row):
         """

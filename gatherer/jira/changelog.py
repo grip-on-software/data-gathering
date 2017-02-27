@@ -5,6 +5,7 @@ Module that handles issue changelog data.
 import logging
 
 from .field import Changelog_Primary_Field, Changelog_Field
+from ..utils import Sprint_Data
 
 class Changelog(object):
     """
@@ -90,9 +91,46 @@ class Changelog(object):
         return result
 
     @classmethod
-    def _alter_change_metdata(cls, data, diffs):
+    def _alter_change_metadata(cls, data, diffs, sprints):
+        # Data is either a full changelog entry or a difference entry that is
+        # applied to it after this call. Diffs is a difference entry with data
+        # that may be partially for this change, but after this call it only
+        # contains fields for for an earlier change.
         data["updated_by"] = diffs.pop("updated_by", str(0))
         data["rank_change"] = diffs.pop("rank_change", str(0))
+
+        if "sprint" in data and isinstance(data["sprint"], list):
+            # Add the sprint list to the diff for the earlier change unless it
+            # had a changelog entry, so that we keep on searching for the
+            # correct sprint ID.
+            if "sprint" not in diffs:
+                diffs["sprint"] = data["sprint"]
+
+            # Get updated datetime object of the current entry.
+            if "updated" in data:
+                updated = sprints.parse_date(data["updated"])
+            else:
+                updated = sprints.parse_date(data["created"])
+
+            sprint_id = sprints.find_sprint(updated, sprint_ids=data["sprint"])
+            if sprint_id is None:
+                # Always take one of the sprints, even if they cannot be
+                # matched to a sprint (due to start/end mismatch)
+                data["sprint"] = str(data["sprint"][0])
+            else:
+                data["sprint"] = str(sprint_id)
+
+    def _create_first_version(self, issue, prev_data, prev_diffs, sprints):
+        prev_diffs["updated"] = prev_data["created"]
+        parser = self._jira.get_type_cast("developer")
+        first_data = {
+            "updated_by": parser.parse(issue.fields.creator)
+        }
+
+        self._alter_change_metadata(prev_diffs, first_data, sprints)
+        new_data = self._create_change_transition(prev_data, prev_diffs)
+        new_data["changelog_id"] = str(0)
+        return new_data
 
     def get_versions(self, issue, data):
         """
@@ -101,6 +139,8 @@ class Changelog(object):
         """
 
         issue_diffs = self.fetch_changelog(issue)
+        sprints = Sprint_Data(self._jira.project,
+                              sprints=self._jira.get_table("sprint").get())
 
         changelog_count = len(issue_diffs)
         prev_diffs = {}
@@ -115,14 +155,15 @@ class Changelog(object):
 
             diffs = issue_diffs[updated]
             if not prev_diffs:
+                # Prepare difference between latest version and earlier one
                 data["changelog_id"] = str(changelog_count)
-                self._alter_change_metdata(data, diffs)
+                self._alter_change_metadata(data, diffs, sprints)
                 versions.append(data)
                 prev_diffs = diffs
                 changelog_count -= 1
             else:
                 prev_diffs["updated"] = updated
-                self._alter_change_metdata(prev_diffs, diffs)
+                self._alter_change_metadata(prev_diffs, diffs, sprints)
                 old_data = self._create_change_transition(prev_data, prev_diffs)
                 old_data["changelog_id"] = str(changelog_count)
                 versions.append(old_data)
@@ -131,13 +172,10 @@ class Changelog(object):
                 changelog_count -= 1
 
         if self._updated_since.is_newer(data["created"]):
-            prev_diffs["updated"] = data["created"]
-            parser = self._jira.get_type_cast("developer")
-            prev_diffs["updated_by"] = parser.parse(issue.fields.creator)
-
-            new_data = self._create_change_transition(prev_data, prev_diffs)
-            new_data["changelog_id"] = str(0)
-            versions.append(new_data)
+            prev_data["created"] = data["created"]
+            first_data = self._create_first_version(issue, prev_data,
+                                                    prev_diffs, sprints)
+            versions.append(first_data)
 
         return versions
 

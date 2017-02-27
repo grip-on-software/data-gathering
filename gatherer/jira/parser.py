@@ -94,6 +94,12 @@ class Unicode_Parser(Field_Parser):
 class Sprint_Parser(Field_Parser):
     """
     Parser for sprint representations.
+
+    This adds sprint data such as start and end dates to a table, and returns
+    a list of sprint IDs as the field value. Note that the sprint IDs need to
+    be post-processed in order to export it in a way that the importer can
+    handle them. Another issue (version) handler need to compare which sprint
+    ID is correct for this issue version.
     """
 
     @classmethod
@@ -118,26 +124,32 @@ class Sprint_Parser(Field_Parser):
 
     def parse(self, sprint):
         if isinstance(sprint, list):
-            latest_sprint = str(0)
+            sprints = []
             for sprint_field in sprint:
                 sprint_id = self._parse(sprint_field)
                 if sprint_id != str(0):
-                    latest_sprint = sprint_id
+                    sprints.append(sprint_id)
 
-            return latest_sprint
+            if not sprints:
+                return str(0)
+
+            return sprints
         else:
             return self._parse(sprint)
 
     def _parse(self, sprint):
+        # Parse an individual sprint, add its data to the table and return the
+        # sprint ID as an integer, or `str(0)` if it is not an acceptable
+        # sprint format.
         sprint_data = self._split_sprint(sprint)
         if not sprint_data:
             return str(0)
 
-        sprint_text = parse_unicode(sprint_data["id"])
+        sprint_text = int(sprint_data["id"])
 
         if sprint_data["endDate"] != "<null>" and sprint_data["startDate"] != "<null>":
             self.jira.get_table("sprint").append({
-                "id": sprint_text,
+                "id": str(sprint_text),
                 "name": str(sprint_data["name"]),
                 "start_date": parse_date(sprint_data["startDate"]),
                 "end_date": parse_date(sprint_data["endDate"])
@@ -149,7 +161,7 @@ class Sprint_Parser(Field_Parser):
         if change['from'] is None:
             return str(0)
 
-        return str(int(change['from'].split(', ')[0]))
+        return [int(sprint) for sprint in change['from'].split(', ')]
 
     @property
     def table_key(self):

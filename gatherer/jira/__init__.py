@@ -195,6 +195,14 @@ class Jira(object):
         return self._type_casts[datatype]
 
     @property
+    def project(self):
+        """
+        Retrieve the Project domain object.
+        """
+
+        return self._project
+
+    @property
     def project_key(self):
         """
         Retrieve the JIRA project key.
