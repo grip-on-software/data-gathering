@@ -241,7 +241,10 @@ class Version_Parser(Field_Parser):
         for fix_version in value:
             if all(hasattr(fix_version, prop) for prop in required_properties):
                 release_date = str(0)
-                if fix_version.released and hasattr(fix_version, 'releaseDate'):
+                released = str(-1)
+                if fix_version.released:
+                    released = str(1)
+                if hasattr(fix_version, 'releaseDate'):
                     release_date = parse_date(fix_version.releaseDate)
 
                 encoded_value = str(fix_version.id)
@@ -249,7 +252,8 @@ class Version_Parser(Field_Parser):
                     "id": encoded_value,
                     "name": str(fix_version.name),
                     "description": parse_unicode(fix_version.description),
-                    "release_date": release_date
+                    "release_date": release_date,
+                    "released": released
                 })
 
         return encoded_value
