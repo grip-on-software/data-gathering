@@ -40,7 +40,7 @@ class Progress_Filter(logging.Filter):
         if record.done or record.op_code in self._relevant_op_codes:
             return True
         if hasattr(record, 'ratio'):
-            if (record.ratio * 100) % self._update_ratio == 0:
+            if int(record.ratio * 100) % self._update_ratio == 0:
                 return True
         elif record.cur_count % self._update_ratio == 0:
             return True
