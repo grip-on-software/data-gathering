@@ -57,6 +57,24 @@ class Int_Parser(String_Parser):
     def parse(self, value):
         return str(int(value))
 
+class Boolean_Parser(String_Parser):
+    """
+    Parser for string fields that only have two options: "Yes" or "No".
+    """
+
+    def parse(self, value):
+        if value == "Yes":
+            return str(1)
+        if value == "No":
+            return str(-1)
+        if value == "":
+            return str(0)
+
+        return value
+
+    def parse_changelog(self, change, value, diffs):
+        return self.parse(change["fromString"])
+
 class Date_Parser(Field_Parser):
     """
     Parser for timestamp fields, including date and time.

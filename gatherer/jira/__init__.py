@@ -8,10 +8,10 @@ from copy import copy
 
 from .changelog import Changelog
 from .field import Jira_Field, Primary_Field, Payload_Field, Property_Field
-from .parser import Int_Parser, String_Parser, Date_Parser, Unicode_Parser, \
-    Sprint_Parser, Developer_Parser, Decimal_Parser, ID_List_Parser, \
-    Version_Parser, Rank_Parser, Issue_Key_Parser, Flag_Parser, \
-    Ready_Status_Parser, Labels_Parser
+from .parser import Int_Parser, String_Parser, Boolean_Parser, Date_Parser, \
+    Unicode_Parser, Sprint_Parser, Developer_Parser, Decimal_Parser, \
+    ID_List_Parser, Version_Parser, Rank_Parser, Issue_Key_Parser, \
+    Flag_Parser, Ready_Status_Parser, Labels_Parser
 from .query import Query
 from .special_field import Special_Field
 from .table import Table, Key_Table, Link_Table
@@ -86,6 +86,7 @@ class Jira(object):
         self._type_casts = {
             "int": Int_Parser(self),
             "str": String_Parser(self),
+            "boolean": Boolean_Parser(self),
             "date": Date_Parser(self),
             "unicode": Unicode_Parser(self),
             "sprint": Sprint_Parser(self),

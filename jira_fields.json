@@ -10,7 +10,7 @@
         "type": "str", 
         "primary": "key"
     }, 
-    "type": {
+    "issuetype": {
         "field": "issuetype", 
         "changelog_name": "issuetype", 
         "property": "id",
@@ -53,8 +53,21 @@
     "bugfix": {
         "field": "customfield_10404", 
         "changelog_name": "Bug fix", 
-        "property": "id"
-    }, 
+        "property": "value",
+        "type": "boolean"
+    },
+    "approved": {
+        "field": "customfield_10206",
+        "changelog_name": "Approved",
+        "property": "value",
+        "type": "boolean"
+    },
+    "approved_by_po": {
+        "field": "customfield_11702",
+        "changelog_name": "Approved by Product Owner",
+        "property": "value",
+        "type": "boolean"
+    },
     "watchers": {
         "field": "watches", 
         "property": "watchCount", 
@@ -167,10 +180,53 @@
         "type": "ready_status",
         "table": "ready_status"
     },
+    "ready_status_reason": {
+        "field": "customfield_11503",
+        "changelog_name": "Ready status reason",
+        "type": "unicode"
+    },
     "labels": {
         "field": "labels",
         "changelog_name": "labels",
         "type": "labels"
+    },
+    "expected_ltcs": {
+        "field": "customfield_10210",
+        "changelog_name": "Expected number of LTC's",
+        "type": "int"
+    },
+    "expected_phtcs": {
+        "field": "customfield_10600",
+        "changelog_name": "Expected number of PhTC's",
+        "type": "int"
+    },
+    "test_given": {
+        "field": "customfield_10203",
+        "changelog_name": "Given",
+        "type": "unicode"
+    },
+    "test_when": {
+        "field": "customfield_10204",
+        "changelog_name": "When",
+        "type": "unicode"
+    },
+    "test_then": {
+        "field": "customfield_10205",
+        "changelog_name": "Then",
+        "type": "unicode"
+    },
+    "test_execution": {
+        "field": "customfield_10208",
+        "changelog_name": "Test execution",
+        "property": "id",
+        "table": {
+            "value": "str"
+        }
+    },
+    "test_execution_time": {
+        "field": "customfield_11700",
+        "changelog_name": "Execution time",
+        "type": "int"
     },
     "comment": {
         "special_parser": "comments",
