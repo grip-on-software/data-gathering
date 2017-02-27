@@ -12,6 +12,41 @@ from ..version_control import Version_Control_Repository
 
 __all__ = ["Git_Repository"]
 
+class Progress_Filter(logging.Filter):
+    """
+    Filters git progress logging messages based on their contextual data.
+    """
+
+    def __init__(self, update_ratio=1):
+        super(Progress_Filter, self).__init__()
+        self._update_ratio = update_ratio
+        self._relevant_op_codes = set([RemoteProgress.COUNTING])
+
+    @property
+    def update_ratio(self):
+        """
+        Retrieve the update ratio parameter of this filter.
+        """
+
+        return self._update_ratio
+
+    def filter(self, record):
+        if hasattr(record, 'dropped') and record.dropped:
+            return True
+
+        if not hasattr(record, 'done'):
+            return True
+
+        if record.done or record.op_code in self._relevant_op_codes:
+            return True
+        if hasattr(record, 'ratio'):
+            if (record.ratio * 100) % self._update_ratio == 0:
+                return True
+        elif record.cur_count % self._update_ratio == 0:
+            return True
+
+        return False
+
 class Git_Progress(RemoteProgress):
     """
     Progress delegate which outputs Git progress to logging.
@@ -29,38 +64,47 @@ class Git_Progress(RemoteProgress):
 
     def __init__(self, update_ratio=1):
         super(Git_Progress, self).__init__()
-        self._update_ratio = update_ratio
+        self._logger = logging.getLogger()
+        self._logger.addFilter(Progress_Filter(update_ratio=update_ratio))
 
     def update(self, op_code, cur_count, max_count=None, message=''):
         stage_op = op_code & RemoteProgress.STAGE_MASK
         action_op = op_code & RemoteProgress.OP_MASK
         if action_op in self._op_codes:
+            log_extra = {
+                'op_code': action_op,
+                'done': stage_op == RemoteProgress.END,
+                'cur_count': cur_count,
+                'max_count': max_count
+            }
             if max_count is not None and max_count != '':
                 ratio = cur_count / float(max_count)
+                log_extra['ratio'] = ratio
                 count = '{0:>3.0%} ({1:.0f}/{2:.0f})'.format(ratio, cur_count,
                                                              max_count)
             else:
-                count = cur_count
+                count = '{0:.0f}'.format(cur_count)
 
             if stage_op == RemoteProgress.END:
                 token = RemoteProgress.TOKEN_SEPARATOR + RemoteProgress.DONE_TOKEN
-            elif cur_count % self._update_ratio != 0:
-                return
             else:
                 token = ''
 
             line = '{0}: {1}{2}'.format(self._op_codes[action_op], count, token)
-            logging.info('Git: %s', line)
+            self._logger.info('Git: %s', line, extra=log_extra)
         else:
-            logging.info('Unexpected Git progress opcode: 0x%x', op_code)
+            self._logger.warning('Unexpected Git progress opcode: 0x%x',
+                                 op_code, extra={'op_code': op_code})
 
     def line_dropped(self, line):
-        logging.info('Git: %s', line)
+        self._logger.info('Git: %s', line, extra={'dropped': True})
 
 class Git_Repository(Version_Control_Repository):
     """
     A single Git repository that has commit data that can be read.
     """
+
+    DEFAULT_UPDATE_RATIO = 10
 
     def __init__(self, repo_name, repo_directory, **kwargs):
         super(Git_Repository, self).__init__(repo_name, repo_directory, **kwargs)
@@ -100,7 +144,7 @@ class Git_Repository(Version_Control_Repository):
         """
 
         if progress is True:
-            progress = Git_Progress()
+            progress = Git_Progress(update_ratio=cls.DEFAULT_UPDATE_RATIO)
         elif not progress:
             progress = None
         elif isinstance(progress, int):

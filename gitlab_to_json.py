@@ -33,7 +33,8 @@ def parse_args():
     parser.add_argument("--ignore-host-change", dest="follow_host_change",
                         action="store_false", default=True,
                         help="Ignore credential host changes and use the original host instead")
-    parser.add_argument("--log-ratio", dest="log_ratio", default=5, type=int,
+    parser.add_argument("--log-ratio", dest="log_ratio",
+                        default=Git_Repository.DEFAULT_UPDATE_RATIO, type=int,
                         help="Number of lines to sample from Git progress")
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -67,6 +68,9 @@ def retrieve_repos(project, log_ratio):
     repos = {}
     for repo in project_repos:
         project_repo = api.project(repo['id'])
+        repo_name = project_repo.name
+        logging.info('Processing GitLab repository %s', repo_name)
+
         # Retrieve relevant data from the API.
         data = {
             'info': project_repo._get_data(),
@@ -79,7 +83,6 @@ def retrieve_repos(project, log_ratio):
             'commit_comments': {}
         }
 
-        repo_name = project_repo.name
         repo_dir = 'project-git-repos/{0}/{1}'.format(project.key, repo_name)
         source = Source.from_type('gitlab', name=repo_name,
                                   url=project_repo.http_url_to_repo,
@@ -88,6 +91,7 @@ def retrieve_repos(project, log_ratio):
                                            progress=log_ratio)
 
         if git_repo.is_empty():
+            logging.info('Ignoring empty repository')
             continue
 
         # Check if there is already another (Git) source with the same URL.

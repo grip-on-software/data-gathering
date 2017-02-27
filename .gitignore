@@ -3,7 +3,7 @@
 *.pyc
 *.swp
 importerjson.jar
-data_gitdev_to_dev.json
+data_vcsdev_to_dev.json
 lib/
 export/
 project-git-repos/
