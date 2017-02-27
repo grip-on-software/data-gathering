@@ -67,7 +67,7 @@ class Boolean_Parser(String_Parser):
             return str(1)
         if value == "No":
             return str(-1)
-        if value == "":
+        if value is None or value == "":
             return str(0)
 
         return value
