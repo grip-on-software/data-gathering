@@ -65,11 +65,8 @@ else
 	svn checkout -q http://SUBVERSION_SERVER.localhost/commons/algemeen/kwaliteitsmetingen/
 fi
 
-## now loop through the list of projects
 for project in $listOfProjects
 do
-	echo "$project"
-
 	# Create backups of tracking files
 	for restoreFile in $restoreFiles
 	do
@@ -77,6 +74,12 @@ do
 			cp "export/$project/$restoreFile" "export/$project/$restoreFile.bak"
 		fi
 	done
+done
+
+## now loop through the list of projects
+for project in $listOfProjects
+do
+	echo "$project"
 
 	mkdir -p export/$project
 	mkdir -p project-git-repos/$project
@@ -85,7 +88,7 @@ do
 	status_handler python jira_to_json.py $project --log $logLevel
 	status_handler python gitlab_to_json.py $project --log $logLevel
 	status_handler python git_to_json.py $project --log $logLevel
-	status_handler python history_to_json.py $project --export-url --log $logLevel
+	status_handler python history_to_json.py $project --export-path --log $logLevel
 	status_handler python metric_options_to_json.py $project --context -1 --log $logLevel
 	status_handler java -jar importerjson.jar $project $importerTasks
 done
