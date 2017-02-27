@@ -122,6 +122,7 @@ class Changelog(object):
 
     def _create_first_version(self, issue, prev_data, prev_diffs, sprints):
         prev_diffs["updated"] = prev_data["created"]
+        prev_diffs["sprint"] = prev_data["sprint"]
         parser = self._jira.get_type_cast("developer")
         first_data = {
             "updated_by": parser.parse(issue.fields.creator)
