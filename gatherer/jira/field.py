@@ -2,13 +2,13 @@
 Field definitions that fetch fields from JIRA API issue results.
 """
 
-from .base import Table_Key_Source
+from .base import Base_Jira_Field
 
 ###
 # Field definitions
 ###
 
-class Jira_Field(Table_Key_Source):
+class Jira_Field(Base_Jira_Field):
     """
     Field parser for the issue field data returned by the JIRA REST API.
     """
@@ -70,17 +70,14 @@ class Jira_Field(Table_Key_Source):
         return []
 
     @property
-    def search_field(self):
-        """
-        JIRA field name to be added to the search query, or `None` if this
-        field is always available within the result.
-        """
-
-        raise NotImplementedError("Subclasses must extend this property")
-
-    @property
-    def table_key(self):
-        raise NotImplementedError("Subclasses must extend this property")
+    def table_name(self):
+        # If this field wishes to have a table, then default to the field name.
+        # Jira.register_table overrides this with the table name provided in
+        # the field specification data if possible.
+        if "table" in self.data:
+            return self.name
+        else:
+            return None
 
 class Primary_Field(Jira_Field):
     """

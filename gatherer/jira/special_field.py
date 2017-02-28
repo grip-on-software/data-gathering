@@ -2,9 +2,9 @@
 Special field parsers.
 """
 
-from .base import Table_Key_Source
+from .base import Base_Jira_Field
 
-class Special_Field(Table_Key_Source):
+class Special_Field(Base_Jira_Field):
     """
     A special field with additional data that cannot be parsed in conventional
     ways and is likely stored in a separate table.
@@ -62,6 +62,10 @@ class Special_Field(Table_Key_Source):
 
         raise NotImplementedError("Subclasses must override this method")
 
+    @property
+    def search_field(self):
+        return self.name
+
 @Special_Field.register("comment")
 class Comment_Field(Special_Field):
     """
@@ -89,6 +93,10 @@ class Comment_Field(Special_Field):
                 self.jira.get_table("comments").append(row)
 
     @property
+    def table_name(self):
+        return "comments"
+
+    @property
     def table_key(self):
         return "id"
 
@@ -106,6 +114,8 @@ class Issue_Link_Field(Special_Field):
             self.jira.get_table("relationshiptype").append({
                 'id': str(issuelink.type.id),
                 'name': str(issuelink.type.name),
+                'inward': str(issuelink.type.inward),
+                'outward': str(issuelink.type.outward)
             })
 
             if hasattr(issuelink, 'outwardIssue'):
@@ -123,6 +133,10 @@ class Issue_Link_Field(Special_Field):
                 })
 
     @property
+    def table_name(self):
+        return "issuelinks"
+
+    @property
     def table_key(self):
         return ('from_id', 'to_id', 'relationshiptype')
 
@@ -138,6 +152,10 @@ class Subtask_Field(Special_Field):
                 'from_id': str(issue.id),
                 'to_id': str(subtask.id)
             })
+
+    @property
+    def table_name(self):
+        return "subtasks"
 
     @property
     def table_key(self):

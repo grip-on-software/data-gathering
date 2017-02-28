@@ -3,10 +3,10 @@ Type specific parsers that convert field values to correct format.
 """
 
 import re
-from .base import Table_Key_Source
+from .base import Table_Source
 from ..utils import parse_date, parse_unicode
 
-class Field_Parser(Table_Key_Source):
+class Field_Parser(Table_Source):
     """
     Parser for JIRA fields. Different versions for each type exist.
     """
@@ -34,6 +34,10 @@ class Field_Parser(Table_Key_Source):
         """
 
         return value
+
+    @property
+    def table_name(self):
+        return None
 
     @property
     def table_key(self):
@@ -164,6 +168,10 @@ class Sprint_Parser(Field_Parser):
         return [int(sprint) for sprint in change['from'].split(', ')]
 
     @property
+    def table_name(self):
+        return "sprint"
+
+    @property
     def table_key(self):
         return "id"
 
@@ -195,6 +203,10 @@ class Developer_Parser(Field_Parser):
             return parse_unicode(value)
         else:
             return str(0)
+
+    @property
+    def table_name(self):
+        return "developer"
 
     @property
     def table_key(self):
@@ -261,6 +273,10 @@ class Version_Parser(Field_Parser):
                 })
 
         return encoded_value
+
+    @property
+    def table_name(self):
+        return "fixVersion"
 
     @property
     def table_key(self):
@@ -341,6 +357,10 @@ class Ready_Status_Parser(Field_Parser):
             self._add_to_table(value, change["fromString"])
 
         return value
+
+    @property
+    def table_name(self):
+        return "ready_status"
 
     @property
     def table_key(self):

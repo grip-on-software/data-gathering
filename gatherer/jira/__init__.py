@@ -111,6 +111,9 @@ class Jira(object):
                 return Property_Field(self, name, **data)
             else:
                 return Payload_Field(self, name, **data)
+        elif "special_parser" in data:
+            parser_class = Special_Field.get_field_class(name)
+            return parser_class(self, name, **data)
 
         return None
 
@@ -126,52 +129,62 @@ class Jira(object):
             field = self._make_issue_field(name, data)
             if field is not None:
                 self._issue_fields[name] = field
-                search_field = self._issue_fields[name].search_field
+                search_field = field.search_field
                 if search_field is not None:
                     jira_fields.append(search_field)
 
-                self.register_table(name, data, table_key_source=field)
-            elif "special_parser" in data:
-                parser_class = Special_Field.get_field_class(name)
-                parser = parser_class(self, name, **data)
-                self._issue_fields[name] = parser
-                self.register_table(data["special_parser"], data,
-                                    table_key_source=parser)
-                jira_fields.append(name)
+                self.register_table(data, table_source=field)
 
             self._changelog.import_field_specification(name, data)
 
         jira_fields.append(self._changelog.search_field)
         self._search_fields = ','.join(jira_fields)
 
-    def register_table(self, name, data, table_key_source=None):
+    def register_table(self, data, table_source=None):
         """
         Create a new table storage according to a specification.
 
-        The table can be addressable through either `name` or `data`, which is
-        also used by the table for filenames; `data` receives preference.
-        In that case where `data` is a string, then `name` is simply the name
-        of the field or other source that is registering the table.
-        The `data` can also be a dictionary, which is used by some table sources
-        for specifying which fields they are going to extract and parse.
-        The `table_key_source` provides a table key, which can be `None`,
-        a string or a tuple, which leads to a normal `Table`, `Key_Table` or
-        `Link_Table` respectively.
+        The table can be addressable through a table name which is also used
+        by the table for the export filename. The table name is either retrieved
+        from a table source or `data`; `data` receives preference.
+        `data` must have a "table" key. In case it is a string, then the table
+        name is simply that. Otherwise, it is retrieved from the field or other
+        source that is registering the table, although a table name from the
+        type cast parser has precedence. If none of the sources provide a name,
+        The `data` "table" key can also be a dictionary, which is used by some
+        table sources for specifying which fields they are going to extract and
+        parse. The type cast parser is retrieved from the "type" key of `data`
+        if it exists.
+
+        The `table_source` may additionally provide a table key, which can be
+        `None`, a string or a tuple, which causes this method to register either
+        a normal `Table`, `Key_Table` or  `Link_Table`, respectively. Note that
+        if the type cast parser has a table key or no table source is given at
+        all, then this check also falls back to the type cast parser.
+
+        The reason for this order of preference (`data` table name, type cast
+        table name (and key), table source (name and key)) is the specificity
+        of each source: the `data` is meant for exactly one field, the type
+        cast may be used by multiple fields, and the table source could be
+        some generic object.
         """
 
         if "table" in data:
-            if isinstance(data["table"], dict):
-                table_name = name
-            else:
-                table_name = data["table"]
-
+            table_name = None
             key = None
             if "type" in data:
                 datatype = data["type"]
+                table_name = self._type_casts[datatype].table_name
                 key = self._type_casts[datatype].table_key
 
-            if key is None and table_key_source is not None:
-                key = table_key_source.table_key
+            if table_source is not None:
+                if table_name is None:
+                    table_name = table_source.table_name
+                if key is None:
+                    key = table_source.table_key
+
+            if not isinstance(data["table"], dict):
+                table_name = data["table"]
 
             if key is None:
                 self._tables[table_name] = Table(table_name)
