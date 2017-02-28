@@ -273,6 +273,7 @@ class Jira(object):
         """
 
         query = Query(self, username, password, options)
+        query.get_versions()
         self.search_issues(query)
         self.write_tables()
 
