@@ -78,6 +78,7 @@ class Comment_Field(Special_Field):
         if hasattr(field, 'comments'):
             for comment in field.comments:
                 row = {}
+                is_newer = False
                 for subfield, datatype in self.info["table"].iteritems():
                     if subfield in self.info["fields"]:
                         fieldname = self.info["fields"][subfield]
@@ -91,8 +92,12 @@ class Comment_Field(Special_Field):
                     else:
                         row[subfield] = str(0)
 
+                    if datatype == 'date' and self.jira.updated_since.is_newer(row[subfield]):
+                        is_newer = True
+
                 row["issue_id"] = str(issue.id)
-                self.jira.get_table("comments").append(row)
+                if is_newer:
+                    self.jira.get_table("comments").append(row)
 
     @property
     def table_name(self):
