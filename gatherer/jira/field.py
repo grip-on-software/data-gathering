@@ -2,7 +2,7 @@
 Field definitions that fetch fields from JIRA API issue results.
 """
 
-from .base import Base_Jira_Field
+from .base import Base_Jira_Field, Base_Changelog_Field
 
 ###
 # Field definitions
@@ -155,16 +155,19 @@ class Property_Field(Payload_Field):
     def table_key(self):
         return self.data["property"]
 
-class Changelog_Primary_Field(Jira_Field):
+class Changelog_Primary_Field(Jira_Field, Base_Changelog_Field):
     """
     A field in the change items in the changelog of the JIRA response.
     """
 
-    def fetch(self, issue):
-        if hasattr(issue, self.data["changelog_primary"]):
-            return getattr(issue, self.data["changelog_primary"])
+    def fetch(self, entry):
+        if hasattr(entry, self.data["changelog_primary"]):
+            return getattr(entry, self.data["changelog_primary"])
 
         return None
+
+    def parse_changelog(self, entry, diffs, issue):
+        return self.parse(entry)
 
     @property
     def search_field(self):
@@ -174,7 +177,7 @@ class Changelog_Primary_Field(Jira_Field):
     def table_key(self):
         raise Exception("Changelog fields are not keyable at this moment")
 
-class Changelog_Field(Jira_Field):
+class Changelog_Field(Jira_Field, Base_Changelog_Field):
     """
     A field in the changelog items of the JIRA expanded response.
     """
@@ -188,14 +191,14 @@ class Changelog_Field(Jira_Field):
 
         return None
 
-    def parse_changelog(self, issue, diffs):
+    def parse_changelog(self, entry, diffs, issue):
         """
         Parse changelog information from a changelog entry.
         """
 
-        field = self.parse(issue)
+        field = self.parse(entry)
         for parser in self.get_types():
-            field = parser.parse_changelog(issue.__dict__, field, diffs)
+            field = parser.parse_changelog(entry.__dict__, field, diffs)
 
         return field
 

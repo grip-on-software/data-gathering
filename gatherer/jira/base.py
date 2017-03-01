@@ -49,7 +49,7 @@ class Base_Jira_Field(Table_Source):
         steps with larger resources within the issue.
 
         This method either returns the parsed value, indicating that it is
-        a piece of data related to this issue version, or None, indicating
+        a piece of data related to this issue version, or `None`, indicating
         that the data was stored or handled elsewhere.
         """
 
@@ -63,3 +63,28 @@ class Base_Jira_Field(Table_Source):
         """
 
         raise NotImplementedError("Subclasses must extend this property")
+
+class Base_Changelog_Field(Base_Jira_Field):
+    """
+    Abstract base class with the minimum required interface for parsing
+    changelog fields from Jira API responses.
+    """
+
+    def parse_changelog(self, entry, diffs, issue):
+        """
+        Parse changelog information from a changelog entry.
+
+        The `entry` may be some resource, such as a main changelog entry or
+        specific change item from the changelog entry payload. The caller
+        supplies what it believes the changelog parser can handle best.
+        The `diffs` argument is a reference to the current difference dictionary
+        for inspection by the changelog field or its type cast parsers.
+        Finally, `issue` is the issue resource.
+
+        The returned value is an appropriate (preferably string) format of
+        the value in this field before the change, or a custom value that
+        should be handled later on. `None` indicates that the value was handled
+        elsewhere.
+        """
+
+        raise NotImplementedError("Must be implemented by subclasses")

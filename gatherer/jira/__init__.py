@@ -135,7 +135,7 @@ class Jira(object):
 
                 self.register_table(data, table_source=field)
 
-            self._changelog.import_field_specification(name, data)
+            self._changelog.import_field_specification(name, data, field=field)
 
         jira_fields.append(self._changelog.search_field)
         self._search_fields = ','.join(jira_fields)

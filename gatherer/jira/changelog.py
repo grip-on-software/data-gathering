@@ -4,6 +4,7 @@ Module that handles issue changelog data.
 
 import logging
 
+from .base import Base_Changelog_Field
 from .field import Changelog_Primary_Field, Changelog_Field
 from ..utils import Sprint_Data
 
@@ -19,7 +20,13 @@ class Changelog(object):
         self._changelog_fields = {}
         self._changelog_primary_fields = {}
 
-    def import_field_specification(self, name, data):
+    def _create_field(self, changelog_class, name, data, field=None):
+        if field is not None and isinstance(field, Base_Changelog_Field):
+            return field
+
+        return changelog_class(self._jira, name, **data)
+
+    def import_field_specification(self, name, data, field=None):
         """
         Import a JIRA field specification for a single field.
 
@@ -28,11 +35,13 @@ class Changelog(object):
 
         if "changelog_primary" in data:
             changelog_name = data["changelog_primary"]
-            primary_field = Changelog_Primary_Field(self._jira, name, **data)
+            primary_field = self._create_field(Changelog_Primary_Field, name,
+                                               data, field=field)
             self._changelog_primary_fields[changelog_name] = primary_field
         elif "changelog_name" in data:
             changelog_name = data["changelog_name"]
-            changelog_field = Changelog_Field(self._jira, name, **data)
+            changelog_field = self._create_field(Changelog_Field, name, data,
+                                                 field=field)
             self._changelog_fields[changelog_name] = changelog_field
 
     def fetch_changelog(self, issue):
@@ -48,20 +57,24 @@ class Changelog(object):
             diffs = {}
 
             for field in self._changelog_primary_fields.itervalues():
-                value = field.parse(changes)
-                diffs[field.name] = value
+                value = field.parse_changelog(changes, diffs, issue)
+                if value is not None:
+                    diffs[field.name] = value
+
+            # Updated date is required for changelog sorting, as well as
+            # issuelinks special field parser
+            if "updated" not in diffs:
+                logging.warning('Changelog entry has no updated date: %s',
+                                repr(diffs))
+                continue
 
             for item in changes.items:
                 changelog_name = str(item.field)
                 if changelog_name in self._changelog_fields:
                     field = self._changelog_fields[changelog_name]
-                    value = field.parse_changelog(item, diffs)
-                    diffs[field.name] = value
-
-            if "updated" not in diffs:
-                logging.warning('Changelog entry has no updated date: %s',
-                                repr(diffs))
-                continue
+                    value = field.parse_changelog(item, diffs, issue)
+                    if value is not None:
+                        diffs[field.name] = value
 
             updated = diffs["updated"]
             if updated in issue_diffs:
