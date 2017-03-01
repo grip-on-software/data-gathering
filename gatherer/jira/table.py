@@ -3,6 +3,7 @@ Table structures.
 """
 
 import json
+import os
 from copy import copy, deepcopy
 
 class Table(object):
@@ -10,9 +11,10 @@ class Table(object):
     Data storage for eventual JSON output for the database importer.
     """
 
-    def __init__(self, name, filename=None, **kwargs):
+    def __init__(self, name, filename=None, merge_update=False, **kwargs):
         self._name = name
         self._data = []
+        self._merge_update = merge_update
         self._options = kwargs
 
         if filename is None:
@@ -116,8 +118,26 @@ class Table(object):
         Export the table data into a file in the given `folder`.
         """
 
+        if self._merge_update:
+            self.load(folder)
+
         with open(folder + "/" + self._filename, 'w') as outfile:
             json.dump(self._data, outfile, indent=4)
+
+    def load(self, folder):
+        """
+        Read the table data from the exported file in the given `folder`.
+
+        If the file does not exist, then nothing happens. Otherwise, the data
+        is appended to the in-memory table, i.e., it does not overwrite data
+        already in memory. More specifically, key tables whose keys conflict
+        will prefer the data in memory over the data loaded by this method.
+        """
+
+        path = folder + "/" + self._filename
+        if os.path.exists(path):
+            with open(path, 'r') as infile:
+                self.extend(json.load(infile))
 
 class Key_Table(Table):
     """

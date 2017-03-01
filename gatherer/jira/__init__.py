@@ -189,12 +189,18 @@ class Jira(object):
             if not isinstance(data["table"], dict):
                 table_name = data["table"]
 
+            table_options = {}
+            if "table_options" in data:
+                table_options = data["table_options"]
+
             if key is None:
-                self._tables[table_name] = Table(table_name)
+                self._tables[table_name] = Table(table_name, **table_options)
             elif isinstance(key, tuple):
-                self._tables[table_name] = Link_Table(table_name, key)
+                self._tables[table_name] = Link_Table(table_name, key,
+                                                      **table_options)
             else:
-                self._tables[table_name] = Key_Table(table_name, key)
+                self._tables[table_name] = Key_Table(table_name, key,
+                                                     **table_options)
 
     def register_prefetcher(self, method):
         """

@@ -142,7 +142,10 @@
         "field": "customfield_10207",
         "changelog_name": "Sprint",
         "type": "sprint",
-        "table": "sprint"
+        "table": "sprint",
+        "table_options": {
+            "merge_update": true
+        }
     }, 
     "updated_by": {
         "changelog_primary": "author", 
