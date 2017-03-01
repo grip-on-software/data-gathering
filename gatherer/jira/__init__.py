@@ -76,7 +76,10 @@ class Jira(object):
         self._changelog = Changelog(self)
 
         self._issue_fields = {}
-        self._search_fields = None
+        self._search_options = {
+            'fields': '',
+            'prefetchers': []
+        }
 
         self._tables = {
             "issue": Table("issue", filename="data.json"),
@@ -138,7 +141,7 @@ class Jira(object):
             self._changelog.import_field_specification(name, data, field=field)
 
         jira_fields.append(self._changelog.search_field)
-        self._search_fields = ','.join(jira_fields)
+        self._search_options['fields'] = ','.join(jira_fields)
 
     def register_table(self, data, table_source=None):
         """
@@ -193,6 +196,15 @@ class Jira(object):
             else:
                 self._tables[table_name] = Key_Table(table_name, key)
 
+    def register_prefetcher(self, method):
+        """
+        Register a method that is to be called with the `Query` object before
+        issues are collected. This allows additional data gathering by fields
+        or type cast parsers if they need the data to operate effectively.
+        """
+
+        self._search_options['prefetchers'].append(method)
+
     def get_table(self, name):
         """
         Retrieve a table registered under `name`.
@@ -235,10 +247,10 @@ class Jira(object):
     @property
     def search_fields(self):
         """
-        Retrieve the list of search fields to be used in the query.
+        Retrieve the comma-separated search fields to be used in the query.
         """
 
-        return copy(self._search_fields)
+        return self._search_options['fields']
 
     def search_issues(self, query):
         """
@@ -286,7 +298,9 @@ class Jira(object):
         """
 
         query = Query(self, username, password, options)
-        query.get_versions()
+        for prefetcher in self._search_options['prefetchers']:
+            prefetcher(query)
+
         self.search_issues(query)
         self.write_tables()
 

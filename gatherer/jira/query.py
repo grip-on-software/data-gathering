@@ -45,15 +45,13 @@ class Query(object):
                                        expand='attachment,changelog',
                                        fields=self._search_fields)
 
-    def get_versions(self):
+    @property
+    def api(self):
         """
-        Retrieve data about all fix version releases registered in Jira,
-        and store the data in a table.
+        Retrieve the Jira API connection.
         """
 
-        parser = self._jira.get_type_cast("version")
-        versions = self._api.project_versions(self._jira.project_key)
-        parser.parse(versions)
+        return self._api
 
     @property
     def latest_update(self):

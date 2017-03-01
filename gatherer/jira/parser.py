@@ -26,7 +26,7 @@ class Field_Parser(Table_Source):
     def parse_changelog(self, change, value, diffs):
         # pylint: disable=unused-argument,no-self-use
         """
-        Parse a changelog row and its parsed value.
+        Parse a changelog item and its parsed value.
 
         This is only called by changelog fields after the normal parse method.
         Returns the change value the original parsed value if that one should
@@ -240,6 +240,19 @@ class Version_Parser(Field_Parser):
     Parser for fields that contain the version in which an issue was fixed or
     which is affected by the issue.
     """
+
+    def __init__(self, jira):
+        super(Version_Parser, self).__init__(jira)
+        self.jira.register_prefetcher(self.prefetch)
+
+    def prefetch(self, query):
+        """
+        Retrieve data about all fix version releases for the project registered
+        in Jira using the query API, and store the data in a table.
+        """
+
+        versions = query.api.project_versions(self.jira.project_key)
+        self.parse(versions)
 
     def parse(self, value):
         if value is None:
