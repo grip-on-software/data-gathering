@@ -136,13 +136,15 @@ class Key_Table(Table):
         return row[self._key] in self._keys
 
     def _fetch_row(self, row):
-        return self._keys[row[self._key]]
+        key = row[self._key]
+        return self._keys[key]
 
     def append(self, row):
         if self.has(row):
             return False
 
-        self._keys[row[self._key]] = row
+        key = row[self._key]
+        self._keys[key] = row
         return super(Key_Table, self).append(row)
 
     def extend(self, rows):
@@ -172,6 +174,10 @@ class Link_Table(Table):
 
     def has(self, row):
         return self._build_key(row) in self._links
+
+    def _fetch_row(self, row):
+        key = self._build_key(row)
+        return self._links[key]
 
     def append(self, row):
         link_values = self._build_key(row)

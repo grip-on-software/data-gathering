@@ -248,10 +248,12 @@
     },
     "issuelinks": {
         "special_parser": "issuelinks",
+        "changelog_name": "Link",
         "table": {
             "from_id": "int",
             "to_id": "int",
-            "relationshiptype": "int"
+            "relationshiptype": "int",
+            "outward": "boolean"
         }
     },
     "subtasks": {
