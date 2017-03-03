@@ -155,7 +155,6 @@ def main():
     group = api.group(project_name)
     user = api.find_user(name=args.user)
     if not group:
-        print group
         raise RuntimeError('Group {} not found on GitLab'.format(project_name))
 
     for repo in project_repos:
