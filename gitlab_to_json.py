@@ -55,7 +55,7 @@ def retrieve_repos(project, log_ratio):
 
     api = gitlab3.GitLab(gitlab_source.host, gitlab_source.gitlab_token)
     group_name = project.gitlab_group_name
-    group = api.find_group(name=group_name)
+    group = api.group(group_name)
     if not group:
         raise RuntimeError('Could not find group for project group {0}'.format(group_name))
 

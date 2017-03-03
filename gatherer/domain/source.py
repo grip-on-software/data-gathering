@@ -104,8 +104,8 @@ class Source(object):
     def _update_credentials(self):
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
-        parts = urlparse.urlsplit(self._plain_url)
-        host = parts.netloc
+        orig_parts = urlparse.urlsplit(self._plain_url)
+        host = orig_parts.netloc
         full_host = host
         if self._credentials.has_section(host):
             if self._follow_host_change:
@@ -117,10 +117,10 @@ class Source(object):
             auth = '{0}:{1}'.format(username, password)
             full_host = auth + '@' + host
 
-        new_parts = (parts.scheme, full_host, parts.path, parts.query,
-                     parts.fragment)
+        new_parts = (orig_parts.scheme, full_host, orig_parts.path,
+                     orig_parts.query, orig_parts.fragment)
         self._url = urlparse.urlunsplit(new_parts)
-        return parts, host
+        return orig_parts, host
 
     @property
     def url(self):
@@ -141,6 +141,16 @@ class Source(object):
         """
 
         return self._name
+
+    @property
+    def path_name(self):
+        """
+        Retrieve an identifier of the source that can be used as a path name.
+
+        The path name is potentially non-unique.
+        """
+
+        return self.name
 
     @property
     def repository_class(self):
@@ -203,6 +213,14 @@ class Git(Source):
     def repository_class(self):
         return Git_Repository
 
+    @property
+    def path_name(self):
+        repo = self.url.split('/')[-1]
+        if repo.endswith('.git'):
+            repo = repo[:-len('.git')]
+
+        return repo
+
 @Source_Types.register('gitlab')
 @Source_Types.register('git',
                        lambda cls, follow_host_change=True, **source_data: \
@@ -216,6 +234,7 @@ class GitLab(Git):
     def __init__(self, *args, **kwargs):
         self._host = None
         self._gitlab_token = None
+        self._gitlab_group = None
 
         super(GitLab, self).__init__(*args, **kwargs)
 
@@ -242,15 +261,36 @@ class GitLab(Git):
         return cls._credentials.has_option(host, 'gitlab_token')
 
     def _update_credentials(self):
-        parts, host = super(GitLab, self)._update_credentials()
+        orig_parts, host = super(GitLab, self)._update_credentials()
+        orig_host = orig_parts.netloc
 
+        # Check whether the host was changed and a custom gitlab group exists
+        # for this host change.
+        if self._follow_host_change and host != orig_host:
+            if self._credentials.has_option(orig_host, 'group'):
+                self._gitlab_group = self._credentials.get(orig_host, 'group')
+                self._update_group_url()
+
+        # Find the GitLab token and URL without authentication for connecting
+        # to the GitLab API.
         if self._credentials.has_option(host, 'gitlab_token'):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
-        host_parts = (parts.scheme, host, '', '', '')
+        host_parts = (orig_parts.scheme, host, '', '', '')
         self._host = urlparse.urlunsplit(host_parts)
 
-        return parts, host
+        return orig_parts, host
+
+    def _update_group_url(self):
+        url_parts = urlparse.urlsplit(self._url)
+        path_parts = url_parts.path.lstrip('/').split('/', 1)
+        if self._gitlab_group is None or path_parts[0] == self._gitlab_group:
+            return
+
+        path = '{0}/{1}'.format(self._gitlab_group, '-'.join(path_parts))
+        new_parts = (url_parts.scheme, url_parts.netloc, path,
+                     url_parts.query, url_parts.fragment)
+        self._url = urlparse.urlunsplit(new_parts)
 
     @property
     def host(self):
@@ -267,3 +307,15 @@ class GitLab(Git):
         """
 
         return self._gitlab_token
+
+    @property
+    def gitlab_group(self):
+        """
+        Retrieve the custom gitlab group used on the GitLab instance.
+
+        If this is `None`, then there is no custom group for this source.
+        The caller should fall back to the project long name or some other
+        information it has.
+        """
+
+        return self._gitlab_group

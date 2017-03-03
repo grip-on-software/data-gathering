@@ -32,21 +32,18 @@ class Project(object):
 
         # Long project name used in repositories and quality dashboard project
         # definitions.
-        if self._settings.has_option('projects', self._project_key):
-            self._project_name = self._settings.get('projects',
-                                                    self._project_key)
-        else:
-            self._project_name = None
-
-        if self._settings.has_option('subprojects', self._project_key):
-            self._main_project = self._settings.get('subprojects',
-                                                    self._project_key)
-        else:
-            self._main_project = None
+        self._project_name = self._get_setting('projects')
+        self._main_project = self._get_setting('subprojects')
 
         self._sources = None
         self._sources_path = os.path.join(self.export_key, 'data_sources.json')
         self._load_sources()
+
+    def _get_setting(self, group):
+        if self._settings.has_option(group, self._project_key):
+            return self._settings.get(group, self._project_key)
+        else:
+            return None
 
     def _load_sources(self):
         if self._sources is not None:
@@ -144,8 +141,11 @@ class Project(object):
         property returns `None`.
         """
 
-        if self.gitlab_source is None:
+        source = self.gitlab_source
+        if source is None:
             return None
+        if source.gitlab_group is not None:
+            return source.gitlab_group
 
         return self._project_name
 

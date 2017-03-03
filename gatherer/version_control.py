@@ -46,7 +46,7 @@ class Repositories_Holder(object):
 
         for source in self._project.sources:
             repo_class = source.repository_class
-            path = os.path.join(self._repo_directory, source.name)
+            path = os.path.join(self._repo_directory, source.path_name)
             repo = repo_class.from_url(source.name, path, source.url,
                                        sprints=self._sprints)
 
@@ -123,6 +123,13 @@ class Version_Control_Repository(object):
         Property that changes the back-end repository interface.
 
         The subclass may enforce type restrictions on the back-end object.
+        """
+
+        raise NotImplementedError("Must be implemented by subclass")
+
+    def exists(self):
+        """
+        Check if the repository exists.
         """
 
         raise NotImplementedError("Must be implemented by subclass")

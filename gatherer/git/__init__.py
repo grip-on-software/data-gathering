@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from git import Repo
+from git import Repo, InvalidGitRepositoryError, NoSuchPathError
 from .progress import Git_Progress
 from ..utils import parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
@@ -88,6 +88,17 @@ class Git_Repository(Version_Control_Repository):
             raise TypeError('Repository must be a gitpython Repo instance')
 
         self._repo = repo
+
+    def exists(self):
+        """
+        Check whether the repository exists, i.e., the path points to a valid
+        Git repository.
+        """
+
+        try:
+            return bool(self.repo)
+        except (InvalidGitRepositoryError, NoSuchPathError):
+            return False
 
     def is_empty(self):
         """
