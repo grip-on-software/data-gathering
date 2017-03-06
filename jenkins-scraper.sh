@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -ex
 
 ROOT=$PWD
 
@@ -23,7 +23,16 @@ if [ -z "$cleanupRepos" ]; then
 fi
 
 # Files that are backed up in case of errors for each project
-restoreFiles="jira-updated.txt latest_vcs_versions.json history_line_count.txt metric_options_update.json"
+scripts="project_sources.py jira_to_json.py gitlab_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
+for script in $scripts; do
+	if [ -e "$script.update" ]; then
+		read -r update_files < "$script.update"
+		restoreFiles="$restoreFiles $update_files"
+	fi
+done
+
+echo $restoreFiles
+exit
 
 function error_handler() {
 	echo "Reverting workspace tracking data..."
@@ -55,13 +64,54 @@ function status_handler() {
 	return $status
 }
 
+function export_handler() {
+	local script=$1
+	shift
+	local project=$1
+	shift
+	local args=$*
+
+	local skip_dropin=0
+	local skip_script=0
+	if [ -e "$script.export" ]; then
+		skip_dropin=1
+		skip_script=1
+		if [ -e "$script.update" ]; then
+			read -r update_files < "$script.update"
+			for update_file in $update_files; do
+				if [ "$(cmp --silent dropins/$project/$update_file export/$project/$update_file)" ]; then
+					skip_dropin=0
+				fi
+			done
+		fi
+
+		read -r export_files < "$script.export"
+		for export_file in $export_files; do
+			if [ -e "dropins/$project/$export_file" ]; then
+				if [ "$skip_dropin" = "0" ]; then
+					cp "dropins/$project/$export_file" "export/$project/$export_file"
+				elif [ "$script" = "git_to_json.py" ]; then
+					echo "[]" > export/$project/$export_file
+				fi
+			else
+				skip_script=0
+			fi
+		done
+	fi
+	if [ "$skip_script" = "0" ]; then
+		status_handler python $script $project $args
+	fi
+}
+
 # Install Python dependencies
 pip install -r scripts/requirements.txt
 
 # Retrieve Python scripts
-cp scripts/*.py scripts/*.json scripts/*.cfg .
+cp scripts/*.py scripts/*.py.export scripts/*.py.update scripts/*.json scripts/*.cfg .
+rm -rf dropins/
 rm -rf gatherer/
 cp -r scripts/gatherer/ gatherer/
+cp -r scripts/dropins/ dropins/
 
 # Retrieve Java importer
 python retrieve_importer.py
@@ -93,12 +143,12 @@ do
 	mkdir -p export/$project
 	mkdir -p project-git-repos/$project
 
-	status_handler python project_sources.py $project --log $logLevel
-	status_handler python jira_to_json.py $project --log $logLevel
-	status_handler python gitlab_to_json.py $project --log $logLevel
-	status_handler python git_to_json.py $project --log $logLevel
-	status_handler python history_to_json.py $project --export-path --log $logLevel
-	status_handler python metric_options_to_json.py $project --context -1 --log $logLevel
+	export_handler project_sources.py $project --log $logLevel
+	export_handler jira_to_json.py $project --log $logLevel
+	export_handler gitlab_to_json.py $project --log $logLevel
+	export_handler git_to_json.py $project --log $logLevel
+	export_handler history_to_json.py $project --export-path --log $logLevel
+	export_handler metric_options_to_json.py $project --context -1 --log $logLevel
 	status_handler java -Dimporter.log=$logLevel -jar importerjson.jar $project $importerTasks
 
 	if [ $cleanupRepos = "true" ]; then
@@ -109,3 +159,6 @@ done
 if [ $cleanupRepos = "true" ]; then
 	rm -rf kwaliteitsmetingen
 fi
+
+rm -rf dropins/
+rm -rf gatherer/
