@@ -17,6 +17,11 @@ if [ -z "$logLevel" ]; then
 	logLevel="INFO"
 fi
 
+# Declare repository cleanup
+if [ -z "$cleanupRepos" ]; then
+	cleanupRepos="false"
+fi
+
 # Files that are backed up in case of errors for each project
 restoreFiles="jira-updated.txt latest_vcs_versions.json history_line_count.txt metric_options_update.json"
 
@@ -32,6 +37,9 @@ function error_handler() {
 				rm -f "$ROOT/export/$project/$restoreFile"
 			fi
 		done
+		if [ $cleanupRepos = "true" ]; then
+			rm -rf "$ROOT/project-git-repos/$project"
+		fi
 	done
 }
 
@@ -52,6 +60,7 @@ pip install -r scripts/requirements.txt
 
 # Retrieve Python scripts
 cp scripts/*.py scripts/*.json scripts/*.cfg .
+rm -rf gatherer/
 cp -r scripts/gatherer/ gatherer/
 
 # Retrieve Java importer
@@ -90,5 +99,13 @@ do
 	status_handler python git_to_json.py $project --log $logLevel
 	status_handler python history_to_json.py $project --export-path --log $logLevel
 	status_handler python metric_options_to_json.py $project --context -1 --log $logLevel
-	status_handler java -jar importerjson.jar $project $importerTasks
+	status_handler java -Dimporter.log=$logLevel -jar importerjson.jar $project $importerTasks
+
+	if [ $cleanupRepos = "true" ]; then
+		rm -rf project-git-repos/$project
+	fi
 done
+
+if [ $cleanupRepos = "true" ]; then
+	rm -rf kwaliteitsmetingen
+fi
