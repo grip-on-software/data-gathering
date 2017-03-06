@@ -70,8 +70,11 @@ function export_handler() {
 		if [ -e "$script.update" ]; then
 			read -r update_files < "$script.update"
 			for update_file in $update_files; do
+				set +e
 				cmp --silent "dropins/$project/$update_file" "export/$project/$update_file"
-				if [ "$?" = "1" ]; then
+				local status=$?
+				set -e
+				if [ "$status" != "0" ]; then
 					cp "dropins/$project/$update_file" "export/$project/$update_file"
 					skip_dropin=0
 				fi
