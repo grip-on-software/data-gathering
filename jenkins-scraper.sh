@@ -22,17 +22,8 @@ if [ -z "$cleanupRepos" ]; then
 	cleanupRepos="false"
 fi
 
-# Files that are backed up in case of errors for each project
-scripts="project_sources.py jira_to_json.py gitlab_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
-for script in $scripts; do
-	if [ -e "$script.update" ]; then
-		read -r update_files < "$script.update"
-		restoreFiles="$restoreFiles $update_files"
-	fi
-done
-
-echo $restoreFiles
-exit
+# Declare restore files, populated with update files later on
+restoreFiles=""
 
 function error_handler() {
 	echo "Reverting workspace tracking data..."
@@ -112,6 +103,15 @@ rm -rf dropins/
 rm -rf gatherer/
 cp -r scripts/gatherer/ gatherer/
 cp -r scripts/dropins/ dropins/
+
+# Files that are backed up in case of errors for each project
+scripts="project_sources.py jira_to_json.py gitlab_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
+for script in $scripts; do
+	if [ -e "$script.update" ]; then
+		read -r update_files < "$script.update"
+		restoreFiles="$restoreFiles $update_files"
+	fi
+done
 
 # Retrieve Java importer
 python retrieve_importer.py
