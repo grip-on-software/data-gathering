@@ -75,7 +75,9 @@ function export_handler() {
 				local status=$?
 				set -e
 				if [ "$status" != "0" ]; then
-					cp "dropins/$project/$update_file" "export/$project/$update_file"
+					if [ -e "dropins/$project/$update_file" ]; then
+						cp "dropins/$project/$update_file" "export/$project/$update_file"
+					fi
 					skip_dropin=0
 				fi
 			done
