@@ -215,7 +215,17 @@ class Git(Source):
 
     @property
     def path_name(self):
-        repo = self.url.split('/')[-1]
+        # Retrieve the repostiory name from the URL if possible.
+        parts = self.url.split('/')
+        if len(parts) <= 1:
+            return super(Git, self).path_name
+
+        # Handle URLs ending in slashes
+        repo = parts[-1]
+        if repo == '':
+            repo = parts[-2]
+
+        # Remove .git from repository name
         if repo.endswith('.git'):
             repo = repo[:-len('.git')]
 
