@@ -192,24 +192,32 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
             return
 
         text = data['{}String'.format(entry_field)]
+        table = self.jira.get_table("issuelinks")
+        search_row = {
+            'from_key': from_key,
+            'to_key': str(data[entry_field])
+        }
+        match_row = {}
+        row = None
         for relation, candidate in self._relations.iteritems():
             if relation in text:
-                relation_id = candidate['id']
-                outward = candidate['outward']
-                break
+                # Find a row with this relation. We only stop if we find such
+                # a row, because we might have relations with conflicting
+                # (similar) inward/outward names. This way, we check for other
+                # relations if we did not add a row from another change or the
+                # payload field, which is likely to happen for exact matches.
+                match_row = search_row + {
+                    'relationshiptype': candidate['id'],
+                    'outward': candidate['outward']
+                }
+                row = table.get_row(match_row)
+                if row is not None:
+                    break
         else:
             # Cannot deduce relation
             logging.warning('Cannot deduce relation from changelog: %s', text)
             return
 
-        search_row = {
-            'from_key': from_key,
-            'to_key': str(data[entry_field]),
-            'relationshiptype': relation_id,
-            'outward': outward
-        }
-        table = self.jira.get_table("issuelinks")
-        row = table.get_row(search_row)
         update_field = self._changelog_map[entry_field]
         if row is None:
             # Create a new row.
