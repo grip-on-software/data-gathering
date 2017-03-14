@@ -235,6 +235,7 @@ class Sources_Parser(Project_Definition_Parser):
         self.sys_path = path
         self.source_objects = self.get_mock_domain_objects(metric_source,
                                                            self.METRIC_SOURCE)
+        self.source_objects['Jenkins'] = metric_source.Jenkins
         self.source_objects['Git'] = metric_source.Git
         self.source_objects['Subversion'] = metric_source.Subversion
 
