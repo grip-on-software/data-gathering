@@ -26,7 +26,8 @@ class Project_Definition_Parser(object):
     DOMAIN = 'hqlib.domain'
     _previous_modules = {
         "ictu": ["isd"],
-        "hqlib": ["quality_report", "qualitylib", "python.qualitylib"]
+        "hqlib": ["quality_report", "qualitylib", "python.qualitylib"],
+        "hqlib.domain": ["qualitylib.ecosystem"]
     }
 
     def __init__(self, context_lines=3, file_time=None):
@@ -90,6 +91,14 @@ class Project_Definition_Parser(object):
 
         raise RuntimeError(message.strip())
 
+    def _format_compatibility_modules(self, root_name, module_parts):
+        root_names = [root_name]
+        if root_name in self._previous_modules:
+            root_names.extend(self._previous_modules[root_name])
+
+        for root in root_names:
+            yield '.'.join([root] + module_parts)
+
     def get_compatibility_modules(self, module_path, value):
         """
         Create a dictionary of a module name extracted from the `module_path`
@@ -98,15 +107,22 @@ class Project_Definition_Parser(object):
         """
 
         module_parts = module_path.split('.')
-        root_name = module_parts.pop(0)
-        root_names = [root_name]
-        if root_name in self._previous_modules:
-            root_names.extend(self._previous_modules[root_name])
+        root_name = None
+        for index, part in enumerate(module_parts):
+            if index == 0:
+                root_name = part
+            else:
+                root_name = '{}.{}'.format(root_name, part)
 
-        modules = {}
-        for root in root_names:
-            path = '.'.join([root] + module_parts)
-            modules[path] = value
+            parts = module_parts[index+1:]
+            module_names = self._format_compatibility_modules(root_name, parts)
+
+            # Fill the dictiornary of (compatibility) module names and the
+            # implementation module.
+            modules = {}
+            for root in module_names:
+                path = '.'.join([root] + parts)
+                modules[path] = value
 
         return modules
 
@@ -246,9 +262,12 @@ class Sources_Parser(Project_Definition_Parser):
     def get_mock_modules(self):
         modules = super(Sources_Parser, self).get_mock_modules()
 
-        modules['ictu'] = importlib.import_module('ictu')
-        modules['ictu.convention'] = importlib.import_module('ictu.convention')
-        modules['ictu'].person = mock.MagicMock()
+        ictu = importlib.import_module('ictu')
+        ictu.person = mock.MagicMock()
+        ictu_convention = importlib.import_module('ictu.convention')
+        modules.update(self.get_compatibility_modules('ictu', ictu))
+        modules.update(self.get_compatibility_modules('ictu.convention',
+                                                      ictu_convention))
 
         hqlib_metric_source = mock.MagicMock(**self.source_objects)
         modules.update(self.get_compatibility_modules(self.METRIC_SOURCE,
