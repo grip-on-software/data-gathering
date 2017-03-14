@@ -9,6 +9,7 @@ quality metrics, namely custom targets.
 import datetime
 import importlib
 import inspect
+import logging
 import sys
 import traceback
 # Non-standard imports
@@ -106,6 +107,7 @@ class Project_Definition_Parser(object):
         names of previous versions for the root module.
         """
 
+        modules = {}
         module_parts = module_path.split('.')
         root_name = None
         for index, part in enumerate(module_parts):
@@ -119,9 +121,7 @@ class Project_Definition_Parser(object):
 
             # Fill the dictiornary of (compatibility) module names and the
             # implementation module.
-            modules = {}
-            for root in module_names:
-                path = '.'.join([root] + parts)
+            for path in module_names:
                 modules[path] = value
 
         return modules
@@ -292,6 +292,11 @@ class Sources_Parser(Project_Definition_Parser):
             return
 
         if "metric_source_ids" not in keywords:
+            return
+
+        logging.debug('metric source ids: %s',
+                      repr(keywords["metric_source_ids"]))
+        if not isinstance(keywords["metric_source_ids"], dict):
             return
 
         sources = {}

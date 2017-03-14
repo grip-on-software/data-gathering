@@ -45,6 +45,7 @@ class Collector(object):
                                            descending=False)
         end_revision = None
         for version in versions:
+            logging.debug('Collecting version %s', version['version_id'])
             self.collect_version(version)
             end_revision = version['version_id']
 
