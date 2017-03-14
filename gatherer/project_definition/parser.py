@@ -9,7 +9,6 @@ quality metrics, namely custom targets.
 import datetime
 import importlib
 import inspect
-import os
 import sys
 import traceback
 # Non-standard imports

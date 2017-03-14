@@ -78,7 +78,7 @@ class Git_Repository(Version_Control_Repository):
     @property
     def repo(self):
         if self._repo is None:
-            self._repo = Repo(self.repo_directory)
+            self._repo = Repo(self._repo_directory)
 
         return self._repo
 
@@ -159,7 +159,7 @@ class Git_Repository(Version_Control_Repository):
 
         git_commit = {
             # Primary data
-            'repo_name': str(self.repo_name),
+            'repo_name': str(self._repo_name),
             'version_id': str(commit.hexsha),
             'sprint_id': self._get_sprint_id(commit_datetime),
             # Additional data

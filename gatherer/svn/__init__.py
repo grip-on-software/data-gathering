@@ -44,7 +44,7 @@ class Subversion_Repository(Version_Control_Repository):
     @property
     def repo(self):
         if self._repo is None:
-            path = os.path.expanduser(self.repo_directory)
+            path = os.path.expanduser(self._repo_directory)
             self._repo = svn.local.LocalClient(path)
 
         return self._repo
@@ -135,7 +135,7 @@ class Subversion_Repository(Version_Control_Repository):
         message = entry.msg if entry.msg is not None else ''
         version = {
             # Primary data
-            'repo_name': str(self.repo_name),
+            'repo_name': str(self._repo_name),
             'version_id': str(entry.revision),
             'sprint_id': self._get_sprint_id(commit_datetime),
             # Additional data
@@ -161,7 +161,7 @@ class Subversion_Repository(Version_Control_Repository):
         if isinstance(self.repo, svn.remote.RemoteClient):
             path = self.repo.url + '/' + filename
         else:
-            path = self.repo_directory + '/' + filename
+            path = self._repo_directory + '/' + filename
 
         if from_revision is None and to_revision is None:
             args = [path]

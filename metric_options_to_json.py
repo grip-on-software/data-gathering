@@ -9,21 +9,8 @@ import logging
 
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.project_definition import Metric_Options_Parser
-from gatherer.project_definition.metric import Metric_Difference
-from gatherer.project_definition.update import Update_Tracker
-from gatherer.svn import Subversion_Repository
-
-def parse_svn_revision(rev):
-    """
-    Convert a Subversion revision number to an integer. Removes the leading 'r'
-    if it is present.
-    """
-
-    if rev.startswith('r'):
-        rev = rev[1:]
-
-    return int(rev)
+from gatherer.project_definition.svn import Metric_Options_Collector
+from gatherer.utils import parse_svn_revision
 
 def parse_args():
     """
@@ -49,42 +36,6 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def process(project, args):
-    """
-    Perform the revision traversal and project definition parsing.
-    """
-
-    update_tracker = Update_Tracker(project)
-    from_revision = update_tracker.get_start_revision(args.from_revision)
-
-    repo = Subversion_Repository('kwaliteitsmetingen', args.repo, stats=False)
-    filename = project.quality_metrics_name + '/project_definition.py'
-    versions = repo.get_versions(filename, from_revision=from_revision,
-                                 to_revision=args.to_revision, descending=False)
-
-    diff = Metric_Difference(project, update_tracker.get_previous_targets())
-
-    end_revision = None
-    for version in versions:
-        parser = Metric_Options_Parser(context_lines=args.context,
-                                       file_time=version['commit_date'])
-        contents = repo.get_contents(filename, revision=version['version_id'])
-        try:
-            parser.load_definition(contents)
-            metric_targets = parser.parse()
-        except RuntimeError as error:
-            logging.warning("Problem with revision %s: %s",
-                            version['version_id'], error.message)
-            continue
-
-        diff.add_version(version, metric_targets)
-        end_revision = version['version_id']
-
-    diff.export()
-
-    update_tracker.set_end(end_revision, diff.previous_metric_targets)
-    logging.info('Metric options: %d revisions parsed', len(versions))
-
 def main():
     """
     Main entry point.
@@ -101,7 +52,9 @@ def main():
                         project_key)
         return
 
-    process(project, args)
+    collector = Metric_Options_Collector(project, args.repo,
+                                         context_lines=args.context)
+    collector.collect(args.from_revision, args.to_revision)
 
 if __name__ == "__main__":
     main()

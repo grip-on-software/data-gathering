@@ -7,8 +7,9 @@ import argparse
 import logging
 
 from gatherer.log import Log_Setup
-from gatherer.project_definition import Sources_Parser
-from gatherer.domain import Project, Source
+from gatherer.project_definition.svn import Sources_Collector
+from gatherer.domain import Project
+from gatherer.utils import parse_svn_revision
 
 def parse_args():
     """
@@ -20,29 +21,21 @@ def parse_args():
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default="kwaliteitsmetingen/trunk",
                         help="Subversion directory with project definitions")
+    parser.add_argument("--context", type=int, default=3,
+                        help="Number of context lines for parser problems")
+    parser.add_argument("--all", action="store_true", default=False,
+                        help="retrieve all updated versions of the definition")
+    parser.add_argument("--from-revision", type=parse_svn_revision,
+                        dest="from_revision", default=None,
+                        help="revision to start from gathering definitions")
+    parser.add_argument("--to-revision", type=parse_svn_revision,
+                        dest="to_revision", default=None,
+                        help="revision to stop gathering definitions at")
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
     return args
-
-def parse_sources(project, sources):
-    """
-    Given a list of source repositories parsed from the project definition,
-    output data that can be used by other gatherer scripts.
-    """
-
-    for name, metric_source in sources.items():
-        if 'Subversion' in metric_source:
-            source = Source('subversion', name=name, url=metric_source['Subversion'])
-        elif 'Git' in metric_source:
-            source = Source('git', name=name, url=metric_source['Git'])
-        else:
-            continue
-
-        project.add_source(source)
-
-    project.export_sources()
 
 def main():
     """
@@ -65,14 +58,15 @@ def main():
         project.export_sources()
         return
 
-    filename = args.repo + '/' + project_name + '/project_definition.py'
-    parser = Sources_Parser(args.repo)
+    collector = Sources_Collector(project, args.repo,
+                                  context_lines=args.context)
+    if args.all:
+        collector.collect(args.from_revision, args.to_revision)
+    else:
+        latest_version = collector.repo.get_latest_version()
+        collector.collect_version({'version_id': str(latest_version)})
 
-    with open(filename, 'r') as definition_file:
-        parser.load_definition(definition_file.read())
-
-    sources = parser.parse()
-    parse_sources(project, sources)
+    project.export_sources()
 
 if __name__ == "__main__":
     main()

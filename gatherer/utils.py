@@ -186,3 +186,14 @@ def parse_unicode(text):
         return text.encode('utf8', 'replace')
 
     return str(text)
+
+def parse_svn_revision(rev):
+    """
+    Convert a Subversion revision number to an integer. Removes the leading 'r'
+    if it is present.
+    """
+
+    if rev.startswith('r'):
+        rev = rev[1:]
+
+    return int(rev)

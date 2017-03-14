@@ -92,8 +92,8 @@ class Version_Control_Repository(object):
     """
 
     def __init__(self, repo_name, repo_directory, sprints=None, stats=True):
-        self.repo_name = repo_name
-        self.repo_directory = repo_directory
+        self._repo_name = repo_name
+        self._repo_directory = repo_directory
 
         self._sprints = sprints
         self.retrieve_stats = stats
@@ -126,6 +126,24 @@ class Version_Control_Repository(object):
         """
 
         raise NotImplementedError("Must be implemented by subclass")
+
+    @property
+    def repo_name(self):
+        """
+        Retrieve a descriptive name of the repository.
+        """
+
+        return self._repo_name
+
+    @property
+    def repo_directory(self):
+        """
+        Retrieve the repository directory of this version control system.
+
+        The directory may be a local checkout or data store of the repository.
+        """
+
+        return self._repo_directory
 
     def exists(self):
         """
