@@ -21,10 +21,11 @@ class Git_Repository(Version_Control_Repository):
     DEFAULT_UPDATE_RATIO = 10
 
     def __init__(self, repo_name, repo_directory, credentials_path=None,
-                 **kwargs):
+                 unsafe_hosts=True, **kwargs):
         super(Git_Repository, self).__init__(repo_name, repo_directory, **kwargs)
         self._repo = None
         self._credentials_path = credentials_path
+        self._unsafe_hosts = unsafe_hosts
 
         self._iterator_limiter = None
         self._batch_size = 10000
@@ -104,12 +105,17 @@ class Git_Repository(Version_Control_Repository):
         Retrieve the environment variables for the Git subcommands.
         """
 
+        environment = {}
+
         if self._credentials_path is not None:
             logging.debug('Using credentials path %s', self._credentials_path)
-            ssh_command = 'ssh -i {}'.format(self._credentials_path)
-            return {'GIT_SSH_COMMAND': ssh_command}
+            ssh_command = "ssh -i '{}'".format(self._credentials_path)
+            if self._unsafe_hosts:
+                ssh_command = "{} -oStrictHostKeyChecking=no".format(ssh_command)
 
-        return {}
+            environment['GIT_SSH_COMMAND'] = ssh_command
+
+        return environment
 
     def exists(self):
         """
