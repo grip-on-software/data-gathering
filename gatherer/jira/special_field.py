@@ -206,10 +206,11 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
                 # (similar) inward/outward names. This way, we check for other
                 # relations if we did not add a row from another change or the
                 # payload field, which is likely to happen for exact matches.
-                match_row = search_row + {
+                match_row = search_row.copy()
+                match_row.update({
                     'relationshiptype': candidate['id'],
                     'outward': candidate['outward']
-                }
+                })
                 row = table.get_row(match_row)
                 if row is not None:
                     break
