@@ -8,6 +8,7 @@ import logging
 import os
 from copy import deepcopy
 from datetime import datetime
+import dateutil.tz
 
 class Iterator_Limiter(object):
     """
@@ -107,7 +108,8 @@ class Sprint_Data(object):
         Parse a date string `date` such that it can be used for sprint searches.
         """
 
-        return datetime.strptime(date, self._date_format)
+        date_time = datetime.strptime(date, self._date_format)
+        return date_time.astimezone(dateutil.tz.tzlocal())
 
     def get_sorted_sprints(self):
         """

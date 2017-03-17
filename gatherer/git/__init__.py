@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from datetime import datetime
+import dateutil.tz
 from git import Repo, InvalidGitRepositoryError, NoSuchPathError
 from .progress import Git_Progress
 from ..utils import parse_unicode, Iterator_Limiter
@@ -179,7 +180,7 @@ class Git_Repository(Version_Control_Repository):
         Convert one commit instance to a dictionary of properties.
         """
 
-        commit_datetime = datetime.fromtimestamp(commit.committed_date)
+        commit_datetime = commit.committed_datetime.astimezone(dateutil.tz.tzlocal())
 
         commit_type = str(commit.type)
         if len(commit.parents) > 1:
