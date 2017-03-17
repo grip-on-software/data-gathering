@@ -92,12 +92,14 @@ class Version_Control_Repository(object):
     Abstract repository interface for a version control system.
     """
 
-    def __init__(self, repo_name, repo_directory, sprints=None, stats=True):
+    def __init__(self, repo_name, repo_directory, sprints=None, stats=True,
+                 **kwargs):
         self._repo_name = repo_name
         self._repo_directory = repo_directory
 
         self._sprints = sprints
-        self.retrieve_stats = stats
+        self._retrieve_stats = stats
+        self._options = kwargs
 
     @classmethod
     def from_url(cls, repo_name, repo_directory, url, **kwargs):
@@ -145,6 +147,15 @@ class Version_Control_Repository(object):
         """
 
         return self._repo_directory
+
+    @property
+    def retrieve_stats(self):
+        """
+        Check wether the metadata-retrieving methods should also retrieve
+        file difference statistics from the repository.
+        """
+
+        return self._retrieve_stats
 
     def exists(self):
         """
