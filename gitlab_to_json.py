@@ -66,8 +66,8 @@ def retrieve_repos(project, log_ratio):
     logging.info('%s has %d repos: %s', group_name, len(project_repos), names)
 
     repos = {}
-    for repo in project_repos:
-        project_repo = api.project(repo['id'])
+    for repo_data in project_repos:
+        project_repo = api.project(repo_data['id'])
         repo_name = project_repo.name
         logging.info('Processing GitLab repository %s', repo_name)
 
@@ -87,10 +87,11 @@ def retrieve_repos(project, log_ratio):
         source = Source.from_type('gitlab', name=repo_name,
                                   url=project_repo.http_url_to_repo,
                                   follow_host_change=False)
-        git_repo = Git_Repository.from_url(repo_name, repo_dir, source.url,
-                                           progress=log_ratio)
+        repo = Git_Repository.from_url(repo_name, repo_dir, source.url,
+                                       progress=log_ratio,
+                                       credentials_path=source.credentials_path)
 
-        if git_repo.is_empty():
+        if repo.is_empty():
             logging.info('Ignoring empty repository')
             continue
 
@@ -98,7 +99,7 @@ def retrieve_repos(project, log_ratio):
         if all(source.url != existing.url for existing in project.sources):
             project.add_source(source)
 
-        commits = git_repo.repo.iter_commits('master', remotes=True)
+        commits = repo.repo.iter_commits('master', remotes=True)
         for commit in commits:
             sha = commit.hexsha
             comments = project_repo.get_comments(sha)

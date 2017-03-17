@@ -3,6 +3,7 @@ Data source domain object
 """
 
 import ConfigParser
+import os
 import urlparse
 from ..svn import Subversion_Repository
 from ..git import Git_Repository
@@ -73,6 +74,7 @@ class Source(object):
         self._plain_url = url
         self._type = source_type
         self._follow_host_change = follow_host_change
+        self._credentials_path = None
 
         self._url = None
         self._update_credentials()
@@ -104,22 +106,28 @@ class Source(object):
     def _update_credentials(self):
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
+        self._url = self._plain_url
         orig_parts = urlparse.urlsplit(self._plain_url)
         host = orig_parts.netloc
-        full_host = host
         if self._credentials.has_section(host):
             if self._follow_host_change:
                 host = self._get_changed_host(host)
 
             username = self._credentials.get(host, 'username')
-            password = self._credentials.get(host, 'password')
+            if self._credentials.has_option(host, 'env'):
+                credentials_env = self._credentials.get(host, 'env')
+                self._credentials_path = os.getenv(credentials_env)
+                self._url = username + '@' + host + ':' + orig_parts.path
+            else:
+                password = self._credentials.get(host, 'password')
 
-            auth = '{0}:{1}'.format(username, password)
-            full_host = auth + '@' + host
+                auth = '{0}:{1}'.format(username, password)
+                full_host = auth + '@' + host
 
-        new_parts = (orig_parts.scheme, full_host, orig_parts.path,
-                     orig_parts.query, orig_parts.fragment)
-        self._url = urlparse.urlunsplit(new_parts)
+                new_parts = (orig_parts.scheme, full_host, orig_parts.path,
+                             orig_parts.query, orig_parts.fragment)
+                self._url = urlparse.urlunsplit(new_parts)
+
         return orig_parts, host
 
     @property
@@ -162,6 +170,18 @@ class Source(object):
         """
 
         return None
+
+    @property
+    def credentials_path(self):
+        """
+        Retrieve a path to a file that contains credentials for this source.
+
+        The file may be a SSH private key, depending on the source type.
+        If there is no such file configured for this source, then this property
+        returns `None`.
+        """
+
+        return self._credentials_path
 
     def export(self):
         """
@@ -274,12 +294,14 @@ class GitLab(Git):
         orig_parts, host = super(GitLab, self)._update_credentials()
         orig_host = orig_parts.netloc
 
+        # Check which group to use in the GitLab API.
+        if self._credentials.has_option(orig_host, 'group'):
+            self._gitlab_group = self._credentials.get(orig_host, 'group')
+
         # Check whether the host was changed and a custom gitlab group exists
         # for this host change.
         if self._follow_host_change and host != orig_host:
-            if self._credentials.has_option(orig_host, 'group'):
-                self._gitlab_group = self._credentials.get(orig_host, 'group')
-                self._update_group_url()
+            self._update_group_url()
 
         # Find the GitLab token and URL without authentication for connecting
         # to the GitLab API.

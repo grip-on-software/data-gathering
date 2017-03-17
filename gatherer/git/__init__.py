@@ -20,9 +20,11 @@ class Git_Repository(Version_Control_Repository):
 
     DEFAULT_UPDATE_RATIO = 10
 
-    def __init__(self, repo_name, repo_directory, **kwargs):
+    def __init__(self, repo_name, repo_directory, credentials_path=None,
+                 **kwargs):
         super(Git_Repository, self).__init__(repo_name, repo_directory, **kwargs)
         self._repo = None
+        self._credentials_path = credentials_path
 
         self._iterator_limiter = None
         self._batch_size = 10000
@@ -53,6 +55,10 @@ class Git_Repository(Version_Control_Repository):
         this number of lines. If it is not `False`, then use it as a progress
         callback function.
 
+        The `credentials_path` specifies a path to an SSH private key identity
+        file, which is then used for all Git-over-SSH communications. If this
+        is `None`, then passworded or anonymous access must be used.
+
         Returns a Git_Repository object with a cloned and up-to-date repository,
         even if the repository already existed beforehand.
         """
@@ -71,14 +77,16 @@ class Git_Repository(Version_Control_Repository):
                 repository.repo.remotes.origin.pull('master', progress=progress)
         else:
             repository.repo = Repo.clone_from(url, repo_directory,
-                                              progress=progress)
+                                              progress=progress,
+                                              env=repository.environment)
 
         return repository
 
     @property
     def repo(self):
         if self._repo is None:
-            self._repo = Repo(self._repo_directory)
+            # Use property setter for updating the environment credentials path
+            self.repo = Repo(self._repo_directory)
 
         return self._repo
 
@@ -87,7 +95,21 @@ class Git_Repository(Version_Control_Repository):
         if not isinstance(repo, Repo):
             raise TypeError('Repository must be a gitpython Repo instance')
 
+        repo.git.update_environment(**self.environment)
         self._repo = repo
+
+    @property
+    def environment(self):
+        """
+        Retrieve the environment variables for the Git subcommands.
+        """
+
+        if self._credentials_path is not None:
+            logging.debug('Using credentials path %s', self._credentials_path)
+            ssh_command = 'ssh -i {}'.format(self._credentials_path)
+            return {'GIT_SSH_COMMAND': ssh_command}
+
+        return {}
 
     def exists(self):
         """
