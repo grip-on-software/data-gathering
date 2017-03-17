@@ -37,7 +37,8 @@ class Project_Definition_Parser(object):
         if file_time is None:
             self.file_time = datetime.datetime.now()
         else:
-            self.file_time = file_time
+            self.file_time = datetime.datetime.strptime(file_time,
+                                                        '%Y-%m-%d %H:%M:%S')
 
         self.data = {}
 
