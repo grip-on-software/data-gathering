@@ -121,9 +121,9 @@ class Changelog(object):
 
             # Get updated datetime object of the current entry.
             if "updated" in data:
-                updated = sprints.parse_date(data["updated"])
+                updated = data["updated"]
             else:
-                updated = sprints.parse_date(data["created"])
+                updated = data["created"]
 
             sprint_id = sprints.find_sprint(updated, sprint_ids=data["sprint"])
             if sprint_id is None:

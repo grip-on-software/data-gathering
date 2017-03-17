@@ -111,10 +111,20 @@ class Sprint_Data(object):
 
     def find_sprint(self, time, sprint_ids=None):
         """
-        Retrieve a sprint ID of a sprint that encompasses the given datetime
-        object `time`. If `sprint_ids` is given, then only consider the given
-        sprint IDs for matching. If not such sprint exists, `None` is returned.
+        Retrieve a sprint ID of a sprint that encompasses the given `time`,
+        which is a `datetime` object or a date string in standard
+        YYYY-MM-DD HH-MM-SS format.
+
+        If `sprint_ids` is given, then only consider the given sprint IDs for
+        matching. If no sprint exists according to these criteria, then `None`
+        is returned.
         """
+
+        if isinstance(time, datetime):
+            if time.tzinfo is None or time.tzinfo.utcoffset() is None:
+                time = time.replace(tzinfo=dateutil.tz.tzlocal())
+        else:
+            time = get_local_datetime(time)
 
         return self._bisect(time, sprint_ids=sprint_ids, overlap=True)
 
