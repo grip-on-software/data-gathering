@@ -21,7 +21,7 @@ class Git_Repository(Version_Control_Repository):
     DEFAULT_UPDATE_RATIO = 10
 
     def __init__(self, repo_name, repo_directory, credentials_path=None,
-                 unsafe_hosts=True, **kwargs):
+                 unsafe_hosts=False, **kwargs):
         super(Git_Repository, self).__init__(repo_name, repo_directory, **kwargs)
         self._repo = None
         self._credentials_path = credentials_path
