@@ -214,7 +214,8 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
                 row = table.get_row(match_row)
                 if row is not None:
                     break
-        else:
+
+        if not match_row:
             # Cannot deduce relation
             logging.warning('Cannot deduce relation from changelog: %s', text)
             return
@@ -222,12 +223,12 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
         update_field = self._changelog_map[entry_field]
         if row is None:
             # Create a new row.
-            search_row.update({
+            match_row.update({
                 'start_date': str(0),
                 'end_date': str(0)
             })
-            search_row[update_field] = diffs["updated"]
-            table.append(search_row)
+            match_row[update_field] = diffs["updated"]
+            table.append(match_row)
             return
 
         if row[update_field] != str(0):
@@ -244,7 +245,7 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
                              diffs["updated"], row[update_field])
                 return
 
-        table.update(search_row, {update_field: diffs["updated"]})
+        table.update(match_row, {update_field: diffs["updated"]})
 
     @property
     def table_name(self):
