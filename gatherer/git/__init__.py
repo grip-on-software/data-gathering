@@ -111,7 +111,7 @@ class Git_Repository(Version_Control_Repository):
             logging.debug('Using credentials path %s', self._credentials_path)
             ssh_command = "ssh -i '{}'".format(self._credentials_path)
             if self._unsafe_hosts:
-                ssh_command = "{} -oStrictHostKeyChecking=no".format(ssh_command)
+                ssh_command += '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
             environment['GIT_SSH_COMMAND'] = ssh_command
 
