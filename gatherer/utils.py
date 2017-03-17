@@ -85,12 +85,11 @@ class Sprint_Data(object):
         self._sprint_ids = []
         self._start_dates = []
         self._end_dates = []
-        self._date_format = '%Y-%m-%d %H:%M:%S'
 
         for sprint in self.get_sorted_sprints():
             self._sprint_ids.append(int(sprint['id']))
-            self._start_dates.append(self.parse_date(sprint['start_date']))
-            self._end_dates.append(self.parse_date(sprint['end_date']))
+            self._start_dates.append(get_local_datetime(sprint['start_date']))
+            self._end_dates.append(get_local_datetime(sprint['end_date']))
 
     @staticmethod
     def _import_sprints(project):
@@ -102,14 +101,6 @@ class Sprint_Data(object):
         else:
             logging.warning('Could not load sprint data, no sprint matching possible.')
             return []
-
-    def parse_date(self, date):
-        """
-        Parse a date string `date` such that it can be used for sprint searches.
-        """
-
-        date_time = datetime.strptime(date, self._date_format)
-        return date_time.astimezone(dateutil.tz.tzlocal())
 
     def get_sorted_sprints(self):
         """
@@ -163,10 +154,21 @@ class Sprint_Data(object):
         else:
             return sprint_id
 
+def get_local_datetime(date):
+    """
+    Convert a date string to a `datetime` object with the local timezone.
+
+    The date string has a standard YYYY-MM-DD HH:MM:SS format.
+    """
+
+    parsed_date = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+    return parsed_date.replace(tzinfo=dateutil.tz.tzlocal())
+
 def parse_date(date):
     """
     Convert a date string from sources like JIRA to a standard date string,
     excluding milliseconds and using spaces to separate fields instead of 'T'.
+    The standard format is YYYY-MM-DD HH:MM:SS.
 
     If the date cannot be parsed, '0' is returned.
     """
