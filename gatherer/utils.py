@@ -121,7 +121,7 @@ class Sprint_Data(object):
         """
 
         if isinstance(time, datetime):
-            if time.tzinfo is None or time.tzinfo.utcoffset() is None:
+            if time.tzinfo is None or time.tzinfo.utcoffset(time) is None:
                 time = time.replace(tzinfo=dateutil.tz.tzlocal())
         else:
             time = get_local_datetime(time)
