@@ -163,17 +163,21 @@ class Subversion_Repository(Version_Control_Repository):
         else:
             path = self._repo_directory + '/' + filename
 
+        # Ignore property changes since they are maintenance/automatic changes
+        # that need not count toward diff changes.
+        args = ['--ignore-properties']
+
         if from_revision is None and to_revision is None:
-            args = [path]
+            args.append(path)
         else:
             if from_revision is None:
                 from_revision = int(to_revision)-1
             elif to_revision is None:
                 to_revision = int(from_revision)+1
 
-            args = [
+            args.extend([
                 '-r', '{0}:{1}'.format(from_revision, to_revision), path
-            ]
+            ])
 
         diff_result = self.repo.run_command('diff', args)
 
