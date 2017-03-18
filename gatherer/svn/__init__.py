@@ -156,6 +156,9 @@ class Subversion_Repository(Version_Control_Repository):
     def get_diff_stats(self, filename='', from_revision=None, to_revision=None):
         """
         Retrieve statistics about the difference between two revisions.
+
+        Exceptions that are the result of the svn command failing are logged
+        and the return value is a dictionary with zero values.
         """
 
         if isinstance(self.repo, svn.remote.RemoteClient):
@@ -179,7 +182,17 @@ class Subversion_Repository(Version_Control_Repository):
                 '-r', '{0}:{1}'.format(from_revision, to_revision), path
             ])
 
-        diff_result = self.repo.run_command('diff', args)
+        try:
+            diff_result = self.repo.run_command('diff', args)
+        except svn.common.SvnException:
+            logging.exception('Could not retrieve diff')
+            return {
+                'insertions': str(0),
+                'deletions': str(0),
+                'number_of_lines': str(0),
+                'number_of_files': str(0),
+                'size': str(0)
+            }
 
         insertions = 0
         deletions = 0
