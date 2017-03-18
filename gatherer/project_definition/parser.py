@@ -370,11 +370,16 @@ class Metric_Options_Parser(Project_Definition_Parser):
                                       options={new_key: option},
                                       options_type='old_options')
 
-    def parse_metric(self, name, metric_type, options, options_type='metric_options'):
+    def parse_metric(self, name, metric_type, options=None,
+                     options_type='metric_options'):
         """
         Update the metric targets for a metric specified in the project
         definition.
         """
+
+        # Ensure that the options of a metric target is a dictionary.
+        if not isinstance(options, dict):
+            return
 
         class_name = self.get_class_name(metric_type)
 
