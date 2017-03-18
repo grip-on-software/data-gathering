@@ -118,6 +118,10 @@ class Git_Repository(Version_Control_Repository):
 
         return environment
 
+    @property
+    def version_info(self):
+        return self.repo.git.version_info
+
     def exists(self):
         """
         Check whether the repository exists, i.e., the path points to a valid

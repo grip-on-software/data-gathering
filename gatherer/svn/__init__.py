@@ -25,6 +25,7 @@ class Subversion_Repository(Version_Control_Repository):
     def __init__(self, repo_name, repo_directory, **kwargs):
         super(Subversion_Repository, self).__init__(repo_name, repo_directory, **kwargs)
         self._repo = None
+        self._version_info = None
         self._iterator_limiter = None
         self._reset_limiter()
 
@@ -55,6 +56,16 @@ class Subversion_Repository(Version_Control_Repository):
             raise TypeError('Repository must be a PySvn Client instance')
 
         self._repo = repo
+
+    @property
+    def version_info(self):
+        if self._version_info is None:
+            version = self.repo.run_command('--version', ['--quiet'])
+            self._version_info = tuple(
+                int(number) for number in version.split('.') if number.isdigit
+            )
+
+        return self._version_info
 
     def exists(self):
         return not self.is_empty()
@@ -168,7 +179,8 @@ class Subversion_Repository(Version_Control_Repository):
 
         # Ignore property changes since they are maintenance/automatic changes
         # that need not count toward diff changes.
-        args = ['--ignore-properties']
+        if self.version_info >= (1, 8):
+            args = ['--ignore-properties']
 
         if from_revision is None and to_revision is None:
             args.append(path)

@@ -157,6 +157,17 @@ class Version_Control_Repository(object):
 
         return self._retrieve_stats
 
+    @property
+    def version_info(self):
+        """
+        Retrieve a tuple of the repository back-end interface used.
+
+        This tuple contains major, minor and any additional version numbers as
+        integers, which can be compared against other tuples us such integers.
+        """
+
+        raise NotImplementedError("Must be implemented by subclasses")
+
     def exists(self):
         """
         Check if the repository exists.
