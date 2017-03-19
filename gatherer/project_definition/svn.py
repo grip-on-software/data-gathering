@@ -140,9 +140,14 @@ class Metric_Options_Collector(Collector):
         self._diff.add_version(version, result)
 
     def finish(self, end_revision, data=None):
+        if end_revision is None:
+            logging.info('Metric options: No new revisions to parse')
+        else:
+            logging.info('Metric options: parsed up to revision %s',
+                         end_revision)
+
         self._diff.export()
         if data is None:
             data = self._diff.previous_metric_targets
 
-        logging.info('Metric options: parsed up to revision %s', end_revision)
         super(Metric_Options_Collector, self).finish(end_revision, data=data)
