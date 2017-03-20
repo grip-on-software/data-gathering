@@ -77,7 +77,7 @@ class Source(object):
         self._credentials_path = None
 
         self._url = None
-        self._update_credentials()
+        self._host = self._update_credentials()[1]
 
     @classmethod
     def _init_credentials(cls):
@@ -182,6 +182,19 @@ class Source(object):
         """
 
         return self._credentials_path
+
+    def get_option(self, option):
+        """
+        Retrieve an option from the credentials configuration of the host of
+        this source.
+
+        If the option does not exist, then `None` is returned.
+        """
+
+        if not self._credentials.has_option(self._host, option):
+            return None
+
+        return self._credentials.get(self._host, option)
 
     def export(self):
         """
