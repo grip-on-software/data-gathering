@@ -9,6 +9,7 @@ import json
 import logging
 import os.path
 import gitlab3
+from gitlab3.exceptions import ResourceNotFound
 from gatherer.git import Git_Repository
 from gatherer.domain import Project, Source
 from gatherer.log import Log_Setup
@@ -67,7 +68,13 @@ def retrieve_repos(project, log_ratio):
 
     repos = {}
     for repo_data in project_repos:
-        project_repo = api.project(repo_data['id'])
+        try:
+            project_repo = api.project(repo_data['id'])
+        except ResourceNotFound:
+            logging.warning('GitLab repository %s is not accessible',
+                            repo_data['name'])
+            continue
+
         repo_name = project_repo.name
         logging.info('Processing GitLab repository %s', repo_name)
 
