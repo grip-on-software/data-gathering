@@ -164,14 +164,15 @@ class Sprint_Data(object):
         else:
             return sprint_id
 
-def get_local_datetime(date):
+def get_local_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
     """
     Convert a date string to a `datetime` object with the local timezone.
 
-    The date string has a standard YYYY-MM-DD HH:MM:SS format.
+    The date string has a standard YYYY-MM-DD HH:MM:SS format or another
+    parseable `date_format`.
     """
 
-    parsed_date = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+    parsed_date = datetime.strptime(date, date_format)
     return parsed_date.replace(tzinfo=dateutil.tz.tzlocal())
 
 def parse_date(date):

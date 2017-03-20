@@ -12,3 +12,5 @@ quality_report
 svn
 # gitlab_to_json.py
 -e git+http://github.com/lhelwerd/python-gitlab3.git@commit-comments#egg=gitlab3
+# topdesk_to_json.py
+regex
