@@ -47,9 +47,7 @@ class Repositories_Holder(object):
         for source in self._project.sources:
             repo_class = source.repository_class
             path = os.path.join(self._repo_directory, source.path_name)
-            repo = repo_class.from_url(source.name, path, source.url,
-                                       sprints=self._sprints,
-                                       credentials_path=source.credentials_path)
+            repo = repo_class.from_source(source, path, sprints=self._sprints)
 
             if not repo.is_empty():
                 yield repo
@@ -92,9 +90,10 @@ class Version_Control_Repository(object):
     Abstract repository interface for a version control system.
     """
 
-    def __init__(self, repo_name, repo_directory, sprints=None, stats=True,
+    def __init__(self, source, repo_directory, sprints=None, stats=True,
                  **kwargs):
-        self._repo_name = repo_name
+        self._source = source
+        self._repo_name = source.name
         self._repo_directory = repo_directory
 
         self._sprints = sprints
@@ -102,12 +101,12 @@ class Version_Control_Repository(object):
         self._options = kwargs
 
     @classmethod
-    def from_url(cls, repo_name, repo_directory, url, **kwargs):
+    def from_source(cls, source, repo_directory, **kwargs):
         """
-        Retrieve a repository handle from an external URL.
+        Retrieve a repository handle from a `Source` domain object.
 
-        Optionally, the repository is stored locally within a certain directory
-        under `repo_directory`.
+        This class method may initialize the repository differently, for example
+        by retrieving the latest versions or keeping the repository remotely.
         """
 
         raise NotImplementedError("Must be implemented by subclass")

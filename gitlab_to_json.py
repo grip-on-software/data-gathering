@@ -10,7 +10,7 @@ import logging
 import os.path
 import gitlab3
 from gitlab3.exceptions import ResourceNotFound
-from gatherer.git import Git_Repository
+from gatherer.git import GitLab_Repository
 from gatherer.domain import Project, Source
 from gatherer.log import Log_Setup
 
@@ -34,8 +34,8 @@ def parse_args():
     parser.add_argument("--ignore-host-change", dest="follow_host_change",
                         action="store_false", default=True,
                         help="Ignore credential host changes and use the original host instead")
-    parser.add_argument("--log-ratio", dest="log_ratio",
-                        default=Git_Repository.DEFAULT_UPDATE_RATIO, type=int,
+    parser.add_argument("--log-ratio", dest="log_ratio", type=int,
+                        default=GitLab_Repository.DEFAULT_UPDATE_RATIO,
                         help="Number of lines to sample from Git progress")
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -94,12 +94,11 @@ def retrieve_repos(project, log_ratio):
         source = Source.from_type('gitlab', name=repo_name,
                                   url=project_repo.http_url_to_repo,
                                   follow_host_change=False)
-        repo = Git_Repository.from_url(repo_name, repo_dir, source.url,
-                                       progress=log_ratio,
-                                       credentials_path=source.credentials_path)
+        repo = GitLab_Repository.from_source(source, repo_dir,
+                                             progress=log_ratio)
 
         if repo.is_empty():
-            logging.info('Ignoring empty repository')
+            logging.info('Ignoring empty repository %s', repo_name)
             continue
 
         # Check if there is already another (Git) source with the same URL.

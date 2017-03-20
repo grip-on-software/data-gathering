@@ -12,7 +12,7 @@ from .progress import Git_Progress
 from ..utils import parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
 
-__all__ = ["Git_Repository"]
+__all__ = ["Git_Repository", "GitLab_Repository"]
 
 class Git_Repository(Version_Control_Repository):
     """
@@ -21,12 +21,11 @@ class Git_Repository(Version_Control_Repository):
 
     DEFAULT_UPDATE_RATIO = 10
 
-    def __init__(self, repo_name, repo_directory, credentials_path=None,
-                 unsafe_hosts=False, **kwargs):
-        super(Git_Repository, self).__init__(repo_name, repo_directory, **kwargs)
+    def __init__(self, source, repo_directory, **kwargs):
+        super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
         self._repo = None
-        self._credentials_path = credentials_path
-        self._unsafe_hosts = unsafe_hosts
+        self._credentials_path = source.credentials_path
+        self._unsafe_hosts = bool(source.get_option('unsafe'))
 
         self._iterator_limiter = None
         self._batch_size = 10000
@@ -48,18 +47,14 @@ class Git_Repository(Version_Control_Repository):
             return None
 
     @classmethod
-    def from_url(cls, repo_name, repo_directory, url, progress=True, **kwargs):
+    def from_source(cls, source, repo_directory, progress=True, **kwargs):
         """
-        Initialize a Git repository from its clone URL if it does not yet exist.
+        Initialize a Git repository from its `Source` domain object.
 
         If `progress` is `True`, then add progress lines from Git commands to
         the logging output. If `progress` is a nonzero number, then sample from
         this number of lines. If it is not `False`, then use it as a progress
         callback function.
-
-        The `credentials_path` specifies a path to an SSH private key identity
-        file, which is then used for all Git-over-SSH communications. If this
-        is `None`, then passworded or anonymous access must be used.
 
         Returns a Git_Repository object with a cloned and up-to-date repository,
         even if the repository already existed beforehand.
@@ -72,13 +67,13 @@ class Git_Repository(Version_Control_Repository):
         elif isinstance(progress, int):
             progress = Git_Progress(update_ratio=progress)
 
-        repository = cls(repo_name, repo_directory, **kwargs)
+        repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
             if not repository.is_empty():
                 # Update the repository from the origin URL.
                 repository.repo.remotes.origin.pull('master', progress=progress)
         else:
-            repository.repo = Repo.clone_from(url, repo_directory,
+            repository.repo = Repo.clone_from(source.url, repo_directory,
                                               progress=progress,
                                               env=repository.environment)
 
@@ -224,3 +219,8 @@ class Git_Repository(Version_Control_Repository):
 
     def get_latest_version(self):
         return self.repo.rev_parse('master').hexsha
+
+class GitLab_Repository(Git_Repository):
+    """
+    Git repository hosted by a GitLab instance.
+    """

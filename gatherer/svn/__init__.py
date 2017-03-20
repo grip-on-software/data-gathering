@@ -22,8 +22,8 @@ class Subversion_Repository(Version_Control_Repository):
     histories (contents, logs) can be read.
     """
 
-    def __init__(self, repo_name, repo_directory, **kwargs):
-        super(Subversion_Repository, self).__init__(repo_name, repo_directory, **kwargs)
+    def __init__(self, source, repo_directory, **kwargs):
+        super(Subversion_Repository, self).__init__(source, repo_directory, **kwargs)
         self._repo = None
         self._version_info = None
         self._iterator_limiter = None
@@ -33,13 +33,16 @@ class Subversion_Repository(Version_Control_Repository):
         self._iterator_limiter = Iterator_Limiter()
 
     @classmethod
-    def from_url(cls, repo_name, repo_directory, url, **kwargs):
+    def from_source(cls, source, repo_directory, **kwargs):
         """
-        Initialize a Subversion repository from its checkout URL.
+        Initialize a Subversion repository from its `Source` domain object.
+
+        This does not require a checkout of the repository, and instead
+        communicates solely with the server.
         """
 
-        repository = cls(repo_name, repo_directory, **kwargs)
-        repository.repo = svn.remote.RemoteClient(url)
+        repository = cls(source, repo_directory, **kwargs)
+        repository.repo = svn.remote.RemoteClient(source.url)
         return repository
 
     @property
