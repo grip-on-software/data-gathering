@@ -24,23 +24,26 @@ fi
 
 # Declare restore files, populated with update files later on
 restoreFiles=""
+currentProject=""
 
 function error_handler() {
 	echo "Reverting workspace tracking data..."
-	for project in $listOfProjects
-	do
+	if [ ! -z "$currentProject" ]; then
 		for restoreFile in $restoreFiles
 		do
-			if [ -e "$ROOT/export/$project/$restoreFile.bak" ]; then
-				mv "$ROOT/export/$project/$restoreFile.bak" "$ROOT/export/$project/$restoreFile"
+			if [ -e "$ROOT/export/$currentProject/$restoreFile.bak" ]; then
+				mv "$ROOT/export/$currentProject/$restoreFile.bak" "$ROOT/export/$currentProject/$restoreFile"
 			else
-				rm -f "$ROOT/export/$project/$restoreFile"
+				rm -f "$ROOT/export/$currentProject/$restoreFile"
 			fi
 		done
-		if [ $cleanupRepos = "true" ]; then
+	fi
+	if [ $cleanupRepos = "true" ]; then
+		for project in $listOfProjects
+		do
 			rm -rf "$ROOT/project-git-repos/$project"
-		fi
-	done
+		done
+	fi
 }
 
 function status_handler() {
@@ -146,6 +149,7 @@ done
 for project in $listOfProjects
 do
 	echo "$project"
+	currentProject=$project
 
 	mkdir -p export/$project
 	mkdir -p project-git-repos/$project
