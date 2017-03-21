@@ -40,12 +40,12 @@ class GitLab_Repository(Git_Repository):
             self._has_commit_comments = False
 
     def _check_dropin_files(self, project):
-        filename = os.path.join(project.export_key, 'data_gitlab.json')
+        filename = os.path.join(project.dropins_key, 'data_gitlab.json')
         if self._check_dropin_file(filename):
             return True
 
         namespace = self._source.gitlab_namespace
-        filename = os.path.join(project.export_key,
+        filename = os.path.join(project.dropins_key,
                                 'data_gitlab_{}.json'.format(namespace))
         if self._check_dropin_file(filename):
             return True

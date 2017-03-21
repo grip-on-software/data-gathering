@@ -104,15 +104,17 @@ function export_handler() {
 	fi
 }
 
-# Install Python dependencies
-pip install -r scripts/requirements.txt
+# Retrieve Python scripts from a subdirectory
+if [ -d scripts ]; then
+	cp scripts/*.py scripts/*.py.export scripts/*.py.update scripts/*.json scripts/*.cfg requirements.txt .
+	rm -rf dropins/
+	rm -rf gatherer/
+	cp -r scripts/gatherer/ gatherer/
+	cp -r scripts/dropins/ dropins/
+fi
 
-# Retrieve Python scripts
-cp scripts/*.py scripts/*.py.export scripts/*.py.update scripts/*.json scripts/*.cfg .
-rm -rf dropins/
-rm -rf gatherer/
-cp -r scripts/gatherer/ gatherer/
-cp -r scripts/dropins/ dropins/
+# Install Python dependencies
+pip install -r requirements.txt
 
 # Files that are backed up in case of errors for each project
 scripts="project_sources.py jira_to_json.py gitlab_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
@@ -171,5 +173,8 @@ if [ $cleanupRepos = "true" ]; then
 	rm -rf kwaliteitsmetingen
 fi
 
-rm -rf dropins/
-rm -rf gatherer/
+# Clean up duplicated directories
+if [ -d scripts ]; then
+	rm -rf dropins/
+	rm -rf gatherer/
+fi

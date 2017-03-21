@@ -115,6 +115,14 @@ class Project(object):
         return os.path.join('export', self._project_key)
 
     @property
+    def dropins_key(self):
+        """
+        Retrieve the directory path where dropins for this project may be found.
+        """
+
+        return os.path.join('dropins', self._project_key)
+
+    @property
     def key(self):
         """
         Retrieve the key that can be used for identifying data belonging
