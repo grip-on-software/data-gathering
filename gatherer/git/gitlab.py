@@ -26,10 +26,10 @@ class GitLab_Repository(Git_Repository):
             self._has_commit_comments = True
 
         self._tables.update({
-            "gitlab": [],
-            "merge_requests": [],
-            "merge_request_notes": [],
-            "commit_comments": []
+            "gitlab_repo": [],
+            "merge_request": [],
+            "merge_request_note": [],
+            "commit_comment": []
         })
 
     @property
@@ -73,7 +73,7 @@ class GitLab_Repository(Git_Repository):
         archived = str(1) if self.project.archived else str(0)
         has_avatar = str(1) if self.project.avatar_url is not None else str(0)
 
-        self._tables["gitlab"] = [
+        self._tables["gitlab_repo"] = [
             {
                 'repo_name': str(self._repo_name),
                 'gitlab_id': str(self.project.id),
@@ -96,7 +96,7 @@ class GitLab_Repository(Git_Repository):
         else:
             assignee = str(0)
 
-        self._tables["merge_requests"].append({
+        self._tables["merge_request"].append({
             'repo_name': str(self._repo_name),
             'id': str(merge_request.id),
             'title': parse_unicode(merge_request.title),
@@ -125,7 +125,7 @@ class GitLab_Repository(Git_Repository):
         })
 
     def _add_commit_comment(self, note, commit_id):
-        self._tables["commit_comments"].append({
+        self._tables["commit_comment"].append({
             'repo_name': str(self._repo_name),
             'commit_id': str(commit_id),
             'author': note.author.name,
