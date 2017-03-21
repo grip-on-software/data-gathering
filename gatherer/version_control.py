@@ -47,7 +47,8 @@ class Repositories_Holder(object):
         for source in self._project.sources:
             repo_class = source.repository_class
             path = os.path.join(self._repo_directory, source.path_name)
-            repo = repo_class.from_source(source, path, sprints=self._sprints)
+            repo = repo_class.from_source(source, path, project=self._project,
+                                          sprints=self._sprints)
 
             if not repo.is_empty():
                 yield repo

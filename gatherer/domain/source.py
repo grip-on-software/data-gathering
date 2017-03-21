@@ -131,9 +131,20 @@ class Source(object):
         return orig_parts, host
 
     @property
+    def plain_url(self):
+        """
+        Retrieve the URL as it is defined for the source.
+
+        This does not contain changes to hosts or additions of credentials.
+        """
+
+        return self._plain_url
+
+    @property
     def url(self):
         """
-        Retrieve the URL with credentials.
+        Retrieve the final URL, after following host changes and including
+        credentials where applicable
         """
 
         return self._url
@@ -248,10 +259,21 @@ class Git(Source):
 
     @property
     def path_name(self):
-        # Retrieve the repostiory name from the URL if possible.
-        parts = self.url.split('/')
-        if len(parts) <= 1:
+        path_name = self.get_path_name(self.url)
+        if path_name is None:
             return super(Git, self).path_name
+
+        return path_name
+
+    @classmethod
+    def get_path_name(cls, url):
+        """
+        Retrieve the repository name from a `url` or `None` if not possible.
+        """
+
+        parts = url.split('/')
+        if len(parts) <= 1:
+            return None
 
         # Handle URLs ending in slashes
         repo = parts[-1]
@@ -259,7 +281,7 @@ class Git(Source):
             repo = parts[-2]
 
         # Remove .git from repository name
-        return self.remove_git_suffix(repo)
+        return cls.remove_git_suffix(repo)
 
     @staticmethod
     def remove_git_suffix(repo):
@@ -286,6 +308,7 @@ class GitLab(Git):
     def __init__(self, *args, **kwargs):
         self._gitlab_host = None
         self._gitlab_token = None
+        self._gitlab_namespace = None
         self._gitlab_group = None
         self._gitlab_path = None
 
@@ -321,10 +344,15 @@ class GitLab(Git):
         if self._credentials.has_option(orig_host, 'group'):
             self._gitlab_group = self._credentials.get(orig_host, 'group')
 
+        # Retrieve the actual namespace of the source.
+        path = orig_parts.path.lstrip('/')
+        path_parts = path.split('/', 1)
+        self._gitlab_namespace = path_parts[0]
+
         # Check whether the host was changed and a custom gitlab group exists
         # for this host change.
         if self._follow_host_change and host != orig_host:
-            self._update_group_url()
+            path = self._update_group_url(path)
 
         # Find the GitLab token and URL without authentication for connecting
         # to the GitLab API.
@@ -333,20 +361,25 @@ class GitLab(Git):
 
         host_parts = (orig_parts.scheme, host, '', '', '')
         self._gitlab_host = urlparse.urlunsplit(host_parts)
-        self._gitlab_path = self.remove_git_suffix(orig_parts.path[1:])
+        self._gitlab_path = self.remove_git_suffix(path)
 
         return orig_parts, host
 
-    def _update_group_url(self):
-        url_parts = urlparse.urlsplit(self._url)
-        path_parts = url_parts.path.lstrip('/').split('/', 1)
-        if self._gitlab_group is None or path_parts[0] == self._gitlab_group:
-            return
+    def _update_group_url(self, repo_path):
+        if self._gitlab_group is None:
+            return repo_path
+        if self._gitlab_namespace == self._gitlab_group:
+            return repo_path
 
-        path = '{0}/{1}'.format(self._gitlab_group, '-'.join(path_parts))
+        # Parse the current URL to update its path.
+        url_parts = urlparse.urlsplit(self._url)
+        repo_path_name = repo_path.split('/', 1)[1]
+        path = '{0}/{1}-{2}'.format(self._gitlab_group, self._gitlab_namespace,
+                                    repo_path_name)
         new_parts = (url_parts.scheme, url_parts.netloc, path,
                      url_parts.query, url_parts.fragment)
         self._url = urlparse.urlunsplit(new_parts)
+        return path
 
     @property
     def repository_class(self):
@@ -356,6 +389,8 @@ class GitLab(Git):
     def host(self):
         """
         Retrieve the host name with scheme part of the GitLab instance.
+
+        This is the base URL after following host changes.
         """
 
         return self._gitlab_host
@@ -376,15 +411,32 @@ class GitLab(Git):
         If this is `None`, then there is no custom group for this source.
         The caller should fall back to the project long name or some other
         information it has.
+
+        Note that this group is instance-wide, and may not actually be the group
+        that this source repository is in. Instead it is used for group URL
+        updates and gitlab source queries. See `gitlab_namespace` for the
+        group or namespace of the source object.
         """
 
         return self._gitlab_group
 
     @property
+    def gitlab_namespace(self):
+        """
+        Retrieve the namespace in which the source exists.
+        """
+
+        return self._gitlab_namespace
+
+    @property
     def gitlab_path(self):
         """
-        Retrieve the path used in the GitLab API, including the namespace and
-        the repository name.
+        Retrieve the path used in the GitLab API. This is the final path after
+        following group URL updates. The path includes the namespace, usually
+        the same as the group, and the repository name.
+
+        The path can be used in API project calls to retrieve the project by its
+        unique path identifier.
         """
 
         return self._gitlab_path
