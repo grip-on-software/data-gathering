@@ -60,7 +60,8 @@ class Repositories_Holder(object):
 
         self._load_latest_versions()
 
-        data = []
+        version_data = []
+        tables = {}
         for repo in self.get_repositories():
             repo_name = repo.repo_name
             logging.info('Processing repository %s', repo_name)
@@ -69,18 +70,30 @@ class Repositories_Holder(object):
             else:
                 latest_version = None
 
-            data.extend(repo.get_versions(from_revision=latest_version))
+            version_data.extend(repo.get_versions(from_revision=latest_version))
             self._latest_versions[repo.repo_name] = repo.get_latest_version()
+            for table, table_data in repo.tables.iteritems():
+                if table not in tables:
+                    tables[table] = []
 
-        self._export(data)
+                tables[table].extend(table_data)
 
-    def _export(self, data):
+        self._export(version_data, tables)
+
+    def _export(self, version_data, tables):
         """
-        Export the version metadata and latest version identifer to JSON files.
+        Export the version metadata, additional table metadata, and identifiers
+        of the latest versions from the repositories to JSON files.
         """
 
         with open(self._export_filename, 'w') as data_file:
-            json.dump(data, data_file, indent=4)
+            json.dump(version_data, data_file, indent=4)
+
+        for table, table_data in tables.iteritems():
+            table_filename = os.path.join(self._project.export_key,
+                                          'data_{}.json'.format(table))
+            with open(table_filename, 'w') as table_file:
+                json.dump(table_data, table_file, indent=4)
 
         with open(self._latest_filename, 'w') as latest_versions_file:
             json.dump(self._latest_versions, latest_versions_file)
@@ -99,6 +112,7 @@ class Version_Control_Repository(object):
         self._sprints = sprints
         self._retrieve_stats = stats
         self._options = kwargs
+        self._tables = {}
 
     @classmethod
     def from_source(cls, source, repo_directory, **kwargs):
@@ -188,6 +202,18 @@ class Version_Control_Repository(object):
         """
 
         raise NotImplementedError("Must be implemented by subclass")
+
+    @property
+    def tables(self):
+        """
+        Retrieve additional metadata of the repository that was obtained during
+        source initialization or version searches.
+
+        The data from each table, keyed by its name, is a list of dictionaries
+        with at least the repository name and other identifiers it relates to.
+        """
+
+        return self._tables
 
     def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
         """

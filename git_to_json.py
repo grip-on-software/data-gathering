@@ -18,6 +18,9 @@ def parse_args():
     parser.add_argument("project", help="project key")
     parser.add_argument("--repos", default="project-git-repos",
                         help="directory containing the project repositories")
+    parser.add_argument("--ignore-host-change", dest="follow_host_change",
+                        action="store_false", default=True,
+                        help="Ignore credential host changes and use the original host instead")
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
@@ -29,7 +32,7 @@ def main():
     """
 
     args = parse_args()
-    project = Project(args.project)
+    project = Project(args.project, follow_host_change=args.follow_host_change)
 
     holder = Repositories_Holder(project, args.repos)
     holder.process()

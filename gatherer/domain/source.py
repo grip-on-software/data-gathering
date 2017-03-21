@@ -6,7 +6,7 @@ import ConfigParser
 import os
 import urlparse
 from ..svn import Subversion_Repository
-from ..git import Git_Repository
+from ..git import Git_Repository, GitLab_Repository
 
 class Source_Types(object):
     """
@@ -259,6 +259,15 @@ class Git(Source):
             repo = parts[-2]
 
         # Remove .git from repository name
+        return self.remove_git_suffix(repo)
+
+    @staticmethod
+    def remove_git_suffix(repo):
+        """
+        Remove the '.git' suffix from a repository name as it frequently
+        occurs in the URL slug of that repository.
+        """
+
         if repo.endswith('.git'):
             repo = repo[:-len('.git')]
 
@@ -275,9 +284,10 @@ class GitLab(Git):
     """
 
     def __init__(self, *args, **kwargs):
-        self._host = None
+        self._gitlab_host = None
         self._gitlab_token = None
         self._gitlab_group = None
+        self._gitlab_path = None
 
         super(GitLab, self).__init__(*args, **kwargs)
 
@@ -322,7 +332,8 @@ class GitLab(Git):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
         host_parts = (orig_parts.scheme, host, '', '', '')
-        self._host = urlparse.urlunsplit(host_parts)
+        self._gitlab_host = urlparse.urlunsplit(host_parts)
+        self._gitlab_path = self.remove_git_suffix(orig_parts.path[1:])
 
         return orig_parts, host
 
@@ -338,12 +349,16 @@ class GitLab(Git):
         self._url = urlparse.urlunsplit(new_parts)
 
     @property
+    def repository_class(self):
+        return GitLab_Repository
+
+    @property
     def host(self):
         """
         Retrieve the host name with scheme part of the GitLab instance.
         """
 
-        return self._host
+        return self._gitlab_host
 
     @property
     def gitlab_token(self):
@@ -364,3 +379,12 @@ class GitLab(Git):
         """
 
         return self._gitlab_group
+
+    @property
+    def gitlab_path(self):
+        """
+        Retrieve the path used in the GitLab API, including the namespace and
+        the repository name.
+        """
+
+        return self._gitlab_path
