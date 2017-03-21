@@ -52,7 +52,11 @@ class Topdesk_Parser(object):
         self._config = ConfigParser.RawConfigParser()
         self._config.read('topdesk.cfg')
 
-        self._project_pass = self._config.get('projects', self._project_key)
+        if self._config.has_option('projects', self._project_key):
+            self._project_pass = self._config.get('projects', self._project_key)
+        else:
+            self._project_pass = None
+
         self._names = [
             (key, name.decode('string-escape'))
             for (key, name) in self._config.items('names')
@@ -81,6 +85,10 @@ class Topdesk_Parser(object):
         """
 
         reservations = []
+        if self._project_pass is None and \
+            all(self._project_key != key for key, whitelist in self._whitelist):
+            return reservations
+
         reader = csv.DictReader(input_file)
         for line in reader:
             reservation = self._parse_reservation(line, whitelist_only)
