@@ -115,7 +115,7 @@ class GitLab_Repository(Git_Repository):
             self._add_note(note, merge_request.id)
 
     def _add_note(self, note, merge_request_id):
-        self._tables["merge_request_notes"].append({
+        self._tables["merge_request_note"].append({
             'repo_name': str(self._repo_name),
             'merge_request_id': str(merge_request_id),
             'note_id': str(note.id),
