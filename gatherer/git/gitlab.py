@@ -8,7 +8,7 @@ import urllib
 from gitlab3 import GitLab
 from gitlab3.exceptions import GitLabException
 from .repo import Git_Repository
-from ..utils import format_date
+from ..utils import format_date, parse_unicode
 
 class GitLab_Repository(Git_Repository):
     """
@@ -99,8 +99,8 @@ class GitLab_Repository(Git_Repository):
         self._tables["merge_requests"].append({
             'repo_name': str(self._repo_name),
             'id': str(merge_request.id),
-            'title': merge_request.title,
-            'description': merge_request.description,
+            'title': parse_unicode(merge_request.title),
+            'description': parse_unicode(merge_request.description),
             'source_branch': merge_request.source_branch,
             'target_branch': merge_request.target_branch,
             'author': merge_request.author.name,
@@ -120,7 +120,7 @@ class GitLab_Repository(Git_Repository):
             'merge_request_id': str(merge_request_id),
             'note_id': str(note.id),
             'author': note.author.name,
-            'comment': note.body,
+            'comment': parse_unicode(note.body),
             'created_at': format_date(note.created_at)
         })
 
@@ -129,7 +129,7 @@ class GitLab_Repository(Git_Repository):
             'repo_name': str(self._repo_name),
             'commit_id': str(commit_id),
             'author': note.author.name,
-            'comment': note.note,
+            'comment': parse_unicode(note.note),
             'file': note.path,
             'line': str(note.line),
             'line_type': note.line_type
