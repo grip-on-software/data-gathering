@@ -9,7 +9,7 @@ from datetime import datetime
 import dateutil.tz
 from git import Repo, InvalidGitRepositoryError, NoSuchPathError
 from .progress import Git_Progress
-from ..utils import parse_unicode, Iterator_Limiter
+from ..utils import format_date, parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
 
 __all__ = ["Git_Repository", "GitLab_Repository"]
@@ -195,7 +195,7 @@ class Git_Repository(Version_Control_Repository):
             'type': commit_type,
             'developer': commit.author.name,
             'developer_email': str(commit.author.email),
-            'commit_date': datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
+            'commit_date': format_date(commit_datetime)
         }
 
         if self.retrieve_stats:

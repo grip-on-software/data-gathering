@@ -11,7 +11,7 @@ import svn.common
 import svn.local
 import svn.remote
 
-from ..utils import parse_unicode, Iterator_Limiter
+from ..utils import format_date, parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
 
 __all__ = ["Subversion_Repository"]
@@ -157,7 +157,7 @@ class Subversion_Repository(Version_Control_Repository):
             'type': 'commit',
             'developer': entry.author,
             'developer_email': '',
-            'commit_date': datetime.datetime.strftime(commit_datetime, '%Y-%m-%d %H:%M:%S')
+            'commit_date': format_date(commit_datetime)
         }
 
         if self.retrieve_stats:

@@ -2,9 +2,9 @@
 Special field parsers.
 """
 
-from datetime import datetime
 import logging
 from .base import Base_Jira_Field, Base_Changelog_Field
+from ..utils import get_local_datetime
 
 class Special_Field(Base_Jira_Field):
     """
@@ -234,18 +234,18 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
         if row[update_field] != str(0):
             # Links may be added and removed multiple times; we keep the
             # earliest start date and latest end date of the link.
-            older = datetime.strptime(diffs["updated"], '%Y-%m-%d %H:%M:%S') < \
-                    datetime.strptime(row[update_field], '%Y-%m-%d %H:%M:%S')
+            older = get_local_datetime(diffs['updated']) < \
+                    get_local_datetime(row[update_field])
             if older and update_field == 'end_date':
                 logging.info('Older link end date in %s: %s, %s', from_key,
-                             diffs["updated"], row[update_field])
+                             diffs['updated'], row[update_field])
                 return
             elif not older and update_field == 'start_date':
                 logging.info('Newer link start date in %s: %s, %s', from_key,
-                             diffs["updated"], row[update_field])
+                             diffs['updated'], row[update_field])
                 return
 
-        table.update(match_row, {update_field: diffs["updated"]})
+        table.update(match_row, {update_field: diffs['updated']})
 
     @property
     def table_name(self):

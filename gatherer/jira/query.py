@@ -4,7 +4,7 @@ Module that handles the JIRA API query.
 
 from datetime import datetime
 from jira import JIRA
-from ..utils import Iterator_Limiter
+from ..utils import format_date, Iterator_Limiter
 
 class Query(object):
     """
@@ -38,7 +38,8 @@ class Query(object):
         if not self._iterator_limiter.check(had_issues):
             return []
 
-        self._latest_update = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M")
+        self._latest_update = format_date(datetime.now(),
+                                          date_format='%Y-%m-%d %H:%M')
         return self._api.search_issues(self._query,
                                        startAt=self._iterator_limiter.skip,
                                        maxResults=self._iterator_limiter.size,

@@ -11,7 +11,7 @@ import os
 import regex
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.utils import get_local_datetime
+from gatherer.utils import get_local_datetime, format_date
 
 def parse_args():
     """
@@ -75,7 +75,7 @@ class Topdesk_Parser(object):
         """
 
         local_date = get_local_datetime(date, date_format='%Y-%m-%d %H:%M')
-        return local_date.strftime('%Y-%m-%d %H:%M:%S')
+        return format_date(local_date)
 
     def get_reservations(self, input_file, whitelist_only=False):
         """

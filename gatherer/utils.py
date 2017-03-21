@@ -175,6 +175,14 @@ def get_local_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
     parsed_date = datetime.strptime(date, date_format)
     return parsed_date.replace(tzinfo=dateutil.tz.tzlocal())
 
+def format_date(date, date_format='%Y-%m-%d %H:%M:%S'):
+    """
+    Format a datetime object in a standard YYYY-MM-DD HH:MM:SS format or
+    another applicable `date_format`.
+    """
+
+    return datetime.strftime(date, date_format)
+
 def parse_date(date):
     """
     Convert a date string from sources like JIRA to a standard date string,
