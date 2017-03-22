@@ -150,6 +150,25 @@ class Git_Repository(Version_Control_Repository):
                                       skip=self._iterator_limiter.skip,
                                       reverse=not descending)
 
+    def find_commit(self, committed_date):
+        """
+        Find a commit SHA by its committed date, assuming the date is unique.
+
+        If the commit could not be found, then `None` is returned.
+        """
+
+        date_epoch = committed_date.strftime('%s')
+        rev_list_args = {
+            'max_count': 1,
+            'min_age': date_epoch,
+            'max_age': date_epoch
+        }
+        commits = list(self.repo.iter_commits('master', **rev_list_args))
+        if commits:
+            return commits[0].hexsha
+
+        return None
+
     def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
         refspec = self._get_refspec(from_revision, to_revision)
         return self._parse(refspec, paths=filename, descending=descending)

@@ -71,6 +71,15 @@ class GitLab_Repository(Git_Repository):
             logging.warning('Repository %s not in GitLab data', path_name)
             return False
 
+        # Fill GitLab API objects with the JSON data.
+        repo_data = data[path_name]
+        self._parse_legacy_data(repo_data)
+
+        logging.info('Read data from dropin file for repo %s', self._repo_name)
+
+        return True
+
+    def _parse_legacy_data(self, repo_data):
         # Load the Project sub-API in the gitlab3 module. This class is only
         # created once the main API is instantiated.
         api = self.api
@@ -79,8 +88,6 @@ class GitLab_Repository(Git_Repository):
 
         project_class = getattr(api, 'Project')
 
-        # Fill GitLab API objects with the JSON data.
-        repo_data = data[path_name]
         repo_project = project_class(api, json_data=repo_data['info'])
 
         self._fill_repo_table(repo_project)
@@ -94,12 +101,16 @@ class GitLab_Repository(Git_Repository):
                                request.id)
 
         for commit_id, comments in repo_data['commit_comments'].iteritems():
+            commit = repo_project.Commit(repo_project,
+                                         json_data=comments['commit_info'])
+            updated_commit_id = self.find_commit(commit.committed_date)
+            if updated_commit_id is None:
+                logging.warning('Could not find updated commit ID for %s at %s',
+                                commit_id, commit.committed_date.isoformat())
+                updated_commit_id = commit_id
+
             for comment in comments['notes']:
-                self._add_commit_comment(comment, commit_id)
-
-        logging.info('Read data from dropin file for repo %s', self._repo_name)
-
-        return True
+                self._add_commit_comment(comment, updated_commit_id)
 
     @property
     def api(self):
