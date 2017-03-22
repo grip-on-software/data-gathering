@@ -417,6 +417,8 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         if 'debt_target' in options:
             debt = options['debt_target']
+            if not isinstance(debt, domain.TechnicalDebtTarget):
+                return {}
 
             datetime_args = {'now.return_value': self.file_time}
             with mock.patch('datetime.datetime', **datetime_args):
