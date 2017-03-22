@@ -39,7 +39,10 @@ class GitLab_Repository(Git_Repository):
         if self._check_dropin_files(project):
             self._has_commit_comments = False
 
-    def _check_dropin_files(self, project):
+    def _check_dropin_files(self, project=None):
+        if project is None:
+            return False
+
         filename = os.path.join(project.dropins_key, 'data_gitlab.json')
         if self._check_dropin_file(filename):
             return True
