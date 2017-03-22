@@ -16,31 +16,43 @@ class Git_Repository(Version_Control_Repository):
     """
 
     DEFAULT_UPDATE_RATIO = 10
+    BATCH_SIZE = 10000
+    LOG_SIZE = 1000
 
     def __init__(self, source, repo_directory, **kwargs):
         super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
         self._repo = None
         self._credentials_path = source.credentials_path
         self._unsafe_hosts = bool(source.get_option('unsafe'))
+        self._from_date = source.get_option('from_date')
+        self._tag = source.get_option('tag')
 
         self._iterator_limiter = None
-        self._batch_size = 10000
-        self._log_size = 1000
         self._reset_limiter()
 
     def _reset_limiter(self):
-        self._iterator_limiter = Iterator_Limiter(size=self._batch_size)
+        self._iterator_limiter = Iterator_Limiter(size=self.BATCH_SIZE)
 
-    @staticmethod
-    def _get_refspec(from_revision=None, to_revision=None):
+    def _get_refspec(self, from_revision=None, to_revision=None):
+        # Determine special revision ranges from credentials settings.
+        # By default, we retrieve all revisions from master, but if the tag
+        # exists, then we use this tag as end point instead. Otherwise, the
+        # range can be limited by a starting date for migration compatibility.
+        default_to_revision = 'master'
+        if self._tag is not None and self._tag in self.repo.tags:
+            default_to_revision = self._tag
+        elif from_revision is None and self._from_date is not None:
+            from_revision = ''.join(('@', '{', self._from_date, '}'))
+
+        # Format the range as a specifier that git rev-parse can handle.
         if from_revision is not None and to_revision is not None:
             return '{}...{}'.format(from_revision, to_revision)
         elif from_revision is not None:
-            return '{}...master'.format(from_revision)
+            return '{}...{}'.format(from_revision, default_to_revision)
         elif to_revision is not None:
             return to_revision
         else:
-            return None
+            return default_to_revision
 
     @classmethod
     def from_source(cls, source, repo_directory, progress=True, **kwargs):
@@ -157,7 +169,7 @@ class Git_Repository(Version_Control_Repository):
                 count += 1
                 version_data.append(self.parse_commit(commit))
 
-                if count % self._log_size == 0:
+                if count % self.LOG_SIZE == 0:
                     logging.info('Analysed commits up to %d', count)
 
             logging.info('Analysed batch of commits, now at %d', count)
