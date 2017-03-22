@@ -214,7 +214,7 @@ class GitLab_Repository(Git_Repository):
             'repo_name': str(self._repo_name),
             'merge_request_id': str(merge_request_id),
             'note_id': str(note.id),
-            'author': note.author.name,
+            'author': note.author['name'],
             'comment': parse_unicode(note.body),
             'created_at': format_date(note.created_at)
         })
