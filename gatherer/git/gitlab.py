@@ -190,7 +190,7 @@ class GitLab_Repository(Git_Repository):
 
     def _add_merge_request(self, merge_request):
         if merge_request.assignee is not None:
-            assignee = merge_request.assignee.name
+            assignee = merge_request.assignee['name']
         else:
             assignee = str(0)
 
@@ -201,7 +201,7 @@ class GitLab_Repository(Git_Repository):
             'description': parse_unicode(merge_request.description),
             'source_branch': merge_request.source_branch,
             'target_branch': merge_request.target_branch,
-            'author': merge_request.author.name,
+            'author': merge_request.author['name'],
             'assignee': assignee,
             'upvotes': str(merge_request.upvotes),
             'downvotes': str(merge_request.downvotes),
