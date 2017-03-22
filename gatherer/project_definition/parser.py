@@ -75,8 +75,10 @@ class Project_Definition_Parser(object):
 
     def format_exception(self, contents, emulate_context=True):
         """
-        Handle a problem parsing the project definition `content` from within
-        an exception context.
+        Wrap a problem that is encountered while parsing the project definition
+        `contents`. This method must be called from an exception context.
+        Its returned value is a `RuntimeError` object, which must be raised
+        from that context.
         """
 
         etype, value, trace = sys.exc_info()
@@ -91,7 +93,7 @@ class Project_Definition_Parser(object):
                 range_end = min(len(lines), line+self.context_lines)
                 message += "Context:\n" + '\n'.join(lines[range_start:range_end])
 
-        raise RuntimeError(message.strip())
+        return RuntimeError(message.strip())
 
     def _format_compatibility_modules(self, root_name, module_parts):
         root_names = [root_name]
@@ -174,20 +176,21 @@ class Project_Definition_Parser(object):
                 # Load the project definition by executing the contents of
                 # the file with altered module definitions. This should be safe
                 # since all relevant modules and context has been patched.
-                # pylint: disable=exec-used,broad-except
+                # pylint: disable=exec-used
                 try:
                     exec(contents)
                 except SyntaxError as exception:
                     # Most syntax errors have correct line marker information
                     if exception.text is None:
-                        self.format_exception(contents)
+                        raise self.format_exception(contents)
                     else:
-                        self.format_exception(contents, emulate_context=False)
+                        raise self.format_exception(contents,
+                                                    emulate_context=False)
                 except Exception:
                     # Because of string execution, the line number of the
                     # exception becomes incorrect. Attempt to emulate the
                     # context display using traceback extraction.
-                    self.format_exception(contents)
+                    raise self.format_exception(contents)
 
     def parse(self):
         """
