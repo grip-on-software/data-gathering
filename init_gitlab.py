@@ -8,7 +8,7 @@ from ConfigParser import RawConfigParser
 import logging
 import os
 import gitlab3
-from gatherer.domain import Project
+from gatherer.domain import Project, Source
 from gatherer.git import Git_Repository
 from gatherer.log import Log_Setup
 
@@ -82,7 +82,8 @@ def upload(project, url, repo, repo_name, repo_directory):
     Upload a local repository to the archived repository.
     """
 
-    git = Git_Repository(repo_name, os.path.join(repo_directory, repo))
+    source = Source.from_type('git', name=repo_name, url=url)
+    git = Git_Repository(source, os.path.join(repo_directory, repo))
     if git.exists():
         project_name = project.gitlab_group_name
         url = '{0}{1}/{2}.git'.format(url, project_name, repo_name)
@@ -104,7 +105,8 @@ def get_git_directories(repo_directory, subdirectory=''):
     for name in os.listdir(search_directory):
         path = os.path.join(search_directory, name)
         if os.path.isdir(path):
-            git = Git_Repository(name, path)
+            source = Source.from_type('git', name=name)
+            git = Git_Repository(source, path)
             if git.exists():
                 directories.append(os.path.join(subdirectory, name))
             elif subdirectory == '':

@@ -7,7 +7,54 @@ import json
 import os
 from .source import Source, GitLab
 
-class Project(object):
+class Project_Meta(object):
+    """
+    Class that holds information that may span multiple projects.
+    """
+
+    _settings = None
+    _project_definitions = None
+
+    @classmethod
+    def _init_settings(cls):
+        cls._settings = ConfigParser.RawConfigParser()
+        cls._settings.read("settings.cfg")
+
+    @property
+    def settings(self):
+        """
+        Retrieve the parsed settings of the data gathering pipeline.
+        """
+
+        if self._settings is None:
+            self._init_settings()
+
+        return self._settings
+
+    @classmethod
+    def _init_project_definitions(cls):
+        if cls._settings is None:
+            cls._init_settings()
+
+        source_type = cls._settings.get('definitions', 'source_type')
+        name = cls._settings.get('definitions', 'name')
+        url = cls._settings.get('definitions', 'url')
+        cls._project_definitions = Source.from_type(source_type,
+                                                    name=name, url=url)
+
+    @property
+    def project_definitions_source(self):
+        """
+        Retrieve a `Source` object that describes the project definitions
+        version control system.
+        """
+
+        if self._project_definitions is None:
+            self._init_project_definitions()
+
+        return self._project_definitions
+
+class Project(Project_Meta):
     """
     Object that holds information about a certain project.
 
@@ -19,12 +66,8 @@ class Project(object):
     can be accessed.
     """
 
-    _settings = None
-
     def __init__(self, project_key, follow_host_change=True):
-        if self._settings is None:
-            self._settings = ConfigParser.RawConfigParser()
-            self._settings.read("settings.cfg")
+        super(Project, self).__init__()
 
         # JIRA project key
         self._project_key = project_key
@@ -40,8 +83,8 @@ class Project(object):
         self._load_sources()
 
     def _get_setting(self, group):
-        if self._settings.has_option(group, self._project_key):
-            return self._settings.get(group, self._project_key)
+        if self.settings.has_option(group, self._project_key):
+            return self.settings.get(group, self._project_key)
         else:
             return None
 

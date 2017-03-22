@@ -19,8 +19,9 @@ class Collector(object):
                  **options):
         self._project = project
         self._update_tracker = Update_Tracker(self._project, target=target)
-        self._repo = Subversion_Repository('kwaliteitsmetingen', repo_path,
-                                           stats=False)
+        self._repo = Subversion_Repository(project.project_definitions_source,
+                                           repo_path, stats=False,
+                                           project=self._project)
         self._filename = '{}/project_definition.py'.format(project.quality_metrics_name)
 
         self._options = options

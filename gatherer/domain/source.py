@@ -77,7 +77,10 @@ class Source(object):
         self._credentials_path = None
 
         self._url = None
-        self._host = self._update_credentials()[1]
+        if self._plain_url is None:
+            self._host = None
+        else:
+            self._host = self._update_credentials()[1]
 
     @classmethod
     def _init_credentials(cls):
