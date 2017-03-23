@@ -37,6 +37,8 @@ class Topdesk_Parser(object):
     Topdesk CSV dump reader and reservations exporter.
     """
 
+    PROJECT_ALL = 'all'
+
     _first_name = r'\p{Lu}(?:\p{Ll}+|\.)'
     _last_name = r'\p{Lu}\p{Ll}{2,}'
     _full_name = _first_name + r'(?: van(?: t| de| den| der)?| de)? ' + \
@@ -61,12 +63,23 @@ class Topdesk_Parser(object):
             (key, name.decode('string-escape'))
             for (key, name) in self._config.items('names')
         ]
-        self._whitelist = [
-            (project_key, regex.compile(search, flags=regex.IGNORECASE))
+        whitelist = [
+            (project_key.upper(), regex.compile(search, flags=regex.IGNORECASE))
             for project_key, search in self._config.items('whitelist')
         ]
+        self._whitelist = list(sorted(whitelist, key=self._sort_whitelist))
         blacklist = self._config.get('blacklist', 'all')
         self._blacklist = regex.compile(blacklist, flags=regex.IGNORECASE)
+
+    def _sort_whitelist(self, pair):
+        if pair[0] == self.PROJECT_ALL.upper():
+            # Sort last
+            return (True,)
+        elif pair[0] == self._project_key:
+            # Sort first
+            return -1
+        else:
+            return pair[0]
 
     @staticmethod
     def parse_date(date):
@@ -112,8 +125,9 @@ class Topdesk_Parser(object):
         whitelisted = False
         for project_key, whitelist in self._whitelist:
             if whitelist.search(fields['description']):
+                logging.debug('Whitelisted as %s: %s', project_key, fields['description'])
                 whitelisted = True
-                if project_key != 'all':
+                if project_key != self.PROJECT_ALL.upper():
                     fields['project'] = project_key
                     break
 
