@@ -182,7 +182,7 @@ class GitLab_Repository(Git_Repository):
         if hasattr(repo_project, 'star_count'):
             star_count = str(repo_project.star_count)
         else:
-            start_count = str(0)
+            star_count = str(0)
 
         self._tables["gitlab_repo"] = [
             {
@@ -192,7 +192,7 @@ class GitLab_Repository(Git_Repository):
                 'create_time': format_date(repo_project.created_at),
                 'archived': archived,
                 'has_avatar': has_avatar,
-                'star_count': str(repo_project.star_count)
+                'star_count': star_count
             }
         ]
 
