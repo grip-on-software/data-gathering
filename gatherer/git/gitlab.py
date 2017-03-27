@@ -233,9 +233,9 @@ class GitLab_Repository(Git_Repository):
             'commit_id': str(commit_id),
             'author': note['author']['name'],
             'comment': parse_unicode(note['note']),
-            'file': note['path'],
-            'line': str(note['line']),
-            'line_type': note['line_type']
+            'file': note['path'] if note['path'] is not None else str(0),
+            'line': str(note['line']) if note['line'] is not None else str(0),
+            'line_type': note['line_type'] if note['line_type'] is not None else str(0)
         })
 
     def parse_commit(self, commit):
