@@ -174,7 +174,15 @@ class GitLab_Repository(Git_Repository):
         else:
             has_avatar = str(0)
 
-        archived = str(1) if repo_project.archived else str(0)
+        if repo_project.archived:
+            archived = str(1)
+        else:
+            archived = str(0)
+
+        if hasattr(repo_project, 'star_count'):
+            star_count = str(repo_project.star_count)
+        else:
+            start_count = str(0)
 
         self._tables["gitlab_repo"] = [
             {
