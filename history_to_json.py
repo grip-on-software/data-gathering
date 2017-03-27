@@ -30,16 +30,17 @@ def parse_args():
     parser.add_argument("--start-from", dest="start_from", type=int,
                         default=None, help="line number to start reading from")
 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--url", default=None,
-                       help="url prefix to obtain the file from")
-    group.add_argument("--export-url", default=None, dest="export_url",
-                       nargs='?', const=True,
-                       help="url prefix to use as a reference rather than reading all data")
-    group.add_argument("--file", help="local file to read from")
-    group.add_argument("--export-path", default=None, dest="export_path",
-                       nargs='?', const=True,
-                       help="path prefix to use as a reference rather than reading all data")
+    url_group = parser.add_mutually_exclusive_group()
+    url_group.add_argument("--url", default=None,
+                           help="url prefix to obtain the file from")
+    url_group.add_argument("--export-url", default=None, dest="export_url",
+                           nargs='?', const=True,
+                           help="url prefix to use as a reference rather than reading all data")
+    path_group = parser.add_mutually_exclusive_group()
+    path_group.add_argument("--file", help="local file to read from")
+    path_group.add_argument("--export-path", default=None, dest="export_path",
+                            nargs='?', const=True,
+                            help="path prefix to use as a reference rather than reading all data")
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -118,13 +119,20 @@ def get_data_source(project, args):
 
     if args.export_path is not None:
         export_path = get_setting(config, args.export_path, 'path', project)
-        yield make_path(project, export_path) + "|"
+        if export_path != "" and os.path.exists(export_path):
+            logging.info('Found metrics history path: %s', export_path)
+            yield make_path(project, export_path) + "|"
+            return
     elif args.file is not None:
         yield open(args.file, 'r')
-    elif args.export_url is not None:
+        return
+
+    if args.export_url is not None:
         export_url = get_setting(config, args.export_url, 'url', project)
-        yield make_path(project, export_url)
-    else:
+        if export_url != "":
+            logging.info('Found metrics history URL: %s', export_url)
+            yield make_path(project, export_url)
+    elif args.url is not None:
         url_prefix = get_setting(config, args.url, 'url', project)
         url = make_path(project, url_prefix)
         request = requests.get(url)

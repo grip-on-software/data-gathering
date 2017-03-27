@@ -160,7 +160,7 @@ do
 	export_handler jira_to_json.py $project --log $logLevel
 	export_handler gitlab_sources.py $project --log $logLevel
 	export_handler git_to_json.py $project --log $logLevel
-	export_handler history_to_json.py $project --export-path --log $logLevel
+	export_handler history_to_json.py $project --export-path --export-url --log $logLevel
 	export_handler metric_options_to_json.py $project --context -1 --log $logLevel
 	status_handler java -Dimporter.log=$logLevel -jar importerjson.jar $project $importerTasks
 
