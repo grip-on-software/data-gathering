@@ -60,7 +60,7 @@ def main():
 
     collector = Sources_Collector(project, args.repo,
                                   context_lines=args.context)
-    if args.all:
+    if args.all or args.from_revision is not None or args.to_revision is not None:
         collector.collect(args.from_revision, args.to_revision)
     else:
         latest_version = collector.repo.get_latest_version()

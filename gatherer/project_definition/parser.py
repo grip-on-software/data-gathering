@@ -308,7 +308,7 @@ class Sources_Parser(Project_Definition_Parser):
             if isinstance(key, (metric_source.Git, metric_source.Subversion)):
                 class_name = self.get_class_name(type(key))
                 source_url = key.url()
-                if source_url is None:
+                if source_url is None or value.startswith(source_url):
                     source_url = value
 
                 sources[class_name] = source_url
