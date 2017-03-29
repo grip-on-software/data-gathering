@@ -22,6 +22,11 @@ if [ -z "$cleanupRepos" ]; then
 	cleanupRepos="false"
 fi
 
+# Declare data gathering skip
+if [ -z "$skipGather" ]; then
+	skipGather="false"
+fi
+
 # Declare restore files, populated with update files later on
 restoreFiles=""
 currentProject=""
@@ -156,12 +161,14 @@ do
 	mkdir -p export/$project
 	mkdir -p project-git-repos/$project
 
-	export_handler project_sources.py $project --log $logLevel
-	export_handler jira_to_json.py $project --log $logLevel
-	export_handler gitlab_sources.py $project --log $logLevel
-	export_handler git_to_json.py $project --log $logLevel
-	export_handler history_to_json.py $project --export-path --export-url --log $logLevel
-	export_handler metric_options_to_json.py $project --context -1 --log $logLevel
+	if [ $skipGather = "true" ]; then
+		export_handler project_sources.py $project --log $logLevel
+		export_handler jira_to_json.py $project --log $logLevel
+		export_handler gitlab_sources.py $project --log $logLevel
+		export_handler git_to_json.py $project --log $logLevel
+		export_handler history_to_json.py $project --export-path --log $logLevel
+		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
+	fi
 	status_handler java -Dimporter.log=$logLevel -jar importerjson.jar $project $importerTasks
 
 	if [ $cleanupRepos = "true" ]; then
