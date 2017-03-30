@@ -161,7 +161,7 @@ do
 	mkdir -p export/$project
 	mkdir -p project-git-repos/$project
 
-	if [ $skipGather = "true" ]; then
+	if [ $skipGather = "false" ]; then
 		export_handler project_sources.py $project --log $logLevel
 		export_handler jira_to_json.py $project --log $logLevel
 		export_handler gitlab_sources.py $project --log $logLevel
@@ -169,7 +169,7 @@ do
 		export_handler history_to_json.py $project --export-path --log $logLevel
 		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
 	fi
-	status_handler java -Dimporter.log=$logLevel -jar importerjson.jar $project $importerTasks
+	status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" -jar importerjson.jar $project $importerTasks
 
 	if [ $cleanupRepos = "true" ]; then
 		rm -rf project-git-repos/$project
