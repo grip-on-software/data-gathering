@@ -71,7 +71,7 @@ class Repositories_Holder(object):
             else:
                 latest_version = None
 
-            version_data.extend(repo.get_versions(from_revision=latest_version))
+            version_data.extend(repo.get_data(from_revision=latest_version))
             self._latest_versions[repo.repo_name] = repo.get_latest_version()
             for table_name, table_data in repo.tables.iteritems():
                 if table_name not in tables:
@@ -104,14 +104,14 @@ class Version_Control_Repository(object):
     Abstract repository interface for a version control system.
     """
 
-    def __init__(self, source, repo_directory, sprints=None, stats=True,
+    def __init__(self, source, repo_directory, sprints=None, project=None,
                  **kwargs):
         self._source = source
         self._repo_name = source.name
         self._repo_directory = repo_directory
 
         self._sprints = sprints
-        self._retrieve_stats = stats
+        self._project = project
         self._options = kwargs
         self._tables = {}
 
@@ -163,13 +163,14 @@ class Version_Control_Repository(object):
         return self._repo_directory
 
     @property
-    def retrieve_stats(self):
+    def project(self):
         """
-        Check wether the metadata-retrieving methods should also retrieve
-        file difference statistics from the repository.
+        Retrieve the `Project` domain object for this repository, in case the
+        repository is known to belong to a project. Otherwise, this property
+        returns `None`.
         """
 
-        return self._retrieve_stats
+        return self._project
 
     @property
     def version_info(self):
@@ -216,7 +217,8 @@ class Version_Control_Repository(object):
 
         return self._tables
 
-    def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
+    def get_versions(self, filename='', from_revision=None, to_revision=None,
+                     descending=False, **kwargs):
         """
         Retrieve metadata about each version in the repository, or those that
         change a specific file path `filename`.
@@ -224,9 +226,24 @@ class Version_Control_Repository(object):
         The range of the versions to retrieve can be set with `from_revision`
         and `to_revision`, both are optional. The log is sorted by commit date,
         either newest first (`descending`) or not (default).
+
+        An additional argument may be `stats`, which determines whether to
+        retrieve file difference statistics from the repository. This argument
+        and other VCS-specific arguments are up to the called method to adhere.
         """
 
         raise NotImplementedError("Must be implemented by subclass")
+
+    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+        """
+        Retrieve version and auxiliary data from the repository.
+        """
+
+        return self.get_versions(from_revision=from_revision,
+                                 to_revision=to_revision, **kwargs)
+
+    def _parse_version(self, data, **kwargs):
+        raise NotImplementedError("Must be implemented by subclasses")
 
     def _get_sprint_id(self, commit_datetime):
         if self._sprints is not None:

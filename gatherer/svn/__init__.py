@@ -87,7 +87,8 @@ class Subversion_Repository(Version_Control_Repository):
                                      revision_to=to_revision,
                                      limit=self._iterator_limiter.size)
 
-    def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
+    def get_versions(self, filename='trunk', from_revision=None,
+                     to_revision=None, descending=False, **kwargs):
         """
         Retrieve data about each version of a specific file path `filename`.
 
@@ -110,7 +111,8 @@ class Subversion_Repository(Version_Control_Repository):
             had_versions = False
             for entry in log:
                 had_versions = True
-                new_version = self._parse_entry(entry)
+                new_version = self._parse_version(entry, filename=filename,
+                                                  **kwargs)
                 versions.append(new_version)
 
             count = self._iterator_limiter.size + self._iterator_limiter.skip
@@ -142,7 +144,7 @@ class Subversion_Repository(Version_Control_Repository):
         return sorted(versions, key=lambda version: version['version_id'],
                       reverse=descending)
 
-    def _parse_entry(self, entry, filename=''):
+    def _parse_version(self, entry, filename='', stats=True, **kwargs):
         # Convert to local timestamp
         commit_date = entry.date.replace(tzinfo=dateutil.tz.tzutc())
         commit_datetime = commit_date.astimezone(dateutil.tz.tzlocal())
@@ -160,10 +162,10 @@ class Subversion_Repository(Version_Control_Repository):
             'commit_date': format_date(commit_datetime)
         }
 
-        if self.retrieve_stats:
-            stats = self.get_diff_stats(filename=filename,
-                                        to_revision=version['version_id'])
-            version.update(stats)
+        if stats:
+            diff_stats = self.get_diff_stats(filename=filename,
+                                             to_revision=version['version_id'])
+            version.update(diff_stats)
 
         return version
 

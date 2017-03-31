@@ -20,8 +20,7 @@ class Collector(object):
         self._project = project
         self._update_tracker = Update_Tracker(self._project, target=target)
         self._repo = Subversion_Repository(project.project_definitions_source,
-                                           repo_path, stats=False,
-                                           project=self._project)
+                                           repo_path, project=self._project)
         self._filename = '{}/project_definition.py'.format(project.quality_metrics_name)
 
         self._options = options
@@ -43,7 +42,7 @@ class Collector(object):
         versions = self._repo.get_versions(self._filename,
                                            from_revision=from_revision,
                                            to_revision=to_revision,
-                                           descending=False)
+                                           descending=False, stats=False)
         end_revision = None
         for version in versions:
             logging.debug('Collecting version %s', version['version_id'])

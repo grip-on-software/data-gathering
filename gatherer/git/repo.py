@@ -173,11 +173,19 @@ class Git_Repository(Version_Control_Repository):
 
         return None
 
-    def get_versions(self, filename='', from_revision=None, to_revision=None, descending=False):
+    def get_versions(self, filename='', from_revision=None, to_revision=None,
+                     descending=False, **kwargs):
         refspec = self._get_refspec(from_revision, to_revision)
-        return self._parse(refspec, paths=filename, descending=descending)
+        return self._parse(refspec, paths=filename, descending=descending, **kwargs)
 
-    def _parse(self, refspec, paths='', descending=True):
+    def get_data(self, **kwargs):
+        versions = super(Git_Repository, self).get_data(**kwargs)
+
+        self._parse_tags()
+
+        return versions
+
+    def _parse(self, refspec, paths='', descending=True, **kwargs):
         self._reset_limiter()
 
         version_data = []
@@ -190,7 +198,7 @@ class Git_Repository(Version_Control_Repository):
             for commit in commits:
                 had_commits = True
                 count += 1
-                version_data.append(self.parse_commit(commit))
+                version_data.append(self._parse_version(commit, **kwargs))
 
                 if count % self.LOG_SIZE == 0:
                     logging.info('Analysed commits up to %d', count)
@@ -202,12 +210,9 @@ class Git_Repository(Version_Control_Repository):
             if self._iterator_limiter.check(had_commits):
                 commits = self._query(refspec, paths=paths, descending=descending)
 
-        if self.retrieve_stats:
-            self._parse_tags()
-
         return version_data
 
-    def parse_commit(self, commit):
+    def _parse_version(self, commit, stats=True, **kwargs):
         """
         Convert one commit instance to a dictionary of properties.
         """
@@ -231,9 +236,8 @@ class Git_Repository(Version_Control_Repository):
             'commit_date': format_date(commit_datetime)
         }
 
-        if self.retrieve_stats:
+        if stats:
             git_commit.update(self._get_diff_stats(commit))
-
 
         return git_commit
 

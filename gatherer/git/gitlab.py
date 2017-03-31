@@ -37,10 +37,6 @@ class GitLab_Repository(Git_Repository):
             "commit_comment": Table('commit_comment')
         })
 
-        # Check if we can retrieve the data from commit comments.
-        if self._check_dropin_files(project):
-            self._has_commit_comments = False
-
     def _check_dropin_files(self, project=None):
         if project is None:
             return False
@@ -150,18 +146,24 @@ class GitLab_Repository(Git_Repository):
 
         return self._repo_project
 
-    def _parse(self, refspec, **kwargs):
-        version_data = super(GitLab_Repository, self)._parse(refspec, **kwargs)
+    def get_data(self, **kwargs):
+        # Check if we can retrieve the data from legacy dropin files.
+        if self._check_dropin_files(self.project):
+            comments = False
+        else:
+            comments = True
 
-        if self.retrieve_stats:
-            self._fill_repo_table(self.repo_project)
+        versions = super(GitLab_Repository, self).get_data(comments=comments,
+                                                           **kwargs)
 
-            for merge_request in self.repo_project.merge_requests():
-                self._add_merge_request(merge_request)
-                for note in merge_request.notes():
-                    self._add_note(note, merge_request.id)
+        self._fill_repo_table(self.repo_project)
 
-        return version_data
+        for merge_request in self.repo_project.merge_requests():
+            self._add_merge_request(merge_request)
+            for note in merge_request.notes():
+                self._add_note(note, merge_request.id)
+
+        return versions
 
     def _fill_repo_table(self, repo_project):
         # Skip filling the repo table if it was already filled from a dropin.
@@ -242,12 +244,12 @@ class GitLab_Repository(Git_Repository):
             'line_type': note['line_type'] if note['line_type'] is not None else str(0)
         })
 
-    def parse_commit(self, commit):
-        git_commit = super(GitLab_Repository, self).parse_commit(commit)
+    def _parse_version(self, commit, comments=True, **kwargs):
+        data = super(GitLab_Repository, self)._parse_version(commit, **kwargs)
 
-        if self._has_commit_comments and self.retrieve_stats:
-            comments = self.repo_project.get_comments(commit.hexsha)
-            for comment in comments:
+        if self._has_commit_comments and comments:
+            commit_comments = self.repo_project.get_comments(commit.hexsha)
+            for comment in commit_comments:
                 self._add_commit_comment(comment, commit.hexsha)
 
-        return git_commit
+        return data
