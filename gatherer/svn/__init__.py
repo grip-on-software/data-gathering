@@ -67,7 +67,7 @@ class Subversion_Repository(Version_Control_Repository):
     @property
     def version_info(self):
         if self._version_info is None:
-            version = self.repo.run_command('--version', ['--quiet'])
+            version = self.repo.run_command('--version', ['--quiet'])[0]
             self._version_info = tuple(
                 int(number) for number in version.split('.') if number.isdigit
             )
