@@ -2,12 +2,13 @@
 Module that handles access to and remote updates of a Git repository.
 """
 
+import datetime
 import logging
 import os
-import dateutil.tz
 from git import Repo, InvalidGitRepositoryError, NoSuchPathError
 from .progress import Git_Progress
-from ..utils import format_date, parse_unicode, Iterator_Limiter
+from ..table import Key_Table
+from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
 
 class Git_Repository(Version_Control_Repository):
@@ -29,6 +30,9 @@ class Git_Repository(Version_Control_Repository):
 
         self._iterator_limiter = None
         self._reset_limiter()
+        self._tables.update({
+            "tag": Key_Table('tag', 'tag_name')
+        })
 
     def _reset_limiter(self):
         self._iterator_limiter = Iterator_Limiter(size=self.BATCH_SIZE)
@@ -198,15 +202,17 @@ class Git_Repository(Version_Control_Repository):
             if self._iterator_limiter.check(had_commits):
                 commits = self._query(refspec, paths=paths, descending=descending)
 
-        return version_data
+        if self.retrieve_stats:
+            self._parse_tags()
 
+        return version_data
 
     def parse_commit(self, commit):
         """
         Convert one commit instance to a dictionary of properties.
         """
 
-        commit_datetime = commit.committed_datetime.astimezone(dateutil.tz.tzlocal())
+        commit_datetime = convert_local_datetime(commit.committed_datetime)
 
         commit_type = str(commit.type)
         if len(commit.parents) > 1:
@@ -220,7 +226,7 @@ class Git_Repository(Version_Control_Repository):
             # Additional data
             'message': parse_unicode(commit.message),
             'type': commit_type,
-            'developer': commit.author.name,
+            'developer': parse_unicode(commit.author.name),
             'developer_email': str(commit.author.email),
             'commit_date': format_date(commit_datetime)
         }
@@ -243,6 +249,28 @@ class Git_Repository(Version_Control_Repository):
             'number_of_lines': str(cstotal['lines']),
             'size': str(commit.size)
         }
+
+    def _parse_tags(self):
+        for tag_ref in self.repo.tags:
+            tag_data = {
+                'tag_name': tag_ref.name,
+                'commit_id': str(tag_ref.commit.hexsha),
+                'message': str(0),
+                'tagged_date': str(0),
+                'tagger': str(0),
+                'tagger_email': str(0)
+            }
+            if tag_ref.tag is not None:
+                tag_data['message'] = parse_unicode(tag_ref.tag.message)
+
+                tag_timestamp = tag_ref.tag.tagged_date
+                tagged_datetime = datetime.datetime.fromtimestamp(tag_timestamp)
+                tag_data['tagged_date'] = format_date(tagged_datetime)
+
+                tag_data['tagger'] = parse_unicode(tag_ref.tag.tagger.name)
+                tag_data['tagger_email'] = str(tag_ref.tag.tagger.email)
+
+            self._tables['tag'].append(tag_data)
 
     def get_latest_version(self):
         return self.repo.rev_parse('master').hexsha

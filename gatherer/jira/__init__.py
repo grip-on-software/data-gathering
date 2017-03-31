@@ -14,8 +14,8 @@ from .parser import Int_Parser, String_Parser, Boolean_Parser, Date_Parser, \
     Flag_Parser, Ready_Status_Parser, Labels_Parser
 from .query import Query
 from .special_field import Special_Field
-from .table import Table, Key_Table, Link_Table
 from .update import Updated_Time, Update_Tracker
+from ..table import Table, Key_Table, Link_Table
 
 __all__ = ["Jira"]
 
@@ -161,7 +161,7 @@ class Jira(object):
 
         The `table_source` may additionally provide a table key, which can be
         `None`, a string or a tuple, which causes this method to register either
-        a normal `Table`, `Key_Table` or  `Link_Table`, respectively. Note that
+        a normal `Table`, `Key_Table` or `Link_Table`, respectively. Note that
         if the type cast parser has a table key or no table source is given at
         all, then this check also falls back to the type cast parser.
 

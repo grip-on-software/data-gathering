@@ -73,11 +73,11 @@ class Repositories_Holder(object):
 
             version_data.extend(repo.get_versions(from_revision=latest_version))
             self._latest_versions[repo.repo_name] = repo.get_latest_version()
-            for table, table_data in repo.tables.iteritems():
-                if table not in tables:
-                    tables[table] = []
+            for table_name, table_data in repo.tables.iteritems():
+                if table_name not in tables:
+                    tables[table_name] = []
 
-                tables[table].extend(table_data)
+                tables[table_name].extend(table_data.get())
 
         self._export(version_data, tables)
 

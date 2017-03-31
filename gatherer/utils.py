@@ -175,6 +175,13 @@ def get_local_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
     parsed_date = datetime.strptime(date, date_format)
     return parsed_date.replace(tzinfo=dateutil.tz.tzlocal())
 
+def convert_local_datetime(date):
+    """
+    Convert a datetime object `date` to one that is in the local timezone.
+    """
+
+    return date.astimezone(dateutil.tz.tzlocal())
+
 def format_date(date, date_format='%Y-%m-%d %H:%M:%S'):
     """
     Format a datetime object in a standard YYYY-MM-DD HH:MM:SS format or
