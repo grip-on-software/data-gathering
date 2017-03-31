@@ -195,8 +195,9 @@ class Subversion_Repository(Version_Control_Repository):
 
         # Ignore property changes since they are maintenance/automatic changes
         # that need not count toward diff changes.
+        args = []
         if self.version_info >= (1, 8):
-            args = ['--ignore-properties']
+            args.append('--ignore-properties')
 
         if from_revision is None and to_revision is None:
             args.append(path)
