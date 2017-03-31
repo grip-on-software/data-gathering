@@ -259,7 +259,7 @@ class Git_Repository(Version_Control_Repository):
             tag_data = {
                 'repo_name': str(self._repo_name),
                 'tag_name': tag_ref.name,
-                'commit_id': str(tag_ref.commit.hexsha),
+                'version_id': str(tag_ref.commit.hexsha),
                 'message': str(0),
                 'tagged_date': str(0),
                 'tagger': str(0),

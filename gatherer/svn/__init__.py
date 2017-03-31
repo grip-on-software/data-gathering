@@ -11,6 +11,7 @@ import svn.common
 import svn.local
 import svn.remote
 
+from ..table import Key_Table
 from ..utils import format_date, parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
 
@@ -28,6 +29,9 @@ class Subversion_Repository(Version_Control_Repository):
         self._version_info = None
         self._iterator_limiter = None
         self._reset_limiter()
+        self._tables.update({
+            "tag": Key_Table('tag', 'tag_name')
+        })
 
     def _reset_limiter(self):
         self._iterator_limiter = Iterator_Limiter()
@@ -86,6 +90,13 @@ class Subversion_Repository(Version_Control_Repository):
                                      revision_from=from_revision,
                                      revision_to=to_revision,
                                      limit=self._iterator_limiter.size)
+
+    def get_data(self, **kwargs):
+        versions = super(Subversion_Repository, self).get_data(**kwargs)
+
+        self._parse_tags()
+
+        return versions
 
     def get_versions(self, filename='trunk', from_revision=None,
                      to_revision=None, descending=False, **kwargs):
@@ -239,6 +250,25 @@ class Subversion_Repository(Version_Control_Repository):
             'number_of_files': str(number_of_files),
             'size': str(size)
         }
+
+    def _parse_tags(self):
+        try:
+            for tag in self.repo.list(extended=True, rel_path='tags'):
+                # Convert to local timestamp
+                tagged_date = tag['date'].replace(tzinfo=dateutil.tz.tzutc())
+                tagged_datetime = tagged_date.astimezone(dateutil.tz.tzlocal())
+
+                self._tables['tag'].append({
+                    'repo_name': str(self._repo_name),
+                    'tag_name': tag['name'].rstrip('/'),
+                    'version_id': str(tag['commit_revision']),
+                    'message': str(0),
+                    'tagged_date': format_date(tagged_datetime),
+                    'tagger': tag['author'],
+                    'tagger_email': str(0)
+                })
+        except svn.common.SvnException:
+            logging.exception('Could not retrieve tags')
 
     def get_contents(self, filename, revision=None):
         """
