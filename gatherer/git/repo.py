@@ -253,6 +253,7 @@ class Git_Repository(Version_Control_Repository):
     def _parse_tags(self):
         for tag_ref in self.repo.tags:
             tag_data = {
+                'repo_name': str(self._repo_name),
                 'tag_name': tag_ref.name,
                 'commit_id': str(tag_ref.commit.hexsha),
                 'message': str(0),
