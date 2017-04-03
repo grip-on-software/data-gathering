@@ -4,7 +4,7 @@ COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg jen
 COPY gatherer/ /home/agent/gatherer/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent
-RUN apk --update add gcc musl-dev libxml2-dev libxslt-dev bash git subversion openssh-client gettext
+RUN apk --update add gcc musl-dev libxml2-dev libxslt-dev bash git subversion openssh-client openvpn gettext busybox-suid
 RUN pip install -r /home/agent/requirements.txt
 RUN apk del gcc musl-dev && rm -rf /var/cache/apk/* /tmp/
 
