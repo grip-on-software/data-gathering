@@ -214,8 +214,8 @@ def parse_unicode(text):
     Convert unicode `text` to a string without invalid unicode characters.
     """
 
-    data = text.decode('utf-8', 'replace')
-    return data.encode('utf-8', 'replace')
+    data = text.encode('utf-8', 'replace')
+    return data.decode('utf-8', 'replace')
 
 def parse_svn_revision(rev):
     """
