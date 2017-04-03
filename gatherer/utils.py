@@ -209,13 +209,11 @@ def parse_date(date):
 
 def parse_unicode(text):
     """
-    Convert unicode `text` to a string without unicode characters.
+    Convert unicode `text` to a string without invalid unicode characters.
     """
 
-    if isinstance(text, unicode):
-        return text.encode('utf8', 'replace')
-
-    return str(text)
+    data = text.decode('utf-8', 'replace')
+    return data.encode('utf-8', 'replace')
 
 def parse_svn_revision(rev):
     """
