@@ -2,6 +2,7 @@
 Utilities for comparing and analyzing metric options.
 """
 
+from builtins import object
 import json
 
 class Metric_Difference(object):
@@ -27,7 +28,7 @@ class Metric_Difference(object):
         # Detect whether the metrics and definitions have changed
         if metric_targets != self._previous_metric_targets:
             self._unique_versions.append(version)
-            for name, metric_target in metric_targets.iteritems():
+            for name, metric_target in metric_targets.items():
                 if name in self._previous_metric_targets:
                     previous_metric_target = self._previous_metric_targets[name]
                 else:

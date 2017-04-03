@@ -3,8 +3,14 @@ Script to parse historical project definitions and extract metric targets from
 these versions into JSON output.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
 import argparse
-import ConfigParser
+import configparser
 import logging
 
 from gatherer.domain import Project
@@ -41,7 +47,7 @@ def main():
     Main entry point.
     """
 
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser()
     config.read("settings.cfg")
     args = parse_args()
 

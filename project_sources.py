@@ -3,6 +3,7 @@ Script to parse current project definitions and extract metric sources from
 the products and components.
 """
 
+from builtins import str
 import argparse
 import logging
 

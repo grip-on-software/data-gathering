@@ -2,6 +2,7 @@
 Field definitions that fetch fields from JIRA API issue results.
 """
 
+from builtins import str
 from .base import Base_Jira_Field, Base_Changelog_Field
 
 ###
@@ -138,7 +139,7 @@ class Property_Field(Payload_Field):
             payload_field = super(Property_Field, self).fetch(issue)
             row = {self.data["property"]: field}
             has_data = False
-            for name, datatype in self.data["table"].iteritems():
+            for name, datatype in self.data["table"].items():
                 if hasattr(payload_field, name):
                     has_data = True
                     prop = getattr(payload_field, name)

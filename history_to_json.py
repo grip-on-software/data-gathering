@@ -3,8 +3,15 @@ Script to obtain a metrics history file and convert it to a JSON format
 readable by the database importer.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
+from builtins import bytes
 import argparse
-import ConfigParser
+import configparser
 from contextlib import contextmanager
 import ast
 import gzip
@@ -114,7 +121,7 @@ def get_data_source(project, args):
     Yield an open file containing the historical metric values of the project.
     """
 
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser()
     config.read("settings.cfg")
 
     if args.export_path is not None:

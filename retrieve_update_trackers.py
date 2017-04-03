@@ -2,8 +2,14 @@
 Script to retrieve update tracker files from the database for synchronization.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
 import argparse
-from ConfigParser import RawConfigParser
+from configparser import RawConfigParser
 import datetime
 import logging
 import os

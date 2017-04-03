@@ -2,7 +2,14 @@
 Project domain object
 """
 
-import ConfigParser
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
+from builtins import object
+import configparser
 import json
 import os
 from .source import Source, GitLab
@@ -17,7 +24,7 @@ class Project_Meta(object):
 
     @classmethod
     def _init_settings(cls):
-        cls._settings = ConfigParser.RawConfigParser()
+        cls._settings = configparser.RawConfigParser()
         cls._settings.read("settings.cfg")
 
     @property

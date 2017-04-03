@@ -3,6 +3,7 @@ Module that increases compatibility with earlier project definitions by
 augmenting the hqlib module with replacement domain objects.
 """
 
+from builtins import object
 import mock
 from hqlib import domain
 

@@ -3,10 +3,17 @@ Module that handles access to a GitLab-based repository, augmenting the usual
 repository version information with merge requests and commit comments.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
+from builtins import str
 import json
 import logging
 import os
-import urllib
+import urllib.parse
 import gitlab3
 from gitlab3.exceptions import GitLabException
 from .repo import Git_Repository
@@ -101,7 +108,7 @@ class GitLab_Repository(Git_Repository):
                 self._add_note(request.Note(request, json_data=note),
                                request.id)
 
-        for commit_id, comments in repo_data['commit_comments'].iteritems():
+        for commit_id, comments in repo_data['commit_comments'].items():
             commit = repo_project.Commit(repo_project,
                                          json_data=comments['commit_info'])
             commit_datetime = convert_local_datetime(commit.committed_date)
@@ -139,7 +146,7 @@ class GitLab_Repository(Git_Repository):
 
         if self._repo_project is None:
             try:
-                path = urllib.quote_plus(self._source.gitlab_path)
+                path = urllib.parse.quote_plus(self._source.gitlab_path)
                 self._repo_project = self.api.project(path)
             except AttributeError:
                 raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')

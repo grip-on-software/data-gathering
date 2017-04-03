@@ -2,6 +2,7 @@
 Utilities for tracking updates between versions of a project definition.
 """
 
+from builtins import object
 import json
 import os
 

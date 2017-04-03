@@ -3,8 +3,14 @@ Script for downloading the Java database importer from a URL and extracting it
 such that the Jenkins scraper can run all programs.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
 import argparse
-import ConfigParser
+import configparser
 import os
 import shutil
 from zipfile import ZipFile
@@ -16,7 +22,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser()
     config.read("settings.cfg")
 
     parser = argparse.ArgumentParser(description='Retrieve the database importer')

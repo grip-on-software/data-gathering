@@ -2,9 +2,16 @@
 Data source domain object
 """
 
-import ConfigParser
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
+from builtins import object
+import configparser
 import os
-import urlparse
+import urllib.parse
 from ..svn import Subversion_Repository
 from ..git import Git_Repository, GitLab_Repository
 
@@ -85,7 +92,7 @@ class Source(object):
     @classmethod
     def _init_credentials(cls):
         if cls._credentials is None:
-            cls._credentials = ConfigParser.RawConfigParser()
+            cls._credentials = configparser.RawConfigParser()
             cls._credentials.read("credentials.cfg")
 
     @classmethod
@@ -110,7 +117,7 @@ class Source(object):
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
         self._url = self._plain_url
-        orig_parts = urlparse.urlsplit(self._plain_url)
+        orig_parts = urllib.parse.urlsplit(self._plain_url)
         host = orig_parts.netloc
         if self._credentials.has_section(host):
             if self._follow_host_change:
@@ -129,7 +136,7 @@ class Source(object):
 
                 new_parts = (orig_parts.scheme, full_host, orig_parts.path,
                              orig_parts.query, orig_parts.fragment)
-                self._url = urlparse.urlunsplit(new_parts)
+                self._url = urllib.parse.urlunsplit(new_parts)
 
         return orig_parts, host
 
@@ -323,7 +330,7 @@ class GitLab(Git):
         Check whether a given URL is part of a GitLab instance.
         """
 
-        parts = urlparse.urlsplit(url)
+        parts = urllib.parse.urlsplit(url)
         return cls.is_gitlab_host(parts.netloc,
                                   follow_host_change=follow_host_change)
 
@@ -363,7 +370,7 @@ class GitLab(Git):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
         host_parts = (orig_parts.scheme, host, '', '', '')
-        self._gitlab_host = urlparse.urlunsplit(host_parts)
+        self._gitlab_host = urllib.parse.urlunsplit(host_parts)
         self._gitlab_path = self.remove_git_suffix(path)
 
         return orig_parts, host
@@ -375,13 +382,13 @@ class GitLab(Git):
             return repo_path
 
         # Parse the current URL to update its path.
-        url_parts = urlparse.urlsplit(self._url)
+        url_parts = urllib.parse.urlsplit(self._url)
         repo_path_name = repo_path.split('/', 1)[1]
         path = '{0}/{1}-{2}'.format(self._gitlab_group, self._gitlab_namespace,
                                     repo_path_name)
         new_parts = (url_parts.scheme, url_parts.netloc, path,
                      url_parts.query, url_parts.fragment)
-        self._url = urlparse.urlunsplit(new_parts)
+        self._url = urllib.parse.urlunsplit(new_parts)
         return path
 
     @property

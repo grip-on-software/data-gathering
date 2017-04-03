@@ -2,6 +2,7 @@
 Module for initializing logging.
 """
 
+from builtins import object
 import logging
 
 class Log_Setup(object):

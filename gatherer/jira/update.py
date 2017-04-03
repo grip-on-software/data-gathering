@@ -2,6 +2,7 @@
 Updated time trackers
 """
 
+from builtins import object
 import os
 from datetime import datetime
 

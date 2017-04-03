@@ -2,6 +2,7 @@
 Special field parsers.
 """
 
+from builtins import str
 import logging
 from .base import Base_Jira_Field, Base_Changelog_Field
 from ..utils import get_local_datetime
@@ -79,7 +80,7 @@ class Comment_Field(Special_Field):
             for comment in field.comments:
                 row = {}
                 is_newer = False
-                for subfield, datatype in self.info["table"].iteritems():
+                for subfield, datatype in self.info["table"].items():
                     if subfield in self.info["fields"]:
                         fieldname = self.info["fields"][subfield]
                     else:
@@ -199,7 +200,7 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
         }
         match_row = {}
         row = None
-        for relation, candidate in self._relations.iteritems():
+        for relation, candidate in self._relations.items():
             if relation in text:
                 # Find a row with this relation. We only stop if we find such
                 # a row, because we might have relations with conflicting

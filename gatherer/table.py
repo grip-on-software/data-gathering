@@ -2,6 +2,7 @@
 Table structures.
 """
 
+from builtins import object
 import json
 import os
 from copy import copy, deepcopy

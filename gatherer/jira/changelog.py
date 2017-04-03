@@ -2,6 +2,7 @@
 Module that handles issue changelog data.
 """
 
+from builtins import str, object
 import logging
 
 from .base import Base_Changelog_Field
@@ -56,7 +57,7 @@ class Changelog(object):
         for changes in changelog:
             diffs = {}
 
-            for field in self._changelog_primary_fields.itervalues():
+            for field in self._changelog_primary_fields.values():
                 value = field.parse_changelog(changes, diffs, issue)
                 if value is not None:
                     diffs[field.name] = value

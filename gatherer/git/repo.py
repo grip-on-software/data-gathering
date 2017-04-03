@@ -2,6 +2,7 @@
 Module that handles access to and remote updates of a Git repository.
 """
 
+from builtins import str
 import datetime
 import logging
 import os

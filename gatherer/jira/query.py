@@ -2,6 +2,7 @@
 Module that handles the JIRA API query.
 """
 
+from builtins import str, object
 from datetime import datetime
 from jira import JIRA
 from ..utils import format_date, Iterator_Limiter

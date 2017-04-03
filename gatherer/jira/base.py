@@ -2,15 +2,15 @@
 Abstract base classes that other objects inherit.
 """
 
+from builtins import object
 from abc import ABCMeta, abstractproperty
+from future.utils import with_metaclass
 
-class Table_Source(object):
+class Table_Source(with_metaclass(ABCMeta, object)):
     """
     Abstract mixin class that indicates that subclasses might provide
     registration data for use in a `Table` instance.
     """
-
-    __metaclass__ = ABCMeta
 
     @abstractproperty
     def table_key(self):

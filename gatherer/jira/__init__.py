@@ -2,6 +2,7 @@
 Package for classes and utilities related to extracting data from the JIRA API.
 """
 
+from builtins import object
 import json
 import os
 from copy import copy
@@ -128,7 +129,7 @@ class Jira(object):
         with open("jira_fields.json", "r") as fields_file:
             fields = json.load(fields_file)
 
-        for name, data in fields.iteritems():
+        for name, data in fields.items():
             field = self._make_issue_field(name, data)
             if field is not None:
                 self._issue_fields[name] = field
@@ -282,7 +283,7 @@ class Jira(object):
         """
 
         data = {}
-        for name, field in self._issue_fields.iteritems():
+        for name, field in self._issue_fields.items():
             result = field.parse(issue)
             if result is not None:
                 data[name] = result
@@ -294,7 +295,7 @@ class Jira(object):
         Export all data to separate table-based JSON output files.
         """
 
-        for table in self._tables.itervalues():
+        for table in self._tables.values():
             table.write(self._project.export_key)
 
     def process(self, username, password, options):

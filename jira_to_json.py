@@ -3,8 +3,14 @@ Script to retrieve JIRA issue data and convert it to JSON format readable by
 the database importer.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
 import argparse
-import ConfigParser
+import configparser
 from gatherer.jira import Jira, Updated_Time, Update_Tracker
 from gatherer.log import Log_Setup
 from gatherer.domain import Project
@@ -25,7 +31,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser()
     config.read("settings.cfg")
 
     description = "Obtain JIRA issue data and output JSON"

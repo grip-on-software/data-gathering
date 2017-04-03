@@ -2,8 +2,15 @@
 Script to convert a Topdesk dump CSV file to JSON.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
+from builtins import object
 import argparse
-import ConfigParser
+import configparser
 import csv
 import json
 import logging
@@ -51,7 +58,7 @@ class Topdesk_Parser(object):
         self._project = project
         self._project_key = project.key
 
-        self._config = ConfigParser.RawConfigParser()
+        self._config = configparser.RawConfigParser()
         self._config.read('topdesk.cfg')
 
         if self._config.has_option('projects', self._project_key):

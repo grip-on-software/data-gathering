@@ -2,6 +2,7 @@
 Type specific parsers that convert field values to correct format.
 """
 
+from builtins import str
 import re
 from .base import Table_Source
 from ..utils import parse_date, parse_unicode
@@ -199,7 +200,7 @@ class Developer_Parser(Field_Parser):
                 })
 
             return encoded_name
-        elif isinstance(value, (str, unicode)):
+        elif isinstance(value, str):
             return parse_unicode(value)
         else:
             return str(0)
@@ -387,7 +388,7 @@ class Labels_Parser(Field_Parser):
     def parse(self, value):
         if isinstance(value, list):
             return str(len(value))
-        elif isinstance(value, (str, unicode)) and value != "":
+        elif isinstance(value, str) and value != "":
             return str(len(value.split(' ')))
 
         return str(0)

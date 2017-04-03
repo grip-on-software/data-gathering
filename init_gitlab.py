@@ -3,8 +3,14 @@ Script used for initializing projects on a GitLab in order to prepare an import
 of filtered source code into the projects.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
 import argparse
-from ConfigParser import RawConfigParser
+from configparser import RawConfigParser
 import logging
 import os
 import gitlab3

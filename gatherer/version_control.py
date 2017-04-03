@@ -2,6 +2,8 @@
 Base module that defines an abstract version control system.
 """
 
+from builtins import str
+from builtins import object
 import json
 import logging
 import os.path
@@ -73,7 +75,7 @@ class Repositories_Holder(object):
 
             version_data.extend(repo.get_data(from_revision=latest_version))
             self._latest_versions[repo.repo_name] = repo.get_latest_version()
-            for table_name, table_data in repo.tables.iteritems():
+            for table_name, table_data in repo.tables.items():
                 if table_name not in tables:
                     tables[table_name] = []
 
@@ -90,7 +92,7 @@ class Repositories_Holder(object):
         with open(self._export_filename, 'w') as data_file:
             json.dump(version_data, data_file, indent=4)
 
-        for table, table_data in tables.iteritems():
+        for table, table_data in tables.items():
             table_filename = os.path.join(self._project.export_key,
                                           'data_{}.json'.format(table))
             with open(table_filename, 'w') as table_file:

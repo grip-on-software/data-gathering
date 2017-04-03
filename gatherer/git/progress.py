@@ -2,6 +2,8 @@
 Module that tracks and logs Git command progress output.
 """
 
+from __future__ import division
+
 import logging
 from git import RemoteProgress
 
@@ -13,7 +15,7 @@ class Progress_Filter(logging.Filter):
     def __init__(self, update_ratio=1):
         super(Progress_Filter, self).__init__()
         self._update_ratio = update_ratio
-        self._relevant_op_codes = set([RemoteProgress.COUNTING])
+        self._relevant_op_codes = {RemoteProgress.COUNTING}
 
     @property
     def update_ratio(self):

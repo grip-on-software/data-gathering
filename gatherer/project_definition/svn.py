@@ -2,6 +2,7 @@
 Module for collecting data from various versions of project definitions.
 """
 
+from builtins import object
 import logging
 from .metric import Metric_Difference
 from .parser import Metric_Options_Parser, Sources_Parser
@@ -76,7 +77,7 @@ class Collector(object):
             self.aggregate_result(version, result)
         except RuntimeError as error:
             logging.warning("Problem with revision %s: %s",
-                            version['version_id'], error.message)
+                            version['version_id'], str(error))
 
     def aggregate_result(self, version, result):
         """

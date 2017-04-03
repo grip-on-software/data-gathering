@@ -6,6 +6,7 @@ such as projects, products and teams. Additionally, they specify options for
 quality metrics, namely custom targets.
 """
 
+from builtins import str, object
 import datetime
 import importlib
 import inspect
@@ -198,7 +199,7 @@ class Project_Definition_Parser(object):
         specified in the project definition.
         """
 
-        for mock_object in self.domain_objects.itervalues():
+        for mock_object in self.domain_objects.values():
             if self.filter_domain_object(mock_object):
                 for call in mock_object.call_args_list:
                     self.parse_domain_call(*call)
@@ -307,7 +308,7 @@ class Sources_Parser(Project_Definition_Parser):
             return
 
         sources = {}
-        for key, value in keywords["metric_source_ids"].items():
+        for key, value in list(keywords["metric_source_ids"].items()):
             if isinstance(key, (metric_source.Git, metric_source.Subversion)):
                 class_name = self.get_class_name(type(key))
                 source_url = key.url()
@@ -366,12 +367,12 @@ class Metric_Options_Parser(Project_Definition_Parser):
             name = ""
 
         if "metric_options" in keywords:
-            for metric_type, options in keywords["metric_options"].iteritems():
+            for metric_type, options in keywords["metric_options"].items():
                 self.parse_metric(name, metric_type, options=options)
 
-        for old_keyword, new_key in self._old_metric_options.iteritems():
+        for old_keyword, new_key in self._old_metric_options.items():
             if old_keyword in keywords:
-                for metric_type, option in keywords[old_keyword].iteritems():
+                for metric_type, option in keywords[old_keyword].items():
                     self.parse_metric(name, metric_type,
                                       options={new_key: option},
                                       options_type='old_options')

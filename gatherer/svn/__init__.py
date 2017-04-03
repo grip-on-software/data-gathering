@@ -2,6 +2,7 @@
 Module for parsing Subversion repositories.
 """
 
+from builtins import str
 import datetime
 import logging
 import os.path
@@ -144,7 +145,7 @@ class Subversion_Repository(Version_Control_Repository):
                 from_revision = versions[-1]['version_id']
                 log = self._query(filename, from_revision, to_revision)
                 try:
-                    log.next()
+                    next(log)
                 except StopIteration:
                     break
 
