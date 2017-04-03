@@ -8,8 +8,8 @@ requests
 # metric_options_to_json.py
 python-dateutil
 mock
-# hqlib: Use latest version for python 2.7 until data gathering is updated
-quality_report==1.79.3
+quality_report<=1.79.3; python_version <= '3.0'
+quality_report>=1.80.0; python_version >= '3.0'
 svn
 # gitlab_to_json.py
 -e git+http://github.com/lhelwerd/python-gitlab3.git@commit-comments#egg=gitlab3
