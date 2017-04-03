@@ -1,0 +1,12 @@
+Old_files + data/
+.DS_Store
+*~
+*.pyc
+*.swp
+importerjson.jar
+data_vcsdev_to_dev.json
+lib/
+export/
+project-git-repos/
+src/gitlab3/
+src/pip-delete-this-directory.txt
