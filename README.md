@@ -13,6 +13,8 @@ objects with properties.
 
 ## Installation
 
+The data gathering scripts require Python version 2.7.x or 3.6+.
+
 Run `pip install -r requirements.txt` to install the dependencies. Add `--user` 
 if you do not have access to the system libraries, or do not want to store the 
 libraries in that path but in your home directory. Additionally, if you want to 

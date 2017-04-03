@@ -8,8 +8,10 @@ requests
 # metric_options_to_json.py
 python-dateutil
 mock
-quality_report<=1.79.3; python_version <= '3.0'
+quality_report<=1.79.3; python_version < '3.0'
 quality_report>=1.80.0; python_version >= '3.0'
 svn
 # gitlab_to_json.py
 -e git+http://github.com/lhelwerd/python-gitlab3.git@commit-comments#egg=gitlab3
+# Python compatibility
+future
