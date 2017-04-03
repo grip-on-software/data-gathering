@@ -1,0 +1,25 @@
+[jira]
+server = $JIRA_SERVER
+username = $JIRA_USER
+password = $JIRA_PASSWORD
+[definitions]
+source_type = $DEFINITONS_TYPE
+name = $DEFINITIONS_NAME
+url = $DEFINITIONS_URL
+[history]
+url = $HISTORY_URL
+path = $HISTORY_PATH
+[gitlab]
+url = $GITLAB_URL
+token = $GITLAB_TOKEN
+[database]
+username = $MONETDB_USER
+password = $MONETDB_PASSWORD
+host = $MONETDB_HOST
+name = $MONETDB_NAME
+[importer]
+url = $IMPORTER_URL
+[projects]
+$JIRA_KEY = $PROJECT_NAME
+[subprojects]
+$SUBPROJECT_KEY = $PROJECT_KEY

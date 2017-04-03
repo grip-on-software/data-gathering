@@ -1,12 +1,17 @@
 Old_files + data/
 .DS_Store
+.git
 *~
 *.pyc
 *.swp
 importerjson.jar
 data_vcsdev_to_dev.json
 lib/
+dropins/*
 export/
 project-git-repos/
+Report/
 src/gitlab3/
 src/pip-delete-this-directory.txt
+settings.cfg
+credentials.cfg
