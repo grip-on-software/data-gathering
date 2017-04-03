@@ -213,7 +213,8 @@ class Subversion_Repository(Version_Control_Repository):
             ])
 
         try:
-            diff_result = self.repo.run_command('diff', args)
+            diff_result = self.repo.run_command('diff', args,
+                                                return_binary=True)
         except svn.common.SvnException:
             logging.exception('Could not retrieve diff')
             return {
@@ -230,16 +231,16 @@ class Subversion_Repository(Version_Control_Repository):
         number_of_files = 0
         size = 0
         head = True
-        for line in diff_result:
-            if line.startswith('==='):
+        for line in diff_result.splitlines():
+            if line.startswith(b'==='):
                 head = True
                 number_of_files += 1
-            elif head and line.startswith('@@ '):
+            elif head and line.startswith(b'@@ '):
                 head = False
 
             if not head:
-                insertions += line.startswith('+')
-                deletions += line.startswith('-')
+                insertions += line.startswith(b'+')
+                deletions += line.startswith(b'-')
                 size += len(line) - 1
 
         number_of_lines = insertions + deletions
