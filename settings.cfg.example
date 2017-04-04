@@ -3,7 +3,7 @@ server = $JIRA_SERVER
 username = $JIRA_USER
 password = $JIRA_PASSWORD
 [definitions]
-source_type = $DEFINITONS_TYPE
+source_type = $DEFINITIONS_TYPE
 name = $DEFINITIONS_NAME
 url = $DEFINITIONS_URL
 [history]
