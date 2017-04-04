@@ -1,15 +1,17 @@
 FROM python:3.6-alpine
 
-COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg jenkins-scraper.sh jira_fields.json /home/agent/
-COPY gatherer/ /home/agent/gatherer/
+COPY requirements.txt /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	apk --update add gcc musl-dev libxml2-dev libxslt-dev bash git subversion openssh-client gettext && \
-	pip install -r /home/agent/requirements.txt && \
+	pip install -r /tmp/requirements.txt && \
 	apk del gcc musl-dev && rm -rf /var/cache/apk/* /tmp/
 
 VOLUME /home/agent/.ssh
 WORKDIR /home/agent
+
+COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg jenkins-scraper.sh jira_fields.json /home/agent/
+COPY gatherer/ /home/agent/gatherer/
 
 USER agent
 
