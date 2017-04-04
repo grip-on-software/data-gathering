@@ -116,10 +116,10 @@ if [ -d scripts ]; then
 	rm -rf gatherer/
 	cp -r scripts/gatherer/ gatherer/
 	cp -r scripts/dropins/ dropins/
-fi
 
-# Install Python dependencies
-pip install -r requirements.txt
+	# Install Python dependencies
+	pip install -r requirements.txt
+fi
 
 # Files that are backed up in case of errors for each project
 scripts="project_sources.py jira_to_json.py gitlab_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
