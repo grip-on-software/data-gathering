@@ -162,7 +162,8 @@ do
 	mkdir -p project-git-repos/$project
 
 	if [ $skipGather = "false" ]; then
-		status_handler retrieve_update_trackers.py $project --log $logLevel
+		status_handler python retrieve_update_trackers.py $project --log $logLevel
+
 		export_handler project_sources.py $project --log $logLevel
 		export_handler jira_to_json.py $project --log $logLevel
 		export_handler gitlab_sources.py $project --log $logLevel
