@@ -10,6 +10,7 @@ except ImportError:
 
 from builtins import object
 import configparser
+import logging
 import os
 import re
 import urllib.parse
@@ -114,6 +115,11 @@ class Source(object):
 
         return host
 
+    @staticmethod
+    def _create_url(*parts):
+        # Cast to string to ensure that all parts have the same type.
+        return urllib.parse.urlunsplit(tuple(str(part) for part in parts))
+
     def _update_credentials(self):
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
@@ -128,16 +134,16 @@ class Source(object):
             if self._credentials.has_option(host, 'env'):
                 credentials_env = self._credentials.get(host, 'env')
                 self._credentials_path = os.getenv(credentials_env)
-                self._url = username + '@' + host + ':' + orig_parts.path
+                self._url = str(username + '@' + host + ':' + orig_parts.path)
             else:
                 password = self._credentials.get(host, 'password')
 
                 auth = '{0}:{1}'.format(username, password)
                 full_host = auth + '@' + host
 
-                new_parts = (orig_parts.scheme, full_host, orig_parts.path,
-                             orig_parts.query, orig_parts.fragment)
-                self._url = urllib.parse.urlunsplit(new_parts)
+                self._url = self._create_url(orig_parts.scheme, full_host,
+                                             orig_parts.path, orig_parts.query,
+                                             orig_parts.fragment)
 
         return orig_parts, host
 
@@ -378,8 +384,7 @@ class GitLab(Git):
         if self._credentials.has_option(host, 'gitlab_token'):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
-        host_parts = (orig_parts.scheme, host, '', '', '')
-        self._gitlab_host = urllib.parse.urlunsplit(host_parts)
+        self._gitlab_host = self._create_url(orig_parts.scheme, host, '', '', '')
         self._gitlab_path = self.remove_git_suffix(path)
 
         return orig_parts, host
@@ -395,9 +400,8 @@ class GitLab(Git):
         repo_path_name = repo_path.split('/', 1)[1]
         path = '{0}/{1}-{2}'.format(self._gitlab_group, self._gitlab_namespace,
                                     repo_path_name)
-        new_parts = (url_parts.scheme, url_parts.netloc, path,
-                     url_parts.query, url_parts.fragment)
-        self._url = urllib.parse.urlunsplit(new_parts)
+        self._url = self._create_url(url_parts.scheme, url_parts.netloc, path,
+                                     url_parts.query, url_parts.fragment)
         return path
 
     @property
