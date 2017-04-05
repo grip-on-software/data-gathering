@@ -89,6 +89,8 @@ class Project_Definition_Parser(object):
             message += ''.join(formatted_lines[:-1])
             if emulate_context:
                 line = traceback.extract_tb(trace)[-1][1]
+                if isinstance(contents, bytes):
+                    contents = contents.decode('utf-8')
                 lines = contents.split('\n')
                 range_start = max(0, line-self.context_lines-1)
                 range_end = min(len(lines), line+self.context_lines)
@@ -179,7 +181,8 @@ class Project_Definition_Parser(object):
                 # since all relevant modules and context has been patched.
                 # pylint: disable=exec-used
                 try:
-                    exec(contents)
+                    env = {}
+                    exec(contents, env, env)
                 except SyntaxError as exception:
                     # Most syntax errors have correct line marker information
                     if exception.text is None:
