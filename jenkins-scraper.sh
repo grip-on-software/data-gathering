@@ -27,6 +27,10 @@ if [ -z "$skipGather" ]; then
 	skipGather="false"
 fi
 
+if [ -z "$IMPORTER_BASE" ]; then
+	IMPORTER_BASE="."
+fi
+
 # Declare restore files, populated with update files later on
 restoreFiles=""
 currentProject=""
@@ -131,7 +135,7 @@ for script in $scripts; do
 done
 
 # Retrieve Java importer
-python retrieve_importer.py
+python retrieve_importer.py --base $IMPORTER_BASE
 
 if [ "$(ls -A kwaliteitsmetingen 2>/dev/null)" ]; then
 	cd kwaliteitsmetingen
@@ -171,7 +175,9 @@ do
 		export_handler history_to_json.py $project --export-path --log $logLevel
 		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
 	fi
-	status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" -jar importerjson.jar $project $importerTasks
+	if [ $importerTasks != "skip" ]; then
+		status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" -jar importerjson.jar $project $importerTasks
+	fi
 
 	if [ $cleanupRepos = "true" ]; then
 		rm -rf project-git-repos/$project

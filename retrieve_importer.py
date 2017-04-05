@@ -31,6 +31,8 @@ def parse_args():
                        help='local path to retrieve the dist directory from')
     group.add_argument('--url', default=config.get('importer', 'url'),
                        help='url to retrieve a dist.zip file from')
+    group.add_argument('--base', default='.',
+                       help='directory to place the importer and libraries in')
 
     args = parser.parse_args()
     return args
@@ -55,12 +57,18 @@ def main():
 
         os.remove('dist.zip')
 
-    if os.path.exists('lib'):
-        shutil.rmtree('lib')
+    # Check if 'dist' is the directory we want to place it in
+    if os.path.realpath(args.base) == os.path.realpath('dist'):
+        return
 
-    shutil.move('dist/importerjson.jar', 'importerjson.jar')
-    shutil.move('dist/data_vcsdev_to_dev.json', 'data_vcsdev_to_dev.json')
-    shutil.move('dist/lib/', '.')
+    if os.path.exists(os.path.join(args.base, 'lib')):
+        shutil.rmtree(os.path.join(args.base, 'lib'))
+
+    shutil.move('dist/importerjson.jar',
+                os.path.join(args.base, 'importerjson.jar'))
+    shutil.move('dist/data_vcsdev_to_dev.json',
+                os.path.join(args.base, 'data_vcsdev_to_dev.json'))
+    shutil.move('dist/lib/', args.base)
     shutil.rmtree('dist')
 
 if __name__ == "__main__":
