@@ -145,6 +145,8 @@ def get_data_source(project, args):
         request = requests.get(url)
         stream = io.BytesIO(request.content)
         yield gzip.GzipFile(mode='r', fileobj=stream)
+    else:
+        raise RuntimeError('No metrics history source defined')
 
 def main():
     """
@@ -174,7 +176,7 @@ def main():
                 metric_data, line_count = read_project_file(data, start_from)
     except RuntimeError as error:
         logging.warning('Skipping quality metrics history import for %s: %s',
-                        project_key, error.message)
+                        project_key, str(error))
         return
 
     output_filename = os.path.join(project.export_key, 'data_metrics.json')
