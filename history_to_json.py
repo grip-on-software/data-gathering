@@ -9,7 +9,7 @@ try:
 except ImportError:
     raise
 
-from builtins import bytes
+from builtins import str
 import argparse
 import configparser
 from contextlib import contextmanager
