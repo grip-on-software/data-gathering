@@ -184,7 +184,7 @@ def main():
         json.dump(metric_data, outfile, indent=4)
 
     with open(line_filename, 'w') as line_file:
-        line_file.write(bytes(start_from + line_count))
+        line_file.write(str(start_from + line_count))
 
 if __name__ == "__main__":
     main()
