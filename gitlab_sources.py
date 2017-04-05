@@ -59,7 +59,7 @@ def retrieve_repos(project, log_ratio):
         raise RuntimeError('Could not find group for project group {0}'.format(group_name))
 
     # Fetch the group projects by requesting the group to the API again.
-    project_repos = api.group(group.id).projects
+    project_repos = api.group(str(group.id)).projects
 
     names = ', '.join([repo['name'] for repo in project_repos])
     logging.info('%s has %d repos: %s', group_name, len(project_repos), names)
@@ -67,7 +67,7 @@ def retrieve_repos(project, log_ratio):
     for repo_data in project_repos:
         # Retrieve the actual project from the API, to ensure it is accessible.
         try:
-            project_repo = api.project(repo_data['id'])
+            project_repo = api.project(str(repo_data['id']))
         except ResourceNotFound:
             logging.warning('GitLab repository %s is not accessible',
                             repo_data['name'])
