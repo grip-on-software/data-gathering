@@ -2,8 +2,7 @@
 Utilities for various parts of the data gathering chain.
 """
 
-from builtins import str
-from builtins import object
+from builtins import str, object
 import bisect
 import json
 import logging
@@ -214,8 +213,11 @@ def parse_unicode(text):
     Convert unicode `text` to a string without invalid unicode characters.
     """
 
-    data = text.encode('utf-8', 'replace')
-    return data.decode('utf-8', 'replace')
+    try:
+        data = text.encode('utf-8', 'replace')
+        return data.decode('utf-8', 'replace')
+    except UnicodeDecodeError:
+        return str(text.decode('utf-8', 'replace'))
 
 def parse_svn_revision(rev):
     """

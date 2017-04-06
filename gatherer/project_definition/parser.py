@@ -7,6 +7,7 @@ quality metrics, namely custom targets.
 """
 
 from builtins import str, object
+from past.builtins import basestring
 import datetime
 import importlib
 import inspect
@@ -17,6 +18,7 @@ import traceback
 import mock
 from hqlib import domain, metric, metric_source
 from .compatibility import Compatibility
+from ..utils import parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
 
@@ -414,7 +416,10 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         for key in ('low_target', 'target', 'comment'):
             if key in options:
-                targets[key] = str(options[key])
+                if isinstance(options[key], basestring):
+                    targets[key] = parse_unicode(options[key])
+                else:
+                    targets[key] = str(options[key])
 
         targets.update(self.parse_debt_target(options))
 
