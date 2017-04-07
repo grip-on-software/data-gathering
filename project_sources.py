@@ -64,8 +64,9 @@ def main():
     if args.all or args.from_revision is not None or args.to_revision is not None:
         collector.collect(args.from_revision, args.to_revision)
     else:
-        latest_version = collector.repo.get_latest_version()
-        collector.collect_version({'version_id': str(latest_version)})
+        latest_version = str(collector.repo.get_latest_version())
+        collector.collect_version({'version_id': latest_version})
+        cllector.finish(latest_version)
 
     project.export_sources()
 
