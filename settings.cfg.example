@@ -12,6 +12,11 @@ path = $HISTORY_PATH
 [gitlab]
 url = $GITLAB_URL
 token = $GITLAB_TOKEN
+[dropins]
+type = $DROPINS_STORE
+url = $DROPINS_URL
+username = $DROPINS_USER
+password = $DROOINS_PASSWORD
 [database]
 username = $MONETDB_USER
 password = $MONETDB_PASSWORD
