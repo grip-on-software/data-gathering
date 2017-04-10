@@ -16,12 +16,15 @@ token = $GITLAB_TOKEN
 type = $DROPINS_STORE
 url = $DROPINS_URL
 username = $DROPINS_USER
-password = $DROOINS_PASSWORD
+password = $DROPINS_PASSWORD
 [database]
 username = $MONETDB_USER
 password = $MONETDB_PASSWORD
 host = $MONETDB_HOST
 name = $MONETDB_NAME
+[ssh]
+username = $SSH_USERNAME
+host = $SSH_HOST
 [importer]
 url = $IMPORTER_URL
 [projects]

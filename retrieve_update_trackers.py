@@ -10,12 +10,9 @@ except ImportError:
 
 import argparse
 from configparser import RawConfigParser
-import datetime
-import logging
-import os
-import pymonetdb
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
+from gatherer.update import Database_Tracker, SSH_Tracker
 
 def parse_args():
     """
@@ -35,65 +32,18 @@ def parse_args():
                         help='host name of the database to connect to')
     parser.add_argument('--database', default=config.get('database', 'name'),
                         help='database name to retrieve from')
+    parser.add_argument('--agent', default=config.get('ssh', 'username'),
+                        help='agent username for the ssh source')
+    parser.add_argument('--server', default=config.get('ssh', 'host'),
+                        help='host name of the ssh source')
+    parser.add_argument('--files', nargs='+',
+                        help='update tracker files to consider for updates')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
 
     return args
-
-def update_file(project, filename, contents, update_date):
-    """
-    Check whether an update tracker file from a remote source is more up to date
-    than our local version, and update it if so.
-    """
-
-    logging.debug('Filename: %s, remote updated: %s', filename, update_date)
-
-    path = os.path.join(project.export_key, filename)
-    update = True
-    if os.path.exists(path):
-        file_date = datetime.datetime.fromtimestamp(os.path.getmtime(path))
-        logging.debug('FS updated: %s', file_date)
-        if file_date >= update_date:
-            logging.info('Update tracker %s: Already up to date.', filename)
-            update = False
-
-    if update:
-        logging.info('Updating file %s from remote tracker file', filename)
-        with open(path, 'w') as tracker_file:
-            tracker_file.write(contents)
-
-        times = (datetime.datetime.now(), update_date)
-        os.utime(path, tuple(int(time.strftime('%s')) for time in times))
-
-def retrieve_database(project, user, password, host, database):
-    """
-    Retrieve the update tracker files from the database.
-    """
-
-    connection = pymonetdb.connect(username=user, password=password,
-                                   hostname=host, database=database)
-
-    cursor = connection.cursor()
-    cursor.execute('SELECT project_id FROM gros.project WHERE name=%s LIMIT 1',
-                   parameters=[project.key])
-    row = cursor.fetchone()
-    if not row:
-        logging.warning("Project '%s' is not in the database", project.key)
-        return
-
-    project_id = row[0]
-
-    cursor.execute('''SELECT filename, contents, update_date
-                      FROM gros.update_tracker WHERE project_id=%s''',
-                   parameters=[project_id])
-
-    for row in cursor:
-        filename, contents, update_date = row[0:3]
-        update_file(project, filename, contents, update_date)
-
-    connection.close()
 
 def main():
     """
@@ -102,8 +52,29 @@ def main():
 
     args = parse_args()
     project = Project(args.project)
-    retrieve_database(project, args.user, args.password, args.host,
-                      args.database)
+    if args.agent and args.server:
+        tracker_class = SSH_Tracker
+        options = {
+            'user': args.agent,
+            'host': args.server
+        }
+    else:
+        tracker_class = Database_Tracker
+        options = {
+            'user': args.user,
+            'password': args.password,
+            'host': args.host,
+            'database': args.database
+        }
+
+    # Convert to set for easier file name comparisons in some tracker sources
+    if args.files is None:
+        files = None
+    else:
+        files = set(args.files)
+
+    tracker = tracker_class(project, **options)
+    tracker.retrieve(files=files)
 
 if __name__ == '__main__':
     main()
