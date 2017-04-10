@@ -42,25 +42,48 @@ def parse_args():
 
     return args
 
-def main():
+def update_file(project, filename, contents, update_date):
     """
-    Main entry point.
+    Check whether an update tracker file from a remote source is more up to date
+    than our local version, and update it if so.
     """
 
-    args = parse_args()
-    connection = pymonetdb.connect(username=args.user, password=args.password,
-                                   hostname=args.host, database=args.database)
+    logging.debug('Filename: %s, remote updated: %s', filename, update_date)
+
+    path = os.path.join(project.export_key, filename)
+    update = True
+    if os.path.exists(path):
+        file_date = datetime.datetime.fromtimestamp(os.path.getmtime(path))
+        logging.debug('FS updated: %s', file_date)
+        if file_date >= update_date:
+            logging.info('Update tracker %s: Already up to date.', filename)
+            update = False
+
+    if update:
+        logging.info('Updating file %s from remote tracker file', filename)
+        with open(path, 'w') as tracker_file:
+            tracker_file.write(contents)
+
+        times = (datetime.datetime.now(), update_date)
+        os.utime(path, tuple(int(time.strftime('%s')) for time in times))
+
+def retrieve_database(project, user, password, host, database):
+    """
+    Retrieve the update tracker files from the database.
+    """
+
+    connection = pymonetdb.connect(username=user, password=password,
+                                   hostname=host, database=database)
 
     cursor = connection.cursor()
     cursor.execute('SELECT project_id FROM gros.project WHERE name=%s LIMIT 1',
-                   parameters=[args.project])
+                   parameters=[project.key])
     row = cursor.fetchone()
     if not row:
-        logging.warning('Project %s is not in the database', args.project)
+        logging.warning("Project '%s' is not in the database", project.key)
         return
 
     project_id = row[0]
-    project = Project(args.project)
 
     cursor.execute('''SELECT filename, contents, update_date
                       FROM gros.update_tracker WHERE project_id=%s''',
@@ -68,26 +91,19 @@ def main():
 
     for row in cursor:
         filename, contents, update_date = row[0:3]
-        logging.debug('DB filename: %s, updated: %s', filename, update_date)
-
-        path = os.path.join(project.export_key, filename)
-        update = True
-        if os.path.exists(path):
-            file_date = datetime.datetime.fromtimestamp(os.path.getmtime(path))
-            logging.debug('FS updated: %s', file_date)
-            if file_date >= update_date:
-                logging.info('Update tracker %s: Already up to date.', filename)
-                update = False
-
-        if update:
-            logging.info('Updating file %s from database tracker', filename)
-            with open(path, 'w') as update_file:
-                update_file.write(contents)
-
-            times = (datetime.datetime.now(), update_date)
-            os.utime(path, tuple(int(time.strftime('%s')) for time in times))
+        update_file(project, filename, contents, update_date)
 
     connection.close()
+
+def main():
+    """
+    Main entry point.
+    """
+
+    args = parse_args()
+    project = Project(args.project)
+    retrieve_database(project, args.user, args.password, args.host,
+                      args.database)
 
 if __name__ == '__main__':
     main()
