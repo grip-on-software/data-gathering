@@ -11,7 +11,7 @@ VOLUME /home/agent/.ssh
 WORKDIR /home/agent
 
 COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg jenkins-scraper.sh jira_fields.json /home/agent/
-COPY certs/SERVER.crt
+COPY certs/ /home/agent/certs/
 COPY gatherer/ /home/agent/gatherer/
 
 USER agent
