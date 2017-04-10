@@ -13,6 +13,8 @@ quality_report>=1.80.0; python_version >= '3.0'
 svn
 # gitlab_to_json.py
 -e git+http://github.com/lhelwerd/python-gitlab3.git@master#egg=gitlab3
+# generate_key.py
+sshdeploy
 # retrieve_update_trackers.py
 pymonetdb
 # retrieve_dropins.py

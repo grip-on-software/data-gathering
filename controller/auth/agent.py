@@ -3,21 +3,21 @@ Authentication API for external agents.
 """
 
 from __future__ import print_function
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
 from builtins import object
 import cgi
 import cgitb
+import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
-import inform
-try:
-    from mock import MagicMock
-    sys.modules['abraxas'] = MagicMock()
-    from sshdeploy.key import Key
-except ImportError:
-    raise
+import urllib.parse
 
 class Permissions(object):
     """
@@ -60,7 +60,7 @@ class Permissions(object):
 
         self._create_directory(self._home_directory)
 
-    def update_public_key(self, public_key_filename):
+    def update_public_key(self, public_key):
         """Update authorized public key."""
 
         if os.path.exists(self._ssh_directory):
@@ -68,8 +68,9 @@ class Permissions(object):
 
         self._create_directory(self._ssh_directory)
 
-        shutil.move(public_key_filename,
-                    os.path.join(self._ssh_directory, 'authorized_keys'))
+        key_filename = os.path.join(self._ssh_directory, 'authorized_keys')
+        with open(key_filename, 'w') as key_file:
+            key_file.write(public_key)
 
     def update_permissions(self):
         """
@@ -85,7 +86,6 @@ def setup_log():
     Set up logging.
     """
 
-    inform.Inform(mute=True)
     cgitb.enable()
 
 def get_project_key():
@@ -100,6 +100,18 @@ def get_project_key():
 
     return project_key
 
+def get_public_key():
+    """Retrieve the public key that must be POSTed in the request."""
+
+    post_query = sys.stdin.read()
+    post_data = urllib.parse.parse_qs(post_query)
+    if "public_key" not in post_data:
+        raise RuntimeError('Public key must be provided as a POST message')
+    if len(post_data["public_key"]) != 1:
+        raise RuntimeError('Exactly one public key must be provided in POST')
+
+    return post_data["public_key"][0]
+
 def get_temp_filename():
     """
     Retrieve a secure (not guessable) temporary file name.
@@ -110,24 +122,6 @@ def get_temp_filename():
 
     return filename
 
-def generate_key_pair(project_key):
-    """
-    Generate a public and private key pair for the project.
-    """
-
-    data = {
-        'purpose': 'agent for the {} project'.format(project_key),
-        'keygen-options': '',
-        'abraxas-account': False,
-        'servers': {},
-        'clients': {}
-    }
-    update = []
-    key_file = get_temp_filename()
-    key = Key(key_file, data, update, {}, False)
-    key.generate()
-    return key.keyname
-
 def main():
     """
     Main entry point.
@@ -136,6 +130,7 @@ def main():
     setup_log()
     try:
         project_key = get_project_key()
+        public_key = get_public_key()
     except RuntimeError as error:
         print('Status: 400 Bad Request')
         print('Content-Type: text/plain')
@@ -146,19 +141,13 @@ def main():
     permissions = Permissions(project_key)
     permissions.update_user()
 
-    private_key_filename = generate_key_pair(project_key)
-    permissions.update_public_key('{}.pub'.format(private_key_filename))
+    permissions.update_public_key(public_key)
 
     permissions.update_permissions()
 
-    # Output response
-    with open(private_key_filename, 'r') as key_file:
-        private_key = key_file.read()
-    os.remove(private_key_filename)
-
-    print('Content-Disposition: attachment; filename="id_rsa"')
+    print('Content-Type: text/json')
     print()
-    print(private_key)
+    json.dump(sys.stdout, {})
 
 if __name__ == "__main__":
     main()

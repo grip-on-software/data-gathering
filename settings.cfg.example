@@ -25,6 +25,7 @@ name = $MONETDB_NAME
 [ssh]
 username = $SSH_USERNAME
 host = $SSH_HOST
+cert = $SSH_HTTPS_CERT
 [importer]
 url = $IMPORTER_URL
 [projects]

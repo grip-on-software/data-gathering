@@ -11,10 +11,11 @@ VOLUME /home/agent/.ssh
 WORKDIR /home/agent
 
 COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg jenkins-scraper.sh jira_fields.json /home/agent/
+COPY certs/SERVER.crt
 COPY gatherer/ /home/agent/gatherer/
 
 USER agent
 
 # Update configuration based on docker compose environment variables.
 # Then run a dummy command to keep the container running until stopped
-CMD ["/bin/bash", "-c", "(find /home/agent -name '*.cfg.example' | while read file; do envsubst < $file > ${file%.*}; done); python -c 'import signal;signal.pause()'"]
+CMD ["/bin/bash", "-c", "(find /home/agent -name '*.cfg.example' | while read file; do envsubst < $file > ${file%.*}; done); python generate_key.py $JIRA_KEY; python -c 'import signal;signal.pause()'"]
