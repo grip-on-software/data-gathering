@@ -13,73 +13,36 @@ from builtins import object
 import cgi
 import cgitb
 import json
-import os
-import subprocess
 import sys
 import tempfile
 import urllib.parse
+import Pyro4
 
 class Permissions(object):
     """
-    Object that updated access and permissions for a project's agent.
+    Object that updates access and permissions for a project's agent.
     """
 
-    CREATE_PERMISSIONS = '2770'
-
     def __init__(self, project_key):
-        self._home_directory = os.path.join('/agents', project_key)
-        self._username = 'agent-{}'.format(project_key)
-        self._ssh_directory = os.path.join('/etc/ssh/control/', self._username)
-
-    def _create_directory(self, directory):
-        subprocess.check_call([
-            'sudo', 'mkdir', '-m', self.CREATE_PERMISSIONS, directory
-        ])
-        self._update_owner(directory)
-
-    def _update_owner(self, directory):
-        subprocess.check_call([
-            'sudo', 'chown', '-R',
-            '{}:controller'.format(self._username), directory
-        ])
+        self._controller = Pyro4.Proxy("PYRONAME:gros.controller")
+        self._project_key = project_key
 
     def update_user(self):
         """Update agent home directory."""
-        if os.path.exists(self._home_directory):
-            subprocess.check_call(['sudo', 'rm', '-rf', self._home_directory])
-        else:
-            subprocess.check_call([
-                'sudo', 'adduser',
-                '-M', # Do not create home directory at this point
-                '-N', # Do not create any additional groups
-                '-d', self._home_directory,
-                '-l', '/usr/local/bin/upload.sh',
-                '-g', 'agents',
-                self._username
-            ])
 
-        self._create_directory(self._home_directory)
+        self._controller.create_agent(self._project_key)
 
     def update_public_key(self, public_key):
         """Update authorized public key."""
 
-        if os.path.exists(self._ssh_directory):
-            subprocess.check_call(['sudo', 'rm', '-rf', self._ssh_directory])
-
-        self._create_directory(self._ssh_directory)
-
-        key_filename = os.path.join(self._ssh_directory, 'authorized_keys')
-        with open(key_filename, 'w') as key_file:
-            key_file.write(public_key)
+        self._controller.update_public_key(self._project_key, public_key)
 
     def update_permissions(self):
         """
         Change permissions such that only the agent can access the directories.
         """
 
-        for directory in (self._home_directory, self._ssh_directory):
-            self._update_owner(directory)
-            subprocess.check_call(['sudo', 'chmod', '2700', directory])
+        self._controller.update_permissions(self._project_key)
 
 def setup_log():
     """
