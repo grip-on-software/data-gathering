@@ -3,6 +3,8 @@ Module that supports retrieving auxiliary files from a data store.
 """
 
 from builtins import object
+import os.path
+import shutil
 import tempfile
 from zipfile import ZipFile
 import owncloud
@@ -39,7 +41,7 @@ class File_Store(object):
     def get_directory(self, remote_path, local_path):
         """
         Retrieve all files in the direcotry with the remote path `remote_path`
-        and store them in the local path `local_path`.
+        and store them in the local path `local_path` which does not yet exist.
         """
         raise NotImplementedError('Must be implemented by subclasses')
 
@@ -92,8 +94,13 @@ class OwnCloud_Store(File_Store):
             else:
                 raise error
 
+        extract_path = tempfile.mkdtemp()
         with ZipFile(zip_file_name, 'r') as zip_file:
-            zip_file.extractall(local_path)
+            zip_file.extractall(extract_path)
+
+        zip_inner_path = os.path.basename(remote_path.rstrip('/'))
+        full_path = os.path.join(extract_path, zip_inner_path)
+        shutil.move(full_path, local_path)
 
     def put_file(self, local_file, remote_file):
         self._client.put_file(remote_file, local_file)

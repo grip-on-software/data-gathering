@@ -58,10 +58,10 @@ def main():
     store = store_type(args.url)
     store.login(args.username, args.password)
 
-    path = 'dropins/{}/'.format(args.project)
+    path = os.path.join('dropins', args.project)
     if os.path.exists(path):
         logging.info('Moving old path %s to a backup location', path)
-        shutil.move(path, 'dropins/backup/{}/'.format(args.project))
+        shutil.move(path, os.path.join('dropins', 'backup', args.project))
 
     try:
         store.get_directory(path, path)
