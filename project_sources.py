@@ -66,7 +66,7 @@ def main():
     else:
         latest_version = str(collector.repo.get_latest_version())
         collector.collect_version({'version_id': latest_version})
-        cllector.finish(latest_version)
+        collector.finish(latest_version)
 
     project.export_sources()
 
