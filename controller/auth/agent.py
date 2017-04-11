@@ -44,36 +44,37 @@ class Permissions(object):
 
         self._controller.update_permissions(self._project_key)
 
-def setup_log():
+class Parameters(object):
     """
-    Set up logging.
+    Object that holds GET and POST data from a CGI request.
     """
 
-    cgitb.enable()
+    def __init__(self):
+        post_query = sys.stdin.read()
+        self._post_data = urllib.parse.parse_qs(post_query)
+        self._get_data = cgi.FieldStorage()
 
-def get_project_key():
-    """Retrieve and validate the project key from a CGI request."""
-    form = cgi.FieldStorage()
-    if "project" not in form:
-        raise RuntimeError('Project must be specified')
+    def get_project_key(self):
+        """Retrieve and validate the project key from a CGI request."""
 
-    project_key = form["project"].value
-    if not project_key.isupper() or not project_key.isalpha():
-        raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
+        if "project" not in self._get_data:
+            raise RuntimeError('Project must be specified')
 
-    return project_key
+        project_key = self._get_data["project"].value
+        if not project_key.isupper() or not project_key.isalpha():
+            raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
 
-def get_public_key():
-    """Retrieve the public key that must be POSTed in the request."""
+        return project_key
 
-    post_query = sys.stdin.read()
-    post_data = urllib.parse.parse_qs(post_query)
-    if "public_key" not in post_data:
-        raise RuntimeError('Public key must be provided as a POST message')
-    if len(post_data["public_key"]) != 1:
-        raise RuntimeError('Exactly one public key must be provided in POST')
+    def get_public_key(self):
+        """Retrieve the public key that must be POSTed in the request."""
 
-    return post_data["public_key"][0]
+        if "public_key" not in self._post_data:
+            raise RuntimeError('Public key must be provided as a POST message')
+        if len(self._post_data["public_key"]) != 1:
+            raise RuntimeError('Exactly one public key must be provided in POST')
+
+        return self._post_data["public_key"][0]
 
 def get_temp_filename():
     """
@@ -85,6 +86,13 @@ def get_temp_filename():
 
     return filename
 
+def setup_log():
+    """
+    Set up logging.
+    """
+
+    cgitb.enable()
+
 def main():
     """
     Main entry point.
@@ -92,8 +100,9 @@ def main():
 
     setup_log()
     try:
-        project_key = get_project_key()
-        public_key = get_public_key()
+        params = Parameters()
+        project_key = params.get_project_key()
+        public_key = params.get_public_key()
     except RuntimeError as error:
         print('Status: 400 Bad Request')
         print('Content-Type: text/plain')
