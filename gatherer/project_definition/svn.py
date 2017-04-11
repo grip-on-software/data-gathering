@@ -72,7 +72,7 @@ class Collector(object):
         contents = self._repo.get_contents(self._filename,
                                            revision=version['version_id'])
         try:
-            parser.load_definition(contents)
+            parser.load_definition(self._filename, contents)
             result = parser.parse()
             self.aggregate_result(version, result)
         except RuntimeError as error:

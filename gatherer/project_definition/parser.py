@@ -163,7 +163,7 @@ class Project_Definition_Parser(object):
 
         return modules
 
-    def load_definition(self, contents):
+    def load_definition(self, filename, contents):
         """
         Safely read the contents of a project definition file.
 
@@ -183,7 +183,7 @@ class Project_Definition_Parser(object):
                 # since all relevant modules and context has been patched.
                 # pylint: disable=exec-used
                 try:
-                    env = {}
+                    env = {'__file__': filename}
                     exec(contents, env, env)
                 except SyntaxError as exception:
                     # Most syntax errors have correct line marker information
@@ -288,9 +288,9 @@ class Sources_Parser(Project_Definition_Parser):
 
         return modules
 
-    def load_definition(self, content):
+    def load_definition(self, filename, contents):
         with mock.patch('sys.path', sys.path + [self.sys_path]):
-            super(Sources_Parser, self).load_definition(content)
+            super(Sources_Parser, self).load_definition(filename, contents)
 
     def filter_domain_object(self, mock_object):
         return isinstance(mock_object, (domain.Product, domain.Application, domain.Component))
