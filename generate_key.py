@@ -103,12 +103,13 @@ def update_gitlab_key(source, public_key):
     # pylint: disable=no-member
     user = api.current_user()
 
-    logging.info('Deleting old SSH keys from GitLab...')
-    for key in user.ssh_keys():
+    logging.info('Deleting old SSH keys for the agent from GitLab...')
+    title = 'GROS agent'
+    for key in user.ssh_keys(title=title):
         user.delete_ssh_key(str(key.id))
 
     logging.info('Adding new SSH key to GitLab')
-    user.add_ssh_key('GROS agent', public_key)
+    user.add_ssh_key(title, public_key)
 
 def main():
     """
