@@ -125,7 +125,7 @@ def main():
         shutil.move(key_filename, private_key_filename)
         shutil.move('{}.pub'.format(key_filename),
                     '{}.pub'.format(private_key_filename))
-        os.chmod(private_key_filename, 0600)
+        os.chmod(private_key_filename, 0o600)
 
     with open('{}.pub'.format(private_key_filename), 'r') as public_key_file:
         public_key = public_key_file.read()
