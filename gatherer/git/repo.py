@@ -8,7 +8,7 @@ import logging
 import os
 from git import Repo, InvalidGitRepositoryError, NoSuchPathError
 from .progress import Git_Progress
-from ..table import Key_Table
+from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
 from ..version_control import Version_Control_Repository
 
@@ -32,7 +32,8 @@ class Git_Repository(Version_Control_Repository):
         self._iterator_limiter = None
         self._reset_limiter()
         self._tables.update({
-            "tag": Key_Table('tag', 'tag_name')
+            'change_path': Table('change_path'),
+            'tag': Key_Table('tag', 'tag_name')
         })
 
     def _reset_limiter(self):
@@ -239,6 +240,7 @@ class Git_Repository(Version_Control_Repository):
 
         if stats:
             git_commit.update(self._get_diff_stats(commit))
+            self._parse_change_stats(commit)
 
         return git_commit
 
@@ -254,6 +256,17 @@ class Git_Repository(Version_Control_Repository):
             'number_of_lines': str(cstotal['lines']),
             'size': str(commit.size)
         }
+
+    def _parse_change_stats(self, commit):
+        for path, stats in commit.stats.files.items():
+            change_data = {
+                'repo_name': str(self._repo_name),
+                'version_id': str(commit.hexsha),
+                'file': path,
+                'insertions': str(stats['insertions']),
+                'deletions': str(stats['deletions'])
+            }
+            self._tables['change_path'].append(change_data)
 
     def _parse_tags(self):
         for tag_ref in self.repo.tags:
