@@ -196,7 +196,8 @@ class Developer_Parser(Field_Parser):
             if value.name is not None and hasattr(value, "displayName"):
                 self.jira.get_table("developer").append({
                     "name": encoded_name,
-                    "display_name": parse_unicode(value.displayName)
+                    "display_name": parse_unicode(value.displayName),
+                    "email": parse_unicode(value.emailAddress)
                 })
 
             return encoded_name
