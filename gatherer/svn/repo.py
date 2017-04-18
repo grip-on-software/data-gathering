@@ -169,7 +169,7 @@ class Subversion_Repository(Version_Control_Repository):
             'message': parse_unicode(message),
             'type': 'commit',
             'developer': entry.author,
-            'developer_email': '',
+            'developer_email': str(0),
             'commit_date': format_date(commit_datetime)
         }
 
