@@ -7,7 +7,7 @@ import datetime
 import logging
 import os
 import subprocess
-import pymonetdb
+from .database import Database
 
 class Update_Tracker(object):
     """
@@ -63,30 +63,24 @@ class Database_Tracker(Update_Tracker):
         self._options = options
 
     def retrieve(self, files=None):
-        connection = pymonetdb.connect(**self._options)
+        connection = Database(**self._options)
 
-        cursor = connection.cursor()
-        cursor.execute('SELECT project_id FROM gros.project WHERE name=%s LIMIT 1',
-                       parameters=[self._project.key])
-        row = cursor.fetchone()
-        if not row:
+        project_id = connection.get_project_id(self._project.key)
+        if project_id is None:
             logging.warning("Project '%s' is not in the database",
                             self._project.key)
             return
 
-        project_id = row[0]
+        result = connection.execute('''SELECT filename, contents, update_date
+                                       FROM gros.update_tracker
+                                       WHERE project_id=%s''',
+                                    parameters=[project_id], one=False)
 
-        cursor.execute('''SELECT filename, contents, update_date
-                          FROM gros.update_tracker WHERE project_id=%s''',
-                       parameters=[project_id])
-
-        for row in cursor:
+        for row in result:
             filename, contents, update_date = row[0:3]
             # Update only specific files if given,
             if not files or filename in files:
                 self.update_file(filename, contents, update_date)
-
-        connection.close()
 
 class SSH_Tracker(Update_Tracker):
     """
