@@ -73,11 +73,14 @@ class Project(Project_Meta):
     can be accessed.
     """
 
-    def __init__(self, project_key, follow_host_change=True):
+    def __init__(self, project_key, follow_host_change=True,
+                 export_directory='export'):
         super(Project, self).__init__()
 
         # JIRA project key
         self._project_key = project_key
+
+        self._export_directory = export_directory
         self._follow_host_change = follow_host_change
 
         # Long project name used in repositories and quality dashboard project
@@ -162,7 +165,7 @@ class Project(Project_Meta):
         Retrieve the directory path used for project data exports.
         """
 
-        return os.path.join('export', self._project_key)
+        return os.path.join(self._export_directory, self._project_key)
 
     @property
     def dropins_key(self):
