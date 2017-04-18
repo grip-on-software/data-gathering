@@ -156,7 +156,7 @@ def main():
 
     print('Content-Type: text/json')
     print()
-    json.dump(sys.stdout, {'salt': salt, 'pepper': pepper})
+    json.dump(sys.stdout, {'salts': {'salt': salt, 'pepper': pepper}})
 
 if __name__ == "__main__":
     main()

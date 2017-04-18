@@ -10,6 +10,7 @@ except ImportError:
 
 import argparse
 from configparser import RawConfigParser
+import json
 import logging
 import os
 import shutil
@@ -80,6 +81,21 @@ def generate_key_pair(project_key):
     key.generate()
     return key.keyname
 
+def export_secrets(secrets):
+    """
+    Write a configuration file with secrets according to a dictionary structure
+    with a depth of two levels (section names, configuration keys and values).
+    """
+
+    parser = RawConfigParser()
+    for section, section_secrets in secrets.items():
+        parser.add_section(section)
+        for key, value in section_secrets.items():
+            parser.set(section, key, value)
+
+    with open('secrets.cfg', 'w') as secrets_file:
+        parser.write(secrets_file)
+
 def update_controller_key(host, project, cert, public_key):
     """
     Update the public key in a controller API instance.
@@ -90,6 +106,17 @@ def update_controller_key(host, project, cert, public_key):
 
     if request.status_code != requests.codes['ok']:
         raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
+
+    # In return for our public key, we may receive some secrets (salts).
+    # Export these to a file since the data is never received again.
+    try:
+        response = json.loads(request.text)
+    except ValueError:
+        logging.exception('Invalid JSON response from controller API: %s',
+                          request.text)
+        return
+
+    export_secrets(response)
 
 def update_gitlab_key(source, public_key):
     """
