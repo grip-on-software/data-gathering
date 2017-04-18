@@ -13,6 +13,7 @@ from builtins import object
 import cgi
 import cgitb
 import json
+import os.path
 import sys
 import tempfile
 import urllib.parse
@@ -26,6 +27,13 @@ class Permissions(object):
     def __init__(self, project_key):
         self._controller = Pyro4.Proxy("PYRONAME:gros.controller")
         self._project_key = project_key
+
+    def get_home_directory(self):
+        """
+        Retrieve the home directory of the agent user.
+        """
+
+        return self._controller.get_home_directory(self._project_key)
 
     def update_user(self):
         """Update agent home directory."""
@@ -43,6 +51,31 @@ class Permissions(object):
         """
 
         self._controller.update_permissions(self._project_key)
+
+class Response(object):
+    """
+    Object that formulates the response and writes additional files.
+    """
+
+    def __init__(self, project_key):
+        self._gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
+        self._project_key = project_key
+
+    def get_update_trackers(self, home_directory):
+        """
+        Retrieve update tracking files and store them in the agent export
+        directory.
+        """
+
+        export_directory = os.path.join(home_directory, 'export')
+        self._gatherer.get_update_trackers(self._project_key, export_directory)
+
+    def get_salts(self):
+        """
+        Retrieve project-specific encryption salts.
+        """
+
+        return self._gatherer.get_salts(self._project_key)
 
 class Parameters(object):
     """
@@ -115,11 +148,15 @@ def main():
 
     permissions.update_public_key(public_key)
 
+    response = Response(project_key)
+    response.get_update_trackers(permissions.get_home_directory())
+    salt, pepper = response.get_salts()
+
     permissions.update_permissions()
 
     print('Content-Type: text/json')
     print()
-    json.dump(sys.stdout, {})
+    json.dump(sys.stdout, {'salt': salt, 'pepper': pepper})
 
 if __name__ == "__main__":
     main()
