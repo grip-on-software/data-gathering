@@ -72,7 +72,7 @@ class Controller(object):
                 '-M', # Do not create home directory at this point
                 '-N', # Do not create any additional groups
                 '-d', home_directory,
-                '-l', '/usr/local/bin/upload.sh',
+                '-s', '/usr/local/bin/upload.sh',
                 '-g', 'agents',
                 username
             ])
