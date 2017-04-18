@@ -11,9 +11,9 @@ except ImportError:
 import argparse
 import logging
 from configparser import RawConfigParser
-import bcrypt
-from gatherer.database import Database
+from gatherer.domain import Project
 from gatherer.log import Log_Setup
+from gatherer.salt import Salt
 
 def parse_args():
     """
@@ -46,25 +46,11 @@ def main():
     """
 
     args = parse_args()
-    database = Database(user=args.user, password=args.password, host=args.host,
-                        database=args.database)
-    project_id = database.get_project_id(args.project)
-    if project_id is None:
-        database.set_project_id(args.project)
-        project_id = database.get_project_id(args.project)
+    project = Project(args.project)
+    store = Salt(project, user=args.user, password=args.password,
+                 host=args.host, database=args.database)
 
-    result = database.execute('''SELECT salt, pepper FROM gros.project_salt
-                                  WHERE project_id=%s''',
-                              parameters=[project_id], one=True)
-    if not result:
-        salt = bcrypt.gensalt()
-        pepper = bcrypt.gensalt()
-        database.execute('''INSERT INTO gros.project_salt(project_id,salt,pepper)
-                            VALUES (%s,%s,%s)''',
-                         parameters=[project_id, salt, pepper], update=True)
-    else:
-        salt = result[0]
-        pepper = result[1]
+    salt, pepper = store.execute()
 
     logging.info('Salt: %s', salt)
     logging.info('Pepper: %s', pepper)
