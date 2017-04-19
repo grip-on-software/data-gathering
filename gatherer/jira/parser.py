@@ -63,7 +63,7 @@ class Int_Parser(String_Parser):
     def parse(self, value):
         if isinstance(value, basestring) and '.' in value:
             logging.info('Decimal point in integer value: %s', value)
-            value = '.'.split(value, 1)[0]
+            value = value.split('.', 1)[0]
 
         return str(int(value))
 
