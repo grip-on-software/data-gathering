@@ -2,7 +2,8 @@
 Type specific parsers that convert field values to correct format.
 """
 
-from builtins import str
+from builtins import basestring, str
+import logging
 import re
 from .base import Table_Source
 from ..utils import parse_date, parse_unicode
@@ -60,6 +61,10 @@ class Int_Parser(String_Parser):
     """
 
     def parse(self, value):
+        if isinstance(value, basestring) and '.' in value:
+            logging.info('Decimal point in integer value: %s', value)
+            value = '.'.split(value, 1)[0]
+
         return str(int(value))
 
 class Boolean_Parser(String_Parser):
