@@ -389,7 +389,10 @@ class Metric_Options_Parser(Project_Definition_Parser):
         definition.
         """
 
-        # Ensure that the options of a metric target is a dictionary.
+        # Ensure that the metric type is a class and the options of a metric
+        # target is a dictionary.
+        if not inspect.isclass(metric_type):
+            return
         if not isinstance(options, dict):
             return
 
@@ -407,12 +410,16 @@ class Metric_Options_Parser(Project_Definition_Parser):
                 'comment': ''
             }
         else:
-            targets = {
-                'low_target': str(int(metric_type.low_target_value)),
-                'target': str(int(metric_type.target_value)),
-                'type': options_type,
-                'comment': ''
-            }
+            try:
+                targets = {
+                    'low_target': str(int(metric_type.low_target_value)),
+                    'target': str(int(metric_type.target_value)),
+                    'type': options_type,
+                    'comment': ''
+                }
+            except ValueError:
+                # Could not parse targets as integers
+                return
 
         for key in ('low_target', 'target', 'comment'):
             if key in options:
