@@ -8,7 +8,6 @@ from datetime import datetime
 import logging
 import gitlab3
 from gitlab3.exceptions import ResourceNotFound
-from gatherer.git import GitLab_Repository
 from gatherer.domain import Project, Source
 from gatherer.log import Log_Setup
 
@@ -32,16 +31,14 @@ def parse_args():
     parser.add_argument("--ignore-host-change", dest="follow_host_change",
                         action="store_false", default=True,
                         help="Ignore credential host changes and use the original host instead")
-    parser.add_argument("--log-ratio", dest="log_ratio", type=int,
-                        default=GitLab_Repository.DEFAULT_UPDATE_RATIO,
-                        help="Number of lines to sample from Git progress")
+
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
     return args
 
 # pylint: disable=no-member
-def retrieve_repos(project, log_ratio):
+def retrieve_repos(project):
     """
     Retrieve GitLab repositories for a specific project.
     """
@@ -74,18 +71,15 @@ def retrieve_repos(project, log_ratio):
             continue
 
         repo_name = project_repo.name
+        if not project_repo.commits(limit=1):
+            logging.info('Ignoring empty GitLab repository %s', repo_name)
+            continue
+
         logging.info('Processing GitLab repository %s', repo_name)
 
-        repo_dir = 'project-git-repos/{0}/{1}'.format(project.key, repo_name)
         source = Source.from_type('gitlab', name=repo_name,
                                   url=project_repo.http_url_to_repo,
                                   follow_host_change=False)
-        repo = GitLab_Repository.from_source(source, repo_dir,
-                                             progress=log_ratio)
-
-        if repo.is_empty():
-            logging.info('Ignoring empty repository %s', repo_name)
-            continue
 
         # Check if there is already another (Git) source with the same URL.
         if all(source.url != existing.url for existing in project.sources):
@@ -101,7 +95,7 @@ def main():
     project_key = args.project
     project = Project(project_key, follow_host_change=args.follow_host_change)
 
-    retrieve_repos(project, args.log_ratio)
+    retrieve_repos(project)
     project.export_sources()
 
 if __name__ == "__main__":
