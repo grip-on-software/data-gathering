@@ -7,7 +7,10 @@ RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	pip install -r /tmp/requirements.txt && \
 	apk del gcc musl-dev && rm -rf /var/cache/apk/* /tmp/
 
-VOLUME /home/agent/.ssh
+RUN mkdir -p /home/agent/.ssh
+RUN chown -R agent:agent /home/agent/.ssh && \
+	chmod -R 700 /home/agent/.ssh
+
 WORKDIR /home/agent
 
 COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg jenkins-scraper.sh jira_fields.json /home/agent/
