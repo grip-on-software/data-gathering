@@ -13,7 +13,6 @@ from builtins import str
 import json
 import logging
 import os
-import urllib.parse
 import gitlab3
 from gitlab3.exceptions import GitLabException
 from .repo import Git_Repository
@@ -121,6 +120,28 @@ class GitLab_Repository(Git_Repository):
             for comment in comments['notes']:
                 self._add_commit_comment(comment, updated_commit_id)
 
+    @classmethod
+    def is_up_to_date(cls, source, latest_version):
+        try:
+            api = cls._create_api(source)
+        except RuntimeError:
+            return False
+
+        # pylint: disable=no-member
+        project = api.project(source.gitlab_path)
+        if project.commit('HEAD').id == latest_version:
+            return True
+
+        return False
+
+    @staticmethod
+    def _create_api(source):
+        try:
+            logging.info('Setting up API for %s', source.host)
+            return gitlab3.GitLab(source.host, source.gitlab_token)
+        except (AttributeError, GitLabException):
+            raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
+
     @property
     def api(self):
         """
@@ -129,12 +150,7 @@ class GitLab_Repository(Git_Repository):
         """
 
         if self._api is None:
-            try:
-                logging.info('Setting up API for %s', self._source.host)
-                self._api = gitlab3.GitLab(self._source.host,
-                                           self._source.gitlab_token)
-            except (AttributeError, GitLabException):
-                raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
+            self._api = self._create_api(self._source)
 
         return self._api
 
@@ -146,8 +162,7 @@ class GitLab_Repository(Git_Repository):
 
         if self._repo_project is None:
             try:
-                path = urllib.parse.quote_plus(self._source.gitlab_path)
-                self._repo_project = self.api.project(path)
+                self._repo_project = self.api.project(self._source.gitlab_path)
             except AttributeError:
                 raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
 

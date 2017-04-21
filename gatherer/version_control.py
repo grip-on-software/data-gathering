@@ -43,11 +43,23 @@ class Repositories_Holder(object):
         """
         Retrieve repository objects for all involved version control systems.
 
+        Repositories that are up to date (if it can be determined beforehand)
+        and repositories that are empty are not retrieved.
+
         Returns a generator that can be iterated over.
         """
 
         for source in self._project.sources:
             repo_class = source.repository_class
+
+            # Check up-to-dateness before retrieving from source
+            if source.name in self._latest_versions:
+                latest_version = self._latest_versions[source.name]
+                if repo_class.is_up_to_date(source, latest_version):
+                    logging.info('Repository %s: Already up to date.',
+                                 source.name)
+                    continue
+
             path = os.path.join(self._repo_directory, source.path_name)
             repo = repo_class.from_source(source, path, project=self._project,
                                           sprints=self._sprints)
@@ -127,6 +139,21 @@ class Version_Control_Repository(object):
         """
 
         raise NotImplementedError("Must be implemented by subclass")
+
+    @classmethod
+    def is_up_to_date(cls, source, latest_version):
+        # pylint: disable=unused-argument
+        """
+        Check whether the `source` is up to date without retrieving the entire
+        repository. The `latest_version` is a version identifier of the version
+        that has been collected previously.
+
+        If it is impossible to determine up-to-dateness, or the entire
+        repository does not need to be retrieved beforehand to check this
+        during version collection, then this class method returns `False`.
+        """
+
+        return False
 
     @property
     def repo(self):

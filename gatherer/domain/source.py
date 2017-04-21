@@ -10,7 +10,6 @@ except ImportError:
 
 from builtins import object
 import configparser
-import logging
 import os
 import re
 import urllib.parse
@@ -385,7 +384,7 @@ class GitLab(Git):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
         self._gitlab_host = self._create_url(orig_parts.scheme, host, '', '', '')
-        self._gitlab_path = self.remove_git_suffix(path)
+        self._gitlab_path = urllib.parse.quote_plus(self.remove_git_suffix(path))
 
         return orig_parts, host
 
