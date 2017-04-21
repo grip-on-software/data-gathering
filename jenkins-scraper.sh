@@ -89,6 +89,8 @@ function export_handler() {
 				if [ "$status" != "0" ]; then
 					if [ -e "dropins/$project/$update_file" ]; then
 						cp "dropins/$project/$update_file" "export/$project/$update_file"
+					elif [ -e "export/$project/$update_file" ]; then
+						skip_script=0
 					fi
 					skip_dropin=0
 				fi
@@ -100,7 +102,7 @@ function export_handler() {
 			if [ -e "dropins/$project/$export_file" ]; then
 				if [ "$skip_dropin" = "0" ]; then
 					cp "dropins/$project/$export_file" "export/$project/$export_file"
-				elif [ "$script" = "git_to_json.py" ]; then
+				else
 					echo "[]" > export/$project/$export_file
 				fi
 			else
@@ -120,10 +122,10 @@ if [ -d scripts ]; then
 	rm -rf gatherer/
 	cp -r scripts/gatherer/ gatherer/
 	cp -r scripts/dropins/ dropins/
-
-	# Install Python dependencies
-	pip install -r requirements.txt
 fi
+
+# Install Python dependencies
+pip install -r requirements.txt
 
 # Files that are backed up in case of errors for each project
 scripts="project_sources.py jira_to_json.py gitlab_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
@@ -167,6 +169,7 @@ do
 
 	if [ $skipGather = "false" ]; then
 		status_handler python retrieve_update_trackers.py $project --files $restoreFiles --log $logLevel
+		status_handler python retrieve_dropins.py $project --log $logLevel
 
 		export_handler project_sources.py $project --log $logLevel
 		export_handler jira_to_json.py $project --log $logLevel
