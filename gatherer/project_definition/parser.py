@@ -444,7 +444,13 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
             datetime_args = {'now.return_value': self.file_time}
             with mock.patch('datetime.datetime', **datetime_args):
-                debt_target = debt.target_value()
+                try:
+                    debt_target = debt.target_value()
+                except TypeError:
+                    # Dynamic technical debt target may have incomparable
+                    # values for start/end dates.
+                    return {}
+
                 debt_comment = debt.explanation()
 
                 return {
