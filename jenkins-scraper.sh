@@ -128,7 +128,7 @@ fi
 pip install -r requirements.txt
 
 # Files that are backed up in case of errors for each project
-scripts="project_sources.py jira_to_json.py gitlab_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
+scripts="project_sources.py jira_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
 for script in $scripts; do
 	if [ -e "$script.update" ]; then
 		read -r update_files < "$script.update"

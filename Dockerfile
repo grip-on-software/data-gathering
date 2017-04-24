@@ -7,18 +7,15 @@ RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	pip install -r /tmp/requirements.txt && \
 	apk del gcc musl-dev && rm -rf /var/cache/apk/* /tmp/
 
-RUN mkdir -p /home/agent/.ssh
-RUN chown -R agent:agent /home/agent/.ssh && \
-	chmod -R 700 /home/agent/.ssh
-
-WORKDIR /home/agent
-
-COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg jenkins-scraper.sh jira_fields.json /home/agent/
+COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg *.sh jira_fields.json /home/agent/
 COPY certs/ /home/agent/certs/
 COPY gatherer/ /home/agent/gatherer/
 
-USER agent
+RUN mkdir -p /home/agent/.ssh && \
+	chown -R agent:agent /home/agent/.ssh && \
+	chmod -R 700 /home/agent/.ssh && \
+	chmod +x /home/agent/*.sh
 
-# Update configuration based on docker compose environment variables.
-# Then run a dummy command to keep the container running until stopped
-CMD ["/bin/bash", "-c", "(find /home/agent -name '*.cfg.example' | while read file; do envsubst < $file > ${file%.*}; done); python generate_key.py $JIRA_KEY; python -c 'import signal;signal.pause()'"]
+WORKDIR /home/agent
+
+CMD ["/bin/bash", "docker-init.sh"]
