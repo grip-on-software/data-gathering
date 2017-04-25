@@ -158,11 +158,17 @@ class Sprint_Parser(Field_Parser):
         sprint_text = int(sprint_data["id"])
 
         if sprint_data["endDate"] != "<null>" and sprint_data["startDate"] != "<null>":
+            if sprint_data["completeDate"] == "<null>":
+                complete_date = str(0)
+            else:
+                complete_date = parse_date(sprint_data["completeDate"])
+
             self.jira.get_table("sprint").append({
                 "id": str(sprint_text),
                 "name": str(sprint_data["name"]),
                 "start_date": parse_date(sprint_data["startDate"]),
-                "end_date": parse_date(sprint_data["endDate"])
+                "end_date": parse_date(sprint_data["endDate"]),
+                "complete_date": complete_date
             })
 
         return sprint_text
