@@ -4,6 +4,7 @@ Base module that defines an abstract version control system.
 
 from builtins import str
 from builtins import object
+from enum import Enum, unique
 import json
 import logging
 import os.path
@@ -112,6 +113,31 @@ class Repositories_Holder(object):
 
         with open(self._latest_filename, 'w') as latest_versions_file:
             json.dump(self._latest_versions, latest_versions_file)
+
+@unique
+class Change_Type(Enum):
+    # pylint: disable=too-few-public-methods
+    """
+    Known types of changes that are made to files in version control
+    repositories. The enum values are shorthand labels for the change type.
+    """
+
+    MODIFIED = 'M'
+    ADDED = 'A'
+    DELETED = 'D'
+    REPLACED = 'R'
+
+    @classmethod
+    def from_label(cls, label):
+        """
+        Retrieve a change type from its shorthand label.
+        """
+
+        for entity in cls:
+            if entity.value == label[0]:
+                return entity
+
+        raise ValueError('Label {} is not a valid change type'.format(label))
 
 class Version_Control_Repository(object):
     """

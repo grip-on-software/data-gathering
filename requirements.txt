@@ -11,6 +11,7 @@ mock
 quality_report<=1.79.3; python_version < '3.0'
 quality_report>=1.80.0; python_version >= '3.0'
 svn
+enum34; python_version < '3.4'
 # gitlab_to_json.py
 -e git+http://github.com/lhelwerd/python-gitlab3.git@json-import#egg=gitlab3
 # generate_key.py

@@ -6,11 +6,11 @@ from builtins import str
 import datetime
 import logging
 import os
-from git import Repo, InvalidGitRepositoryError, NoSuchPathError
+from git import Repo, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
 from .progress import Git_Progress
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
-from ..version_control import Version_Control_Repository
+from ..version_control import Change_Type, Version_Control_Repository
 
 class Git_Repository(Version_Control_Repository):
     """
@@ -257,14 +257,77 @@ class Git_Repository(Version_Control_Repository):
             'size': str(commit.size)
         }
 
+    @staticmethod
+    def _format_replaced_path(old_path, new_path):
+        # Not implemented: C-style quoted files with non-unicode characters
+        # Find common prefix
+        prefix_length = 0
+        for index, pair in enumerate(zip(old_path, new_path)):
+            if pair[0] != pair[1]:
+                break
+            if pair[0] == '/':
+                prefix_length = index + 1
+
+        # Find common suffix
+        suffix_length = 0
+        prefix_adjust_for_slash = 1 if prefix_length else 0
+        old_index = len(old_path) - 1
+        new_index = len(new_path) - 1
+        while prefix_length - prefix_adjust_for_slash <= old_index and \
+                prefix_length - prefix_adjust_for_slash <= new_index and \
+                old_path[old_index] == new_path[new_index]:
+            if old_path[old_index] == '/':
+                suffix_length = len(old_path) - old_index
+
+            old_index -= 1
+            new_index -= 1
+
+        # Format replaced path
+        old_midlen = max(0, len(old_path) - suffix_length)
+        new_midlen = max(0, len(new_path) - suffix_length)
+
+        mid_name = old_path[prefix_length:old_midlen] + ' => ' + \
+                new_path[prefix_length:new_midlen]
+        if prefix_length + suffix_length > 0:
+            return old_path[:prefix_length] + '{' + mid_name + '}' + \
+                    old_path[len(old_path)-suffix_length:]
+
+        return mid_name
+
     def _parse_change_stats(self, commit):
-        for path, stats in commit.stats.files.items():
+        if len(commit.parents) > 0:
+            parent_diffs = tuple(commit.diff(parent, R=True) for parent in commit.parents)
+        else:
+            parent_diffs = (commit.diff(NULL_TREE),)
+
+        for diffs in parent_diffs:
+            self._parse_change_diffs(commit, diffs)
+
+    def _parse_change_diffs(self, commit, diffs):
+        for diff in diffs:
+            old_file = diff.a_path
+            new_file = diff.b_path
+            change_type = Change_Type.from_label(diff.change_type)
+            if old_file != new_file:
+                stat_file = self._format_replaced_path(old_file, new_file)
+            else:
+                stat_file = old_file
+
+            if stat_file in commit.stats.files:
+                insertions = commit.stats.files[stat_file]['insertions']
+                deletions = commit.stats.files[stat_file]['deletions']
+            else:
+                logging.info('File change %s has no stats', stat_file)
+                insertions = 0
+                deletions = 0
+
             change_data = {
                 'repo_name': str(self._repo_name),
                 'version_id': str(commit.hexsha),
-                'file': path,
-                'insertions': str(stats['insertions']),
-                'deletions': str(stats['deletions'])
+                'file': str(new_file),
+                'change_type': str(change_type.value),
+                'insertions': str(insertions),
+                'deletions': str(deletions)
             }
             self._tables['change_path'].append(change_data)
 

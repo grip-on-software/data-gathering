@@ -5,6 +5,7 @@ Module for parsing Subversion difference formats.
 from builtins import object, str
 import logging
 import svn.common
+from ..version_control import Change_Type
 from ..table import Table
 
 class Difference(object):
@@ -75,6 +76,7 @@ class Difference(object):
         filename = None
         file_insertions = 0
         file_deletions = 0
+        change_type = Change_Type.MODIFIED
         number_of_lines = 0
         number_of_files = 0
         size = 0
@@ -90,9 +92,17 @@ class Difference(object):
                 filename = line[len(b'Index: '):]
                 file_insertions = 0
                 file_deletions = 0
+                change_type = Change_Type.MODIFIED
                 head = True
-            elif head and line.startswith(b'@@ '):
-                head = False
+            elif head:
+                if line.startswith(b'---'):
+                    if line.endswith('(nonexistent)'):
+                        change_type = Change_Type.ADDED
+                elif line.startswith(b'+++'):
+                    if line.endswith('(nonexistent)'):
+                        change_type = Change_Type.DELETED
+                elif line.startswith(b'@@ '):
+                    head = False
 
             if not head:
                 if line.startswith(b'+'):
@@ -113,6 +123,7 @@ class Difference(object):
             # Statistics
             'insertions': str(insertions),
             'deletions': str(deletions),
+            'change_type': str(change_type.value),
             'number_of_lines': str(number_of_lines),
             'number_of_files': str(number_of_files),
             'size': str(size)
