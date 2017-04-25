@@ -24,6 +24,8 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description='Retrieve the update trackers')
     parser.add_argument('project', help='project key to retrieve for')
+    parser.add_argument('--path', default='~/.ssh/id_rsa',
+                        help='local path of the private key')
     parser.add_argument('--user', default=config.get('database', 'username'),
                         help='username to connect to the database with')
     parser.add_argument('--password', default=config.get('database', 'password'),
@@ -56,7 +58,8 @@ def main():
         tracker_class = SSH_Tracker
         options = {
             'user': args.agent,
-            'host': args.server
+            'host': args.server,
+            'key_path': args.path
         }
     else:
         tracker_class = Database_Tracker

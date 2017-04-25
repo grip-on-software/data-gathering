@@ -45,7 +45,8 @@ def parse_args():
                         help='Controller API host to distribute key to')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
-    parser.add_argument('--gitlab', help='GitLab host to distribute key to')
+    parser.add_argument('--gitlab', nargs='?',
+                        help='GitLab host to distribute key to')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()

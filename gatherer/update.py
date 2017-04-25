@@ -88,10 +88,11 @@ class SSH_Tracker(Update_Tracker):
     directory containing (amongst others) update tracker files.
     """
 
-    def __init__(self, project, username='', host=''):
+    def __init__(self, project, username='', host='', key_path='~/.ssh/id_rsa'):
         super(SSH_Tracker, self).__init__(project)
         self._username = username
         self._host = host
+        self._key_path = key_path
 
     def retrieve(self, files=None):
         if not files:
@@ -103,6 +104,7 @@ class SSH_Tracker(Update_Tracker):
 
         for filename in files:
             subprocess.call([
-                'scp', '{}/{}'.format(path, filename),
+                'scp', '-i', self._key_path,
+                '{}/{}'.format(path, filename),
                 '{}/{}'.format(self._project.export_key, filename)
             ])
