@@ -37,6 +37,22 @@ class Controller(object):
 
         return os.path.join(self.HOME_DIRECTORY, project_key)
 
+    def get_home_subdirectories(self, project_key):
+        """
+        Retrieve the subdirectories of the home directory of a certain project
+        which should be created in a clean version of the directory.
+
+        Returns the full directory structure as a tuple of directories, ordered
+        in the way they are created. This includes the home directory as the
+        first element.
+        """
+
+        home_directory = self.get_home_directory(project_key)
+        export_directory = os.path.join(home_directory, 'export')
+        export_key_directory = os.path.join(export_directory, project_key)
+
+        return (home_directory, export_directory, export_key_directory)
+
     def get_agent_user(self, project_key):
         """
         Retrieve the username of the agent for a certain project.
@@ -77,7 +93,8 @@ class Controller(object):
                 username
             ])
 
-        self._create_directory(project_key, home_directory)
+        for directory in self.get_home_subdirectories(project_key):
+            self._create_directory(project_key, directory)
 
         return home_directory
 
@@ -99,9 +116,9 @@ class Controller(object):
         Change permissions such that only the agent can access the directories.
         """
 
-        home_directory = self.get_home_directory(project_key)
+        home_directories = self.get_home_subdirectories(project_key)
         ssh_directory = self.get_ssh_directory(project_key)
-        for directory in (home_directory, ssh_directory):
+        for directory in reversed(home_directories + (ssh_directory,)):
             self._update_owner(project_key, directory)
             subprocess.check_call(['sudo', 'chmod', '2700', directory])
 
