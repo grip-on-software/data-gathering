@@ -123,7 +123,7 @@ class Difference(object):
             self._change_paths.append({
                 'repo_name': str(self._repo.repo_name),
                 'version_id': str(self._version_id),
-                'file': str(filename),
+                'file': str(filename.decode('utf-8')),
                 'insertions': str(file_insertions),
                 'deletions': str(file_deletions)
             })
