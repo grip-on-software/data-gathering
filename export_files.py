@@ -53,12 +53,11 @@ def main():
     path = '{}:~/{}'.format(auth, project.export_key)
 
     for filename in args.export + args.update:
-        print(args.path)
-        print(' '.join([
+        subprocess.call([
             'scp', '-i', args.path,
             '{}/{}'.format(project.export_key, filename),
             '{}/{}'.format(path, filename)
-        ]))
+        ])
 
 if __name__ == "__main__":
     main()
