@@ -37,10 +37,13 @@ class GitLab_Repository(Git_Repository):
 
         self._tables.update({
             "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
-            "merge_request": Key_Table('merge_request', 'id'),
+            "merge_request": Key_Table('merge_request', 'id',
+                                       encrypted_fields=('author', 'assignee')),
             "merge_request_note": Link_Table('merge_request_note',
-                                             ('merge_request_id', 'note_id')),
-            "commit_comment": Table('commit_comment')
+                                             ('merge_request_id', 'note_id'),
+                                             encrypted_fields=('author',)),
+            "commit_comment": Table('commit_comment',
+                                    encrypted_fields=('author',))
         })
 
     def _check_dropin_files(self, project=None):
