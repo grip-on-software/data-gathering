@@ -313,13 +313,13 @@ class Git_Repository(Version_Control_Repository):
             else:
                 stat_file = old_file
 
-            if stat_file in commit.stats.files:
-                insertions = commit.stats.files[stat_file]['insertions']
-                deletions = commit.stats.files[stat_file]['deletions']
-            else:
-                logging.info('File change %s has no stats', stat_file)
-                insertions = 0
-                deletions = 0
+            if stat_file not in commit.stats.files:
+                logging.debug('File change %s in commit %s has no stats',
+                              stat_file, commit.hexsha)
+                continue
+
+            insertions = commit.stats.files[stat_file]['insertions']
+            deletions = commit.stats.files[stat_file]['deletions']
 
             change_data = {
                 'repo_name': str(self._repo_name),
