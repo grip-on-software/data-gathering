@@ -30,7 +30,8 @@ class Subversion_Repository(Version_Control_Repository):
         self._reset_limiter()
         self._tables.update({
             'change_path': Table('change_path'),
-            'tag': Key_Table('tag', 'tag_name')
+            'tag': Key_Table('tag', 'tag_name',
+                             encrypt_fields=('tagger', 'tagger_email'))
         })
 
     def _reset_limiter(self):

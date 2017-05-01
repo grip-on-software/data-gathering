@@ -8,6 +8,7 @@ from enum import Enum, unique
 import json
 import logging
 import os.path
+from .table import Table
 from .utils import Sprint_Data
 
 class Repositories_Holder(object):
@@ -23,11 +24,8 @@ class Repositories_Holder(object):
 
         self._latest_versions = {}
 
-        filename = 'vcs_versions.json'
         self._latest_filename = os.path.join(project.export_key,
-                                             'latest_{}'.format(filename))
-        self._export_filename = os.path.join(project.export_key,
-                                             'data_{}'.format(filename))
+                                             'latest_vcs_versions.json')
 
     def _load_latest_versions(self):
         """
@@ -76,7 +74,8 @@ class Repositories_Holder(object):
 
         self._load_latest_versions()
 
-        version_data = []
+        versions = Table('vcs_versions',
+                         encrypt_fields=('developer', 'developer_email'))
         tables = {}
         for repo in self.get_repositories():
             repo_name = repo.repo_name
@@ -86,7 +85,7 @@ class Repositories_Holder(object):
             else:
                 latest_version = None
 
-            version_data.extend(repo.get_data(from_revision=latest_version))
+            versions.extend(repo.get_data(from_revision=latest_version))
             self._latest_versions[repo.repo_name] = repo.get_latest_version()
             for table_name, table_data in repo.tables.items():
                 if table_name not in tables:
@@ -94,16 +93,15 @@ class Repositories_Holder(object):
 
                 tables[table_name].extend(table_data.get())
 
-        self._export(version_data, tables)
+        self._export(versions, tables)
 
-    def _export(self, version_data, tables):
+    def _export(self, versions, tables):
         """
         Export the version metadata, additional table metadata, and identifiers
         of the latest versions from the repositories to JSON files.
         """
 
-        with open(self._export_filename, 'w') as data_file:
-            json.dump(version_data, data_file, indent=4)
+        versions.write(self._project.export_key)
 
         for table, table_data in tables.items():
             table_filename = os.path.join(self._project.export_key,

@@ -3,6 +3,8 @@ Table structures.
 """
 
 from builtins import object
+from configparser import RawConfigParser
+import hashlib
 import json
 import os
 from copy import copy, deepcopy
@@ -12,11 +14,19 @@ class Table(object):
     Data storage for eventual JSON output for the database importer.
     """
 
-    def __init__(self, name, filename=None, merge_update=False, **kwargs):
+    def __init__(self, name, filename=None, merge_update=False,
+                 encrypt_fields=None, **kwargs):
         self._name = name
         self._data = []
         self._merge_update = merge_update
+        self._encrypt_fields = encrypt_fields
         self._options = kwargs
+
+        if self._encrypt_fields is not None and os.path.exists("secrets.cfg"):
+            self._secrets = RawConfigParser()
+            self._secrets.read("secrets.cfg")
+        else:
+            self._secrets = None
 
         if filename is None:
             self._filename = 'data_{}.json'.format(self._name)
@@ -30,6 +40,27 @@ class Table(object):
         """
 
         return self._name
+
+    def _encrypt(self, row):
+        if self._encrypt_fields is None:
+            return row
+
+        if self._secrets is None:
+            row["encrypted"] = False
+            return row
+
+        if "encrypted" in row and row["encrypted"]:
+            return row
+
+        salt = self._secrets.get('salts', 'salt')
+        pepper = self._secrets.get('salts', 'pepper')
+
+        for field in self._encrypt_fields:
+            if row[field] != str(0):
+                row[field] = hashlib.sha256(salt + row[field] + pepper).hexdigest()
+
+        row["encrypted"] = True
+        return row
 
     def get(self):
         """
@@ -48,7 +79,7 @@ class Table(object):
         identifiers in the row.
         """
 
-        return row in self._data
+        return self._encrypt(row) in self._data
 
     def _fetch_row(self, row):
         """
@@ -59,7 +90,7 @@ class Table(object):
 
         # Actually get the real row so that values that compare equal between
         # the given row and our row are replaced.
-        index = self._data.index(row)
+        index = self._data.index(self._encrypt(row))
         return self._data[index]
 
     def get_row(self, row):
@@ -88,7 +119,7 @@ class Table(object):
         The return value indicates whether the row is newly added to the table.
         """
 
-        self._data.append(row)
+        self._data.append(self._encrypt(row))
         return True
 
     def extend(self, rows):
@@ -96,7 +127,7 @@ class Table(object):
         Insert multiple rows at once into the table.
         """
 
-        self._data.extend(rows)
+        self._data.extend([self._encrypt(row) for row in rows])
 
     def update(self, search_row, update_row):
         """
