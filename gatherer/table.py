@@ -46,10 +46,10 @@ class Table(object):
             return row
 
         if self._secrets is None:
-            row["encrypted"] = False
+            row["encrypted"] = str(0)
             return row
 
-        if "encrypted" in row and row["encrypted"]:
+        if "encrypted" in row and row["encrypted"] != str(0):
             return row
 
         salt = self._secrets.get('salts', 'salt')
@@ -59,7 +59,7 @@ class Table(object):
             if row[field] != str(0):
                 row[field] = hashlib.sha256(salt + row[field] + pepper).hexdigest()
 
-        row["encrypted"] = True
+        row["encrypted"] = str(1)
         return row
 
     def get(self):
