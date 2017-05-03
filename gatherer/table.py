@@ -57,7 +57,7 @@ class Table(object):
 
         for field in self._encrypt_fields:
             if row[field] != str(0):
-                row[field] = hashlib.sha256(salt + row[field] + pepper).hexdigest()
+                row[field] = hashlib.sha256(salt + row[field].encode('utf-8') + pepper).hexdigest()
 
         row["encrypted"] = str(1)
         return row
