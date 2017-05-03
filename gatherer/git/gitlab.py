@@ -35,15 +35,17 @@ class GitLab_Repository(Git_Repository):
         else:
             self._has_commit_comments = True
 
+        author_fields = ('author', 'author_username')
+        assignee_fields = ('assignee', 'assignee_username')
         self._tables.update({
             "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
             "merge_request": Key_Table('merge_request', 'id',
-                                       encrypted_fields=('author', 'assignee')),
+                                       encrypted_fields=author_fields + assignee_fields),
             "merge_request_note": Link_Table('merge_request_note',
                                              ('merge_request_id', 'note_id'),
-                                             encrypted_fields=('author',)),
+                                             encrypted_fields=author_fields),
             "commit_comment": Table('commit_comment',
-                                    encrypted_fields=('author',))
+                                    encrypted_fields=author_fields)
         })
 
     def _check_dropin_files(self, project=None):
@@ -229,9 +231,11 @@ class GitLab_Repository(Git_Repository):
 
     def _add_merge_request(self, merge_request):
         if merge_request.assignee is not None:
-            assignee = merge_request.assignee['name']
+            assignee = parse_unicode(merge_request.assignee['name'])
+            assignee_username = parse_unicode(merge_request.assignee['username'])
         else:
             assignee = str(0)
+            assignee_username = str(0)
 
         self._tables["merge_request"].append({
             'repo_name': str(self._repo_name),
@@ -240,8 +244,10 @@ class GitLab_Repository(Git_Repository):
             'description': parse_unicode(merge_request.description),
             'source_branch': merge_request.source_branch,
             'target_branch': merge_request.target_branch,
-            'author': merge_request.author['name'],
+            'author': parse_unicode(merge_request.author['name']),
+            'author_username': parse_unicode(merge_request.author['username']),
             'assignee': assignee,
+            'assignee_username': assignee_username,
             'upvotes': str(merge_request.upvotes),
             'downvotes': str(merge_request.downvotes),
             'created_at': format_date(merge_request.created_at),
@@ -253,7 +259,8 @@ class GitLab_Repository(Git_Repository):
             'repo_name': str(self._repo_name),
             'merge_request_id': str(merge_request_id),
             'note_id': str(note.id),
-            'author': note.author['name'],
+            'author': parse_unicode(note.author['name']),
+            'author_username': parse_unicode(note.author['username']),
             'comment': parse_unicode(note.body),
             'created_at': format_date(note.created_at)
         })
@@ -262,7 +269,8 @@ class GitLab_Repository(Git_Repository):
         self._tables["commit_comment"].append({
             'repo_name': str(self._repo_name),
             'commit_id': str(commit_id),
-            'author': note['author']['name'],
+            'author': parse_unicode(note['author']['name']),
+            'author_username': parse_unicode(note['author']['username']),
             'comment': parse_unicode(note['note']),
             'file': note['path'] if note['path'] is not None else str(0),
             'line': str(note['line']) if note['line'] is not None else str(0),
