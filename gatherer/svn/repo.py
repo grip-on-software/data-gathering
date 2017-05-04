@@ -14,7 +14,7 @@ import svn.remote
 from .difference import Difference
 from ..table import Table, Key_Table
 from ..utils import format_date, parse_unicode, Iterator_Limiter
-from ..version_control import Version_Control_Repository
+from ..version_control import Version_Control_Repository, FileNotFoundException
 
 class Subversion_Repository(Version_Control_Repository):
     """
@@ -226,7 +226,10 @@ class Subversion_Repository(Version_Control_Repository):
         `revision`, or the currently checked out revision if not given.
         """
 
-        return self.repo.cat(filename, revision=revision)
+        try:
+            return self.repo.cat(filename, revision=revision)
+        except svn.common.SvnException as error:
+            raise FileNotFoundException(error.message)
 
     def get_latest_version(self):
         info = self.repo.info()

@@ -11,6 +11,14 @@ import os.path
 from .table import Table
 from .utils import Sprint_Data
 
+class FileNotFoundException(RuntimeError):
+    """
+    Exception that indicates that a `Version_Control_Repository.get_contents`
+    call failed due to an invalid or missing file.
+    """
+
+    pass
+
 class Repositories_Holder(object):
     """
     Abstract interface for interacting with multiple version control systems
@@ -269,6 +277,17 @@ class Version_Control_Repository(object):
         """
 
         return self._tables
+
+    def get_contents(self, filename, revision=None):
+        """
+        Retrieve the contents of a file with path `filename` at the given
+        version `revision`, or the current version if not given.
+
+        If the contents cannot be retrieved due to a missing or invalid file,
+        then this method raises a `FileNotFoundException`.
+        """
+
+        raise NotImplementedError('Must be implemented by subclass')
 
     def get_versions(self, filename='', from_revision=None, to_revision=None,
                      descending=False, **kwargs):

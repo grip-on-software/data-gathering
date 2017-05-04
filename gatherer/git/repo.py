@@ -4,13 +4,14 @@ Module that handles access to and remote updates of a Git repository.
 
 from builtins import str
 import datetime
+from io import BytesIO
 import logging
 import os
-from git import Repo, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
+from git import Repo, Blob, Commit, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
 from .progress import Git_Progress
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
-from ..version_control import Change_Type, Version_Control_Repository
+from ..version_control import Change_Type, Version_Control_Repository, FileNotFoundException
 
 class Git_Repository(Version_Control_Repository):
     """
@@ -357,3 +358,24 @@ class Git_Repository(Version_Control_Repository):
 
     def get_latest_version(self):
         return self.repo.rev_parse('master').hexsha
+
+    def get_contents(self, filename, revision=None):
+        if isinstance(revision, Commit):
+            commit = revision
+        elif revision is not None:
+            commit = self.repo.commit(revision)
+        else:
+            commit = self.repo.commit('HEAD')
+
+        try:
+            logging.info(filename)
+            blob = commit.tree.join(filename)
+        except KeyError as error:
+            raise FileNotFoundException(error.message)
+
+        if not isinstance(blob, Blob):
+            raise FileNotFoundException('Path {} has no Blob object'.format(filename))
+
+        stream = BytesIO()
+        blob.stream_data(stream)
+        return stream.getvalue()
