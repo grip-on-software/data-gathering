@@ -135,6 +135,14 @@ class Project(Project_Meta):
 
         self._sources.remove(source)
 
+    def make_export_directory(self):
+        """
+        Ensure that the export directory exists, or create it if it is missing.
+        """
+
+        if not os.path.exists(self.export_key):
+            os.makedirs(self.export_key)
+
     def export_sources(self):
         """
         Export data about all registered sources so that they can be
@@ -145,9 +153,7 @@ class Project(Project_Meta):
         for source in self._sources:
             data.append(source.export())
 
-        if not os.path.exists(self.export_key):
-            os.makedirs(self.export_key)
-
+        self.make_export_directory()
         with open(self._sources_path, 'w') as sources_file:
             json.dump(data, sources_file)
 

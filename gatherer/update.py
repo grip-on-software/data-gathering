@@ -16,6 +16,7 @@ class Update_Tracker(object):
 
     def __init__(self, project):
         self._project = project
+        self._project.make_export_directory()
 
     def retrieve(self, files=None):
         """
