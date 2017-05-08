@@ -358,7 +358,14 @@ class GitLab(Git):
         if follow_host_change:
             host = cls._get_changed_host(host)
 
-        return cls._credentials.has_option(host, 'gitlab_token')
+        return cls._has_gitlab_token(host)
+
+    @classmethod
+    def _has_gitlab_token(cls, host):
+        if not cls._credentials.has_option(host, 'gitlab_token'):
+            return False
+
+        return cls._credentials.get(host, 'gitlab_token') != ''
 
     def _update_credentials(self):
         orig_parts, host = super(GitLab, self)._update_credentials()
@@ -380,7 +387,7 @@ class GitLab(Git):
 
         # Find the GitLab token and URL without authentication for connecting
         # to the GitLab API.
-        if self._credentials.has_option(host, 'gitlab_token'):
+        if self._has_gitlab_token(host):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
         self._gitlab_host = self._create_url(orig_parts.scheme, host, '', '', '')
