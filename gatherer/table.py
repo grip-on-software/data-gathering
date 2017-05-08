@@ -52,8 +52,8 @@ class Table(object):
         if "encrypted" in row and row["encrypted"] != str(0):
             return row
 
-        salt = self._secrets.get('salts', 'salt')
-        pepper = self._secrets.get('salts', 'pepper')
+        salt = self._secrets.get('salts', 'salt').encode('utf-8')
+        pepper = self._secrets.get('salts', 'pepper').encode('utf-8')
 
         for field in self._encrypt_fields:
             if row[field] != str(0):
