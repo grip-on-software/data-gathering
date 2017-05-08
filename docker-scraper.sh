@@ -1,5 +1,11 @@
 #!/bin/bash -ex
 
+project=$1;
+if [ -z "$project" ]; then
+	echo "Project must be provided"
+	exit 1
+fi
+
 # Declare repository cleanup
 if [ -z "$cleanupRepos" ]; then
 	cleanupRepos="false"
