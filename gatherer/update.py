@@ -88,9 +88,9 @@ class SSH_Tracker(Update_Tracker):
     directory containing (amongst others) update tracker files.
     """
 
-    def __init__(self, project, username='', host='', key_path='~/.ssh/id_rsa'):
+    def __init__(self, project, user='', host='', key_path='~/.ssh/id_rsa'):
         super(SSH_Tracker, self).__init__(project)
-        self._username = username
+        self._username = user
         self._host = host
         self._key_path = key_path
 
