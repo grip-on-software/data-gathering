@@ -368,10 +368,9 @@ class Git_Repository(Version_Control_Repository):
             commit = self.repo.commit('HEAD')
 
         try:
-            logging.info(filename)
             blob = commit.tree.join(filename)
         except KeyError as error:
-            raise FileNotFoundException(error.message)
+            raise FileNotFoundException(str(error))
 
         if not isinstance(blob, Blob):
             raise FileNotFoundException('Path {} has no Blob object'.format(filename))
