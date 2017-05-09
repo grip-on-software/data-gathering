@@ -171,7 +171,8 @@ class Subversion_Repository(Version_Control_Repository):
             'type': 'commit',
             'developer': entry.author,
             'developer_email': str(0),
-            'commit_date': format_date(commit_datetime)
+            'commit_date': format_date(commit_datetime),
+            'author_date': str(0)
         }
 
         if stats:

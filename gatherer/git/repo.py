@@ -222,6 +222,7 @@ class Git_Repository(Version_Control_Repository):
         """
 
         commit_datetime = convert_local_datetime(commit.committed_datetime)
+        author_datetime = convert_local_datetime(commit.authored_datetime)
 
         commit_type = str(commit.type)
         if len(commit.parents) > 1:
@@ -237,7 +238,8 @@ class Git_Repository(Version_Control_Repository):
             'type': commit_type,
             'developer': parse_unicode(commit.author.name),
             'developer_email': str(commit.author.email),
-            'commit_date': format_date(commit_datetime)
+            'commit_date': format_date(commit_datetime),
+            'author_date': format_date(author_datetime)
         }
 
         if stats:
