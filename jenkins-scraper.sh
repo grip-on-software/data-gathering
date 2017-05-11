@@ -7,6 +7,13 @@ if [ -z "$listOfProjects" ]; then
 	listOfProjects="PROJ1 PROJ2 PROJN"
 fi
 
+# The scripts that export data during the gathering
+scripts="project_sources.py jira_to_json.py gitlab_sources.py git_to_json.py history_to_json.py metric_options_to_json.py"
+
+# Declare the script tasks to run during the gathering export, space-separated
+if [ -z "$gathererScripts" ]; then
+	gathererScripts=$scripts
+
 # Declare the tasks to run during the import, comma-separated
 if [ -z "$importerTasks" ]; then
 	importerTasks="all"
@@ -74,6 +81,15 @@ function export_handler() {
 	shift
 	local args=$*
 
+	# Check whether the script should be run according to the environment.
+	if [[ ! $gathererScripts =~ "(^|[[:space:]])$script($|[[:space:]])" ]]; then
+		return
+	fi
+
+	# Determine whether to copy a dropin file based on whether this dropin file
+	# has already been imported. Also determine whether to actually run the
+	# script based on whether the dropin file also has up to date tracker
+	# information.
 	local skip_dropin=0
 	local skip_script=0
 	if [ -e "$script.export" ]; then
@@ -127,9 +143,8 @@ fi
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Files that are backed up in case of errors for each project
-scripts="project_sources.py jira_to_json.py git_to_json.py history_to_json.py metric_options_to_json.py"
-for script in $scripts; do
+# Determine files that are backed up in case of errors for each project
+for script in $gathererScripts; do
 	if [ -e "$script.update" ]; then
 		read -r update_files < "$script.update"
 		restoreFiles="$restoreFiles $update_files"
