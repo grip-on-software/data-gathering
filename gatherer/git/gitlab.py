@@ -166,8 +166,7 @@ class GitLab_Repository(Git_Repository):
                                              encrypted_fields=author_fields),
             "commit_comment": Table('commit_comment',
                                     encrypted_fields=author_fields),
-            "gitlab_event": Table('gitlab_event',
-                                  encrypted_fields=('user', 'email'))
+            "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
         })
 
     def _check_dropin_files(self, project=None):
@@ -383,9 +382,9 @@ class GitLab_Repository(Git_Repository):
                 commits = [commit['id'] for commit in event.data['commits']]
 
             for commit_id in commits:
-                self._tables["gitlab_event"].append({
+                self._tables["vcs_event"].append({
                     'repo_name': str(self._repo_name),
-                    'commit_id': str(commit_id),
+                    'version_id': str(commit_id),
                     'action': str(event.action_name),
                     'kind': str(event.data['object_kind']),
                     'ref': str(event.data['ref']),
