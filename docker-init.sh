@@ -7,6 +7,7 @@ if [ ! -z "$CRON_PERIOD" ]; then
 su agent -c '/home/agent/docker-scraper.sh ${JIRA_KEY}'
 SH
 	chmod +x /etc/periodic/$CRON_PERIOD/scrape
+	crond -b -L /dev/stderr
 fi
 
 su agent -c /home/agent/docker-start.sh
