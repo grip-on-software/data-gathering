@@ -1,5 +1,6 @@
 #!/bin/bash -ex
 
+# Declare the current working directory
 ROOT=$PWD
 
 # Declare list of projects to scrape from, space-separated
@@ -13,6 +14,7 @@ scripts="project_sources.py jira_to_json.py gitlab_sources.py git_to_json.py his
 # Declare the script tasks to run during the gathering export, space-separated
 if [ -z "$gathererScripts" ]; then
 	gathererScripts=$scripts
+fi
 
 # Declare the tasks to run during the import, comma-separated
 if [ -z "$importerTasks" ]; then
