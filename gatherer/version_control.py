@@ -224,6 +224,14 @@ class Version_Control_Repository(object):
         return self._repo_directory
 
     @property
+    def source(self):
+        """
+        Retrieve the Source object describing the repository.
+        """
+
+        return self._source
+
+    @property
     def project(self):
         """
         Retrieve the `Project` domain object for this repository, in case the

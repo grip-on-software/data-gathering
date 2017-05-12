@@ -19,6 +19,126 @@ from .repo import Git_Repository
 from ..table import Table, Key_Table, Link_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode
 
+class GitLab_Dropins_Parser(object):
+    """
+    Parser for dropins containing an exported version of GitLab API responses.
+    """
+
+    def __init__(self, repo, filename):
+        self._repo = repo
+        self._filename = filename
+
+    @property
+    def repo(self):
+        """
+        Retrieve the repository that this dropin parser feeds.
+        """
+
+        return self._repo
+
+    @property
+    def filename(self):
+        """
+        Retrieve the path to the dropin file that is parsed.
+        """
+
+        return self._filename
+
+    def parse(self):
+        """
+        Check whether the dropin file can be found and parse it if so.
+
+        Returns a boolean indicating if any data for the repository could be
+        retrieved.
+        """
+
+        logging.info('Repository %s: Checking dropin file %s',
+                     self._repo.repo_name, self._filename)
+        if not os.path.exists(self._filename):
+            logging.info('Dropin file %s does not exist', self._filename)
+            return False
+
+        with open(self._filename, 'r') as dropin_file:
+            data = json.load(dropin_file)
+
+        # Attempt to use the original path name
+        path_name = self._repo.source.get_path_name(self._repo.source.plain_url)
+        if path_name is None:
+            logging.warning('Could not infer path name for repository: %s',
+                            self._repo.repo_name)
+            return False
+
+        if path_name not in data:
+            logging.warning('Repository %s not in GitLab data', path_name)
+            return False
+
+        # Retrieve the GitLab API dictionaries from the JSON data.
+        repo_data = data[path_name]
+        # Load the GitLab API in the gitlab3 module by creating the API object
+        # from the repository object. This ensures that the API also loads the
+        # sub-API's, such as Project.
+        # Pass along the API and the repository data to the parser.
+        self._parse_legacy_data(self._repo.api, repo_data)
+
+        logging.info('Read data from dropin file for repository %s',
+                     self._repo.repo_name)
+
+        return True
+
+    def _parse_legacy_data(self, api, repo_data):
+        raise NotImplementedError("Must be implemented by subclasses")
+
+class GitLab_Main_Dropins_Parser(GitLab_Dropins_Parser):
+    """
+    Parser for dropin files that contain repository information as well as
+    commit comments, merge requests and merge request notes from GitLab API.
+    """
+
+    def _parse_legacy_data(self, api, repo_data):
+        if not hasattr(api, 'Project'):
+            raise RuntimeError('Could not load project GitLab API definition')
+
+        project_class = getattr(api, 'Project')
+
+        repo_project = project_class(api, json_data=repo_data['info'])
+
+        self.repo.fill_repo_table(repo_project)
+
+        for merge_request in repo_data['merge_requests']:
+            request = repo_project.MergeRequest(repo_project,
+                                                json_data=merge_request['info'])
+            self.repo.add_merge_request(request)
+            for note in merge_request['notes']:
+                self.repo.add_note(request.Note(request, json_data=note),
+                                   request.id)
+
+        for commit_id, comments in repo_data['commit_comments'].items():
+            commit = repo_project.Commit(repo_project,
+                                         json_data=comments['commit_info'])
+            commit_datetime = convert_local_datetime(commit.committed_date)
+            updated_commit_id = self.repo.find_commit(commit_datetime)
+            if updated_commit_id is None:
+                logging.warning('Could not find updated commit ID for %s at %s',
+                                commit_id, commit.committed_date.isoformat())
+                updated_commit_id = commit_id
+
+            for comment in comments['notes']:
+                self.repo.add_commit_comment(comment, updated_commit_id)
+
+class GitLab_Events_Dropins_Parser(GitLab_Dropins_Parser):
+    """
+    Parser for dropin files that contain events for repositories as extracted
+    from the GitLab API.
+    """
+
+    def _parse_legacy_data(self, api, repo_data):
+        if not hasattr(api, 'Project'):
+            raise RuntimeError('Could not load project GitLab API definition')
+
+        for event_data in repo_data['events']:
+            event = api.Project.Event(api, json_data=event_data)
+            self.repo.add_event(event)
+
 class GitLab_Repository(Git_Repository):
     """
     Git repository hosted by a GitLab instance.
@@ -45,85 +165,33 @@ class GitLab_Repository(Git_Repository):
                                              ('merge_request_id', 'note_id'),
                                              encrypted_fields=author_fields),
             "commit_comment": Table('commit_comment',
-                                    encrypted_fields=author_fields)
+                                    encrypted_fields=author_fields),
+            "gitlab_event": Table('gitlab_event',
+                                  encrypted_fields=('user', 'email'))
         })
 
     def _check_dropin_files(self, project=None):
         if project is None:
             return False
 
+        filename = os.path.join(project.dropins_key, 'data_gitlabevents.json')
+        self._check_dropin_file(GitLab_Events_Dropins_Parser, filename)
+
         filename = os.path.join(project.dropins_key, 'data_gitlab.json')
-        if self._check_dropin_file(filename):
+        if self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
             return True
 
         namespace = self._source.gitlab_namespace
         filename = os.path.join(project.dropins_key,
                                 'data_gitlab_{}.json'.format(namespace))
-        if self._check_dropin_file(filename):
+        if self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
             return True
 
         return False
 
-    def _check_dropin_file(self, filename):
-        logging.info('%s: Checking dropin file %s', self._repo_name, filename)
-        if not os.path.exists(filename):
-            logging.info('Dropin file %s does not exist', filename)
-            return False
-
-        with open(filename, 'r') as dropin_file:
-            data = json.load(dropin_file)
-
-        # Attempt to use the original path name
-        path_name = self._source.get_path_name(self._source.plain_url)
-        if path_name is None:
-            logging.warning('Could not infer repository: %s', self._repo_name)
-            return False
-
-        if path_name not in data:
-            logging.warning('Repository %s not in GitLab data', path_name)
-            return False
-
-        # Fill GitLab API objects with the JSON data.
-        repo_data = data[path_name]
-        self._parse_legacy_data(repo_data)
-
-        logging.info('Read data from dropin file for repo %s', self._repo_name)
-
-        return True
-
-    def _parse_legacy_data(self, repo_data):
-        # Load the Project sub-API in the gitlab3 module. This class is only
-        # created once the main API is instantiated.
-        api = self.api
-        if not hasattr(api, 'Project'):
-            raise RuntimeError('Could not load project GitLab API definition')
-
-        project_class = getattr(api, 'Project')
-
-        repo_project = project_class(api, json_data=repo_data['info'])
-
-        self._fill_repo_table(repo_project)
-
-        for merge_request in repo_data['merge_requests']:
-            request = repo_project.MergeRequest(repo_project,
-                                                json_data=merge_request['info'])
-            self._add_merge_request(request)
-            for note in merge_request['notes']:
-                self._add_note(request.Note(request, json_data=note),
-                               request.id)
-
-        for commit_id, comments in repo_data['commit_comments'].items():
-            commit = repo_project.Commit(repo_project,
-                                         json_data=comments['commit_info'])
-            commit_datetime = convert_local_datetime(commit.committed_date)
-            updated_commit_id = self.find_commit(commit_datetime)
-            if updated_commit_id is None:
-                logging.warning('Could not find updated commit ID for %s at %s',
-                                commit_id, commit.committed_date.isoformat())
-                updated_commit_id = commit_id
-
-            for comment in comments['notes']:
-                self._add_commit_comment(comment, updated_commit_id)
+    def _check_dropin_file(self, parser_class, filename):
+        parser = parser_class(self, filename)
+        return parser.parse()
 
     @classmethod
     def is_up_to_date(cls, source, latest_version):
@@ -183,16 +251,23 @@ class GitLab_Repository(Git_Repository):
         versions = super(GitLab_Repository, self).get_data(comments=comments,
                                                            **kwargs)
 
-        self._fill_repo_table(self.repo_project)
+        self.fill_repo_table(self.repo_project)
+        for event in self.repo_project.events():
+            self.add_event(event)
 
         for merge_request in self.repo_project.merge_requests():
-            self._add_merge_request(merge_request)
+            self.add_merge_request(merge_request)
             for note in merge_request.notes():
-                self._add_note(note, merge_request.id)
+                self.add_note(note, merge_request.id)
 
         return versions
 
-    def _fill_repo_table(self, repo_project):
+    def fill_repo_table(self, repo_project):
+        """
+        Add the repository data from a GitLab API Project object `repo_project`
+        to the table for GitLab repositories.
+        """
+
         # Skip filling the repo table if it was already filled from a dropin.
         if self._tables["gitlab_repo"]:
             return
@@ -229,7 +304,12 @@ class GitLab_Repository(Git_Repository):
             }
         ]
 
-    def _add_merge_request(self, merge_request):
+    def add_merge_request(self, merge_request):
+        """
+        Add a merge request described by its GitLab API response object to
+        the merge requests table.
+        """
+
         if merge_request.assignee is not None:
             assignee = parse_unicode(merge_request.assignee['name'])
             assignee_username = parse_unicode(merge_request.assignee['username'])
@@ -254,7 +334,12 @@ class GitLab_Repository(Git_Repository):
             'updated_at': format_date(merge_request.updated_at)
         })
 
-    def _add_note(self, note, merge_request_id):
+    def add_note(self, note, merge_request_id):
+        """
+        Add a note described by its GitLab API response object to the
+        merge request notes table.
+        """
+
         self._tables["merge_request_note"].append({
             'repo_name': str(self._repo_name),
             'merge_request_id': str(merge_request_id),
@@ -265,7 +350,11 @@ class GitLab_Repository(Git_Repository):
             'created_at': format_date(note.created_at)
         })
 
-    def _add_commit_comment(self, note, commit_id):
+    def add_commit_comment(self, note, commit_id):
+        """
+        Add a commit comment note dictionary to the commit comments table.
+        """
+
         self._tables["commit_comment"].append({
             'repo_name': str(self._repo_name),
             'commit_id': str(commit_id),
@@ -277,12 +366,40 @@ class GitLab_Repository(Git_Repository):
             'line_type': note['line_type'] if note['line_type'] is not None else str(0)
         })
 
+    def add_event(self, event):
+        """
+        Add an event from the GitLab API. Only relevant events are actually
+        added to the events table.
+        """
+
+        if event.action_name in ('pushed to', 'pushed new', 'deleted'):
+            created_date = format_date(event.created_at)
+            if event.data['object_kind'] == 'tag_push':
+                if event.action_name == 'deleted':
+                    commits = [event.data['before']]
+                else:
+                    commits = [event.data['after']]
+            else:
+                commits = [commit['id'] for commit in event.data['commits']]
+
+            for commit_id in commits:
+                self._tables["gitlab_event"].append({
+                    'repo_name': str(self._repo_name),
+                    'commit_id': str(commit_id),
+                    'action': str(event.action_name),
+                    'kind': str(event.data['object_kind']),
+                    'ref': str(event.data['ref']),
+                    'user': parse_unicode(event.author_username),
+                    'email': str(event.data['user_email']),
+                    'date': created_date
+                })
+
     def _parse_version(self, commit, comments=True, **kwargs):
         data = super(GitLab_Repository, self)._parse_version(commit, **kwargs)
 
         if self._has_commit_comments and comments:
             commit_comments = self.repo_project.get_comments(commit.hexsha)
             for comment in commit_comments:
-                self._add_commit_comment(comment, commit.hexsha)
+                self.add_commit_comment(comment, commit.hexsha)
 
         return data
