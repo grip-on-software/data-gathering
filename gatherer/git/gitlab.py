@@ -267,10 +267,6 @@ class GitLab_Repository(Git_Repository):
         to the table for GitLab repositories.
         """
 
-        # Skip filling the repo table if it was already filled from a dropin.
-        if self._tables["gitlab_repo"]:
-            return
-
         if repo_project.description is not None:
             description = repo_project.description
         else:
@@ -291,17 +287,15 @@ class GitLab_Repository(Git_Repository):
         else:
             star_count = str(0)
 
-        self._tables["gitlab_repo"] = [
-            {
-                'repo_name': str(self._repo_name),
-                'gitlab_id': str(repo_project.id),
-                'description': description,
-                'create_time': format_date(repo_project.created_at),
-                'archived': archived,
-                'has_avatar': has_avatar,
-                'star_count': star_count
-            }
-        ]
+        self._tables["gitlab_repo"].append({
+            'repo_name': str(self._repo_name),
+            'gitlab_id': str(repo_project.id),
+            'description': description,
+            'create_time': format_date(repo_project.created_at),
+            'archived': archived,
+            'has_avatar': has_avatar,
+            'star_count': star_count
+        })
 
     def add_merge_request(self, merge_request):
         """
