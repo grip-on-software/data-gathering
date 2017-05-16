@@ -17,7 +17,7 @@ import gitlab3
 from gitlab3.exceptions import GitLabException
 from .repo import Git_Repository
 from ..table import Table, Key_Table, Link_Table
-from ..utils import convert_local_datetime, format_date, parse_unicode
+from ..utils import convert_local_datetime, format_date, parse_date, parse_unicode
 
 class GitLab_Dropins_Parser(object):
     """
@@ -348,6 +348,11 @@ class GitLab_Repository(Git_Repository):
         Add a commit comment note dictionary to the commit comments table.
         """
 
+        if 'created_at' in note and note['created_at'] is not None:
+            created_date = parse_date(note['created_at'])
+        else:
+            created_date = str(0)
+
         self._tables["commit_comment"].append({
             'repo_name': str(self._repo_name),
             'commit_id': str(commit_id),
@@ -356,7 +361,8 @@ class GitLab_Repository(Git_Repository):
             'comment': parse_unicode(note['note']),
             'file': note['path'] if note['path'] is not None else str(0),
             'line': str(note['line']) if note['line'] is not None else str(0),
-            'line_type': note['line_type'] if note['line_type'] is not None else str(0)
+            'line_type': note['line_type'] if note['line_type'] is not None else str(0),
+            'created_date': created_date
         })
 
     def add_event(self, event):
