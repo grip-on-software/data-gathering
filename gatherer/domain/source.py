@@ -10,9 +10,12 @@ except ImportError:
 
 from builtins import object
 import configparser
+import logging
 import os
 import re
 import urllib.parse
+import gitlab3
+from gitlab3.exceptions import GitLabException, ResourceNotFound
 from ..svn import Subversion_Repository
 from ..git import Git_Repository, GitLab_Repository
 
@@ -223,6 +226,19 @@ class Source(object):
 
         return self._credentials.get(self._host, option)
 
+    def get_sources(self):
+        """
+        Retrieve information about additional data sources from the source.
+
+        The return value is a list of `Source` objects. It may include sources
+        that are already known or even the current source. If the source does
+        not provide additional source information, then an empty list is
+        returned.
+        """
+
+        # pylint: disable=no-self-use
+        return []
+
     def export(self):
         """
         Retrieve a dictionary that can be exported to JSON with data about
@@ -335,6 +351,7 @@ class GitLab(Git):
         self._gitlab_namespace = None
         self._gitlab_group = None
         self._gitlab_path = None
+        self._gitlab_api = None
 
         super(GitLab, self).__init__(*args, **kwargs)
 
@@ -469,3 +486,60 @@ class GitLab(Git):
         """
 
         return self._gitlab_path
+
+    @property
+    def gitlab_api(self):
+        """
+        Retrieve an instance of the GitLab API connection for the GitLab
+        instance on this host.
+        """
+
+        if self._gitlab_api is None:
+            try:
+                logging.info('Setting up API for %s', self.host)
+                self._gitlab_api = gitlab3.GitLab(self.host, self.gitlab_token)
+            except (AttributeError, GitLabException):
+                raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
+
+        return self._gitlab_api
+
+    def get_sources(self):
+        # pylint: disable=no-member
+        if self.gitlab_group is not None:
+            group_name = self.gitlab_group
+        else:
+            group_name = self.gitlab_namespace
+
+        group = self.gitlab_api.group(group_name)
+        if not group:
+            logging.warning("Could not find group '%s' on GitLab API",
+                            group_name)
+
+        # Fetch the group projects by requesting the group to the API again.
+        group_repos = self.gitlab_api.group(str(group.id)).projects
+
+        logging.info('%s has %d repos: %s', group_name, len(group_repos),
+                     ', '.join([repo['name'] for repo in group_repos]))
+
+        sources = []
+        for repo_data in group_repos:
+            # Retrieve the actual project from the API, to ensure it is accessible.
+            try:
+                project_repo = self.gitlab_api.project(str(repo_data['id']))
+            except ResourceNotFound:
+                logging.warning('GitLab repository %s is not accessible',
+                                repo_data['name'])
+                continue
+
+            repo_name = project_repo.name
+            if not project_repo.commits(limit=1):
+                logging.info('Ignoring empty GitLab repository %s', repo_name)
+                continue
+
+            source = Source.from_type('gitlab', name=repo_name,
+                                      url=project_repo.http_url_to_repo,
+                                      follow_host_change=False)
+
+            sources.append(source)
+
+        return sources

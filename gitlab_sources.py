@@ -4,21 +4,9 @@ order to import data from them later on.
 """
 
 import argparse
-from datetime import datetime
 import logging
-import gitlab3
-from gitlab3.exceptions import ResourceNotFound
-from gatherer.domain import Project, Source
+from gatherer.domain import Project
 from gatherer.log import Log_Setup
-
-def json_serial(obj):
-    """JSON serializer for objects not serializable by default json code"""
-
-    if isinstance(obj, datetime):
-        serial = obj.isoformat()
-        return serial
-
-    raise TypeError("Type '{}' not serializable".format(type(obj)))
 
 def parse_args():
     """
@@ -49,40 +37,10 @@ def retrieve_repos(project):
                         project.key)
         return
 
-    api = gitlab3.GitLab(gitlab_source.host, gitlab_source.gitlab_token)
-    group_name = project.gitlab_group_name
-    group = api.group(group_name)
-    if not group:
-        raise RuntimeError('Could not find group for project group {0}'.format(group_name))
-
-    # Fetch the group projects by requesting the group to the API again.
-    project_repos = api.group(str(group.id)).projects
-
-    names = ', '.join([repo['name'] for repo in project_repos])
-    logging.info('%s has %d repos: %s', group_name, len(project_repos), names)
-
-    for repo_data in project_repos:
-        # Retrieve the actual project from the API, to ensure it is accessible.
-        try:
-            project_repo = api.project(str(repo_data['id']))
-        except ResourceNotFound:
-            logging.warning('GitLab repository %s is not accessible',
-                            repo_data['name'])
-            continue
-
-        repo_name = project_repo.name
-        if not project_repo.commits(limit=1):
-            logging.info('Ignoring empty GitLab repository %s', repo_name)
-            continue
-
-        logging.info('Processing GitLab repository %s', repo_name)
-
-        source = Source.from_type('gitlab', name=repo_name,
-                                  url=project_repo.http_url_to_repo,
-                                  follow_host_change=False)
-
+    sources = gitlab_source.get_sources()
+    for source in sources:
         # Check if there is already another (Git) source with the same URL.
-        if all(source.url != existing.url for existing in project.sources):
+        if not project.has_source(source):
             project.add_source(source)
 
 def main():

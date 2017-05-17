@@ -14,6 +14,83 @@ import json
 import os
 from .source import Source, GitLab
 
+class Sources(object):
+    """
+    Collection of sources related to a project.
+    """
+
+    def __init__(self, sources_path, follow_host_change=True):
+        self._sources_path = sources_path
+        self._follow_host_change = follow_host_change
+
+        self._sources = set()
+        self._source_urls = set()
+
+        self._load_sources()
+
+    def _load_sources(self):
+        if os.path.exists(self._sources_path):
+            with open(self._sources_path, 'r') as sources_file:
+                sources = json.load(sources_file)
+                for source_data in sources:
+                    source_type = source_data.pop('type')
+                    source = Source.from_type(source_type,
+                                              follow_host_change=self._follow_host_change,
+                                              **source_data)
+                    self.add(source)
+
+    def get(self):
+        """
+        Retrieve all sources in the collection.
+        """
+
+        return self._sources
+
+    def add(self, source):
+        """
+        Add a new source to the collection.
+
+        This source only becomes persistent if the sources are exported later on
+        using `export`.
+        """
+
+        self._sources.add(source)
+        self._source_urls.add(source.url)
+
+    def remove(self, source):
+        """
+        Remove an existing source from the project domain.
+
+        This method raises a `KeyError` if the source cannot be found.
+
+        The removal only becomes persistent if the sources are exported later on
+        using `export`.
+        """
+
+        self._sources.remove(source)
+        self._source_urls.remove(source.url)
+
+    def has_url(self, url):
+        """
+        Check whether there is a source with the exact same URL as the one that
+        is provided.
+        """
+
+        return url in self._source_urls
+
+    def export(self):
+        """
+        Export data about all registered sources so that they can be
+        reestablished in another process.
+        """
+
+        data = []
+        for source in self._sources:
+            data.append(source.export())
+
+        with open(self._sources_path, 'w') as sources_file:
+            json.dump(data, sources_file)
+
 class Project_Meta(object):
     """
     Class that holds information that may span multiple projects.
@@ -81,37 +158,21 @@ class Project(Project_Meta):
         self._project_key = project_key
 
         self._export_directory = export_directory
-        self._follow_host_change = follow_host_change
 
         # Long project name used in repositories and quality dashboard project
         # definitions.
         self._project_name = self._get_setting('projects')
         self._main_project = self._get_setting('subprojects')
 
-        self._sources = None
-        self._sources_path = os.path.join(self.export_key, 'data_sources.json')
-        self._load_sources()
+        sources_path = os.path.join(self.export_key, 'data_sources.json')
+        self._sources = Sources(sources_path,
+                                follow_host_change=follow_host_change)
 
     def _get_setting(self, group):
         if self.settings.has_option(group, self._project_key):
             return self.settings.get(group, self._project_key)
         else:
             return None
-
-    def _load_sources(self):
-        if self._sources is not None:
-            return
-
-        self._sources = set()
-        if os.path.exists(self._sources_path):
-            with open(self._sources_path, 'r') as sources_file:
-                sources = json.load(sources_file)
-                for source_data in sources:
-                    source_type = source_data.pop('type')
-                    source = Source.from_type(source_type,
-                                              follow_host_change=self._follow_host_change,
-                                              **source_data)
-                    self.add_source(source)
 
     def add_source(self, source):
         """
@@ -135,6 +196,14 @@ class Project(Project_Meta):
 
         self._sources.remove(source)
 
+    def has_source(self, source):
+        """
+        Check whether the project already has a source with the exact same URL
+        as the provided `source`.
+        """
+
+        return self._sources.has_url(source.url)
+
     def make_export_directory(self):
         """
         Ensure that the export directory exists, or create it if it is missing.
@@ -149,13 +218,8 @@ class Project(Project_Meta):
         reestablished in another process.
         """
 
-        data = []
-        for source in self._sources:
-            data.append(source.export())
-
         self.make_export_directory()
-        with open(self._sources_path, 'w') as sources_file:
-            json.dump(data, sources_file)
+        self._sources.export()
 
     @property
     def sources(self):
@@ -163,7 +227,7 @@ class Project(Project_Meta):
         Retrieve all sources of the project.
         """
 
-        return self._sources
+        return self._sources.get()
 
     @property
     def export_key(self):
@@ -224,8 +288,7 @@ class Project(Project_Meta):
         If there is no such source, then this property returns `None`.
         """
 
-        self._load_sources()
-        for source in self._sources:
+        for source in self.sources:
             if isinstance(source, GitLab):
                 return source
 

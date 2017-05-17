@@ -147,7 +147,6 @@ class GitLab_Repository(Git_Repository):
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(GitLab_Repository, self).__init__(source, repo_directory,
                                                 project=project, **kwargs)
-        self._api = None
         self._repo_project = None
         has_commit_comments = self._source.get_option('has_commit_comments')
         if has_commit_comments is not None:
@@ -195,7 +194,7 @@ class GitLab_Repository(Git_Repository):
     @classmethod
     def is_up_to_date(cls, source, latest_version):
         try:
-            api = cls._create_api(source)
+            api = source.gitlab_api
         except RuntimeError:
             return False
 
@@ -221,10 +220,7 @@ class GitLab_Repository(Git_Repository):
         instance on this host.
         """
 
-        if self._api is None:
-            self._api = self._create_api(self._source)
-
-        return self._api
+        return self._source.gitlab_api
 
     @property
     def repo_project(self):
