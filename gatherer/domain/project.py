@@ -25,6 +25,7 @@ class Sources(object):
 
         self._sources = set()
         self._source_urls = set()
+        self._source_environments = {}
 
         self._load_sources()
 
@@ -57,6 +58,12 @@ class Sources(object):
         self._sources.add(source)
         self._source_urls.add(source.url)
 
+        environment = source.environment
+        if environment not in self._source_environments:
+            self._source_environments[environment] = set()
+
+        self._source_environments[environment].add(source)
+
     def remove(self, source):
         """
         Remove an existing source from the project domain.
@@ -69,6 +76,7 @@ class Sources(object):
 
         self._sources.remove(source)
         self._source_urls.remove(source.url)
+        self._source_environments[source.environment].remove(source)
 
     def has_url(self, url):
         """
@@ -77,6 +85,14 @@ class Sources(object):
         """
 
         return url in self._source_urls
+
+    def get_environments(self):
+        """
+        Yield Source objects that are distinctive for each environment.
+        """
+
+        for sources in self._source_environments.values():
+            yield next(iter(sources))
 
     def export(self):
         """
@@ -203,6 +219,16 @@ class Project(Project_Meta):
         """
 
         return self._sources.has_url(source.url)
+
+    def get_environment_sources(self):
+        """
+        Yield a distinctive `Source` object for each known source environment.
+
+        The environments may contain multiple sources that share some traits,
+        and can thus be used to find more sources within the environment.
+        """
+
+        return self._sources.get_environments()
 
     def make_export_directory(self):
         """

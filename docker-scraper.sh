@@ -37,7 +37,7 @@ fi
 
 python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
 python project_sources.py $project --log $logLevel
-python gitlab_sources.py $project --log $logLevel
+python environment_sources.py $project --log $logLevel
 python git_to_json.py $project --log $logLevel
 python export_files.py $project --update $updateFiles --export $exportFiles
 

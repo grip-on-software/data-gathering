@@ -181,6 +181,20 @@ class Source(object):
         return self._name
 
     @property
+    def environment(self):
+        """
+        Retrieve an indicator of the environment that the source lives in.
+
+        The environment is a shared signature that other Source objects that
+        are situated on he same host or group all have. For example, Source
+        objects that are retrieved using `get_sources` have this signature.
+
+        The returned value must be hashable.
+        """
+
+        return None
+
+    @property
     def path_name(self):
         """
         Retrieve an identifier of the source that can be used as a path name.
@@ -430,6 +444,10 @@ class GitLab(Git):
     @property
     def repository_class(self):
         return GitLab_Repository
+
+    @property
+    def environment(self):
+        return (self._gitlab_host, self._gitlab_group, self._gitlab_namespace)
 
     @property
     def host(self):
