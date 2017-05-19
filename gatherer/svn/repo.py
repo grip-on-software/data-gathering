@@ -198,6 +198,7 @@ class Subversion_Repository(Version_Control_Repository):
         diff = Difference(self, path, from_revision=from_revision,
                           to_revision=to_revision)
         stats = diff.execute()
+        stats['branch'] = str(0)
         self._tables['change_path'].extend(diff.change_paths.get())
 
         return stats

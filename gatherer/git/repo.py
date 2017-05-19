@@ -7,6 +7,7 @@ import datetime
 from io import BytesIO
 import logging
 import os
+import re
 from git import Repo, Blob, Commit, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
 from .progress import Git_Progress
 from ..table import Table, Key_Table
@@ -21,6 +22,14 @@ class Git_Repository(Version_Control_Repository):
     DEFAULT_UPDATE_RATIO = 10
     BATCH_SIZE = 10000
     LOG_SIZE = 1000
+
+    MERGE_PATTERNS = tuple(re.compile(pattern) for pattern in (
+        r".*\bMerge branch '([^']+)'",
+        r".*\bMerge remote-tracking branch '(?:(?:refs/)?remotes)?origin/([^']+)'",
+        r"Merge pull request \d+ from ([^\s]+) into .+",
+        r"([A-Z]{3,}\d+) [Mm]erge",
+        r"(?:Merge )?([^\s]+) >\s?master"
+    ))
 
     def __init__(self, source, repo_directory, **kwargs):
         super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
@@ -244,6 +253,8 @@ class Git_Repository(Version_Control_Repository):
 
         if stats:
             git_commit.update(self._get_diff_stats(commit))
+            git_commit['branch'] = self._get_original_branch(commit)
+            logging.info(git_commit['branch'])
             self._parse_change_stats(commit)
 
         return git_commit
@@ -260,6 +271,24 @@ class Git_Repository(Version_Control_Repository):
             'number_of_lines': str(cstotal['lines']),
             'size': str(commit.size)
         }
+
+    def _get_original_branch(self, commit):
+        commits = self.repo.iter_commits('{}..HEAD'.format(commit.hexsha),
+                                         ancestry_path=True, merges=True,
+                                         reverse=True, max_count=1)
+
+        try:
+            merge_commit = next(commits)
+        except StopIteration:
+            return str(0)
+
+        merge_message = parse_unicode(merge_commit.message)
+        for pattern in self.MERGE_PATTERNS:
+            match = pattern.match(merge_message)
+            if match:
+                return match.group(1)
+
+        return str(0)
 
     @staticmethod
     def _format_replaced_path(old_path, new_path):
