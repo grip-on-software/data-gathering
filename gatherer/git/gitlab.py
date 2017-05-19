@@ -311,6 +311,7 @@ class GitLab_Repository(Git_Repository):
             'id': str(merge_request.id),
             'title': parse_unicode(merge_request.title),
             'description': parse_unicode(merge_request.description),
+            'status': merge_request.state,
             'source_branch': merge_request.source_branch,
             'target_branch': merge_request.target_branch,
             'author': parse_unicode(merge_request.author['name']),

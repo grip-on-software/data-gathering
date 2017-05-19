@@ -18,6 +18,7 @@ import gitlab3
 from gitlab3.exceptions import GitLabException, ResourceNotFound
 from ..svn import Subversion_Repository
 from ..git import Git_Repository, GitLab_Repository
+from ..git.tfs import TFS_Repository, TFS_Project
 
 class Source_Types(object):
     """
@@ -558,6 +559,100 @@ class GitLab(Git):
                                       url=project_repo.http_url_to_repo,
                                       follow_host_change=False)
 
+            sources.append(source)
+
+        return sources
+
+@Source_Types.register('tfs')
+@Source_Types.register('git',
+                       lambda cls, follow_host_change=True, **source_data: \
+                       cls.is_tfs_url(source_data['url'],
+                                      follow_host_change=follow_host_change))
+class TFS(Git):
+    """
+    Team Foundation Server source repository.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self._tfs_host = None
+        self._tfs_collection = None
+        self._tfs_user = None
+        self._tfs_password = None
+        self._tfs_api = None
+
+        super(TFS, self).__init__(*args, **kwargs)
+
+    @classmethod
+    def is_tfs_url(cls, url, follow_host_change=True):
+        """
+        Check whether a given URL is part of a TFS instance.
+        """
+
+        parts = urllib.parse.urlsplit(url)
+        return cls.is_tfs_host(parts.netloc,
+                               follow_host_change=follow_host_change)
+
+    @classmethod
+    def is_tfs_host(cls, host, follow_host_change=True):
+        """
+        Check whether a given host (without scheme part) is a TFS host.
+        """
+
+        cls._init_credentials()
+        if follow_host_change:
+            host = cls._get_changed_host(host)
+
+        return cls._credentials.has_option(host, 'tfs')
+
+    def _update_credentials(self):
+        orig_parts, host = super(TFS, self)._update_credentials()
+
+        self._tfs_host = self._create_url(orig_parts.scheme, host, '', '', '')
+
+        # Retrieve the TFS collection
+        path = orig_parts.path.lstrip('/')
+        path_parts = path.split('/_git/', 1)
+        self._tfs_collection = path_parts[0]
+
+        self._tfs_user = self._credentials.get(host, 'username')
+        self._tfs_password = self._credentials.get(host, 'password')
+
+        # Remove trailing slashes since they are optional and the TFS API 
+        # returns remote URLs without slashes.
+        self._url = self._url.rstrip('/')
+
+        return orig_parts, host
+
+    @property
+    def repository_class(self):
+        return TFS_Repository
+
+    @property
+    def environment(self):
+        return (self._tfs_host, self._tfs_collection)
+
+    @property
+    def tfs_api(self):
+        """
+        Retrieve an instance of the TFS API connection for the TFS collection
+        on this host.
+        """
+
+        if self._tfs_api is None:
+            logging.info('Setting up API for %s', self._tfs_host)
+            self._tfs_api = TFS_Project(self._tfs_host, self._tfs_collection,
+                                        urllib.parse.unquote(self._tfs_user),
+                                        self._tfs_password)
+
+        return self._tfs_api
+
+    def get_sources(self):
+        repositories = self.tfs_api.repositories()
+        sources = []
+        for repository in repositories:
+            source = Source.from_type('tfs', name=repository['name'],
+                                      url=repository['remoteUrl'],
+                                      follow_host_change=False)
             sources.append(source)
 
         return sources

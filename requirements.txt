@@ -5,6 +5,7 @@ jira
 gitpython
 # history_to_json.py
 requests
+requests_ntlm
 # metric_options_to_json.py
 python-dateutil
 mock
