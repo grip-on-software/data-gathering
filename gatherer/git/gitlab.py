@@ -333,7 +333,9 @@ class GitLab_Repository(Git_Repository):
         self._tables["merge_request_note"].append({
             'repo_name': str(self._repo_name),
             'merge_request_id': str(merge_request_id),
+            'thread_id': str(0),
             'note_id': str(note.id),
+            'parent_id': str(0),
             'author': parse_unicode(note.author['name']),
             'author_username': parse_unicode(note.author['username']),
             'comment': parse_unicode(note.body),
@@ -353,6 +355,10 @@ class GitLab_Repository(Git_Repository):
         self._tables["commit_comment"].append({
             'repo_name': str(self._repo_name),
             'commit_id': str(commit_id),
+            'merge_request_id': str(0),
+            'thread_id': str(0),
+            'note_id': str(0),
+            'parent_id': str(0),
             'author': parse_unicode(note['author']['name']),
             'author_username': parse_unicode(note['author']['username']),
             'comment': parse_unicode(note['note']),

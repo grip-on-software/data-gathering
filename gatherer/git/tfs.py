@@ -1,8 +1,9 @@
 """
-Module that handles access to a GitLab-based repository, augmenting the usual
-repository version information such as pull requests.
+Module that handles access to a Team Foundation Server-based repository,
+augmenting the usual repository version information such as pull requests.
 """
 
+import logging
 from git import Commit
 import requests
 from requests_ntlm import HttpNtlmAuth
@@ -69,6 +70,19 @@ class TFS_Project(object):
         repositories = self._get('git/repositories')
         return repositories['value']
 
+    def get_project_id(self, repository):
+        """
+        Determine the TFS project UUID that the given repository name
+        belongs in.
+        """
+
+        repositories = self.repositories()
+        for repository_data in repositories:
+            if repository_data['name'] == repository:
+                return repository_data['project']['id']
+
+        raise ValueError("Repository '{}' cannot be found".format(repository))
+
     def get_repository_id(self, repository):
         """
         Determine the TFS repository UUID for the given repository name.
@@ -92,7 +106,7 @@ class TFS_Project(object):
 
     def pull_requests(self, repository=None, status='All'):
         """
-        Retrieve informatino about pull requests from a repository or from
+        Retrieve information about pull requests from a repository or from
         the entire collection or project.
         """
 
@@ -107,14 +121,29 @@ class TFS_Project(object):
             # The TFS API returns an error if there are no pull requests.
             return []
 
+    def pull_request_comments(self, project_id, request_id):
+        """
+        Retrieve infromation about code review comments in a pull request.
+        """
+
+        artifact = 'vstfs:///CodeReview/CodeReviewId/{}%2F{}'.format(project_id,
+                                                                     request_id)
+        comments = self._get('discussion/threads', api_version='3.0-preview.1',
+                             artifactUri=artifact)
+        return comments['value']
+
 class TFS_Repository(Git_Repository):
     """
     Git repository hosted by a TFS server.
     """
 
+    PROPERTY = 'Microsoft.TeamFoundation.Discussion'
+
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(TFS_Repository, self).__init__(source, repo_directory,
                                              project=project, **kwargs)
+
+        self._project_id = None
 
         author_fields = ('author', 'author_username')
         review_fields = ('reviewer', 'reviewer_username')
@@ -124,6 +153,8 @@ class TFS_Repository(Git_Repository):
             "merge_request_note": Link_Table('merge_request_note',
                                              ('merge_request_id', 'note_id'),
                                              encrypted_fields=author_fields),
+            "commit_comment": Table('commit_comment',
+                                    encrypted_fields=author_fields),
             "merge_request_review": Link_Table('merge_request_review',
                                                ('merge_request_id', 'reviewer'),
                                                encrypted_fields=review_fields),
@@ -133,11 +164,22 @@ class TFS_Repository(Git_Repository):
     @property
     def api(self):
         """
-        Retrieve an instance of the TFS API connecrtion for the TFS collection
+        Retrieve an instance of the TFS API connection for the TFS collection
         on this host.
         """
 
         return self._source.tfs_api
+
+    @property
+    def project_id(self):
+        """
+        Retrieve the UUID of the project that contains this repository.
+        """
+
+        if self._project_id is None:
+            self._project_id = self.api.get_project_id(self.repo_name)
+
+        return self._project_id
 
     def get_data(self, **kwargs):
         versions = super(TFS_Repository, self).get_data(**kwargs)
@@ -175,9 +217,10 @@ class TFS_Repository(Git_Repository):
         else:
             description = ''
 
+        request_id = str(pull_request['pullRequestId'])
         self._tables["merge_request"].append({
             'repo_name': str(self._repo_name),
-            'id': str(pull_request['pullRequestId']),
+            'id': request_id,
             'title': parse_unicode(pull_request['title']),
             'description': parse_unicode(description),
             'status': str(pull_request['status']),
@@ -194,14 +237,104 @@ class TFS_Repository(Git_Repository):
         })
 
         for reviewer in reviewers:
-            if 'isContainer' not in reviewer or not reviewer['isContainer']:
-                self._tables["merge_request_review"].append({
-                    'repo_name': str(self._repo_name),
-                    'merge_request_id': str(pull_request['pullRequestId']),
-                    'reviewer': parse_unicode(reviewer['uniqueName']),
-                    'reviewer_name': parse_unicode(reviewer['displayName']),
-                    'vote': str(reviewer['vote'])
-                })
+            self.add_review(request_id, reviewer)
+
+        comments = self.api.pull_request_comments(self.project_id, request_id)
+        for comment in comments:
+            self.add_comment(request_id, comment)
+
+    @staticmethod
+    def _is_container_account(author):
+        return 'isContainer' in author and author['isContainer']
+
+    def add_review(self, request_id, reviewer):
+        """
+        Add a pull request review described by its TFS API response object to
+        the pull request reviews table.
+        """
+
+        # Ignore project team container accounts (aggregate votes)
+        if not self._is_container_account(reviewer):
+            self._tables["merge_request_review"].append({
+                'repo_name': str(self._repo_name),
+                'merge_request_id': request_id,
+                'reviewer': parse_unicode(reviewer['uniqueName']),
+                'reviewer_name': parse_unicode(reviewer['displayName']),
+                'vote': str(reviewer['vote'])
+            })
+
+    def add_comment(self, request_id, thread):
+        """
+        Add a pull request code review comment described by its TFS API
+        response object to the pull request notes table.
+        """
+
+        properties = thread['properties']
+        for comment in thread['comments']:
+            if self._is_container_account(comment['author']):
+                continue
+            if comment['isDeleted']:
+                continue
+
+            parent_id = comment['parentId'] if 'parentId' in comment else 0
+            if 'uniqueName' not in comment['author'] or comment['content'] is None:
+                logging.info(request_id)
+                logging.info(thread)
+                logging.info(comment)
+
+            note = {
+                'repo_name': str(self._repo_name),
+                'merge_request_id': request_id,
+                'thread_id': str(thread['id']),
+                'note_id': str(comment['id']),
+                'parent_id': str(parent_id),
+                'author': parse_unicode(comment['author']['displayName']),
+                'author_username': comment['author']['uniqueName'],
+                'comment': parse_unicode(comment['content']),
+                'created_at': parse_date(comment['publishedDate']),
+                'updated_at': parse_date(comment['lastUpdatedDate']),
+            }
+
+            # Determine whether to add as commit comment or request note
+            if self.PROPERTY + '.ItemPath' in properties:
+                self.add_commit_comment(note, properties)
+            else:
+                self._tables["merge_request_note"].append(note)
+
+    def add_commit_comment(self, note, properties):
+        """
+        Add a pull request code review file comment described by its incomplete
+        note dictionary and the thread properties from the TFS API response
+        to the commit comments table.
+        """
+
+        if self.PROPERTY + '.Position.PositionContext' in properties:
+            context = properties[self.PROPERTY + '.Position.PositionContext']
+            if context['$value'] == 'LeftBuffer':
+                line_type = 'old'
+            else:
+                line_type = 'new'
+        else:
+            line_type = str(0)
+
+        if self.PROPERTY + '.Position.StartLine' in properties:
+            line = properties[self.PROPERTY + '.Position.StartLine']['$value']
+        else:
+            line = 0
+
+        if self.PROPERTY + '.Position.EndLine' in properties:
+            end_line = properties[self.PROPERTY + '.Position.EndLine']['$value']
+        else:
+            end_line = 0
+
+        note.update({
+            'file': properties[self.PROPERTY + '.ItemPath']['$value'],
+            'line': str(line),
+            'end_line': str(end_line),
+            'line_type': line_type,
+            'commit_id': properties['CodeReviewTargetCommit']['$value']
+        })
+        self._tables["commit_comment"].append(note)
 
     def add_event(self, event):
         """
