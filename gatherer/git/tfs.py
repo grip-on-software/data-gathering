@@ -140,7 +140,7 @@ class TFS_Repository(Git_Repository):
         return self._source.tfs_api
 
     def get_data(self, **kwargs):
-        versions = []#super(TFS_Repository, self).get_data(**kwargs)
+        versions = super(TFS_Repository, self).get_data(**kwargs)
 
         repository_id = self.api.get_repository_id(self.repo_name)
         for event in self.api.pushes(repository_id, refs=True):
