@@ -31,9 +31,11 @@ class Repositories_Holder(object):
         self._sprints = Sprint_Data(project)
 
         self._latest_versions = {}
+        self._latest_filename = self._make_tracker_path('latest_vcs_versions')
+        self._update_trackers = {}
 
-        self._latest_filename = os.path.join(project.export_key,
-                                             'latest_vcs_versions.json')
+    def _make_tracker_path(self, file_name):
+        return os.path.join(self._project.export_key, file_name + '.json')
 
     def _load_latest_versions(self):
         """
@@ -45,6 +47,23 @@ class Repositories_Holder(object):
                 self._latest_versions = json.load(latest_versions_file)
 
         return self._latest_versions
+
+    def _load_update_tracker(self, file_name):
+        path = self._make_tracker_path(file_name)
+        if os.path.exists(path):
+            with open(path) as update_file:
+                self._update_trackers[file_name] = json.load(update_file)
+        else:
+            self._update_trackers[file_name] = {}
+
+    def _check_update_trackers(self, repo, repo_name):
+        for file_name in repo.update_trackers.keys():
+            if file_name not in self._update_trackers:
+                self._load_update_tracker(file_name)
+
+            update_tracker = self._update_trackers[file_name]
+            if repo_name in update_tracker:
+                repo.set_update_tracker(file_name, update_tracker[repo_name])
 
     def get_repositories(self):
         """
@@ -60,6 +79,9 @@ class Repositories_Holder(object):
             repo_class = source.repository_class
 
             # Check up-to-dateness before retrieving from source
+            # Note that this excludes the entire repository from the gathering
+            # process if it is considered up to date, which might also mean
+            # that auxiliary table data is not retrieved.
             if source.name in self._latest_versions:
                 latest_version = self._latest_versions[source.name]
                 if repo_class.is_up_to_date(source, latest_version):
@@ -70,6 +92,8 @@ class Repositories_Holder(object):
             path = os.path.join(self._repo_directory, source.path_name)
             repo = repo_class.from_source(source, path, project=self._project,
                                           sprints=self._sprints)
+
+            self._check_update_trackers(repo, source.name)
 
             if not repo.is_empty():
                 yield repo
@@ -101,6 +125,12 @@ class Repositories_Holder(object):
 
                 tables[table_name].extend(table_data.get())
 
+            for file_name, value in repo.update_trackers.items():
+                if file_name not in self._update_trackers:
+                    self._load_update_tracker(file_name)
+
+                self._update_trackers[file_name][repo.repo_name] = value
+
         self._export(versions, tables)
 
     def _export(self, versions, tables):
@@ -119,6 +149,10 @@ class Repositories_Holder(object):
 
         with open(self._latest_filename, 'w') as latest_versions_file:
             json.dump(self._latest_versions, latest_versions_file)
+
+        for file_name, repo_trackers in self._update_trackers.items():
+            with open(self._make_tracker_path(file_name), 'w') as tracker_file:
+                json.dump(repo_trackers, tracker_file)
 
 @unique
 class Change_Type(Enum):
@@ -152,14 +186,18 @@ class Version_Control_Repository(object):
 
     def __init__(self, source, repo_directory, sprints=None, project=None,
                  **kwargs):
+        if kwargs:
+            logging.debug('Unused repository arguments: %r', kwargs)
+
         self._source = source
         self._repo_name = source.name
         self._repo_directory = repo_directory
 
         self._sprints = sprints
         self._project = project
-        self._options = kwargs
+
         self._tables = {}
+        self._update_trackers = {}
 
     @classmethod
     def from_source(cls, source, repo_directory, **kwargs):
@@ -285,6 +323,29 @@ class Version_Control_Repository(object):
         """
 
         return self._tables
+
+    @property
+    def update_trackers(self):
+        """
+        Retrieve a dictionary of update tracker values.
+
+        The keys of the dictionary are file names to use for the update files,
+        excluding the path and JSON extension. The values are simple
+        serializable values that the repository object can use in another run
+        to determine what data it should collect.
+        """
+
+        return self._update_trackers.copy()
+
+    def set_update_tracker(self, file_name, value):
+        """
+        Change the current value of an update tracker.
+        """
+
+        if file_name not in self._update_trackers:
+            raise KeyError("File name '{}' is not registered as update tracker".format(file_name))
+
+        self._update_trackers[file_name] = value
 
     def get_contents(self, filename, revision=None):
         """

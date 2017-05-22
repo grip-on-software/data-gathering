@@ -1,1 +1,1 @@
-data_vcs_versions.json data_gitlab_repo.json data_merge_requests.json data_merge_request_notes.json data_commit_comments.json data_change_path.json data_tag.json
+data_vcs_versions.json data_gitlab_repo.json data_merge_request.json data_merge_request_note.json data_commit_comment.json data_merge_request_review.json data_vcs_event.json data_change_path.json data_tag.json

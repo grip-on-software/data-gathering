@@ -3,13 +3,16 @@ Module that handles access to a Team Foundation Server-based repository,
 augmenting the usual repository version information such as pull requests.
 """
 
-import logging
+import datetime
+import re
+import dateutil.tz
 from git import Commit
 import requests
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..table import Table, Key_Table, Link_Table
-from ..utils import Iterator_Limiter, parse_date, parse_unicode
+from ..utils import get_local_datetime, convert_local_datetime, format_date, \
+    parse_date, parse_unicode, Iterator_Limiter
 
 class TFS_Project(object):
     """
@@ -95,14 +98,15 @@ class TFS_Project(object):
 
         raise ValueError("Repository '{}' cannot be found".format(repository))
 
-    def pushes(self, repository, refs=True):
+    def pushes(self, repository, from_date=None, refs=True):
         """
         Retrieve information about Git pushes to a certain repository in the
         project.
         """
 
         path = 'git/repositories/{}/pushes'.format(repository)
-        return self._get_iterator(path, includeRefUpdates=str(refs))
+        return self._get_iterator(path, fromDate=from_date,
+                                  includeRefUpdates=str(refs))
 
     def pull_requests(self, repository=None, status='All'):
         """
@@ -137,7 +141,13 @@ class TFS_Repository(Git_Repository):
     Git repository hosted by a TFS server.
     """
 
+    # Key prefix to use to retrieve certain commit comment properties.
     PROPERTY = 'Microsoft.TeamFoundation.Discussion'
+
+    # Timestamp to use as a default for the update tracker. This timestamp
+    # must be within the valid range of TFS DateTime fields, which must not
+    # be earlier than the year 1753 due to the Gregorian calendar.
+    TFS_NULL_TIMESTAMP = "1900-01-01 01:01:01"
 
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(TFS_Repository, self).__init__(source, repo_directory,
@@ -161,6 +171,10 @@ class TFS_Repository(Git_Repository):
             "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
         })
 
+        self._update_trackers["tfs_update"] = self.TFS_NULL_TIMESTAMP
+        self._previous_date = None
+        self._latest_date = None
+
     @property
     def api(self):
         """
@@ -181,15 +195,53 @@ class TFS_Repository(Git_Repository):
 
         return self._project_id
 
+    def set_update_tracker(self, file_name, value):
+        super(TFS_Repository, self).set_update_tracker(file_name, value)
+        self._previous_date = None
+        self._latest_date = None
+
+    def _is_newer(self, date):
+        date = self._parse_date(date)
+        if self._previous_date is None:
+            self._previous_date = get_local_datetime(self._update_trackers['tfs_update'])
+            self._latest_date = self._previous_date
+
+        if date > self._previous_date:
+            self._latest_date = max(date, self._latest_date)
+            return True
+
+        return False
+
+    @staticmethod
+    def _parse_date(date):
+        if date.endswith('Z'):
+            date = date[:-1]
+        match = re.match(r'(.*)\.([0-9]{3,6})[0-9]*$', date)
+        if match:
+            date = match.group(1)
+            microsecond = int(match.group(2))
+        else:
+            microsecond = 0
+
+        parsed_date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
+        return parsed_date.replace(microsecond=microsecond,
+                                   tzinfo=dateutil.tz.tzutc())
+
     def get_data(self, **kwargs):
         versions = super(TFS_Repository, self).get_data(**kwargs)
 
         repository_id = self.api.get_repository_id(self.repo_name)
-        for event in self.api.pushes(repository_id, refs=True):
+        events = self.api.pushes(repository_id, refs=True,
+                                 from_date=self._update_trackers['tfs_update'])
+        for event in events:
             self.add_event(event)
 
         for pull_request in self.api.pull_requests(repository_id):
             self.add_pull_request(pull_request)
+
+        if self._latest_date is not None:
+            latest_date = format_date(convert_local_datetime(self._latest_date))
+            self._update_trackers['tfs_update'] = latest_date
 
         return versions
 
@@ -209,6 +261,9 @@ class TFS_Repository(Git_Repository):
 
         if 'closedDate' in pull_request:
             updated_date = pull_request['closedDate']
+
+            if not self._is_newer(updated_date):
+                return
         else:
             updated_date = pull_request['creationDate']
 
@@ -275,12 +330,10 @@ class TFS_Repository(Git_Repository):
                 continue
             if comment['isDeleted']:
                 continue
+            if not self._is_newer(comment['lastUpdatedDate']):
+                continue
 
             parent_id = comment['parentId'] if 'parentId' in comment else 0
-            if 'uniqueName' not in comment['author'] or comment['content'] is None:
-                logging.info(request_id)
-                logging.info(thread)
-                logging.info(comment)
 
             note = {
                 'repo_name': str(self._repo_name),
@@ -343,6 +396,9 @@ class TFS_Repository(Git_Repository):
 
         # Ignore incomplete/group/automated accounts
         if event['pushedBy']['uniqueName'].startswith('vstfs:///'):
+            return
+
+        if not self._is_newer(event['date']):
             return
 
         for ref_update in event['refUpdates']:

@@ -13,11 +13,13 @@ from builtins import str
 import json
 import logging
 import os
+import dateutil.tz
 import gitlab3
 from gitlab3.exceptions import GitLabException
 from .repo import Git_Repository
 from ..table import Table, Key_Table, Link_Table
-from ..utils import convert_local_datetime, format_date, parse_date, parse_unicode
+from ..utils import get_local_datetime, convert_local_datetime, format_date, \
+    parse_date, parse_unicode
 
 class GitLab_Dropins_Parser(object):
     """
@@ -144,6 +146,11 @@ class GitLab_Repository(Git_Repository):
     Git repository hosted by a GitLab instance.
     """
 
+    # Timestamp to use as a default, when no timestamp is known, in contexts
+    # where we wish to compare against other timestamps and have the other
+    # timestamp win the comparison. This must still be a valid date.
+    NULL_TIMESTAMP = "0001-01-01 01:01:01"
+
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(GitLab_Repository, self).__init__(source, repo_directory,
                                                 project=project, **kwargs)
@@ -167,6 +174,10 @@ class GitLab_Repository(Git_Repository):
                                     encrypted_fields=author_fields),
             "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
         })
+
+        self._update_trackers["gitlab_update"] = self.NULL_TIMESTAMP
+        self._previous_date = None
+        self._latest_date = None
 
     def _check_dropin_files(self, project=None):
         if project is None:
@@ -236,6 +247,25 @@ class GitLab_Repository(Git_Repository):
 
         return self._repo_project
 
+    def set_update_tracker(self, file_name, value):
+        super(GitLab_Repository, self).set_update_tracker(file_name, value)
+        self._previous_date = None
+        self._latest_date = None
+
+    def _is_newer(self, date):
+        if self._previous_date is None:
+            self._previous_date = get_local_datetime(self._update_trackers['gitlab_update'])
+            self._latest_date = self._previous_date
+
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=dateutil.tz.tzutc())
+
+        if date > self._previous_date:
+            self._latest_date = max(date, self._latest_date)
+            return True
+
+        return False
+
     def get_data(self, **kwargs):
         # Check if we can retrieve the data from legacy dropin files.
         if self._check_dropin_files(self.project):
@@ -251,9 +281,14 @@ class GitLab_Repository(Git_Repository):
             self.add_event(event)
 
         for merge_request in self.repo_project.merge_requests():
-            self.add_merge_request(merge_request)
-            for note in merge_request.notes():
-                self.add_note(note, merge_request.id)
+            newer = self.add_merge_request(merge_request)
+            if newer:
+                for note in merge_request.notes():
+                    self.add_note(note, merge_request.id)
+
+        if self._latest_date is not None:
+            latest_date = format_date(convert_local_datetime(self._latest_date))
+            self._update_trackers['gitlab_update'] = latest_date
 
         return versions
 
@@ -299,6 +334,9 @@ class GitLab_Repository(Git_Repository):
         the merge requests table.
         """
 
+        if not self._is_newer(merge_request.updated_at):
+            return False
+
         if merge_request.assignee is not None:
             assignee = parse_unicode(merge_request.assignee['name'])
             assignee_username = parse_unicode(merge_request.assignee['username'])
@@ -323,6 +361,8 @@ class GitLab_Repository(Git_Repository):
             'created_at': format_date(merge_request.created_at),
             'updated_at': format_date(merge_request.updated_at)
         })
+
+        return True
 
     def add_note(self, note, merge_request_id):
         """
@@ -375,6 +415,9 @@ class GitLab_Repository(Git_Repository):
         """
 
         if event.action_name in ('pushed to', 'pushed new', 'deleted'):
+            if not self._is_newer(event.created_at):
+                return
+
             created_date = format_date(event.created_at)
             if event.data['object_kind'] == 'tag_push':
                 if event.action_name == 'deleted':
