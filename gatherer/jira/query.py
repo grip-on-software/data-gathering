@@ -12,13 +12,17 @@ class Query(object):
     Object that handles the JIRA API query using limiting.
     """
 
+    DATE_FORMAT = '%Y-%m-%d %H:%M'
+
     def __init__(self, jira, username, password, options):
         self._jira = jira
         self._api = JIRA(options, basic_auth=(username, password))
 
         query = 'project={} AND updated > "{}"'
-        self._query = query.format(self._jira.project_key,
-                                   self._jira.updated_since.timestamp)
+        updated_since = format_date(self._jira.updated_since.date,
+                                    date_format=self.DATE_FORMAT)
+        self._query = query.format(self._jira.project_key, updated_since)
+
         self._search_fields = self._jira.search_fields
         self._latest_update = str(0)
 
@@ -40,7 +44,7 @@ class Query(object):
             return []
 
         self._latest_update = format_date(datetime.now(),
-                                          date_format='%Y-%m-%d %H:%M')
+                                          date_format=self.DATE_FORMAT)
         return self._api.search_issues(self._query,
                                        startAt=self._iterator_limiter.skip,
                                        maxResults=self._iterator_limiter.size,

@@ -48,6 +48,8 @@ class Update_Tracker(object):
     Tracker for the update time which controls the storage of this timestamp.
     """
 
+    NULL_TIMESTAMP = "0001-01-01 01:01"
+
     def __init__(self, project, updated_since=None):
         self.updated_since = updated_since
         self.filename = os.path.join(project.export_key, 'jira-updated.txt')
@@ -62,7 +64,7 @@ class Update_Tracker(object):
                 with open(self.filename, 'r') as update_file:
                     self.updated_since = update_file.read().strip()
             else:
-                self.updated_since = "0001-01-01 01:01"
+                self.updated_since = self.NULL_TIMESTAMP
 
         return self.updated_since
 
