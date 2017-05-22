@@ -254,7 +254,6 @@ class Git_Repository(Version_Control_Repository):
         if stats:
             git_commit.update(self._get_diff_stats(commit))
             git_commit['branch'] = self._get_original_branch(commit)
-            logging.info(git_commit['branch'])
             self._parse_change_stats(commit)
 
         return git_commit
