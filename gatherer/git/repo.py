@@ -337,6 +337,7 @@ class Git_Repository(Version_Control_Repository):
             self._parse_change_diffs(commit, diffs)
 
     def _parse_change_diffs(self, commit, diffs):
+        files = commit.stats.files
         for diff in diffs:
             old_file = diff.a_path
             new_file = diff.b_path
@@ -346,13 +347,13 @@ class Git_Repository(Version_Control_Repository):
             else:
                 stat_file = old_file
 
-            if stat_file not in commit.stats.files:
+            if stat_file not in files:
                 logging.debug('File change %s in commit %s has no stats',
                               stat_file, commit.hexsha)
                 continue
 
-            insertions = commit.stats.files[stat_file]['insertions']
-            deletions = commit.stats.files[stat_file]['deletions']
+            insertions = files[stat_file]['insertions']
+            deletions = files[stat_file]['deletions']
 
             change_data = {
                 'repo_name': str(self._repo_name),
