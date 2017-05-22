@@ -345,7 +345,7 @@ class TFS_Repository(Git_Repository):
                 'author_username': comment['author']['uniqueName'],
                 'comment': parse_unicode(comment['content']),
                 'created_at': parse_date(comment['publishedDate']),
-                'updated_at': parse_date(comment['lastUpdatedDate']),
+                'updated_at': parse_date(comment['lastUpdatedDate'])
             }
 
             # Determine whether to add as commit comment or request note
@@ -381,12 +381,16 @@ class TFS_Repository(Git_Repository):
             end_line = 0
 
         note.update({
+            'created_date': note['created_at'],
+            'updated_date': note['updated_at'],
             'file': properties[self.PROPERTY + '.ItemPath']['$value'],
             'line': str(line),
             'end_line': str(end_line),
             'line_type': line_type,
             'commit_id': properties['CodeReviewTargetCommit']['$value']
         })
+        del note['created_at']
+        del note['updated_at']
         self._tables["commit_comment"].append(note)
 
     def add_event(self, event):
