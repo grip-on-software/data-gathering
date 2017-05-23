@@ -196,7 +196,7 @@ do
 		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
 	fi
 	if [ $importerTasks != "skip" ]; then
-		status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" -jar importerjson.jar $project $importerTasks
+		status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" $importerProperties -jar importerjson.jar $project $importerTasks
 	fi
 
 	if [ $cleanupRepos = "true" ]; then
