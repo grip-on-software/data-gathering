@@ -191,7 +191,7 @@ class TFS_Repository(Git_Repository):
         """
 
         if self._project_id is None:
-            self._project_id = self.api.get_project_id(self.repo_name)
+            self._project_id = self.api.get_project_id(self._source.tfs_repo)
 
         return self._project_id
 
@@ -230,7 +230,7 @@ class TFS_Repository(Git_Repository):
     def get_data(self, **kwargs):
         versions = super(TFS_Repository, self).get_data(**kwargs)
 
-        repository_id = self.api.get_repository_id(self.repo_name)
+        repository_id = self.api.get_repository_id(self._source.tfs_repo)
         events = self.api.pushes(repository_id, refs=True,
                                  from_date=self._update_trackers['tfs_update'])
         for event in events:

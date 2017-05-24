@@ -576,6 +576,7 @@ class TFS(Git):
     def __init__(self, *args, **kwargs):
         self._tfs_host = None
         self._tfs_collection = None
+        self._tfs_repo = None
         self._tfs_user = None
         self._tfs_password = None
         self._tfs_api = None
@@ -613,11 +614,12 @@ class TFS(Git):
         path = orig_parts.path.lstrip('/')
         path_parts = path.split('/_git/', 1)
         self._tfs_collection = path_parts[0]
+        self._tfs_repo = path_parts[1]
 
         self._tfs_user = self._credentials.get(host, 'username')
         self._tfs_password = self._credentials.get(host, 'password')
 
-        # Remove trailing slashes since they are optional and the TFS API 
+        # Remove trailing slashes since they are optional and the TFS API
         # returns remote URLs without slashes.
         self._url = self._url.rstrip('/')
 
@@ -645,6 +647,14 @@ class TFS(Git):
                                         self._tfs_password)
 
         return self._tfs_api
+
+    @property
+    def tfs_repo(self):
+        """
+        Retrieve the repository name from the TFS URL.
+        """
+
+        return self._tfs_repo
 
     def get_sources(self):
         repositories = self.tfs_api.repositories()
