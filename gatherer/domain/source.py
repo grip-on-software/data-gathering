@@ -656,12 +656,17 @@ class TFS(Git):
 
         return self._tfs_repo
 
+    def _format_url(self, url):
+        parts = urllib.parse.urlsplit(url)
+        return self._create_url(parts.scheme, self._host, parts.path,
+                                parts.query, parts.fragment)
+
     def get_sources(self):
         repositories = self.tfs_api.repositories()
         sources = []
         for repository in repositories:
-            source = Source.from_type('tfs', name=repository['name'],
-                                      url=repository['remoteUrl'],
+            url = self._format_url(repository['remoteUrl'])
+            source = Source.from_type('tfs', name=repository['name'], url=url,
                                       follow_host_change=False)
             sources.append(source)
 
