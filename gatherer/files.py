@@ -22,6 +22,36 @@ class File_Store(object):
     File store abstract class.
     """
 
+    _store_types = {}
+
+    @classmethod
+    def register(cls, store_type):
+        """
+        Decorator method for a class that registers a certain `store_type`.
+        """
+
+        def decorator(subject):
+            """
+            Decorator that registers the class `subject` to the store type.
+            """
+
+            cls._store_types[store_type] = subject
+
+            return subject
+
+        return decorator
+
+    @classmethod
+    def get_type(cls, store_type):
+        """
+        Retrieve the class registered for the given `store_type` string.
+        """
+
+        if store_type not in cls._store_types:
+            raise RuntimeError('Store type {} is not supported'.format(store_type))
+
+        return cls._store_types[store_type]
+
     def login(self, username, password):
         """
         Log in to the store, if the store makes use of user- and password-based
@@ -61,6 +91,7 @@ class File_Store(object):
 
         raise NotImplementedError('Must be implemented by subclasses')
 
+@File_Store.register('owncloud')
 class OwnCloud_Store(File_Store):
     """
     File store using an ownCloud backend.

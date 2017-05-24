@@ -16,6 +16,8 @@ import shutil
 from zipfile import ZipFile
 # Not-standard imports
 import requests
+from gatherer.files import File_Store
+from gatherer.log import Log_Setup
 
 def parse_args():
     """
@@ -25,7 +27,8 @@ def parse_args():
     config = configparser.RawConfigParser()
     config.read("settings.cfg")
 
-    parser = argparse.ArgumentParser(description='Retrieve the database importer')
+    description = 'Retrieve the database importer and auxiliary data'
+    parser = argparse.ArgumentParser(description=description)
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--path', default=None,
                        help='local path to retrieve the dist directory from')
@@ -33,8 +36,19 @@ def parse_args():
                        help='url to retrieve a dist.zip file from')
     group.add_argument('--base', default='.',
                        help='directory to place the importer and libraries in')
+    parser.add_argument('--type', default=config.get('dropins', 'type'),
+                        help='type of the data store (owncloud)')
+    parser.add_argument('--store', default=config.get('dropins', 'url'),
+                        help='URL of the data store')
+    parser.add_argument('--username', default=config.get('dropins', 'username'),
+                        help='user to connect to the file store with')
+    parser.add_argument('--password', default=config.get('dropins', 'password'),
+                        help='password to connect to the file store with')
 
+    Log_Setup.add_argument(parser)
     args = parser.parse_args()
+    Log_Setup.parse_args(args)
+
     return args
 
 def main():
@@ -66,10 +80,13 @@ def main():
 
     shutil.move('dist/importerjson.jar',
                 os.path.join(args.base, 'importerjson.jar'))
-    shutil.move('dist/data_vcsdev_to_dev.json',
-                os.path.join(args.base, 'data_vcsdev_to_dev.json'))
     shutil.move('dist/lib/', args.base)
     shutil.rmtree('dist')
+
+    store_type = File_Store.get_type(args.type)
+    store = store_type(args.store)
+    store.login(args.username, args.password)
+    store.get_file('import/data_vcsdev_to_dev.json', 'data_vcsdev_to_dev.json')
 
 if __name__ == "__main__":
     main()

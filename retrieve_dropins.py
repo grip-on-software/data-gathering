@@ -13,7 +13,7 @@ from configparser import RawConfigParser
 import logging
 import os
 import shutil
-from gatherer.files import OwnCloud_Store, PathExistenceError
+from gatherer.files import File_Store, PathExistenceError
 from gatherer.log import Log_Setup
 
 def parse_args():
@@ -27,7 +27,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Retrieve the dropin files')
     parser.add_argument('project', help='project key to retrieve for')
     parser.add_argument('--type', default=config.get('dropins', 'type'),
-                        help='typoe of the data store (owncloud)')
+                        help='type of the data store (owncloud)')
     parser.add_argument('--url', default=config.get('dropins', 'url'),
                         help='URL of the data store')
     parser.add_argument('--username', default=config.get('dropins', 'username'),
@@ -46,15 +46,9 @@ def main():
     Main entry point.
     """
 
-    store_types = {
-        'owncloud': OwnCloud_Store
-    }
-
     args = parse_args()
-    if args.type not in store_types:
-        raise RuntimeError('Store type {} is not supported'.format(args.type))
 
-    store_type = store_types[args.type]
+    store_type = File_Store.get_type(args.type)
     store = store_type(args.url)
     store.login(args.username, args.password)
 
