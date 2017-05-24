@@ -119,7 +119,8 @@ class Sources_Collector(Collector):
             else:
                 continue
 
-            self._project.add_source(source)
+            if not self._project.has_source(source):
+                self._project.add_source(source)
 
 class Metric_Options_Collector(Collector):
     """
