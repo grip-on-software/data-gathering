@@ -84,7 +84,12 @@ function export_handler() {
 	local args=$*
 
 	# Check whether the script should be run according to the environment.
-	if [[ ! $gathererScripts =~ "(^|[[:space:]])$script($|[[:space:]])" ]]; then
+	set +e
+	echo $gathererScripts | grep -w -q "\b$script\b"
+	local status=$?
+	set -e
+
+	if [ $status -ne 0 ]; then
 		return
 	fi
 
