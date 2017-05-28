@@ -614,7 +614,7 @@ class TFS(Git):
         path = orig_parts.path.lstrip('/')
         path_parts = path.split('/_git/', 1)
         self._tfs_collection = path_parts[0]
-        self._tfs_repo = path_parts[1]
+        self._tfs_repo = path_parts[1].rstrip('/')
 
         self._tfs_user = self._credentials.get(host, 'username')
         self._tfs_password = self._credentials.get(host, 'password')
