@@ -48,7 +48,10 @@ class Update_Tracker(object):
     Tracker for the update time which controls the storage of this timestamp.
     """
 
-    NULL_TIMESTAMP = "0001-01-01 01:01"
+    # Timestamp to use as a default for the update tracker and query.
+    # This timestamp must be within the valid range for the Python 2 datetime's
+    # strftime function, to ensure compatibility.
+    NULL_TIMESTAMP = "1900-01-01 01:01"
 
     def __init__(self, project, updated_since=None):
         self.updated_since = updated_since
