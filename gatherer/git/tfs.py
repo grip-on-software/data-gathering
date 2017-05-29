@@ -216,7 +216,7 @@ class TFS_Repository(Git_Repository):
     def _parse_date(date):
         if date.endswith('Z'):
             date = date[:-1]
-        match = re.match(r'(.*)\.([0-9]{3,6})[0-9]*$', date)
+        match = re.match(r'(.*)\.([0-9]{1,6})[0-9]*Z?$', date)
         if match:
             date = match.group(1)
             microsecond = int(match.group(2))
