@@ -274,7 +274,7 @@ class Git_Repository(Version_Control_Repository):
     def _get_original_branch(self, commit):
         commits = self.repo.iter_commits('{}..HEAD'.format(commit.hexsha),
                                          ancestry_path=True, merges=True,
-                                         reverse=True, max_count=1)
+                                         reverse=True)
 
         try:
             merge_commit = next(commits)
