@@ -26,10 +26,8 @@ class TFS_Project(object):
         self._session.auth = HttpNtlmAuth(username, password, self._session)
         self._url = '{}/{}/_apis'.format(self._host, self._collection)
 
-    def _get(self, path, api_version='1.0', **kw):
-        params = kw.copy()
-        params['api-version'] = api_version
-        request = self._session.get(self._url + '/' + path, params=params)
+    @classmethod
+    def _validate_request(cls, request):
         if request.status_code != requests.codes['ok']:
             try:
                 data = request.json()
@@ -44,6 +42,12 @@ class TFS_Project(object):
                 raise RuntimeError(message)
             except ValueError:
                 request.raise_for_status()
+
+    def _get(self, path, api_version='1.0', **kw):
+        params = kw.copy()
+        params['api-version'] = api_version
+        request = self._session.get(self._url + '/' + path, params=params)
+        self._validate_request(request)
 
         return request.json()
 
@@ -131,6 +135,19 @@ class TFS_Project(object):
         else:
             path = 'git/pullRequests'
 
+        if status == 'All':
+            request = self._session.options(self._url + '/git/pullRequests')
+            self._validate_request(request)
+            options = request.json()
+            if options['value'][0]['releasedVersion'] == '0.0':
+                # TFS 2013 compatibility
+                return self._pull_requests(path, 'Active') + \
+                        self._pull_requests(path, 'Completed') + \
+                        self._pull_requests(path, 'Abandoned')
+
+        return self._pull_requests(path, status)
+
+    def _pull_requests(self, path, status):
         try:
             return self._get_iterator(path, status=status)
         except RuntimeError:
