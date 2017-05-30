@@ -105,8 +105,20 @@ class TFS_Project(object):
         """
 
         path = 'git/repositories/{}/pushes'.format(repository)
-        return self._get_iterator(path, fromDate=from_date,
-                                  includeRefUpdates=str(refs))
+        pushes = self._get_iterator(path, fromDate=from_date,
+                                    includeRefUpdates=str(refs))
+
+        if refs and len(pushes) > 0 and 'refUpdates' not in pushes[0]:
+            # TFS 2013 support
+            for push in pushes:
+                push_details = self._get('{}/{}'.format(path, push['pushId']))
+                push['pushedBy']['uniqueName'] = push['pushedBy']['displayName']
+                push['refUpdates'] = []
+                for commit in push_details['commits']:
+                    push['refUpdates'].append({
+                        'newObjectId': commit['commitId'],
+                        'oldObjectId': commit['commitId']
+                    })
 
     def pull_requests(self, repository=None, status='All'):
         """
