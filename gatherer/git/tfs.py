@@ -139,6 +139,8 @@ class TFS_Project(object):
                         'oldObjectId': commit['commitId']
                     })
 
+        return pushes
+
     def pull_requests(self, repository=None, status='All'):
         """
         Retrieve information about pull requests from a repository or from
