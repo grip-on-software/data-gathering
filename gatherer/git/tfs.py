@@ -463,12 +463,17 @@ class TFS_Repository(Git_Repository):
             else:
                 action = 'pushed to'
 
+            if 'name' in ref_update:
+                ref_name = str(ref_update['name'])
+            else:
+                ref_name = str(0)
+
             self._tables["vcs_event"].append({
                 'repo_name': str(self._repo_name),
                 'version_id': str(commit_id),
                 'action': action,
                 'kind': 'push',
-                'ref': str(ref_update['name']),
+                'ref': ref_name,
                 'user': parse_unicode(event['pushedBy']['uniqueName']),
                 'user_name': parse_unicode(event['pushedBy']['displayName']),
                 'date': parse_date(event['date'])
