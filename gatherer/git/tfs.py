@@ -24,6 +24,8 @@ class TFS_Project(object):
         self._collection = collections[0]
         if len(collections) > 1:
             self._project = collections[1]
+        else:
+            self._project = None
 
         self._session = requests.Session()
         self._session.auth = HttpNtlmAuth(username, password, self._session)
