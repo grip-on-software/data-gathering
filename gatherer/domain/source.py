@@ -575,7 +575,7 @@ class TFS(Git):
 
     def __init__(self, *args, **kwargs):
         self._tfs_host = None
-        self._tfs_collection = None
+        self._tfs_collections = None
         self._tfs_repo = None
         self._tfs_user = None
         self._tfs_password = None
@@ -613,8 +613,16 @@ class TFS(Git):
         # Retrieve the TFS collection
         path = orig_parts.path.lstrip('/')
         path_parts = path.split('/_git/', 1)
-        self._tfs_collection = path_parts[0]
+        tfs_path = path_parts[0]
         self._tfs_repo = path_parts[1].rstrip('/')
+
+        tfs_parts = tfs_path.split('/')
+        num_parts = 2 if tfs_parts[0] == 'tfs' else 1
+        if len(tfs_parts) > num_parts:
+            collection = '/'.join(tfs_parts[:num_parts])
+            self._tfs_collections = (collection, tfs_parts[num_parts])
+        else:
+            self._tfs_collections = (tfs_path,)
 
         self._tfs_user = self._credentials.get(host, 'username')
         self._tfs_password = self._credentials.get(host, 'password')
@@ -631,7 +639,7 @@ class TFS(Git):
 
     @property
     def environment(self):
-        return (self._tfs_host, self._tfs_collection)
+        return (self._tfs_host,) + self._tfs_collections
 
     @property
     def tfs_api(self):
@@ -642,7 +650,7 @@ class TFS(Git):
 
         if self._tfs_api is None:
             logging.info('Setting up API for %s', self._tfs_host)
-            self._tfs_api = TFS_Project(self._tfs_host, self._tfs_collection,
+            self._tfs_api = TFS_Project(self._tfs_host, self._tfs_collections,
                                         urllib.parse.unquote(self._tfs_user),
                                         self._tfs_password)
 

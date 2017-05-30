@@ -19,12 +19,15 @@ class TFS_Project(object):
     A project on a TFS server.
     """
 
-    def __init__(self, host, collection, username, password):
+    def __init__(self, host, collections, username, password):
         self._host = host
-        self._collection = collection
+        self._collection = collections[0]
+        if len(collections) > 1:
+            self._project = collections[1]
+
         self._session = requests.Session()
         self._session.auth = HttpNtlmAuth(username, password, self._session)
-        self._url = '{}/{}/_apis'.format(self._host, self._collection)
+        self._url = '{}/{}'.format(self._host, self._collection)
 
     @classmethod
     def _validate_request(cls, request):
@@ -43,15 +46,24 @@ class TFS_Project(object):
             except ValueError:
                 request.raise_for_status()
 
-    def _get(self, path, api_version='1.0', **kw):
+    def _get(self, area, path, api_version='1.0', project_collection=False, **kw):
         params = kw.copy()
         params['api-version'] = api_version
-        request = self._session.get(self._url + '/' + path, params=params)
+
+        if self._project is None:
+            parts = (self._url, '_apis', area, path)
+        elif project_collection:
+            parts = (self._url, self._project, '_apis', area, path)
+        else:
+            parts = (self._url, '_apis', area, self._project, path)
+
+        url = '/'.join(parts)
+        request = self._session.get(url, params=params)
         self._validate_request(request)
 
         return request.json()
 
-    def _get_iterator(self, path, api_version='1.0', size=100, **kw):
+    def _get_iterator(self, area, path, api_version='1.0', size=100, **kw):
         params = kw.copy()
         limiter = Iterator_Limiter(size=size)
         had_value = True
@@ -60,7 +72,7 @@ class TFS_Project(object):
             had_value = False
             params['$skip'] = limiter.skip
             params['$top'] = limiter.size
-            result = self._get(path, api_version=api_version, **params)
+            result = self._get(area, path, api_version=api_version, **params)
             if result['count'] > 0:
                 values.extend(result['value'])
                 had_value = True
@@ -74,7 +86,7 @@ class TFS_Project(object):
         Retrieve the repositories that exist in the collection or project.
         """
 
-        repositories = self._get('git/repositories')
+        repositories = self._get('git', 'repositories')
         return repositories['value']
 
     def get_project_id(self, repository):
@@ -108,14 +120,15 @@ class TFS_Project(object):
         project.
         """
 
-        path = 'git/repositories/{}/pushes'.format(repository)
-        pushes = self._get_iterator(path, fromDate=from_date,
+        path = 'repositories/{}/pushes'.format(repository)
+        pushes = self._get_iterator('git', path, fromDate=from_date,
                                     includeRefUpdates=str(refs))
 
         if refs and len(pushes) > 0 and 'refUpdates' not in pushes[0]:
             # TFS 2013 support
             for push in pushes:
-                push_details = self._get('{}/{}'.format(path, push['pushId']))
+                push_details = self._get('git',
+                                         '{}/{}'.format(path, push['pushId']))
                 push['pushedBy']['uniqueName'] = push['pushedBy']['displayName']
                 push['refUpdates'] = []
                 for commit in push_details['commits']:
@@ -131,12 +144,13 @@ class TFS_Project(object):
         """
 
         if repository is not None:
-            path = 'git/repositories/{}/pullRequests'.format(repository)
+            path = 'repositories/{}/pullRequests'.format(repository)
         else:
-            path = 'git/pullRequests'
+            path = 'pullRequests'
 
         if status == 'All':
-            request = self._session.options(self._url + '/git/pullRequests')
+            url = '{}/_apis/git/pullRequests'.format(self._url)
+            request = self._session.options(url)
             self._validate_request(request)
             options = request.json()
             if options['value'][0]['releasedVersion'] == '0.0':
@@ -145,11 +159,11 @@ class TFS_Project(object):
                         self._pull_requests(path, 'Completed') + \
                         self._pull_requests(path, 'Abandoned')
 
-        return self._pull_requests(path, status)
+        return self._pull_requests(path, status, project_collection=True)
 
-    def _pull_requests(self, path, status):
+    def _pull_requests(self, path, status, **kw):
         try:
-            return self._get_iterator(path, status=status)
+            return self._get_iterator('git', path, status=status, **kw)
         except RuntimeError:
             # The TFS API returns an error if there are no pull requests.
             return []
@@ -161,8 +175,8 @@ class TFS_Project(object):
 
         artifact = 'vstfs:///CodeReview/CodeReviewId/{}%2F{}'.format(project_id,
                                                                      request_id)
-        comments = self._get('discussion/threads', api_version='3.0-preview.1',
-                             artifactUri=artifact)
+        comments = self._get('discussion', 'threads',
+                             api_version='3.0-preview.1', artifactUri=artifact)
         return comments['value']
 
 class TFS_Repository(Git_Repository):
