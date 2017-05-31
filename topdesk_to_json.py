@@ -10,12 +10,12 @@ except ImportError:
 
 from builtins import object
 import argparse
-import configparser
 import csv
 import json
 import logging
 import os
 import regex
+from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.utils import get_local_datetime, format_date
@@ -58,8 +58,7 @@ class Topdesk_Parser(object):
         self._project = project
         self._project_key = project.key
 
-        self._config = configparser.RawConfigParser()
-        self._config.read('topdesk.cfg')
+        self._config = Configuration.get_config('topdesk')
 
         if self._config.has_option('projects', self._project_key):
             self._project_pass = self._config.get('projects', self._project_key)

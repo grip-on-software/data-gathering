@@ -9,8 +9,8 @@ except ImportError:
     raise
 
 import argparse
-from configparser import RawConfigParser
 import subprocess
+from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 
@@ -19,8 +19,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = RawConfigParser()
-    config.read("settings.cfg")
+    config = Configuration.get_settings()
 
     parser = argparse.ArgumentParser(description='Export data and update files')
     parser.add_argument('project', help='project key to export')

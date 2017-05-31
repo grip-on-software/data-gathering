@@ -11,7 +11,6 @@ except ImportError:
 
 from builtins import str
 import argparse
-import configparser
 from contextlib import contextmanager
 import ast
 import gzip
@@ -22,6 +21,7 @@ import logging
 import os
 # Non-standard imports
 import requests
+from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.utils import parse_date
@@ -121,8 +121,7 @@ def get_data_source(project, args):
     Yield an open file containing the historical metric values of the project.
     """
 
-    config = configparser.RawConfigParser()
-    config.read("settings.cfg")
+    config = Configuration.get_settings()
 
     if args.export_path is not None:
         export_path = get_setting(config, args.export_path, 'path', project)

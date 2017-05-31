@@ -9,13 +9,13 @@ except ImportError:
     raise
 
 from builtins import object
-import configparser
 import logging
 import os
 import re
 import urllib.parse
 import gitlab3
 from gitlab3.exceptions import GitLabException, ResourceNotFound
+from ..config import Configuration
 from ..svn import Subversion_Repository
 from ..git import Git_Repository, GitLab_Repository
 from ..git.tfs import TFS_Repository, TFS_Project
@@ -97,8 +97,7 @@ class Source(object):
     @classmethod
     def _init_credentials(cls):
         if cls._credentials is None:
-            cls._credentials = configparser.RawConfigParser()
-            cls._credentials.read("credentials.cfg")
+            cls._credentials = Configuration.get_credentials()
 
     @classmethod
     def from_type(cls, source_type, **kwargs):

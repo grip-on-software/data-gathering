@@ -10,10 +10,10 @@ except ImportError:
     raise
 
 import argparse
-from configparser import RawConfigParser
 import logging
 import os
 import gitlab3
+from gatherer.config import Configuration
 from gatherer.domain import Project, Source
 from gatherer.git import Git_Repository
 from gatherer.log import Log_Setup
@@ -23,8 +23,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = RawConfigParser()
-    config.read('settings.cfg')
+    config = Configuration.get_settings()
 
     description = "Initialize repositories for filtered or archived source code storage"
     parser = argparse.ArgumentParser(description=description)

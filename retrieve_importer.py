@@ -10,12 +10,12 @@ except ImportError:
     raise
 
 import argparse
-import configparser
 import os
 import shutil
 from zipfile import ZipFile
 # Not-standard imports
 import requests
+from gatherer.config import Configuration
 from gatherer.files import File_Store
 from gatherer.log import Log_Setup
 
@@ -24,8 +24,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = configparser.RawConfigParser()
-    config.read("settings.cfg")
+    config = Configuration.get_settings()
 
     description = 'Retrieve the database importer and auxiliary data'
     parser = argparse.ArgumentParser(description=description)

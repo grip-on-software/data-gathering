@@ -9,10 +9,10 @@ except ImportError:
     raise
 
 import argparse
-from configparser import RawConfigParser
 import logging
 import os
 import shutil
+from gatherer.config import Configuration
 from gatherer.files import File_Store, PathExistenceError
 from gatherer.log import Log_Setup
 
@@ -21,8 +21,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = RawConfigParser()
-    config.read("settings.cfg")
+    config = Configuration.get_settings()
 
     parser = argparse.ArgumentParser(description='Retrieve the dropin files')
     parser.add_argument('project', help='project key to retrieve for')

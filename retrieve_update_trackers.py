@@ -9,7 +9,7 @@ except ImportError:
     raise
 
 import argparse
-from configparser import RawConfigParser
+from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.update import Database_Tracker, SSH_Tracker
@@ -19,8 +19,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = RawConfigParser()
-    config.read("settings.cfg")
+    config = Configuration.get_settings()
 
     parser = argparse.ArgumentParser(description='Retrieve the update trackers')
     parser.add_argument('project', help='project key to retrieve for')

@@ -10,7 +10,7 @@ except ImportError:
     raise
 
 import argparse
-import configparser
+from gatherer.config import Configuration
 from gatherer.jira import Jira, Updated_Time, Update_Tracker
 from gatherer.log import Log_Setup
 from gatherer.domain import Project
@@ -31,8 +31,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = configparser.RawConfigParser()
-    config.read("settings.cfg")
+    config = Configuration.get_settings()
 
     description = "Obtain JIRA issue data and output JSON"
     parser = argparse.ArgumentParser(description=description)

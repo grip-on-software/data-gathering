@@ -8,8 +8,8 @@ try:
 except ImportError:
     raise
 
-from configparser import RawConfigParser
 import Pyro4
+from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.salt import Salt
 from gatherer.update import Database_Tracker
@@ -21,8 +21,7 @@ class Gatherer(object):
     """
 
     def __init__(self):
-        self._config = RawConfigParser()
-        self._config.read("settings.cfg")
+        self._config = Configuration.get_settings()
 
     def get_update_trackers(self, project_key, export_directory):
         """

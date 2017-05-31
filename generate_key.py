@@ -26,6 +26,7 @@ try:
 except ImportError:
     raise
 
+from gatherer.config import Configuration
 from gatherer.domain.source import GitLab
 from gatherer.log import Log_Setup
 
@@ -34,8 +35,7 @@ def parse_args():
     Parse command line arguments.
     """
 
-    config = RawConfigParser()
-    config.read("settings.cfg")
+    config = Configuration.get_settings()
 
     parser = argparse.ArgumentParser(description='Generate and distribute new public key')
     parser.add_argument('project', help='project key to retrieve for')

@@ -10,9 +10,9 @@ except ImportError:
     raise
 
 import argparse
-import configparser
 import logging
 
+from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.project_definition.svn import Metric_Options_Collector
@@ -23,10 +23,12 @@ def parse_args():
     Parse command line arguments.
     """
 
+    config = Configuration.get_settings()
+
     description = "Obtain quality metric project definition and output JSON"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--repo", default="kwaliteitsmetingen/trunk",
+    parser.add_argument("--repo", default=config.get('definitions', 'path'),
                         help="Subversion directory with project definitions")
     parser.add_argument("--context", type=int, default=3,
                         help="Number of context lines for parser problems")
@@ -47,8 +49,6 @@ def main():
     Main entry point.
     """
 
-    config = configparser.RawConfigParser()
-    config.read("settings.cfg")
     args = parse_args()
 
     project_key = args.project

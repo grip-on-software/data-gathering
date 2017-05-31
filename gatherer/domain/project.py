@@ -9,9 +9,9 @@ except ImportError:
     raise
 
 from builtins import object
-import configparser
 import json
 import os
+from ..config import Configuration
 from .source import Source, GitLab
 
 class Sources(object):
@@ -117,8 +117,7 @@ class Project_Meta(object):
 
     @classmethod
     def _init_settings(cls):
-        cls._settings = configparser.RawConfigParser()
-        cls._settings.read("settings.cfg")
+        cls._settings = Configuration.get_settings()
 
     @property
     def settings(self):
