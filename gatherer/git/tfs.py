@@ -363,7 +363,7 @@ class TFS_Repository(Git_Repository):
             return author['isContainer']
 
         # Fall back to checking for group team account names
-        if re.match(r'^\[[^\]]+]/', display_name):
+        if re.match(r'^\[[^\]]+]\\', display_name):
             return True
 
         return False
