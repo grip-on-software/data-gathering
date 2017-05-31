@@ -194,19 +194,20 @@ def format_date(date, date_format='%Y-%m-%d %H:%M:%S'):
 def parse_date(date):
     """
     Convert a date string from sources like JIRA to a standard date string,
-    excluding milliseconds and using spaces to separate fields instead of 'T'.
-    The standard format is YYYY-MM-DD HH:MM:SS.
+    excluding milliseconds and zone information, and using spaces to
+    separate fields instead of 'T'.
+
+    The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
 
     If the date cannot be parsed, '0' is returned.
     """
 
     date_string = str(date)
-    date_string = date_string.replace('T', ' ')
-    date_string = date_string.split('.', 1)[0]
+    date_string = date_string.replace('T', ' ').split('.', 1)[0]
     if date_string is None:
         return "0"
 
-    return date_string
+    return date_string.rstrip('Z')
 
 def parse_unicode(text):
     """
