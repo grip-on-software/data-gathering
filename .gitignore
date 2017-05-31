@@ -2,10 +2,11 @@
 *~
 *.pyc
 *.swp
-secrets.cfg
+*.cfg
 importerjson.jar
 data_vcsdev_to_dev.json
 lib/
+dropins/*/
 export/
 kwaliteitsmetingen/
 project-git-repos/

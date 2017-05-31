@@ -53,8 +53,8 @@ def main():
 
     path = os.path.join('dropins', args.project)
     if os.path.exists(path):
-        logging.info('Moving old path %s to a backup location', path)
-        shutil.move(path, os.path.join('dropins', 'backup', args.project))
+        logging.info('Removing old dropins path %s', path)
+        shutil.rmtree(path)
 
     try:
         store.get_directory(path, path)
