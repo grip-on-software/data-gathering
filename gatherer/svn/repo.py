@@ -8,6 +8,7 @@ import os.path
 # Non-standard imports
 import dateutil.tz
 import svn.common
+import svn.exception
 import svn.local
 import svn.remote
 
@@ -81,10 +82,27 @@ class Subversion_Repository(Version_Control_Repository):
     def is_empty(self):
         try:
             self.repo.info()
-        except svn.common.SvnException:
+        except svn.exception.SvnException:
             return True
         else:
             return False
+
+    def update(self):
+        # pylint: disable=no-member
+        if not isinstance(self.repo, svn.local.LocalClient):
+            raise TypeError('Repository has no local client, check out the repository first')
+
+        self.repo.update()
+
+    def checkout(self):
+        if not isinstance(self.repo, svn.remote.RemoteClient):
+            raise TypeError('Repository is already local, update the repository instead')
+
+        # Check out trunk directory
+        args = [self.source.url + '/trunk', self._repo_directory]
+        self.repo.run_command('checkout', args)
+        # Invalidate so that we may continue woorking with a local client
+        self._repo = None
 
     def _query(self, filename, from_revision, to_revision):
         return self.repo.log_default(rel_filepath=filename,
@@ -219,7 +237,7 @@ class Subversion_Repository(Version_Control_Repository):
                     'tagger': tag['author'],
                     'tagger_email': str(0)
                 })
-        except svn.common.SvnException:
+        except svn.exception.SvnException:
             logging.exception('Could not retrieve tags')
 
     def get_contents(self, filename, revision=None):
@@ -230,7 +248,7 @@ class Subversion_Repository(Version_Control_Repository):
 
         try:
             return self.repo.cat(filename, revision=revision)
-        except svn.common.SvnException as error:
+        except svn.exception.SvnException as error:
             raise FileNotFoundException(error.message)
 
     def get_latest_version(self):

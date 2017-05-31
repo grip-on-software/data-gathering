@@ -304,6 +304,26 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError("Must be implemented by subclass")
 
+    def update(self):
+        """
+        Update the local state of the repository to its latest upstream state.
+
+        If the repository cannot be updated, for example if it has no prior local state, then
+        an exception may be raised.
+        """
+
+        raise NotImplementedError('Must be implemented by subclass')
+
+    def checkout(self):
+        """
+        Create a local state of the repository based on the current uptream state.
+
+        If the local state cannot be created, for example if it already exists, then an
+        exception may be raised.
+        """
+
+        raise NotImplementedError('Must be implemented by subclass')
+
     def get_latest_version(self):
         """
         Retrieve the identifier of the latest version within the version

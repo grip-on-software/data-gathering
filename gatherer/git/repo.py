@@ -31,13 +31,19 @@ class Git_Repository(Version_Control_Repository):
         r"(?:Merge )?([^\s]+) >\s?master"
     ))
 
-    def __init__(self, source, repo_directory, **kwargs):
+    def __init__(self, source, repo_directory, progress=None, **kwargs):
         super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
         self._repo = None
-        self._credentials_path = source.credentials_path
         self._unsafe_hosts = bool(source.get_option('unsafe'))
         self._from_date = source.get_option('from_date')
         self._tag = source.get_option('tag')
+
+        if progress is True:
+            self._progress = Git_Progress(update_ratio=self.DEFAULT_UPDATE_RATIO)
+        elif isinstance(progress, int) and progress > 0:
+            self._progress = Git_Progress(update_ratio=progress)
+        else:
+            self._progress = None
 
         self._iterator_limiter = None
         self._reset_limiter()
@@ -85,22 +91,12 @@ class Git_Repository(Version_Control_Repository):
         even if the repository already existed beforehand.
         """
 
-        if progress is True:
-            progress = Git_Progress(update_ratio=cls.DEFAULT_UPDATE_RATIO)
-        elif not progress:
-            progress = None
-        elif isinstance(progress, int):
-            progress = Git_Progress(update_ratio=progress)
-
-        repository = cls(source, repo_directory, **kwargs)
+        repository = cls(source, repo_directory, progress=progress, **kwargs)
         if os.path.exists(repo_directory):
             if not repository.is_empty():
-                # Update the repository from the origin URL.
-                repository.repo.remotes.origin.pull('master', progress=progress)
+                repository.update()
         else:
-            repository.repo = Repo.clone_from(source.url, repo_directory,
-                                              progress=progress,
-                                              env=repository.environment)
+            repository.checkout()
 
         return repository
 
@@ -128,9 +124,10 @@ class Git_Repository(Version_Control_Repository):
 
         environment = {}
 
-        if self._credentials_path is not None:
-            logging.debug('Using credentials path %s', self._credentials_path)
-            ssh_command = "ssh -i '{}'".format(self._credentials_path)
+        credentials_path = self.source.credentials_path
+        if credentials_path is not None:
+            logging.debug('Using credentials path %s', credentials_path)
+            ssh_command = "ssh -i '{}'".format(credentials_path)
             if self._unsafe_hosts:
                 ssh_command += '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
@@ -160,6 +157,14 @@ class Git_Repository(Version_Control_Repository):
         """
 
         return not self.repo.branches
+
+    def update(self):
+        # Update the repository from the origin URL.
+        self.repo.remotes.origin.pull('master', progress=self._progress)
+
+    def checkout(self):
+        self.repo = Repo.clone_from(self.source.url, self.repo_directory,
+                                    progress=self._progress, env=self.environment)
 
     def _query(self, refspec, paths='', descending=True):
         return self.repo.iter_commits(refspec, paths=paths,

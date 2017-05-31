@@ -161,13 +161,8 @@ done
 # Retrieve Java importer
 python retrieve_importer.py --base $IMPORTER_BASE
 
-if [ "$(ls -A kwaliteitsmetingen 2>/dev/null)" ]; then
-	cd kwaliteitsmetingen
-	svn update -q
-	cd ..
-else
-	svn checkout -q http://SUBVERSION_SERVER.localhost/commons/algemeen/kwaliteitsmetingen/
-fi
+# Retrieve quality metrics repository
+python retrieve_metrics_repository.py
 
 for project in $listOfProjects
 do

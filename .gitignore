@@ -9,5 +9,5 @@ lib/
 export/
 kwaliteitsmetingen/
 project-git-repos/
-src/gitlab3/
+src/*/
 src/pip-delete-this-directory.txt

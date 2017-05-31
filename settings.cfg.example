@@ -6,6 +6,7 @@ password = $JIRA_PASSWORD
 source_type = $DEFINITIONS_TYPE
 name = $DEFINITIONS_NAME
 url = $DEFINITIONS_URL
+path = $DEFINITIONS_PATH
 [history]
 url = $HISTORY_URL
 path = $HISTORY_PATH
