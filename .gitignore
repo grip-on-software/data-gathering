@@ -7,6 +7,7 @@
 importerjson.jar
 data_vcsdev_to_dev.json
 lib/
+certs/*.crt
 dropins/*/
 export/
 kwaliteitsmetingen/

@@ -7,7 +7,7 @@ RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	pip install -r /tmp/requirements.txt && \
 	apk del gcc musl-dev && rm -rf /var/cache/apk/* /tmp/
 
-COPY *.py *.py.export *.py.update requirements.txt *.cfg.example topdesk.cfg *.sh jira_fields.json /home/agent/
+COPY *.py *.py.export *.py.update requirements.txt *.cfg.example *.sh jira_fields.json /home/agent/
 COPY certs/ /home/agent/certs/
 COPY gatherer/ /home/agent/gatherer/
 

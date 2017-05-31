@@ -1,10 +1,11 @@
-Old_files*/
 .DS_Store
 .git
 *~
 *.log
+*.md
 *.pyc
 *.swp
+*.cfg
 .*
 importerjson.jar
 data_vcsdev_to_dev.json
@@ -15,9 +16,5 @@ dropins/*
 export/
 kwaliteitsmetingen/
 project-git-repos/
-Report/
-src/gitlab3/
+src/*/
 src/pip-delete-this-directory.txt
-README.md
-settings.cfg
-credentials.cfg
