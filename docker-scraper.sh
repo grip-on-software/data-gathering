@@ -27,14 +27,7 @@ for script in $scripts; do
 	exportFiles="$exportFiles $export_files"
 done
 
-if [ "$(ls -A kwaliteitsmetingen 2>/dev/null)" ]; then
-	cd kwaliteitsmetingen
-	svn update -q
-	cd ..
-else
-	svn checkout -q http://SUBVERSION_SERVER.localhost/commons/algemeen/kwaliteitsmetingen/
-fi
-
+python retrieve_metrics_repository.py --log $logLevel
 python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
 python project_sources.py $project --log $logLevel
 python environment_sources.py $project --log $logLevel
