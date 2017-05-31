@@ -172,6 +172,14 @@ class TFS_Project(object):
             # The TFS API returns an error if there are no pull requests.
             return []
 
+    def pull_request(self, repository, request_id):
+        """
+        Retrieve information about a single pull request.
+        """
+
+        path = 'repositories/{}/pullRequests/{}'.format(repository, request_id)
+        return self._get('git', path)
+
     def pull_request_comments(self, project_id, request_id):
         """
         Retrieve infromation about code review comments in a pull request.
@@ -284,7 +292,7 @@ class TFS_Repository(Git_Repository):
             self.add_event(event)
 
         for pull_request in self.api.pull_requests(repository_id):
-            self.add_pull_request(pull_request)
+            self.add_pull_request(repository_id, pull_request)
 
         if self._latest_date is not None:
             latest_date = format_date(convert_local_datetime(self._latest_date))
@@ -292,14 +300,19 @@ class TFS_Repository(Git_Repository):
 
         return versions
 
-    def add_pull_request(self, pull_request):
+    def add_pull_request(self, repository_id, pull_request):
         """
         Add a pull request described by its TFS API response object to the
         pull requests table.
         """
 
+        request_id = str(pull_request['pullRequestId'])
         if 'reviewers' in pull_request:
             reviewers = pull_request['reviewers']
+        elif '_links' not in pull_request:
+            # Retrieve the reviewers from the pull request itself for TFS 2013
+            request = self.api.pull_request(repository_id, request_id)
+            reviewers = request['reviewers'] if 'reviewers' in request else []
         else:
             reviewers = []
 
@@ -319,7 +332,6 @@ class TFS_Repository(Git_Repository):
         else:
             description = ''
 
-        request_id = str(pull_request['pullRequestId'])
         self._tables["merge_request"].append({
             'repo_name': str(self._repo_name),
             'id': request_id,
@@ -346,8 +358,15 @@ class TFS_Repository(Git_Repository):
             self.add_comment(request_id, comment)
 
     @staticmethod
-    def _is_container_account(author):
-        return 'isContainer' in author and author['isContainer']
+    def _is_container_account(author, display_name):
+        if isinstance(author, dict) and 'isContainer' in author:
+            return author['isContainer']
+
+        # Fall back to checking for group team account names
+        if re.match(r'^\[[^\]]+]/', display_name):
+            return True
+
+        return False
 
     def add_review(self, request_id, reviewer):
         """
@@ -356,7 +375,7 @@ class TFS_Repository(Git_Repository):
         """
 
         # Ignore project team container accounts (aggregate votes)
-        if not self._is_container_account(reviewer):
+        if not self._is_container_account(reviewer, reviewer['uniqueName']):
             self._tables["merge_request_review"].append({
                 'repo_name': str(self._repo_name),
                 'merge_request_id': request_id,
@@ -373,12 +392,22 @@ class TFS_Repository(Git_Repository):
 
         properties = thread['properties']
         for comment in thread['comments']:
-            if self._is_container_account(comment['author']):
+            if 'authorDisplayName' in comment:
+                display_name = comment['authorDisplayName']
+            else:
+                display_name = comment['author']['displayName']
+
+            if self._is_container_account(comment['author'], display_name):
                 continue
             if comment['isDeleted']:
                 continue
             if not self._is_newer(comment['lastUpdatedDate']):
                 continue
+
+            if 'authorDisplayName' in comment:
+                unique_name = display_name
+            else:
+                unique_name = comment['author']['uniqueName']
 
             parent_id = comment['parentId'] if 'parentId' in comment else 0
 
@@ -388,8 +417,8 @@ class TFS_Repository(Git_Repository):
                 'thread_id': str(thread['id']),
                 'note_id': str(comment['id']),
                 'parent_id': str(parent_id),
-                'author': parse_unicode(comment['author']['displayName']),
-                'author_username': comment['author']['uniqueName'],
+                'author': parse_unicode(display_name),
+                'author_username': parse_unicode(unique_name),
                 'comment': parse_unicode(comment['content']),
                 'created_at': parse_date(comment['publishedDate']),
                 'updated_at': parse_date(comment['lastUpdatedDate'])
