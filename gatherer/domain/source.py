@@ -12,7 +12,10 @@ from builtins import object
 import logging
 import os
 import re
-import urllib.parse
+try:
+    import urllib.parse
+except ImportError:
+    raise
 import gitlab3
 from gitlab3.exceptions import GitLabException, ResourceNotFound
 from ..config import Configuration

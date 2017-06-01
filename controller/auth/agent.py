@@ -16,7 +16,10 @@ import json
 import os.path
 import sys
 import tempfile
-import urllib.parse
+try:
+    import urllib.parse
+except ImportError:
+    raise
 import Pyro4
 
 class Permissions(object):

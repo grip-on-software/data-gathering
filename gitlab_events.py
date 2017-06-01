@@ -10,8 +10,7 @@ import logging
 import os.path
 import gitlab3
 from gitlab3.exceptions import ResourceNotFound
-from gatherer.git import GitLab_Repository
-from gatherer.domain import Project, Source
+from gatherer.domain import Project
 from gatherer.log import Log_Setup
 
 def json_serial(obj):
@@ -34,16 +33,13 @@ def parse_args():
     parser.add_argument("--ignore-host-change", dest="follow_host_change",
                         action="store_false", default=True,
                         help="Ignore credential host changes and use the original host instead")
-    parser.add_argument("--log-ratio", dest="log_ratio", type=int,
-                        default=GitLab_Repository.DEFAULT_UPDATE_RATIO,
-                        help="Number of lines to sample from Git progress")
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
     return args
 
 # pylint: disable=no-member
-def retrieve_repos(project, log_ratio):
+def retrieve_repos(project):
     """
     Retrieve data from GitLab repositories for a specific project.
     """
@@ -79,6 +75,7 @@ def retrieve_repos(project, log_ratio):
         logging.info('Processing GitLab repository %s', repo_name)
 
         # Retrieve relevant data from the API.
+        # pylint: disable=protected-access
         data = {
             'events': [event._get_data() for event in project_repo.events()]
         }
@@ -97,7 +94,7 @@ def main():
     project_key = args.project
     project = Project(project_key, follow_host_change=args.follow_host_change)
 
-    repos = retrieve_repos(project, args.log_ratio)
+    repos = retrieve_repos(project)
 
     path = os.path.join(project.export_key, 'data_gitlabevents.json')
     with open(path, 'w') as output_file:
