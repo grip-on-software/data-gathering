@@ -140,7 +140,7 @@ function export_handler() {
 
 # Retrieve Python scripts from a subdirectory
 if [ -d scripts ]; then
-	cp scripts/*.py scripts/*.py.export scripts/*.py.update scripts/*.json scripts/*.cfg scripts/requirements.txt .
+	cp scripts/*.py scripts/*.py.export scripts/*.py.update scripts/*.json scripts/requirements.txt .
 	rm -rf dropins/
 	rm -rf gatherer/
 	cp -r scripts/gatherer/ gatherer/
