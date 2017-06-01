@@ -141,10 +141,8 @@ function export_handler() {
 # Retrieve Python scripts from a subdirectory
 if [ -d scripts ]; then
 	cp scripts/*.py scripts/*.py.export scripts/*.py.update scripts/*.json scripts/requirements.txt .
-	rm -rf dropins/
 	rm -rf gatherer/
 	cp -r scripts/gatherer/ gatherer/
-	cp -r scripts/dropins/ dropins/
 fi
 
 # Install Python dependencies
@@ -208,8 +206,10 @@ if [ $cleanupRepos = "true" ]; then
 	rm -rf kwaliteitsmetingen
 fi
 
+# Clean up retrieved dropins
+rm -rf dropins
+
 # Clean up duplicated directories
 if [ -d scripts ]; then
-	rm -rf dropins/
-	rm -rf gatherer/
+	rm -rf gatherer
 fi
