@@ -4,7 +4,7 @@ Module for parsing Subversion difference formats.
 
 from builtins import object, str
 import logging
-import svn.common
+import svn.exception
 from ..version_control import Change_Type
 from ..table import Table
 
@@ -50,7 +50,7 @@ class Difference(object):
         try:
             diff_result = self._repo.repo.run_command('diff', args,
                                                       return_binary=True)
-        except svn.common.SvnException:
+        except svn.exception.SvnException:
             logging.exception('Could not retrieve diff')
             return {
                 'insertions': str(0),
