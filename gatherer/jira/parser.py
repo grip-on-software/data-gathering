@@ -2,7 +2,8 @@
 Type specific parsers that convert field values to correct format.
 """
 
-from builtins import basestring, str
+from past.builtins import basestring
+from builtins import str
 import logging
 import re
 from .base import Table_Source

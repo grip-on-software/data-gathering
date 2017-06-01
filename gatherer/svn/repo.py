@@ -249,7 +249,7 @@ class Subversion_Repository(Version_Control_Repository):
         try:
             return self.repo.cat(filename, revision=revision)
         except svn.exception.SvnException as error:
-            raise FileNotFoundException(error.message)
+            raise FileNotFoundException(str(error))
 
     def get_latest_version(self):
         info = self.repo.info()

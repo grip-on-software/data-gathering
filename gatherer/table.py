@@ -2,7 +2,7 @@
 Table structures.
 """
 
-from builtins import object
+from builtins import object, str
 from configparser import RawConfigParser
 import hashlib
 import json
@@ -52,8 +52,8 @@ class Table(object):
         if "encrypted" in row and row["encrypted"] != str(0):
             return row
 
-        salt = self._secrets.get('salts', 'salt').encode('utf-8')
-        pepper = self._secrets.get('salts', 'pepper').encode('utf-8')
+        salt = str(self._secrets.get('salts', 'salt')).encode('utf-8')
+        pepper = str(self._secrets.get('salts', 'pepper')).encode('utf-8')
 
         for field in self._encrypt_fields:
             if row[field] != str(0):
