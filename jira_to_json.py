@@ -24,7 +24,7 @@ def validate_date(value):
     try:
         return Updated_Time(value).timestamp
     except ValueError as error:
-        raise argparse.ArgumentTypeError("Not a valid date: " + error.message)
+        raise argparse.ArgumentTypeError("Not a valid date: " + str(error))
 
 def parse_args():
     """

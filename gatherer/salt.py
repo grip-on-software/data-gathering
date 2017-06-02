@@ -13,37 +13,64 @@ class Salt(object):
 
     def __init__(self, project, **options):
         self._project = project
+        self._project_id = None
         self._database = Database(**options)
+
+    @property
+    def project_id(self):
+        """
+        Retrieve the project ID for which we perform encryption.
+        """
+
+        if self._project_id is not None:
+            return self._project_id
+
+        self._project_id = self._database.get_project_id(self._project.key)
+        if self._project_id is None:
+            self._database.set_project_id(self._project.key)
+            self._project_id = self._database.get_project_id(self._project.key)
+
+        return self._project_id
 
     def execute(self):
         """
         Retrieve or generate and update the project-specific salts.
         """
 
-        project_id = self._database.get_project_id(self._project.key)
-        if project_id is None:
-            self._database.set_project_id(self._project.key)
-            project_id = self._database.get_project_id(self._project.key)
-
-        result = self._query(project_id)
+        result = self.get()
         if not result:
-            salt = bcrypt.gensalt()
-            pepper = bcrypt.gensalt()
-            self._update(project_id, salt, pepper)
-        else:
-            salt = result[0]
-            pepper = result[1]
+            return self.update()
+
+        salt = result[0]
+        pepper = result[1]
 
         return salt, pepper
 
-    def _query(self, project_id):
-        return self._database.execute('''SELECT salt, pepper
-                                         FROM gros.project_salt
-                                         WHERE project_id=%s''',
-                                      parameters=[project_id], one=True)
+    def get(self):
+        """
+        Retrieve the project-specific salts.
+        """
 
-    def _update(self, project_id, salt, pepper):
+        result = self._database.execute('''SELECT salt, pepper
+                                           FROM gros.project_salt
+                                           WHERE project_id=%s''',
+                                        parameters=[self.project_id], one=True)
+
+        return result
+
+    def update(self):
+        """
+        Generate and update the project-specific salts.
+        """
+
+        salt = bcrypt.gensalt()
+        pepper = bcrypt.gensalt()
+        self._update(salt, pepper)
+
+        return salt, pepper
+
+    def _update(self, salt, pepper):
         self._database.execute('''INSERT INTO gros.project_salt(project_id,salt,pepper)
                                   VALUES (%s,%s,%s)''',
-                               parameters=[project_id, salt, pepper],
+                               parameters=[self.project_id, salt, pepper],
                                update=True)
