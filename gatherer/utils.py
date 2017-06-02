@@ -162,8 +162,9 @@ class Sprint_Data(object):
             # right bisection search we use.
             return self._bisect(time, sprint_ids=sprint_ids, overlap=False,
                                 end=index-1)
-        else:
-            return sprint_id
+
+        # Return the suitable sprint ID.
+        return sprint_id
 
 def get_local_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
     """

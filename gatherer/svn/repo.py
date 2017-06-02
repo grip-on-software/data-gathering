@@ -110,8 +110,10 @@ class Subversion_Repository(Version_Control_Repository):
                                      revision_to=to_revision,
                                      limit=self._iterator_limiter.size)
 
-    def get_data(self, **kwargs):
-        versions = super(Subversion_Repository, self).get_data(**kwargs)
+    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+        versions = super(Subversion_Repository, self).get_data(from_revision,
+                                                               to_revision,
+                                                               **kwargs)
 
         self._parse_tags()
 
@@ -174,28 +176,28 @@ class Subversion_Repository(Version_Control_Repository):
         return sorted(versions, key=lambda version: version['version_id'],
                       reverse=descending)
 
-    def _parse_version(self, entry, filename='', stats=True, **kwargs):
+    def _parse_version(self, commit, stats=True, **kwargs):
         # Convert to local timestamp
-        commit_date = entry.date.replace(tzinfo=dateutil.tz.tzutc())
+        commit_date = commit.date.replace(tzinfo=dateutil.tz.tzutc())
         commit_datetime = commit_date.astimezone(dateutil.tz.tzlocal())
-        message = entry.msg if entry.msg is not None else ''
+        message = commit.msg if commit.msg is not None else ''
         version = {
             # Primary data
             'repo_name': str(self._repo_name),
-            'version_id': str(entry.revision),
+            'version_id': str(commit.revision),
             'sprint_id': self._get_sprint_id(commit_datetime),
             # Additional data
             'message': parse_unicode(message),
             'type': 'commit',
-            'developer': entry.author,
+            'developer': commit.author,
             'developer_email': str(0),
             'commit_date': format_date(commit_datetime),
             'author_date': str(0)
         }
 
         if stats:
-            diff_stats = self.get_diff_stats(filename=filename,
-                                             to_revision=version['version_id'])
+            diff_stats = self.get_diff_stats(to_revision=version['version_id'],
+                                             **kwargs)
             version.update(diff_stats)
 
         return version

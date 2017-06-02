@@ -77,8 +77,8 @@ class Jira_Field(Base_Jira_Field):
         # the field specification data if possible.
         if "table" in self.data:
             return self.name
-        else:
-            return None
+
+        return None
 
 class Primary_Field(Jira_Field):
     """
@@ -161,9 +161,9 @@ class Changelog_Primary_Field(Jira_Field, Base_Changelog_Field):
     A field in the change items in the changelog of the JIRA response.
     """
 
-    def fetch(self, entry):
-        if hasattr(entry, self.data["changelog_primary"]):
-            return getattr(entry, self.data["changelog_primary"])
+    def fetch(self, issue):
+        if hasattr(issue, self.data["changelog_primary"]):
+            return getattr(issue, self.data["changelog_primary"])
 
         return None
 

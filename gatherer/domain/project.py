@@ -186,8 +186,8 @@ class Project(Project_Meta):
     def _get_setting(self, group):
         if self.settings.has_option(group, self._project_key):
             return self.settings.get(group, self._project_key)
-        else:
-            return None
+
+        return None
 
     def add_source(self, source):
         """

@@ -126,7 +126,10 @@ class TFS_Project(object):
         pushes = self._get_iterator('git', path, fromDate=from_date,
                                     includeRefUpdates=str(refs))
 
-        if refs and len(pushes) > 0 and 'refUpdates' not in pushes[0]:
+        if not pushes:
+            return pushes
+
+        if refs and 'refUpdates' not in pushes[0]:
             # TFS 2013 support
             for push in pushes:
                 push_details = self._get('git',
@@ -282,8 +285,9 @@ class TFS_Repository(Git_Repository):
         return parsed_date.replace(microsecond=microsecond,
                                    tzinfo=dateutil.tz.tzutc())
 
-    def get_data(self, **kwargs):
-        versions = super(TFS_Repository, self).get_data(**kwargs)
+    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+        versions = super(TFS_Repository, self).get_data(from_revision,
+                                                        to_revision, **kwargs)
 
         repository_id = self.api.get_repository_id(self._source.tfs_repo)
         events = self.api.pushes(repository_id, refs=True,

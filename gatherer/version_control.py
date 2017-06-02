@@ -403,7 +403,15 @@ class Version_Control_Repository(object):
         return self.get_versions(from_revision=from_revision,
                                  to_revision=to_revision, **kwargs)
 
-    def _parse_version(self, data, **kwargs):
+    def _parse_version(self, commit, stats=True, **kwargs):
+        """
+        Internal method to parse information retrieved from the back end into
+        a dictionary of version information. `commit` is a generic object with
+        properties specific to the VCS. `stats` indicates whether we should
+        also fill the dictionary with difference statistics and populate tables
+        with auxiliary data.
+        """
+
         raise NotImplementedError("Must be implemented by subclasses")
 
     def _get_sprint_id(self, commit_datetime):

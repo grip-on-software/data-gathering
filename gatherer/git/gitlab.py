@@ -266,14 +266,16 @@ class GitLab_Repository(Git_Repository):
 
         return False
 
-    def get_data(self, **kwargs):
+    def get_data(self, from_revision=None, to_revision=None, **kwargs):
         # Check if we can retrieve the data from legacy dropin files.
         if self._check_dropin_files(self.project):
             comments = False
         else:
             comments = True
 
-        versions = super(GitLab_Repository, self).get_data(comments=comments,
+        versions = super(GitLab_Repository, self).get_data(from_revision,
+                                                           to_revision,
+                                                           comments=comments,
                                                            **kwargs)
 
         self.fill_repo_table(self.repo_project)
@@ -439,10 +441,12 @@ class GitLab_Repository(Git_Repository):
                     'date': created_date
                 })
 
-    def _parse_version(self, commit, comments=True, **kwargs):
-        data = super(GitLab_Repository, self)._parse_version(commit, **kwargs)
+    def _parse_version(self, commit, stats=True, **kwargs):
+        data = super(GitLab_Repository, self)._parse_version(commit,
+                                                             stats=stats,
+                                                             **kwargs)
 
-        if self._has_commit_comments and comments:
+        if self._has_commit_comments and 'comments' in kwargs and kwargs['comments']:
             commit_comments = self.repo_project.get_comments(commit.hexsha)
             for comment in commit_comments:
                 self.add_commit_comment(comment, commit.hexsha)

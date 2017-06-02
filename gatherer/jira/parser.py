@@ -133,10 +133,10 @@ class Sprint_Parser(Field_Parser):
 
         return sprint_data
 
-    def parse(self, sprint):
-        if isinstance(sprint, list):
+    def parse(self, value):
+        if isinstance(value, list):
             sprints = []
-            for sprint_field in sprint:
+            for sprint_field in value:
                 sprint_id = self._parse(sprint_field)
                 if sprint_id != str(0):
                     sprints.append(sprint_id)
@@ -145,8 +145,8 @@ class Sprint_Parser(Field_Parser):
                 return str(0)
 
             return sprints
-        else:
-            return self._parse(sprint)
+
+        return self._parse(value)
 
     def _parse(self, sprint):
         # Parse an individual sprint, add its data to the table and return the
@@ -343,10 +343,7 @@ class Flag_Parser(Field_Parser):
     """
 
     def parse(self, value):
-        if isinstance(value, list):
-            if len(value) > 0:
-                return str(1)
-        elif value != "":
+        if (isinstance(value, list) and value) or value != "":
             return str(1)
 
         return str(0)

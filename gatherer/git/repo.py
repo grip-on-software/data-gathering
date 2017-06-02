@@ -38,6 +38,10 @@ class Git_Repository(Version_Control_Repository):
         self._from_date = source.get_option('from_date')
         self._tag = source.get_option('tag')
 
+        # If `progress` is `True`, then add progress lines from Git commands to
+        # the logging output. If `progress` is a nonzero number, then sample
+        # from this number of lines. If it is not `False`, then use it as
+        # a progress callback function.
         if progress is True:
             self._progress = Git_Progress(update_ratio=self.DEFAULT_UPDATE_RATIO)
         elif isinstance(progress, int) and progress > 0:
@@ -68,30 +72,27 @@ class Git_Repository(Version_Control_Repository):
             from_revision = ''.join(('@', '{', self._from_date, '}'))
 
         # Format the range as a specifier that git rev-parse can handle.
-        if from_revision is not None and to_revision is not None:
-            return '{}...{}'.format(from_revision, to_revision)
-        elif from_revision is not None:
+        if from_revision is not None:
+            if to_revision is not None:
+                return '{}...{}'.format(from_revision, to_revision)
+
             return '{}...{}'.format(from_revision, default_to_revision)
-        elif to_revision is not None:
+
+        if to_revision is not None:
             return to_revision
-        else:
-            return default_to_revision
+
+        return default_to_revision
 
     @classmethod
-    def from_source(cls, source, repo_directory, progress=True, **kwargs):
+    def from_source(cls, source, repo_directory, **kwargs):
         """
         Initialize a Git repository from its `Source` domain object.
-
-        If `progress` is `True`, then add progress lines from Git commands to
-        the logging output. If `progress` is a nonzero number, then sample from
-        this number of lines. If it is not `False`, then use it as a progress
-        callback function.
 
         Returns a Git_Repository object with a cloned and up-to-date repository,
         even if the repository already existed beforehand.
         """
 
-        repository = cls(source, repo_directory, progress=progress, **kwargs)
+        repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
             if not repository.is_empty():
                 repository.update()
@@ -196,8 +197,9 @@ class Git_Repository(Version_Control_Repository):
         refspec = self._get_refspec(from_revision, to_revision)
         return self._parse(refspec, paths=filename, descending=descending, **kwargs)
 
-    def get_data(self, **kwargs):
-        versions = super(Git_Repository, self).get_data(**kwargs)
+    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+        versions = super(Git_Repository, self).get_data(from_revision,
+                                                        to_revision, **kwargs)
 
         self._parse_tags()
 
@@ -332,7 +334,7 @@ class Git_Repository(Version_Control_Repository):
         return mid_name
 
     def _parse_change_stats(self, commit):
-        if len(commit.parents) > 0:
+        if commit.parents:
             parent_diffs = tuple(commit.diff(parent, R=True) for parent in commit.parents)
         else:
             parent_diffs = (commit.diff(NULL_TREE),)

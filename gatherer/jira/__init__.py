@@ -7,6 +7,7 @@ import json
 import os
 from copy import copy
 
+from .base import Base_Jira_Field
 from .changelog import Changelog
 from .field import Jira_Field, Primary_Field, Payload_Field, Property_Field
 from .parser import Int_Parser, String_Parser, Boolean_Parser, Date_Parser, \
@@ -70,6 +71,15 @@ class Jira(object):
     without "primary" or "field", i.e., "changelog_id" and "updated_by".
     """
 
+    # JIRA field specification keys and their associated field parsers.
+    # The fields are tried in order to determine the best fit parser.
+    FIELD_PARSERS = [
+        ("primary", Primary_Field),
+        ("property", Property_Field),
+        ("field", Payload_Field),
+        ("special_parser", Special_Field.get_field_class)
+    ]
+
     def __init__(self, project, updated_since):
         self._project = project
         self._updated_since = Updated_Time(updated_since)
@@ -108,16 +118,18 @@ class Jira(object):
         self._import_field_specifications()
 
     def _make_issue_field(self, name, data):
-        if "primary" in data:
-            return Primary_Field(self, name, **data)
-        elif "field" in data:
-            if "property" in data:
-                return Property_Field(self, name, **data)
-            else:
-                return Payload_Field(self, name, **data)
-        elif "special_parser" in data:
-            parser_class = Special_Field.get_field_class(name)
-            return parser_class(self, name, **data)
+        if "property" in data and "field" not in data:
+            raise KeyError("Field '{}' must not have property without field name".format(name))
+
+        for key, field in self.FIELD_PARSERS:
+            if key in data:
+                if issubclass(field, Base_Jira_Field):
+                    return field(self, name, **data)
+                if callable(field):
+                    specialization = field(name)
+                    return specialization(self, name, **data)
+
+                raise ValueError("Invalid field parser for {} key".format(key))
 
         return None
 

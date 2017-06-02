@@ -110,10 +110,10 @@ def get_setting(config, arg, key, project):
     if arg is None or arg is True:
         if config.has_option('history', '{}.{}'.format(key, project.key)):
             return config.get('history', '{}.{}'.format(key, project.key))
-        else:
-            return config.get('history', key)
-    else:
-        return arg
+
+        return config.get('history', key)
+
+    return arg
 
 @contextmanager
 def get_data_source(project, args):

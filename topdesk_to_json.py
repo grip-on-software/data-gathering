@@ -81,11 +81,13 @@ class Topdesk_Parser(object):
         if pair[0] == self.PROJECT_ALL.upper():
             # Sort last
             return (True,)
-        elif pair[0] == self._project_key:
+
+        if pair[0] == self._project_key:
             # Sort first
             return -1
-        else:
-            return pair[0]
+
+        # Sort normally
+        return pair[0]
 
     @staticmethod
     def parse_date(date):
