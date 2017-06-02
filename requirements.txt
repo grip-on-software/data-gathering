@@ -24,3 +24,7 @@ pyocclient
 # Python compatibility
 future
 configparser
+# Encryption
+bcrypt
+# Controller daemons
+Pyro4

@@ -388,8 +388,10 @@ ext-import-graph=
 int-import-graph=
 
 # Force import order to recognize a module as part of the standard
-# compatibility libraries.
-known-standard-library=
+# compatibility libraries. This is useful in virtualenv environments where some
+# standard libraries are incorrectly considered non-standard due to the paths
+# where they are placed in, or for backward compatibility libraries.
+known-standard-library=ast,cgi,configparser,importlib
 
 # Force import order to recognize a module as part of a third party library.
 known-third-party=enchant
