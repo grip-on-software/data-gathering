@@ -3,9 +3,9 @@ FROM python:3.6-alpine
 COPY requirements.txt /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
-	apk --update add gcc musl-dev libxml2-dev libxslt-dev bash git subversion openssh-client gettext && \
+	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev bash git subversion openssh-client gettext && \
 	pip install -r /tmp/requirements.txt && \
-	apk del gcc musl-dev && rm -rf /var/cache/apk/* /tmp/
+	apk del gcc musl-dev libffi-dev && rm -rf /var/cache/apk/* /tmp/
 
 COPY *.py *.py.export *.py.update requirements.txt *.cfg.example *.sh jira_fields.json /home/agent/
 COPY certs/ /home/agent/certs/
