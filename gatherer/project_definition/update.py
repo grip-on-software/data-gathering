@@ -13,6 +13,8 @@ class Update_Tracker(object):
     """
 
     def __init__(self, project, target='metric_options'):
+        self._project = project
+
         export_key = project.export_key
         self._filename = os.path.join(export_key, '{}_update.json'.format(target))
 
@@ -76,5 +78,7 @@ class Update_Tracker(object):
                 'version': end_revision,
                 'targets': previous_data
             }
+
+            self._project.make_export_directory()
             with open(self._filename, 'w') as update_file:
                 json.dump(data, update_file)
