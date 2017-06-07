@@ -25,6 +25,8 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description='Retrieve the dropin files')
     parser.add_argument('project', help='project key to retrieve for')
+    parser.add_argument('--skip', action='store_true', default=False,
+                        help='Do not retrieve dropins but remove local files')
     parser.add_argument('--type', default=config.get('dropins', 'type'),
                         help='type of the data store (owncloud)')
     parser.add_argument('--url', default=config.get('dropins', 'url'),
@@ -47,14 +49,18 @@ def main():
 
     args = parse_args()
 
-    store_type = File_Store.get_type(args.type)
-    store = store_type(args.url)
-    store.login(args.username, args.password)
-
     path = os.path.join('dropins', args.project)
     if os.path.exists(path):
         logging.info('Removing old dropins path %s', path)
         shutil.rmtree(path)
+
+    if args.skip:
+        logging.warning('Skipped dropins import for project %s', args.project)
+        return
+
+    store_type = File_Store.get_type(args.type)
+    store = store_type(args.url)
+    store.login(args.username, args.password)
 
     try:
         store.get_directory(path, path)

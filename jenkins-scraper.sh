@@ -184,7 +184,7 @@ do
 
 	if [ $skipGather = "false" ]; then
 		status_handler python retrieve_update_trackers.py $project --files $restoreFiles --log $logLevel $trackerParameters
-		status_handler python retrieve_dropins.py $project --log $logLevel
+		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
 
 		export_handler project_sources.py $project --log $logLevel
 		export_handler jira_to_json.py $project --log $logLevel
