@@ -119,7 +119,7 @@ class Difference_File(object):
 
         for token, change_type in self.HEAD_TOKENS.items():
             if line.startswith(token):
-                if line.endswith('(nonexistent)'):
+                if line.endswith(b'(nonexistent)'):
                     self._change_type = change_type
 
                 return True
