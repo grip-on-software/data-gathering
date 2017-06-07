@@ -92,12 +92,13 @@ class Git_Repository(Version_Control_Repository):
         even if the repository already existed beforehand.
         """
 
+        checkout = kwargs.pop('checkout', False)
         repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
             if not repository.is_empty():
                 repository.update()
         else:
-            repository.checkout()
+            repository.clone(checkout=checkout)
 
         return repository
 
@@ -164,8 +165,19 @@ class Git_Repository(Version_Control_Repository):
         self.repo.remotes.origin.pull('master', progress=self._progress)
 
     def checkout(self):
+        self.clone(checkout=True)
+
+    def clone(self, checkout=True):
+        """
+        Clone the repository, optionally according to a certain checkout
+        scheme. If `checkout` is `False`, then do not check out the local files
+        of the default branch (all repository actions still function).
+        """
+
         self.repo = Repo.clone_from(self.source.url, self.repo_directory,
-                                    progress=self._progress, env=self.environment)
+                                    progress=self._progress,
+                                    env=self.environment,
+                                    no_checkout=not checkout)
 
     def _query(self, refspec, paths='', descending=True):
         return self.repo.iter_commits(refspec, paths=paths,
