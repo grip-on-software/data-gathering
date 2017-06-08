@@ -10,8 +10,10 @@ except ImportError:
     raise
 
 import argparse
+import filecmp
 import os
 import shutil
+import tempfile
 from zipfile import ZipFile
 # Not-standard imports
 import requests
@@ -43,6 +45,8 @@ def parse_args():
                         help='user to connect to the file store with')
     parser.add_argument('--password', default=config.get('dropins', 'password'),
                         help='password to connect to the file store with')
+    parser.add_argument('--no-files', action='store_false', default=True,
+                        dest='files', help='Skip retrieving files from store')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -82,10 +86,18 @@ def main():
     shutil.move('dist/lib/', args.base)
     shutil.rmtree('dist')
 
-    store_type = File_Store.get_type(args.type)
-    store = store_type(args.store)
-    store.login(args.username, args.password)
-    store.get_file('import/data_vcsdev_to_dev.json', 'data_vcsdev_to_dev.json')
+    if args.files:
+        store_type = File_Store.get_type(args.type)
+        store = store_type(args.store)
+        store.login(args.username, args.password)
+
+        path = tempfile.mktemp()
+        data_file = 'data_vcsdev_to_dev.json'
+        store.get_file('import/{}'.format(data_file), path)
+        if not os.path.exists(data_file) or filecmp.cmp(data_file, path):
+            shutil.move(path, data_file)
+        else:
+            raise RuntimeError('Not overwriting potentially updated file {}'.format(data_file))
 
 if __name__ == "__main__":
     main()
