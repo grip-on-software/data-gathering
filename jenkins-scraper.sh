@@ -157,6 +157,7 @@ for script in $gathererScripts; do
 done
 
 # Retrieve Java importer
+rm -f data_vcsdev_to_dev.json
 python retrieve_importer.py --base $IMPORTER_BASE
 
 # Retrieve quality metrics repository
