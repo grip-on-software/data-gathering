@@ -7,9 +7,9 @@ import argparse
 import logging
 import os
 from gatherer.config import Configuration
-from gatherer.domain.project import Project_Meta
+from gatherer.domain import Project
+from gatherer.domain.source import Git
 from gatherer.log import Log_Setup
-from gatherer.svn import Subversion_Repository
 
 def parse_args():
     """
@@ -20,6 +20,7 @@ def parse_args():
 
     description = 'Obtain quality metrics definitions repository'
     parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('project', help='project key')
     parser.add_argument('--repo', default=config.get('definitions', 'path'),
                         help='directory to check out the repository to')
 
@@ -34,15 +35,18 @@ def main():
     """
 
     args = parse_args()
-    meta = Project_Meta()
-    source = meta.project_definitions_source
-    if os.path.exists(args.repo):
+    project = Project(args.project)
+    source = project.project_definitions_source
+    repo_class = source.repository_class
+    if isinstance(source, Git):
+        repository = repo_class.from_source(source, args.repo)
+    elif os.path.exists(args.repo):
         logging.info('Updating quality metrics repository %s', args.repo)
-        repository = Subversion_Repository(source, args.repo)
+        repository = repo_class(source, args.repo)
         repository.update()
     else:
         logging.info('Checking out quality metrics repository to %s', args.repo)
-        repository = Subversion_Repository.from_source(source, args.repo)
+        repository = repo_class.from_source(source, args.repo)
         repository.checkout()
 
 if __name__ == '__main__':
