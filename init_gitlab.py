@@ -79,6 +79,7 @@ def create(api, group, project, repo_name):
                         project_name, repo_name)
     else:
         new_project_repo = api.add_project(repo_name)
+        new_project_repo.unprotect_branch('master')
         group.transfer_project(new_project_repo.id)
         logging.info('Created repository for %s/%s', project_name, repo_name)
 
