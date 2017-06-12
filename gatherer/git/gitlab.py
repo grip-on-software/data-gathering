@@ -77,7 +77,8 @@ class GitLab_Table_Dropins_Parser(GitLab_Dropins_Parser):
         super(GitLab_Table_Dropins_Parser, self).__init__(repo, filename)
 
         self._table = None
-        if filename.startswith('data_') and filename.endswith('.json'):
+        basename = os.path.basename(self.filename)
+        if basename.startswith('data_') and basename.endswith('.json'):
             table_name = filename[len('data_'):-len('.json')]
             tables = self.repo.tables
             if table_name in tables:
