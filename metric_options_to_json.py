@@ -16,7 +16,6 @@ from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Metric_Options_Collector
-from gatherer.utils import parse_svn_revision
 
 def parse_args():
     """
@@ -32,11 +31,9 @@ def parse_args():
                         help="Subversion directory with project definitions")
     parser.add_argument("--context", type=int, default=3,
                         help="Number of context lines for parser problems")
-    parser.add_argument("--from-revision", type=parse_svn_revision,
-                        dest="from_revision", default=None,
+    parser.add_argument("--from-revision", dest="from_revision", default=None,
                         help="revision to start from gathering definitions")
-    parser.add_argument("--to-revision", type=parse_svn_revision,
-                        dest="to_revision", default=None,
+    parser.add_argument("--to-revision", dest="to_revision", default=None,
                         help="revision to stop gathering definitions at")
 
     Log_Setup.add_argument(parser)

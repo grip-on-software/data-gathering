@@ -104,6 +104,27 @@ class Subversion_Repository(Version_Control_Repository):
         # Invalidate so that we may continue woorking with a local client
         self._repo = None
 
+    @staticmethod
+    def parse_svn_revision(rev, default):
+        """
+        Convert a Subversion revision `rev` to a supported revision. Removes the
+        leading 'r' if it is present. 'HEAD' is also allowed. If `rev` is
+        `None`, then `default` is used instead. Raises a `ValueError` if the
+        revision number cannot be converted.
+        """
+
+        if rev is None:
+            rev = default
+        else:
+            rev = str(rev)
+
+        if rev.startswith('r'):
+            rev = rev[1:]
+        elif rev == 'HEAD':
+            return rev
+
+        return str(int(rev))
+
     def _query(self, filename, from_revision, to_revision):
         return self.repo.log_default(rel_filepath=filename,
                                      revision_from=from_revision,
@@ -129,10 +150,8 @@ class Subversion_Repository(Version_Control_Repository):
         either newest first (`descending`) or not (default).
         """
 
-        if from_revision is None:
-            from_revision = '1'
-        if to_revision is None:
-            to_revision = 'HEAD'
+        from_revision = self.parse_svn_revision(from_revision, '1')
+        to_revision = self.parse_svn_revision(to_revision, 'HEAD')
 
         versions = []
         self._reset_limiter()
