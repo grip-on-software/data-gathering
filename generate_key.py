@@ -27,6 +27,7 @@ except ImportError:
     raise
 
 from gatherer.config import Configuration
+from gatherer.domain import Project
 from gatherer.domain.source import GitLab
 from gatherer.log import Log_Setup
 
@@ -45,7 +46,7 @@ def parse_args():
                         help='Controller API host to distribute key to')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
-    parser.add_argument('--gitlab', nargs='?',
+    parser.add_argument('--gitlab', nargs='?', const=True,
                         help='GitLab host to distribute key to')
 
     Log_Setup.add_argument(parser)
@@ -64,13 +65,13 @@ def get_temp_filename():
 
     return filename
 
-def generate_key_pair(project_key):
+def generate_key_pair(project):
     """
     Generate a public and private key pair for the project.
     """
 
     data = {
-        'purpose': 'agent for the {} project'.format(project_key),
+        'purpose': 'agent for the {} project'.format(project.key),
         'keygen-options': '',
         'abraxas-account': False,
         'servers': {},
@@ -102,7 +103,7 @@ def update_controller_key(host, project, cert, public_key):
     Update the public key in a controller API instance.
     """
 
-    url = 'https://{}/auth/agent.py?project={}'.format(host, project)
+    url = 'https://{}/auth/agent.py?project={}'.format(host, project.jira_key)
     request = requests.post(url, data={'public_key': public_key}, verify=cert)
 
     if request.status_code != requests.codes['ok']:
@@ -124,6 +125,9 @@ def update_gitlab_key(source, public_key):
     Update the public keys of a user in a GitLab instance.
     """
 
+    if source is None:
+        raise RuntimeError('No GitLab source could be created')
+
     if source.gitlab_token is None:
         raise RuntimeError('GitLab instance {} has no API token'.format(source.host))
 
@@ -133,8 +137,9 @@ def update_gitlab_key(source, public_key):
 
     logging.info('Deleting old SSH keys for the agent from GitLab...')
     title = 'GROS agent'
-    for key in user.ssh_keys(title=title):
-        user.delete_ssh_key(str(key.id))
+    for key in user.ssh_keys():
+        if key.title == title:
+            user.delete_ssh_key(str(key.id))
 
     logging.info('Adding new SSH key to GitLab')
     user.add_ssh_key(title, public_key)
@@ -145,11 +150,13 @@ def main():
     """
 
     args = parse_args()
+    project = Project(args.project)
+
     inform.Inform(mute=True)
 
     private_key_filename = os.path.expanduser(args.path)
     if not os.path.exists(private_key_filename):
-        key_filename = generate_key_pair(args.project)
+        key_filename = generate_key_pair(project)
         shutil.move(key_filename, private_key_filename)
         shutil.move('{}.pub'.format(key_filename),
                     '{}.pub'.format(private_key_filename))
@@ -159,12 +166,19 @@ def main():
         public_key = public_key_file.read()
 
     if args.ssh:
-        update_controller_key(args.ssh, args.project, args.cert, public_key)
+        update_controller_key(args.ssh, project, args.cert, public_key)
 
     if args.gitlab:
-        url = 'http://{}'.format(args.gitlab)
-        source = GitLab(url=url, name='GitLab', source_type='gitlab')
-        update_gitlab_key(source, public_key)
+        if args.gitlab is True:
+            source = project.gitlab_source
+        else:
+            url = 'http://{}'.format(args.gitlab)
+            source = GitLab(url=url, name='GitLab', source_type='gitlab')
+
+        try:
+            update_gitlab_key(source, public_key)
+        except RuntimeError:
+            logging.exception('Could not publish public key to GitLab')
 
 if __name__ == "__main__":
     main()
