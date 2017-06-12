@@ -248,7 +248,8 @@ class GitLab_Repository(Git_Repository):
             with open(update_path) as update_file:
                 update_times = json.load(update_file)
                 if self.repo_name in update_times:
-                    self._update_times["gitlab_update"] = update_times[self.repo_name]
+                    update_time = update_times[self.repo_name]
+                    self._update_trackers["gitlab_update"] = update_time
 
     def _check_dropin_file(self, parser_class, filename):
         parser = parser_class(self, filename)
