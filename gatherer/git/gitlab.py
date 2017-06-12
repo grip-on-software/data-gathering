@@ -55,7 +55,7 @@ class GitLab_Dropins_Parser(object):
         """
 
         logging.info('Repository %s: Checking dropin file %s',
-                     self._repo.repo_name, self._filename)
+                     self.repo.repo_name, self._filename)
         if not os.path.exists(self._filename):
             logging.info('Dropin file %s does not exist', self._filename)
             return False
@@ -63,11 +63,50 @@ class GitLab_Dropins_Parser(object):
         with open(self._filename, 'r') as dropin_file:
             data = json.load(dropin_file)
 
+        return self._parse(data)
+
+    def _parse(self, data):
+        raise NotImplementedError('Must be implemented by subclasses')
+
+class GitLab_Table_Dropins_Parser(GitLab_Dropins_Parser):
+    """
+    Parser for dropins that contain a list of JSON objects, which may be
+    """
+
+    def __init__(self, repo, filename):
+        super(GitLab_Table_Dropins_Parser, self).__init__(repo, filename)
+
+        self._table = None
+        if filename.startswith('data_') and filename.endswith('.json'):
+            table_name = filename[len('data_'):-len('.json')]
+            tables = self.repo.tables
+            if table_name in tables:
+                self._table = tables[table_name]
+
+    def _parse(self, data):
+        if self._table is None:
+            logging.warning('Could not deduce dropins table name from file %s',
+                            self.filename)
+            return False
+
+        for value in data:
+            if value['repo_name'] == self.repo.repo_name:
+                self._table.append(value)
+
+        return True
+
+class GitLab_Combined_Dropins_Parser(GitLab_Dropins_Parser):
+    """
+    Parser for dropins that contain a JSON object of repository keys and
+    legacy data values from the GitLab API.
+    """
+
+    def _parse(self, data):
         # Attempt to use the original path name
-        path_name = self._repo.source.get_path_name(self._repo.source.plain_url)
+        path_name = self.repo.source.get_path_name(self.repo.source.plain_url)
         if path_name is None:
             logging.warning('Could not infer path name for repository: %s',
-                            self._repo.repo_name)
+                            self.repo.repo_name)
             return False
 
         if path_name not in data:
@@ -80,17 +119,17 @@ class GitLab_Dropins_Parser(object):
         # from the repository object. This ensures that the API also loads the
         # sub-API's, such as Project.
         # Pass along the API and the repository data to the parser.
-        self._parse_legacy_data(self._repo.api, repo_data)
+        self._parse_legacy_data(self.repo.api, repo_data)
 
         logging.info('Read data from dropin file for repository %s',
-                     self._repo.repo_name)
+                     self.repo.repo_name)
 
         return True
 
     def _parse_legacy_data(self, api, repo_data):
         raise NotImplementedError("Must be implemented by subclasses")
 
-class GitLab_Main_Dropins_Parser(GitLab_Dropins_Parser):
+class GitLab_Main_Dropins_Parser(GitLab_Combined_Dropins_Parser):
     """
     Parser for dropin files that contain repository information as well as
     commit comments, merge requests and merge request notes from GitLab API.
@@ -127,7 +166,7 @@ class GitLab_Main_Dropins_Parser(GitLab_Dropins_Parser):
             for comment in comments['notes']:
                 self.repo.add_commit_comment(comment, updated_commit_id)
 
-class GitLab_Events_Dropins_Parser(GitLab_Dropins_Parser):
+class GitLab_Events_Dropins_Parser(GitLab_Combined_Dropins_Parser):
     """
     Parser for dropin files that contain events for repositories as extracted
     from the GitLab API.
@@ -196,7 +235,20 @@ class GitLab_Repository(Git_Repository):
         if self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
             return True
 
+        filename = os.path.join(project.dropins_key, 'data_commit_comment.json')
+        if self._check_dropin_file(GitLab_Table_Dropins_Parser, filename):
+            self._check_update_file(project)
+            return True
+
         return False
+
+    def _check_update_file(self, project):
+        update_path = os.path.join(project.dropins_key, 'gitlab_update.json')
+        if os.path.exists(update_path):
+            with open(update_path) as update_file:
+                update_times = json.load(update_file)
+                if self.repo_name in update_times:
+                    self._update_times["gitlab_update"] = update_times[self.repo_name]
 
     def _check_dropin_file(self, parser_class, filename):
         parser = parser_class(self, filename)
