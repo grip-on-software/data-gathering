@@ -15,7 +15,7 @@ import logging
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.project_definition.svn import Metric_Options_Collector
+from gatherer.project_definition.collector import Metric_Options_Collector
 from gatherer.utils import parse_svn_revision
 
 def parse_args():

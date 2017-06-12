@@ -8,7 +8,7 @@ import argparse
 import logging
 
 from gatherer.log import Log_Setup
-from gatherer.project_definition.svn import Sources_Collector
+from gatherer.project_definition.collector import Sources_Collector
 from gatherer.domain import Project
 from gatherer.utils import parse_svn_revision
 
