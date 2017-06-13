@@ -115,7 +115,7 @@ class Source(object):
     @classmethod
     def _get_changed_host(cls, host):
         # Retrieve the changed host in the credentials configuration.
-        if cls._credentials.has_option(host, 'host'):
+        if cls.has_option(host, 'host'):
             return cls._credentials.get(host, 'host')
 
         return host
@@ -136,7 +136,7 @@ class Source(object):
                 host = self._get_changed_host(host)
 
             username = self._credentials.get(host, 'username')
-            if self._credentials.has_option(host, 'env'):
+            if self.has_option(host, 'env'):
                 credentials_env = self._credentials.get(host, 'env')
                 self._credentials_path = os.getenv(credentials_env)
                 self._url = str(username + '@' + host + ':' + orig_parts.path)
@@ -235,10 +235,11 @@ class Source(object):
         Retrieve an option from the credentials configuration of the host of
         this source.
 
-        If the option does not exist, then `None` is returned.
+        If the option does not exist or the value is one of 'false', 'no', '-'
+        or the empty string, then `None` is returned.
         """
 
-        if not self._credentials.has_option(self._host, option):
+        if not self.has_option(self._host, option):
             return None
 
         return self._credentials.get(self._host, option)
@@ -420,7 +421,7 @@ class GitLab(Git):
         orig_host = orig_parts.netloc
 
         # Check which group to use in the GitLab API.
-        if self._credentials.has_option(orig_host, 'group'):
+        if self.has_option(orig_host, 'group'):
             self._gitlab_group = self._credentials.get(orig_host, 'group')
 
         # Retrieve the actual namespace of the source.
