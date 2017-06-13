@@ -243,6 +243,23 @@ class Source(object):
 
         return self._credentials.get(self._host, option)
 
+    @classmethod
+    def has_option(cls, host, option):
+        """
+        Check whether an option from the credentials configuration of the host
+        of this source is available and not set to a falsy value.
+
+        If the option does not exist or the value is one of 'false', 'no', '-'
+        or the empty string, then `False` is returned. Otherwise, `True` is
+        returned.
+        """
+
+        if not cls._credentials.has_option(host, option):
+            return False
+
+        value = cls._credentials.get(host, option)
+        return value not in ('false', 'no', '-', '')
+
     def get_sources(self):
         """
         Retrieve information about additional data sources from the source.
@@ -396,10 +413,7 @@ class GitLab(Git):
 
     @classmethod
     def _has_gitlab_token(cls, host):
-        if not cls._credentials.has_option(host, 'gitlab_token'):
-            return False
-
-        return cls._credentials.get(host, 'gitlab_token') != ''
+        return cls.has_option(host, 'gitlab_token')
 
     def _update_credentials(self):
         orig_parts, host = super(GitLab, self)._update_credentials()
@@ -605,11 +619,7 @@ class TFS(Git):
         if follow_host_change:
             host = cls._get_changed_host(host)
 
-        if not cls._credentials.has_option(host, 'tfs'):
-            return False
-
-        value = cls._credentials.get(host, 'tfs')
-        return value not in ("false", "no", "-", "")
+        return cls.has_option(host, 'tfs')
 
     def _update_credentials(self):
         orig_parts, host = super(TFS, self)._update_credentials()
