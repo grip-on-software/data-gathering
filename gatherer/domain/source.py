@@ -609,7 +609,7 @@ class TFS(Git):
             return False
 
         value = cls._credentials.get(host, 'tfs')
-        return value not in ("false", "no", "-")
+        return value not in ("false", "no", "-", "")
 
     def _update_credentials(self):
         orig_parts, host = super(TFS, self)._update_credentials()
