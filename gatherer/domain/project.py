@@ -113,7 +113,6 @@ class Project_Meta(object):
     """
 
     _settings = None
-    _project_definitions = None
 
     @classmethod
     def _init_settings(cls):
@@ -129,29 +128,6 @@ class Project_Meta(object):
             self._init_settings()
 
         return self._settings
-
-    @classmethod
-    def _init_project_definitions(cls):
-        if cls._settings is None:
-            cls._init_settings()
-
-        source_type = cls._settings.get('definitions', 'source_type')
-        name = cls._settings.get('definitions', 'name')
-        url = cls._settings.get('definitions', 'url')
-        cls._project_definitions = Source.from_type(source_type,
-                                                    name=name, url=url)
-
-    @property
-    def project_definitions_source(self):
-        """
-        Retrieve a `Source` object that describes the project definitions
-        version control system.
-        """
-
-        if self._project_definitions is None:
-            self._init_project_definitions()
-
-        return self._project_definitions
 
 class Project(Project_Meta):
     """
@@ -176,18 +152,39 @@ class Project(Project_Meta):
 
         # Long project name used in repositories and quality dashboard project
         # definitions.
-        self._project_name = self._get_setting('projects')
-        self._main_project = self._get_setting('subprojects')
+        self._project_name = self.get_group_setting('projects')
+        self._main_project = self.get_group_setting('subprojects')
+
+        self._project_definitions = None
 
         sources_path = os.path.join(self.export_key, 'data_sources.json')
         self._sources = Sources(sources_path,
                                 follow_host_change=follow_host_change)
 
-    def _get_setting(self, group):
+    def get_group_setting(self, group):
+        """
+        Retrieve a setting from a configuration section `group`, using the
+        project key as setting key. If the setting for this project does not
+        exist, then `None` is returned.
+        """
+
         if self.settings.has_option(group, self._project_key):
             return self.settings.get(group, self._project_key)
 
         return None
+
+    def get_key_setting(self, section, key):
+        """
+        Retrieve a setting from a configuration section `group`, using the `key`
+        as well as the project key. If a setting with a combined key that equals
+        to the `key`, a period and the project key exists, then this setting's
+        value is used, otherwise the `key` itself is used as the setting key.
+        """
+
+        if self.settings.has_option(section, '{}.{}'.format(key, self.key)):
+            return self.settings.get(section, '{}.{}'.format(key, self.key))
+
+        return self.settings.get(section, key)
 
     def add_source(self, source):
         """
@@ -341,3 +338,22 @@ class Project(Project_Meta):
         """
 
         return self._main_project
+
+    def _init_project_definitions(self):
+        source_type = self.get_key_setting('definitions', 'source_type')
+        name = self.get_key_setting('definitions', 'name')
+        url = self.get_key_setting('definitions', 'url')
+        self._project_definitions = Source.from_type(source_type,
+                                                     name=name, url=url)
+
+    @property
+    def project_definitions_source(self):
+        """
+        Retrieve a `Source` object that describes the project definitions
+        version control system.
+        """
+
+        if self._project_definitions is None:
+            self._init_project_definitions()
+
+        return self._project_definitions
