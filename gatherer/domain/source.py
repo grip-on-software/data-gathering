@@ -605,7 +605,11 @@ class TFS(Git):
         if follow_host_change:
             host = cls._get_changed_host(host)
 
-        return cls._credentials.has_option(host, 'tfs')
+        if not cls._credentials.has_option(host, 'tfs'):
+            return False
+
+        value = cls._credentials.get(host, 'tfs')
+        return value not in ("false", "no", "-")
 
     def _update_credentials(self):
         orig_parts, host = super(TFS, self)._update_credentials()
