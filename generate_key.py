@@ -44,6 +44,8 @@ def parse_args():
                         help='local path to store the private key at')
     parser.add_argument('--ssh', default=config.get('ssh', 'host'),
                         help='Controller API host to distribute key to')
+    parser.add_argument('--no-ssh', action='store_false', dest='ssh',
+                        help='Do not distribute key to controller API host')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
     parser.add_argument('--gitlab', nargs='?', const=True,
