@@ -30,11 +30,11 @@ class Gatherer(object):
         directory.
         """
 
-        export_directory = os.path.join(home_directory, 'export')
+        # Put all update trackers in a separate directory.
         update_directory = os.path.join(home_directory, 'update')
 
         project = Project(project_key,
-                          export_directory=export_directory,
+                          export_directory=update_directory,
                           update_directory=update_directory)
         track = Database_Tracker(project,
                                  user=self._config.get('database', 'username'),
