@@ -23,13 +23,13 @@ class Gatherer(object):
     def __init__(self):
         self._config = Configuration.get_settings()
 
-    def get_update_trackers(self, project_key, export_directory):
+    def get_update_trackers(self, project_key, update_directory):
         """
-        Retrieve update tracking files and store them in the agent export
+        Retrieve update tracking files and store them in the agent's update
         directory.
         """
 
-        project = Project(project_key, export_directory=export_directory)
+        project = Project(project_key, update_directory=update_directory)
         track = Database_Tracker(project,
                                  user=self._config.get('database', 'username'),
                                  password=self._config.get('database', 'password'),

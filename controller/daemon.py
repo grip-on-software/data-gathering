@@ -37,21 +37,28 @@ class Controller(object):
 
         return os.path.join(self.HOME_DIRECTORY, project_key)
 
-    def get_home_subdirectories(self, project_key):
+    def get_home_subdirectories(self, project_key, subpath=None):
         """
         Retrieve the subdirectories of the home directory of a certain project
         which should be created in a clean version of the directory.
 
         Returns the full directory structure as a tuple of directories, ordered
-        in the way they are created. This includes the home directory as the
-        first element.
+        in the way they are created. If `subpath` is `None`, then this includes
+        the home directory as the first element, otherwise the subdirectory of
+        the home directory is the first element. The following directories in
+        the returned tuple are either subdirectories of this first element or
+        any elements earlier in the tuple.
         """
 
         home_directory = self.get_home_directory(project_key)
-        export_directory = os.path.join(home_directory, 'export')
-        export_key_directory = os.path.join(export_directory, project_key)
+        if subpath is not None:
+            subpath_directory = os.path.join(home_directory, subpath)
+            subpath_key_directory = os.path.join(subpath_directory, project_key)
+            return (subpath_directory, subpath_key_directory)
 
-        return (home_directory, export_directory, export_key_directory)
+        return (home_directory,) + \
+                self.get_home_subdirectories(project_key, 'export') + \
+                self.get_home_subdirectories(project_key, 'update')
 
     def get_agent_user(self, project_key):
         """

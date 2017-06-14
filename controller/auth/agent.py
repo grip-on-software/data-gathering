@@ -66,12 +66,12 @@ class Response(object):
 
     def get_update_trackers(self, home_directory):
         """
-        Retrieve update tracking files and store them in the agent export
+        Retrieve update tracking files and store them in the agent's update
         directory.
         """
 
-        export_directory = os.path.join(home_directory, 'export')
-        self._gatherer.get_update_trackers(self._project_key, export_directory)
+        update_directory = os.path.join(home_directory, 'update')
+        self._gatherer.get_update_trackers(self._project_key, update_directory)
 
     def get_salts(self):
         """

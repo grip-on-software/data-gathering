@@ -114,8 +114,9 @@ class Project_Meta(object):
 
     _settings = None
 
-    def __init__(self, export_directory='export'):
+    def __init__(self, export_directory='export', update_directory='update'):
         self._export_directory = export_directory
+        self._update_directory = update_directory
 
     @classmethod
     def _init_settings(cls):
@@ -140,6 +141,14 @@ class Project_Meta(object):
 
         return self._export_directory
 
+    @property
+    def update_directory(self):
+        """
+        Retrieve the remote update tracker directory.
+        """
+
+        return self._export_directory
+
 class Project(Project_Meta):
     """
     Object that holds information about a certain project.
@@ -153,13 +162,11 @@ class Project(Project_Meta):
     """
 
     def __init__(self, project_key, follow_host_change=True,
-                 export_directory='export'):
-        super(Project, self).__init__(export_directory)
+                 export_directory='export', update_directory='update'):
+        super(Project, self).__init__(export_directory, update_directory)
 
         # JIRA project key
         self._project_key = project_key
-
-        self._export_directory = export_directory
 
         # Long project name used in repositories and quality dashboard project
         # definitions.
@@ -269,6 +276,15 @@ class Project(Project_Meta):
         """
 
         return os.path.join(self.export_directory, self._project_key)
+
+    @property
+    def update_key(self):
+        """
+        Retrieve the remote directory path used for obtaining update trackers
+        from a synchronization server.
+        """
+
+        return os.path.join(self.update_directory, self._project_key)
 
     @property
     def dropins_key(self):

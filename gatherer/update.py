@@ -101,7 +101,7 @@ class SSH_Tracker(Update_Tracker):
             return
 
         auth = self._username + '@' + self._host
-        path = '{}:~/{}'.format(auth, self._project.export_key)
+        path = '{}:~/{}'.format(auth, self._project.update_key)
 
         for filename in files:
             subprocess.call([
