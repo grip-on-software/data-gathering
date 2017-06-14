@@ -149,12 +149,7 @@ fi
 pip install -r requirements.txt
 
 # Determine files that are backed up in case of errors for each project
-for script in $gathererScripts; do
-	if [ -e "$script.update" ]; then
-		read -r update_files < "$script.update"
-		restoreFiles="$restoreFiles $update_files"
-	fi
-done
+restoreFiles=$(./list-files.sh update $gathererScripts)
 
 # Retrieve Java importer
 rm -f data_vcsdev_to_dev.json

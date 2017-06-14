@@ -17,15 +17,9 @@ if [ -z "$logLevel" ]; then
 fi
 
 # Declare update and export files
-updateFiles=""
-exportFiles=""
 scripts="project_sources.py git_to_json.py"
-for script in $scripts; do
-	read -r update_files < "$script.update"
-	updateFiles="$updateFiles $update_files"
-	read -r export_files < "$script.export"
-	exportFiles="$exportFiles $export_files"
-done
+updateFiles=$(./list-files.sh update $scripts)
+exportFiles=$(./list-files.sh export $scripts)
 
 python retrieve_metrics_repository.py --log $logLevel
 python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
