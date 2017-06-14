@@ -13,7 +13,6 @@ from builtins import object
 import cgi
 import cgitb
 import json
-import os.path
 import sys
 import tempfile
 try:
@@ -70,8 +69,7 @@ class Response(object):
         directory.
         """
 
-        update_directory = os.path.join(home_directory, 'update')
-        self._gatherer.get_update_trackers(self._project_key, update_directory)
+        self._gatherer.get_update_trackers(self._project_key, home_directory)
 
     def get_salts(self):
         """

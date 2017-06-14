@@ -8,6 +8,7 @@ try:
 except ImportError:
     raise
 
+import os.path
 import Pyro4
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -23,13 +24,18 @@ class Gatherer(object):
     def __init__(self):
         self._config = Configuration.get_settings()
 
-    def get_update_trackers(self, project_key, update_directory):
+    def get_update_trackers(self, project_key, home_directory):
         """
         Retrieve update tracking files and store them in the agent's update
         directory.
         """
 
-        project = Project(project_key, update_directory=update_directory)
+        export_directory = os.path.join(home_directory, 'export')
+        update_directory = os.path.join(home_directory, 'update')
+
+        project = Project(project_key,
+                          export_directory=export_directory,
+                          update_directory=update_directory)
         track = Database_Tracker(project,
                                  user=self._config.get('database', 'username'),
                                  password=self._config.get('database', 'password'),
