@@ -13,6 +13,9 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 
 	sudo chmod 2770 $agent_directory/export
 	sudo chmod 2770 $agent_directory/export/$project
+	if [ ! -e "$controller_directory/export" ]; then
+		mkdir -p -m 770 $controller_directory/export
+	fi
 	cp -r $agent_directory/export $controller_directory/export
 	sudo rm -rf $agent_directory/export/$project
 	sudo mkdir -m 2700 $agent_directory/export/$project
@@ -36,4 +39,8 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 	sudo chmod 2700 $agent_directory/update
 
 	sudo chmod 2700 $agent_directory
+
+	if [ ! -z "$CLEANUP_EXPORT" ]; then
+		rm -rf $controller_directory
+	fi
 done
