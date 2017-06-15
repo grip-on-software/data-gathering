@@ -9,6 +9,8 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 	project=${agent_directory##*/}
 	controller_directory="$CONTROLLER_DIRECTORY/$project"
 
+	sudo chmod 2770 $agent_directory
+
 	sudo chmod 2770 $agent_directory/export
 	sudo chmod 2770 $agent_directory/export/$project
 	cp -r $agent_directory/export $controller_directory/export
@@ -32,4 +34,6 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 	done
 	sudo chmod 2700 $agent_directory/update/$project
 	sudo chmod 2700 $agent_directory/update
+
+	sudo chmod 2700 $agent_directory
 done
