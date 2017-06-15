@@ -16,7 +16,11 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 	sudo mkdir -m 2700 $agent_directory/export/$project
 	sudo chmod 2700 $agent_directory/export
 
-	listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,update,developerlink" logLevel="INFO" skipGather="true" IMPORTER_BASE="$CONTROLLER_DIRECTORY" importerProperties="-Dimporter.relPath=$project/export" ./jenkins-scraper.sh
+	if [ -z "$(ls -A $controller_directory/export/$project)" ]; then
+		echo "Skipping import because export directory is empty"
+	else
+		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,update,developerlink" logLevel="INFO" skipGather="true" IMPORTER_BASE="$CONTROLLER_DIRECTORY" importerProperties="-Dimporter.relPath=$project/export" ./jenkins-scraper.sh
+	fi
 
 	sudo chmod 2770 $agent_directory/update
 	sudo chmod 2770 $agent_directory/update/$project
