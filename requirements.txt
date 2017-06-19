@@ -15,6 +15,8 @@ quality_report>=1.80.0; python_version >= '3.0'
 enum34; python_version < '3.4'
 # gitlab_to_json.py
 -e git+http://github.com/lhelwerd/python-gitlab3.git@json-import#egg=gitlab3
+# bigboat_to_json.py
+bigboat
 # generate_key.py
 sshdeploy
 # retrieve_update_trackers.py
