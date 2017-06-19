@@ -29,6 +29,9 @@ host = $SSH_HOST
 cert = $SSH_HTTPS_CERT
 [importer]
 url = $IMPORTER_URL
+[bigboat]
+host = $BIGBOAT_HOST
+key = $BIGBOAT_KEY
 [projects]
 $JIRA_KEY = $PROJECT_NAME
 [subprojects]

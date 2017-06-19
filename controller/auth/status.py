@@ -36,7 +36,7 @@ def main():
         if len(projects) != 1:
             raise RuntimeError('Exactly one project must be specified in GET')
 
-        project_key = projects[0].value
+        project_key = projects[0]
         if not project_key.isupper() or not project_key.isalpha():
             raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
 
