@@ -147,7 +147,7 @@ class Project_Meta(object):
         Retrieve the remote update tracker directory.
         """
 
-        return self._export_directory
+        return self._update_directory
 
 class Project(Project_Meta):
     """
