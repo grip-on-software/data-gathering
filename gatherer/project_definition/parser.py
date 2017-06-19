@@ -204,7 +204,7 @@ class Project_Definition_Parser(object):
         specified in the project definition.
         """
 
-        for mock_object in self.domain_objects.values():
+        for mock_object in list(self.domain_objects.values()):
             if self.filter_domain_object(mock_object):
                 for call in mock_object.call_args_list:
                     self.parse_domain_call(*call)

@@ -91,7 +91,7 @@ class Sources(object):
         Yield Source objects that are distinctive for each environment.
         """
 
-        for sources in self._source_environments.values():
+        for sources in list(self._source_environments.values()):
             yield next(iter(sources))
 
     def export(self):
