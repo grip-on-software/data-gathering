@@ -19,7 +19,7 @@ class Collector(object):
                  **options):
         self._project = project
         self._update_tracker = Update_Tracker(self._project, target=target)
-        repo_class = project.project_definitions_source.repository_clas
+        repo_class = project.project_definitions_source.repository_class
         self._repo = repo_class(project.project_definitions_source,
                                 repo_path, project=self._project)
         self._filename = '{}/project_definition.py'.format(project.quality_metrics_name)

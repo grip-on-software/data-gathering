@@ -21,7 +21,7 @@ scripts="project_sources.py git_to_json.py"
 updateFiles=$(./list-files.sh update $scripts)
 exportFiles=$(./list-files.sh export $scripts)
 
-python retrieve_metrics_repository.py --log $logLevel
+python retrieve_metrics_repository.py $project --log $logLevel
 python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
 python project_sources.py $project --log $logLevel
 python environment_sources.py $project --log $logLevel
