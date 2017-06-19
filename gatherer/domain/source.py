@@ -259,7 +259,7 @@ class Source(object):
             return False
 
         value = cls._credentials.get(host, option)
-        return value not in ('false', 'no', '-', '')
+        return Configuration.has_value(value)
 
     def get_sources(self):
         """

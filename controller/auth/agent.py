@@ -94,7 +94,11 @@ class Parameters(object):
         if "project" not in self._get_data:
             raise RuntimeError('Project must be specified')
 
-        project_key = self._get_data["project"].value
+        projects = self._get_data.getlist("project")
+        if len(projects) != 1:
+            raise RuntimeError('Exactly one project must be specified in GET')
+
+        project_key = projects[0].value
         if not project_key.isupper() or not project_key.isalpha():
             raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
 

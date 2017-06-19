@@ -58,3 +58,14 @@ class Configuration(object):
             cls._credentials = cls.get_config('credentials')
 
         return cls._credentials
+
+    @classmethod
+    def has_value(cls, value):
+        """
+        Check whether the value of an option is not set to a falsy value.
+
+        If the option is one of 'false', 'no', '-' or the empty string, then
+        `False` is returned. Otherwise, `True` is returned.
+        """
+
+        return value not in ('false', 'no', '-', '')
