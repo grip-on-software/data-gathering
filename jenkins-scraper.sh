@@ -155,9 +155,6 @@ restoreFiles=$(./list-files.sh update $gathererScripts)
 rm -f data_vcsdev_to_dev.json
 python retrieve_importer.py --base $IMPORTER_BASE
 
-# Retrieve quality metrics repository
-python retrieve_metrics_repository.py
-
 for project in $listOfProjects
 do
 	# Create backups of tracking files
@@ -179,6 +176,9 @@ do
 	mkdir -p project-git-repos/$project
 
 	if [ $skipGather = "false" ]; then
+		# Retrieve quality metrics repository
+		status_handler python retrieve_metrics_repository.py $project --log $logLevel
+
 		status_handler python retrieve_update_trackers.py $project --files $restoreFiles --log $logLevel $trackerParameters
 		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
 
@@ -199,7 +199,7 @@ do
 done
 
 if [ $cleanupRepos = "true" ]; then
-	rm -rf kwaliteitsmetingen
+	python retrieve_metrics_repository.py $project --log $logLevel
 fi
 
 # Clean up retrieved dropins
