@@ -94,15 +94,29 @@ class Subversion_Repository(Version_Control_Repository):
 
         self.repo.update()
 
-    def checkout(self):
+    def checkout(self, paths=None):
         if not isinstance(self.repo, svn.remote.RemoteClient):
             raise TypeError('Repository is already local, update the repository instead')
 
         # Check out trunk directory
         args = [self.source.url + '/trunk', self._repo_directory]
+        if paths is not None:
+            args.extend(['--depth', 'immediates'])
+
         self.repo.run_command('checkout', args)
+
         # Invalidate so that we may continue woorking with a local client
         self._repo = None
+
+        # Check out sparse subdirectories if there are paths
+        if paths is not None:
+            self.checkout_sparse(paths)
+
+    def checkout_sparse(self, paths):
+        for path in paths:
+            full_path = '{0}/{1}'.format(self._repo_directory, path)
+            self.repo.run_command('update',
+                                  ['--set-depth', 'infinity', full_path])
 
     @staticmethod
     def parse_svn_revision(rev, default):

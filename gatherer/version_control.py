@@ -314,12 +314,30 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout(self):
+    def checkout(self, paths=None):
         """
-        Create a local state of the repository based on the current uptream state.
+        Create a local state of the repository based on the current uptream
+        state or a part of it.
 
-        If the local state cannot be created, for example if it already exists, then an
-        exception may be raised.
+        If the local state cannot be created, for example if it already exists,
+        then an exception may be raised. The argument `paths` may be a list of
+        directory paths to check out in the repository local state. The local
+        repository should either be a complete checkout or contain at least
+        these path patterns.
+        """
+
+        raise NotImplementedError('Must be implemented by subclass')
+
+    def checkout_sparse(self, paths):
+        """
+        Update information and checked out files in the local state of the
+        repository such that it also contains the given list of `paths`.
+
+        The resulting state has the new paths and they are up to date with
+        the remote state of the repository.
+
+        If sparse checkouts are not supported, then this method simply updates
+        the (entire) repository such that these paths are new.
         """
 
         raise NotImplementedError('Must be implemented by subclass')

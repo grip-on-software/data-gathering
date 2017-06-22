@@ -14,6 +14,49 @@ from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
 from ..version_control import Change_Type, Version_Control_Repository, FileNotFoundException
 
+class Sparse_Checkout_Paths(object):
+    """
+    Reader and writer for the sparse checkout information file that tracks which
+    paths should be checked out in a sparse checkout of the repository.
+
+    """
+
+    # Path within the git configuration directory.
+    PATH = 'info'
+    # File name of the information file.
+    FILE = 'sparse-checkout'
+
+    def __init__(self, repo):
+        self._repo = repo
+        self._path = os.path.join(self._repo.git_dir, self.PATH, self.FILE)
+
+    def get(self):
+        """
+        Retrieve the current list of paths to check out from the sparse checkout
+        information file.
+        """
+
+        if os.path.exists(self._path):
+            with open(self._path) as sparse_file:
+                return sparse_file.read().split('\n')
+
+        return []
+
+    def set(self, paths, append=True):
+        """
+        Update the paths to check out in the sparse checkout information file.
+        If `append` is `True`, the unique paths stored previosly in the file
+        are kept, otherwise they are overwritten.
+        """
+
+        if append:
+            original_paths = set(self.get())
+        else:
+            original_paths = set()
+
+        with open(self._path, 'w') as sparse_file:
+            sparse_file.write('\n'.join(original_paths.union(paths)))
+
 class Git_Repository(Version_Control_Repository):
     """
     A single Git repository that has commit data that can be read.
@@ -90,15 +133,28 @@ class Git_Repository(Version_Control_Repository):
 
         Returns a Git_Repository object with a cloned and up-to-date repository,
         even if the repository already existed beforehand.
+
+        The keyword arguments may optionally include `checkout`. If this is
+        not given or it is set to `False`, then the local directory does not
+        contain the actual paths and files from the repository, similar to
+        a bare checkout (except that the tree can be made intact again).
+        A value of `True` checks out the entire repository as on a normal clone
+        or pull. If `checkout` receives a list, then the paths in this list
+        are added to a sparse checkout, and updated from the remote.
         """
 
         checkout = kwargs.pop('checkout', False)
         repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
             if not repository.is_empty():
-                repository.update()
-        else:
+                if isinstance(checkout, list):
+                    repository.checkout_sparse(checkout)
+                else:
+                    repository.update()
+        elif isinstance(checkout, bool):
             repository.clone(checkout=checkout)
+        else:
+            repository.checkout(paths=checkout)
 
         return repository
 
@@ -164,8 +220,22 @@ class Git_Repository(Version_Control_Repository):
         # Update the repository from the origin URL.
         self.repo.remotes.origin.pull('master', progress=self._progress)
 
-    def checkout(self):
-        self.clone(checkout=True)
+    def checkout(self, paths=None):
+        self.clone(checkout=paths is None)
+
+        if paths is not None:
+            self.checkout_sparse(paths)
+
+    def checkout_sparse(self, paths):
+        self.repo.config_writer().set_value('core', 'sparseCheckout', True)
+        sparse = Sparse_Checkout_Paths(self.repo)
+        sparse.set(paths)
+
+        # Now checkout the sparse directories.
+        self.repo.git.read_tree(['-m', '-u', 'HEAD'])
+
+        # Ensure repository is up to date.
+        self.update()
 
     def clone(self, checkout=True):
         """
