@@ -167,6 +167,11 @@
         "changelog_name": "Rank",
         "type": "rank"
     },
+    "environment": {
+        "field": "environment",
+        "changelog_name": "environment",
+        "type": "unicode"
+    },
     "epic": {
         "field": "customfield_10405",
         "changelog_name": "Epic Link",
