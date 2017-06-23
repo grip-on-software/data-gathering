@@ -146,7 +146,9 @@ if [ -d scripts ]; then
 fi
 
 # Install Python dependencies
-pip install -r requirements.txt
+if [ -z "$SKIP_REQUIREMENTS" ]; then
+	pip install -r requirements.txt
+fi
 
 # Determine files that are backed up in case of errors for each project
 restoreFiles=$(./list-files.sh update $gathererScripts)
