@@ -34,6 +34,7 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 			cp $updatePath $agent_directory/update/$project/$updateFile
 		fi
 	done
+	sudo chown agent-$project:controller -R $agent_directory/update/$project
 	sudo chmod 2700 -R $agent_directory/update/$project
 	sudo chmod 2700 $agent_directory/update
 
