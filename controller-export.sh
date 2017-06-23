@@ -27,13 +27,14 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 
 	sudo chmod 2770 $agent_directory/update
 	sudo chmod 2770 $agent_directory/update/$project
+	sudo rm -rf $agent_directory/update/$project/*
 	for updateFile in $updateFiles; do
 		updatePath="$controller_directory/export/$project/$updateFile"
 		if [ -e "$updatePath" ]; then
 			cp $updatePath $agent_directory/update/$project/$updateFile
 		fi
 	done
-	sudo chmod 2700 $agent_directory/update/$project
+	sudo chmod 2700 -R $agent_directory/update/$project
 	sudo chmod 2700 $agent_directory/update
 
 	sudo chmod 2700 $agent_directory
