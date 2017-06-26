@@ -141,7 +141,7 @@ def update_gitlab_key(source, public_key):
     title = 'GROS agent'
     for key in user.ssh_keys():
         if key.title == title:
-            user.delete_ssh_key(str(key.id))
+            user.delete_ssh_key(key)
 
     logging.info('Adding new SSH key to GitLab')
     user.add_ssh_key(title, public_key)
