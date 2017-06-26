@@ -69,12 +69,13 @@ def main():
         os.chown(controller_path, uid, gid)
 
     data_filename = os.path.join(controller_path, 'data_status.json')
+    if not os.path.exists(data_filename):
+        os.mknod(data_filename, 0750)
+        os.chown(data_filename, uid, gid)
+
     with open(data_filename, 'a') as data_file:
         json.dump(statuses, data_file, indent=None)
         data_file.write('\n')
-
-    os.chmod(data_filename, 0750)
-    os.chown(data_filename, uid, gid)
 
     print('Status: 202 Accepted')
     print()
