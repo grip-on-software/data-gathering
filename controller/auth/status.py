@@ -11,8 +11,10 @@ except ImportError:
 
 import cgi
 import cgitb
+import grp
 import json
 import os
+import pwd
 
 def setup_log():
     """
@@ -58,13 +60,21 @@ def main():
         print(str(error))
         return
 
+    uid = pwd.getpwnam("exporter").pw_uid
+    gid = grp.getgrnam("controller").gr_gid
+
     controller_path = os.path.join('/controller', project_key)
     if not os.path.exists(controller_path):
         os.mkdir(controller_path, 0770)
+        os.chown(controller_path, uid, gid)
 
-    with open(os.path.join(controller_path, 'data_status.json'), 'a') as data_file:
+    data_filename = os.path.join(controller_path, 'data_status.json')
+    with open(data_filename, 'a') as data_file:
         json.dump(statuses, data_file, indent=None)
         data_file.write('\n')
+
+    os.chmod(data_filename, 0750)
+    os.chown(data_filename, uid, gid)
 
     print('Status: 202 Accepted')
     print()
