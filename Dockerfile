@@ -14,8 +14,12 @@ COPY gatherer/ /home/agent/gatherer/
 RUN mkdir -p /home/agent/.ssh && \
 	chown -R agent:agent /home/agent/.ssh && \
 	chmod -R 700 /home/agent/.ssh && \
+	mkdir -p /home/agent/export && \
+	chown -R agent:agent /home/agent/export && \
+	chmod -R 755 /home/agent/export && \
 	chmod +x /home/agent/*.sh
 
+VOLUME /home/agent/export
 WORKDIR /home/agent
 
 CMD ["/bin/bash", "docker-init.sh"]
