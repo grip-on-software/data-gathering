@@ -167,7 +167,7 @@ def main():
     with open('{}.pub'.format(private_key_filename), 'r') as public_key_file:
         public_key = public_key_file.read()
 
-    if args.ssh:
+    if args.ssh and Configuration.has_value(args.ssh):
         update_controller_key(args.ssh, project, args.cert, public_key)
 
     if args.gitlab:
