@@ -41,6 +41,6 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 	sudo chmod 2700 $agent_directory
 
 	if [ ! -z "$CLEANUP_EXPORT" ]; then
-		rm -rf $controller_directory
+		rm -rf $controller_directory/export
 	fi
 done

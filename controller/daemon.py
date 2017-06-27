@@ -2,6 +2,7 @@
 Internal daemon for handling agent user creation and update requests.
 """
 
+import json
 import os.path
 import subprocess
 import Pyro4
@@ -17,17 +18,24 @@ class Controller(object):
     HOME_DIRECTORY = '/agents'
     USERNAME = 'agent-{}'
     SSH_DIRECTORY = '/etc/ssh/control'
+    CONTROLLER_DIRECTORY = '/controller'
 
-    def _create_directory(self, project_key, directory):
+    def _create_directory(self, project_key, directory, user=None,
+                          permissions=None):
+        if permissions is None:
+            permissions = self.CREATE_PERMISSIONS
+
         subprocess.check_call([
-            'sudo', 'mkdir', '-m', self.CREATE_PERMISSIONS, directory
+            'sudo', 'mkdir', '-m', permissions, directory
         ])
-        self._update_owner(project_key, directory)
+        self._update_owner(project_key, directory, user=user)
 
-    def _update_owner(self, project_key, directory):
+    def _update_owner(self, project_key, path, user=None):
+        if user is None:
+            user = self.get_agent_user(project_key)
+
         subprocess.check_call([
-            'sudo', 'chown', '-R',
-            '{}:controller'.format(self.get_agent_user(project_key)), directory
+            'sudo', 'chown', '-R', '{}:controller'.format(user), path
         ])
 
     def get_home_directory(self, project_key):
@@ -74,6 +82,14 @@ class Controller(object):
 
         return os.path.join(self.SSH_DIRECTORY,
                             self.get_agent_user(project_key))
+
+    def get_controller_directory(self, project_key):
+        """
+        Retrieve the directory that the controller services use to work on the
+        agent's data.
+        """
+
+        return os.path.join(self.CONTROLLER_DIRECTORY, project_key)
 
     def create_agent(self, project_key):
         """
@@ -127,7 +143,33 @@ class Controller(object):
         ssh_directory = self.get_ssh_directory(project_key)
         for directory in reversed(home_directories + (ssh_directory,)):
             self._update_owner(project_key, directory)
-            subprocess.check_call(['sudo', 'chmod', '2700', directory])
+            subprocess.check_call(['sudo', 'chmod', '2770', directory])
+
+    def create_controller(self, project_key):
+        """
+        Create directories that the controller services use to work on the
+        agent's data.
+        """
+
+        controller_path = self.get_controller_directory(project_key)
+        if not os.path.exists(controller_path):
+            self._create_directory(project_key, controller_path,
+                                   user='exporter', permissions='0770')
+
+    def update_status(self, project_key, statuses):
+        """
+        Update a status logging file for the agent's health monitoring.
+        """
+
+        controller_path = self.get_controller_directory(project_key)
+        data_filename = os.path.join(controller_path, 'data_status.json')
+        if not os.path.exists(data_filename):
+            os.mknod(data_filename, 0660)
+            self._update_owner(project_key, data_filename, 'exporter')
+
+        with open(data_filename, 'a') as data_file:
+            json.dump(statuses, data_file, indent=None)
+            data_file.write('\n')
 
 def main():
     """
