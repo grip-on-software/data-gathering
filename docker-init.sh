@@ -27,4 +27,8 @@ SH
 	crond -b -L /dev/stderr
 fi
 
+chown -R agent:agent /home/agent/export
+find /home/agent/agent -type d -exec chmod 755 {} \;
+find /home/agent/agent -type f -exec chmod 644 {} \;
+
 su agent -c /home/agent/docker-start.sh
