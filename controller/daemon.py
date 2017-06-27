@@ -164,7 +164,8 @@ class Controller(object):
         controller_path = self.get_controller_directory(project_key)
         data_filename = os.path.join(controller_path, 'data_status.json')
         if not os.path.exists(data_filename):
-            os.mknod(data_filename, 0660)
+            os.mknod(data_filename)
+            subprocess.check_call(['sudo', 'chmod', '0660', data_filename])
             self._update_owner(project_key, data_filename, 'exporter')
 
         with open(data_filename, 'a') as data_file:
