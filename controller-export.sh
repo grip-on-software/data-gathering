@@ -20,23 +20,25 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 	sudo rm -rf $agent_directory/export/$project/*
 
 	if [ -z "$(ls -A $controller_directory/export/$project)" ]; then
-		echo "Skipping import because export directory is empty"
+		echo "Skipping import of $project because export directory is empty"
 	else
 		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,update,developerlink" logLevel="INFO" skipGather="true" IMPORTER_BASE="$CONTROLLER_DIRECTORY" SKIP_REQUIREMENTS="true" importerProperties="-Dimporter.relPath=$project/export" ./jenkins-scraper.sh
-	fi
 
-	sudo chmod 2770 $agent_directory/update
-	sudo chmod 2770 $agent_directory/update/$project
-	sudo rm -rf $agent_directory/update/$project/*
-	for updateFile in $updateFiles; do
-		updatePath="$controller_directory/export/$project/$updateFile"
-		if [ -e "$updatePath" ]; then
-			cp $updatePath $agent_directory/update/$project/$updateFile
-		fi
-	done
-	sudo chown agent-$project:controller -R $agent_directory/update/$project
-	sudo chmod 2700 $agent_directory/update/$project
-	sudo chmod 2700 $agent_directory/update
+		sudo chmod 2770 $agent_directory/update
+		sudo chmod 2770 $agent_directory/update/$project
+		sudo rm -rf $agent_directory/update/$project/*
+		for updateFile in $updateFiles; do
+			updatePath="$controller_directory/export/$project/$updateFile"
+			if [ -e "$updatePath" ]; then
+				cp $updatePath $agent_directory/update/$project/$updateFile
+			else
+				echo "Update file $updatePath could not be copied"
+			fi
+		done
+		sudo chown agent-$project:controller -R $agent_directory/update/$project
+		sudo chmod 2700 $agent_directory/update/$project
+		sudo chmod 2700 $agent_directory/update
+	fi
 
 	sudo chmod 2700 $agent_directory
 
