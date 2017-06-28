@@ -71,6 +71,7 @@ class GitLab_Dropins_Parser(object):
 class GitLab_Table_Dropins_Parser(GitLab_Dropins_Parser):
     """
     Parser for dropins that contain a list of JSON objects, which may be
+    relevant to the current repository.
     """
 
     def __init__(self, repo, filename):
@@ -203,7 +204,7 @@ class GitLab_Repository(Git_Repository):
 
         author_fields = ('author', 'author_username')
         assignee_fields = ('assignee', 'assignee_username')
-        self._tables.update({
+        tables = {
             "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
             "merge_request": Key_Table('merge_request', 'id',
                                        encrypted_fields=author_fields + assignee_fields),
@@ -213,7 +214,12 @@ class GitLab_Repository(Git_Repository):
             "commit_comment": Table('commit_comment',
                                     encrypted_fields=author_fields),
             "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
-        })
+        }
+        self._tables.update(tables)
+        # List of dropin files that contain table data for GitLab only.
+        self._table_dropin_files = tuple([
+            'data_{}.json'.format(table) for table in table.keys()
+        ])
 
         self._update_trackers["gitlab_update"] = self.NULL_TIMESTAMP
         self._previous_date = None
@@ -223,25 +229,33 @@ class GitLab_Repository(Git_Repository):
         if project is None:
             return False
 
+        has_dropins = False
+
         filename = os.path.join(project.dropins_key, 'data_gitlabevents.json')
         self._check_dropin_file(GitLab_Events_Dropins_Parser, filename)
 
         filename = os.path.join(project.dropins_key, 'data_gitlab.json')
         if self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
-            return True
+            has_dropins = True
 
         namespace = self._source.gitlab_namespace
         filename = os.path.join(project.dropins_key,
                                 'data_gitlab_{}.json'.format(namespace))
-        if self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
-            return True
+        if not has_dropins and \
+            self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
+            has_dropins = True
 
-        filename = os.path.join(project.dropins_key, 'data_commit_comment.json')
-        if self._check_dropin_file(GitLab_Table_Dropins_Parser, filename):
+        has_table_dropins = False
+        for table_dropin_file in self._table_dropin_files:
+            filename = os.path.join(project.dropins_key, table_dropin_file)
+            if self._check_dropin_file(GitLab_Table_Dropins_Parser, filename):
+                has_table_dropins = True
+
+        if has_table_dropins:
             self._check_update_file(project)
-            return True
+            has_dropins = True
 
-        return False
+        return has_dropins
 
     def _check_update_file(self, project):
         update_path = os.path.join(project.dropins_key, 'gitlab_update.json')
@@ -322,25 +336,23 @@ class GitLab_Repository(Git_Repository):
 
     def get_data(self, from_revision=None, to_revision=None, **kwargs):
         # Check if we can retrieve the data from legacy dropin files.
-        if self._check_dropin_files(self.project):
-            comments = False
-        else:
-            comments = True
+        has_dropins = self._check_dropin_files(self.project)
 
         versions = super(GitLab_Repository, self).get_data(from_revision,
                                                            to_revision,
-                                                           comments=comments,
+                                                           comments=has_dropins,
                                                            **kwargs)
 
         self.fill_repo_table(self.repo_project)
-        for event in self.repo_project.events():
-            self.add_event(event)
+        if not has_dropins:
+            for event in self.repo_project.events():
+                self.add_event(event)
 
-        for merge_request in self.repo_project.merge_requests():
-            newer = self.add_merge_request(merge_request)
-            if newer:
-                for note in merge_request.notes():
-                    self.add_note(note, merge_request.id)
+            for merge_request in self.repo_project.merge_requests():
+                newer = self.add_merge_request(merge_request)
+                if newer:
+                    for note in merge_request.notes():
+                        self.add_note(note, merge_request.id)
 
         if self._latest_date is not None:
             latest_date = format_date(convert_local_datetime(self._latest_date))

@@ -110,6 +110,12 @@ class Repositories_Holder(object):
                          encrypt_fields=('developer', 'developer_email'))
         tables = {}
         for repo in self.get_repositories():
+            # Retrieve all tables from the repositories so that we know the
+            # names and overwrite old export files when there are no updates.
+            for table_name, table_data in repo.tables.items():
+                if table_name not in tables:
+                    tables[table_name] = []
+
             repo_name = repo.repo_name
             logging.info('Processing repository %s', repo_name)
             if repo.repo_name in self._latest_versions:
@@ -117,14 +123,13 @@ class Repositories_Holder(object):
             else:
                 latest_version = None
 
+            # Retrieve the versions and auxliary tables.
             versions.extend(repo.get_data(from_revision=latest_version))
             self._latest_versions[repo.repo_name] = repo.get_latest_version()
             for table_name, table_data in repo.tables.items():
-                if table_name not in tables:
-                    tables[table_name] = []
-
                 tables[table_name].extend(table_data.get())
 
+            # Keep the new values of the auxiliary update trackers.
             for file_name, value in repo.update_trackers.items():
                 if file_name not in self._update_trackers:
                     self._load_update_tracker(file_name)
