@@ -5,7 +5,7 @@
 	envsubst < $file > ${file%.*}
 done)
 
-if [ ! -z "$SSH_HOST" ]; then
+if [ ! -z "$SSH_HOST" ] && [ "$SSH_HOST" != "-" ]; then
 	rm -f /home/agent/.ssh/known_hosts
 	ssh-keyscan $SSH_HOST >> /home/agent/.ssh/known_hosts
 fi
