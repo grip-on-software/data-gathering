@@ -75,9 +75,15 @@ class Log_Setup(object):
         the controller server.
         """
 
-        url = "/auth/log.py?project={}".format(project_key)
+        # Workaround: HTTPHandler sets Host header twice (once via constructor
+        # or HTTP(S)Connection and once manually), which causes lighttpd
+        # servers to reject the request (as per RFC7320 sec. 5.4 p. 44).
+        # When the host can be extracted from the GET URL, however, all
+        # subsequent Host headers are ignored (as per RFC2616 sec. 5.2 p. 37).
+        url = "https://{}/auth/log.py?project={}".format(host, project_key)
         context = ssl.create_default_context(cafile=cert_file)
         try:
+            # Python 2 logging handler does not support HTTPS connecions.
             # pylint: disable=unexpected-keyword-arg
             handler = HTTPHandler(host, url, method='POST', secure=True,
                                   context=context)
