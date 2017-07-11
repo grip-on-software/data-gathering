@@ -27,15 +27,16 @@ def parse_args():
                         help='local path of the private key')
     parser.add_argument('--agent', default=config.get('ssh', 'username'),
                         help='agent username for the ssh source')
-    parser.add_argument('--server', default=config.get('ssh', 'host'),
-                        help='host name of the ssh source')
+    parser.add_argument('--ssh', default=config.get('ssh', 'host'),
+                        help='host name of the ssh server')
+    parser.add_argument('--cert', default=config.get('ssh', 'cert'),
+                        help='HTTPS certificate of the ssh server')
     parser.add_argument('--update', nargs='+', default=[],
                         help='update tracker files to consider')
     parser.add_argument('--export', nargs='+', default=[],
                         help='data files to consider for export')
 
     Log_Setup.add_argument(parser)
-    Log_Setup.add_upload_arguments(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
 
