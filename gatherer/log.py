@@ -75,7 +75,7 @@ class Log_Setup(object):
         the controller server.
         """
 
-        url = "/controller/auth/log.py?project={}".format(project_key)
+        url = "/auth/log.py?project={}".format(project_key)
         context = ssl.create_default_context(cafile=cert_file)
         try:
             # pylint: disable=unexpected-keyword-arg

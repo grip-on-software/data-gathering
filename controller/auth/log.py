@@ -41,7 +41,11 @@ def main():
 
         packet = {}
         for key in fields.keys():
-            packet[key] = fields.getfirst(key)
+            if key != 'project':
+                packet[key] = fields.getfirst(key)
+
+        if not packet:
+            raise RuntimeError('No logging parameters were provided')
     except RuntimeError as error:
         print('Status: 400 Bad Request')
         print('Content-Type: text/plain')
