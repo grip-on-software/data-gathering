@@ -2,6 +2,7 @@
 Module for initializing logging.
 """
 
+from argparse import ArgumentError
 from builtins import object
 import logging
 from logging.handlers import HTTPHandler
@@ -40,12 +41,15 @@ class Log_Setup(object):
         host = config.get('ssh', 'host')
         cert = config.get('ssh', 'cert')
 
-        parser.add_argument('--ssh', default=host,
-                            help='Controller API host to upload logs to')
-        parser.add_argument('--no-ssh', action='store_false', dest='ssh',
-                            help='Do not upload logs to controller API host')
-        parser.add_argument('--cert', default=cert,
-                            help='HTTPS certificate of controller API host')
+        try:
+            parser.add_argument('--ssh', default=host,
+                                help='Controller API host to upload logging to')
+            parser.add_argument('--no-ssh', action='store_false', dest='ssh',
+                                help='Do not upload log to controller API host')
+            parser.add_argument('--cert', default=cert,
+                                help='HTTPS certificate of controller API host')
+        except ArgumentError:
+            return
 
     @classmethod
     def parse_args(cls, args):
@@ -75,8 +79,8 @@ class Log_Setup(object):
         the controller server.
         """
 
-        # Workaround: HTTPHandler sets Host header twice (once via constructor
-        # or HTTP(S)Connection and once manually), which causes lighttpd
+        # Workaround: HTTPHandler sets Host header twice (once in
+        # HTTPConnection.putrequest and once manually), which causes lighttpd
         # servers to reject the request (as per RFC7320 sec. 5.4 p. 44).
         # When the host can be extracted from the GET URL, however, all
         # subsequent Host headers are ignored (as per RFC2616 sec. 5.2 p. 37).
