@@ -20,6 +20,7 @@ def parse_args():
                         help="Ignore credential host changes and use the original host instead")
 
     Log_Setup.add_argument(parser)
+    Log_Setup.add_upload_arguments(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
     return args

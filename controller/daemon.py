@@ -156,13 +156,13 @@ class Controller(object):
             self._create_directory(project_key, controller_path,
                                    user='exporter', permissions='0770')
 
-    def update_status(self, project_key, statuses):
+    def update_status_file(self, project_key, filename, statuses):
         """
         Update a status logging file for the agent's health monitoring.
         """
 
         controller_path = self.get_controller_directory(project_key)
-        data_filename = os.path.join(controller_path, 'data_status.json')
+        data_filename = os.path.join(controller_path, filename)
         if not os.path.exists(data_filename):
             os.mknod(data_filename)
             subprocess.check_call(['sudo', 'chmod', '0660', data_filename])

@@ -1,5 +1,5 @@
 """
-API to track dashboard status.
+API to collect log packets from an agent.
 """
 
 from __future__ import print_function
@@ -11,7 +11,6 @@ except ImportError:
 
 import cgi
 import cgitb
-import json
 import Pyro4
 
 def setup_log():
@@ -40,17 +39,9 @@ def main():
         if not project_key.isupper() or not project_key.isalpha():
             raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
 
-        if 'status' not in fields:
-            raise RuntimeError('Status must be provided')
-
-        status = fields.getlist('status')
-        if len(status) != 1:
-            raise RuntimeError('Exactly one status field must be specified')
-
-        try:
-            statuses = json.loads(status[0])
-        except ValueError:
-            raise RuntimeError('Status field must be valid JSON')
+        packet = {}
+        for key in fields.keys():
+            packet[key] = fields.getfirst(key)
     except RuntimeError as error:
         print('Status: 400 Bad Request')
         print('Content-Type: text/plain')
@@ -60,7 +51,7 @@ def main():
 
     controller = Pyro4.Proxy("PYRONAME:gros.controller")
     controller.create_controller(project_key)
-    controller.update_status_file(project_key, 'data_status.json', statuses)
+    controller.update_status_file(project_key, 'log.json', packet)
 
     print('Status: 202 Accepted')
     print()

@@ -52,6 +52,7 @@ def parse_args():
                         help='GitLab host to distribute key to')
 
     Log_Setup.add_argument(parser)
+    Log_Setup.add_upload_arguments(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
 
