@@ -23,8 +23,7 @@ class Exporter(object):
         directory = os.path.join(self.AGENT_DIRECTORY, project_key)
 
         subprocess.Popen(['/bin/bash', 'controller-export.sh', directory],
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                         env={'CLEANUP_EXPORT': '1'})
+                         stdout=None, stderr=None, env={'CLEANUP_EXPORT': '1'})
 
 def main():
     """

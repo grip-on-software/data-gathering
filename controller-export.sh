@@ -49,6 +49,7 @@ perform_export() {
 	fi
 }
 
+directory=$1
 if [ -z $directory ]; then
 	for agent_directory in $AGENTS_DIRECTORY/*; do
 		perform_export $agent_directory
