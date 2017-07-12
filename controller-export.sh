@@ -5,7 +5,9 @@ CONTROLLER_DIRECTORY="/controller"
 gathererScripts="project_sources.py environment_sources.py git_to_json.py"
 updateFiles=$(./list-files.sh update $gathererScripts)
 
-for agent_directory in $AGENTS_DIRECTORY/*; do
+perform_export() {
+	agent_directory=$1
+	shift
 	project=${agent_directory##*/}
 	controller_directory="$CONTROLLER_DIRECTORY/$project"
 
@@ -45,4 +47,12 @@ for agent_directory in $AGENTS_DIRECTORY/*; do
 	if [ ! -z "$CLEANUP_EXPORT" ]; then
 		rm -rf $controller_directory/export
 	fi
-done
+}
+
+if [ -z $directory ]; then
+	for agent_directory in $AGENTS_DIRECTORY/*; do
+		perform_export $agent_directory
+	done
+else
+	perform_export $directory
+fi
