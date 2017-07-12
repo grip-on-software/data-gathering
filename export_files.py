@@ -10,6 +10,7 @@ except ImportError:
 
 import argparse
 import subprocess
+import requests
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -42,6 +43,31 @@ def parse_args():
 
     return args
 
+def export_file(project, export_path, filename, key_path):
+    """
+    Upload the export data file `filename` from the export directory for the
+    `project` to a remote SCP directory indicated by the `export_path`, using
+    the identity file in `key_path` for SSH public key authentication.
+    """
+
+    subprocess.call([
+        'scp', '-i', key_path,
+        '{}/{}'.format(project.export_key, filename),
+        '{}/{}'.format(export_path, filename)
+    ])
+
+def update_controller(host, project, cert):
+    """
+    Indicate to the controller host that we are done with exporting the current
+    state of the gatherer.
+    """
+
+    url = 'https://{}/auth/export.py?project={}'.format(host, project.jira_key)
+    request = requests.post(url, verify=cert)
+
+    if request.status_code != requests.codes['ok']:
+        raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
+
 def main():
     """
     Main entry point.
@@ -50,15 +76,13 @@ def main():
     args = parse_args()
     project = Project(args.project)
 
-    auth = args.agent + '@' + args.server
+    auth = args.agent + '@' + args.ssh
     path = '{}:~/{}'.format(auth, project.export_key)
 
     for filename in args.export + args.update:
-        subprocess.call([
-            'scp', '-i', args.path,
-            '{}/{}'.format(project.export_key, filename),
-            '{}/{}'.format(path, filename)
-        ])
+        export_file(project, path, filename, args.path)
+
+    update_controller(args.ssh, project, args.cert)
 
 if __name__ == "__main__":
     main()
