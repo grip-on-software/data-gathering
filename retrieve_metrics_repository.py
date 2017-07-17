@@ -104,13 +104,14 @@ def main():
         if not args.delete:
             git_directory = os.path.join(repo_path, '.git')
             if os.path.exists(repo_path) and not os.path.exists(git_directory):
+                # The sparse clone has not yet been create (no .git directory)
+                # but it must be placed in the root directory of the clones.
+                # The other clones must be removed before the clone operation.
                 logging.info('Making way to clone into %s', repo_path)
                 delete_repository(source, repo_path)
 
     if args.all or not paths:
         paths = None
-
-    logging.info('Paths: %r', paths)
 
     base = project.get_key_setting('definitions', 'base')
     base_path = project.get_key_setting('definitions', 'path', base,
