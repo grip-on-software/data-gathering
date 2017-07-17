@@ -9,6 +9,7 @@ import logging
 import os
 import re
 from git import Repo, Blob, Commit, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
+from ordered_set import OrderedSet
 from .progress import Git_Progress
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
@@ -38,24 +39,46 @@ class Sparse_Checkout_Paths(object):
 
         if os.path.exists(self._path):
             with open(self._path) as sparse_file:
-                return sparse_file.read().split('\n')
+                return OrderedSet(sparse_file.read().split('\n'))
 
-        return []
+        return OrderedSet()
+
+    def _write(self, paths):
+        with open(self._path, 'w') as sparse_file:
+            sparse_file.write('\n'.join(paths))
 
     def set(self, paths, append=True):
         """
-        Update the paths to check out in the sparse checkout information file.
+        Accept paths in the local clone by updating the paths to check out in
+        the sparse checkout information file.
+
         If `append` is `True`, the unique paths stored previosly in the file
         are kept, otherwise they are overwritten.
         """
 
         if append:
-            original_paths = set(self.get())
+            original_paths = self.get()
         else:
-            original_paths = set()
+            original_paths = OrderedSet()
 
-        with open(self._path, 'w') as sparse_file:
-            sparse_file.write('\n'.join(original_paths.union(paths)))
+        self._write(original_paths | paths)
+
+    def remove(self, paths):
+        """
+        Remove paths to check out in the sparse checkout information file.
+        """
+
+        new_paths = self.get()
+        if not new_paths:
+            new_paths = OrderedSet(['/*'])
+
+        for path in paths:
+            if path in new_paths:
+                new_paths.remove(path)
+            else:
+                new_paths.add('!{}'.format(path))
+
+        self._write(new_paths)
 
 class Git_Repository(Version_Control_Repository):
     """
@@ -226,10 +249,14 @@ class Git_Repository(Version_Control_Repository):
         if paths is not None:
             self.checkout_sparse(paths)
 
-    def checkout_sparse(self, paths):
+    def checkout_sparse(self, paths, remove=False):
         self.repo.config_writer().set_value('core', 'sparseCheckout', True)
         sparse = Sparse_Checkout_Paths(self.repo)
-        sparse.set(paths)
+
+        if remove:
+            sparse.remove(paths)
+        else:
+            sparse.set(paths)
 
         # Now checkout the sparse directories.
         self.repo.git.read_tree(['-m', '-u', 'HEAD'])

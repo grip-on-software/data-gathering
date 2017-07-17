@@ -12,5 +12,6 @@ dropins/*/
 export/
 kwaliteitsmetingen/
 project-git-repos/
+quality-report-data/
 src/*/
 src/pip-delete-this-directory.txt

@@ -112,11 +112,15 @@ class Subversion_Repository(Version_Control_Repository):
         if paths is not None:
             self.checkout_sparse(paths)
 
-    def checkout_sparse(self, paths):
+    def checkout_sparse(self, paths, remove=False):
+        if remove:
+            depth = 'empty'
+        else:
+            depth = 'infinity'
+
         for path in paths:
             full_path = '{0}/{1}'.format(self._repo_directory, path)
-            self.repo.run_command('update',
-                                  ['--set-depth', 'infinity', full_path])
+            self.repo.run_command('update', ['--set-depth', depth, full_path])
 
     @staticmethod
     def parse_svn_revision(rev, default):

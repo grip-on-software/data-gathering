@@ -333,7 +333,7 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout_sparse(self, paths):
+    def checkout_sparse(self, paths, remove=False):
         """
         Update information and checked out files in the local state of the
         repository such that it also contains the given list of `paths`.
@@ -341,8 +341,13 @@ class Version_Control_Repository(object):
         The resulting state has the new paths and they are up to date with
         the remote state of the repository.
 
+        If `remove` is `True`, then instead of adding the new paths to the local
+        state, they are removed from the local state if they existed.
+        Additionally, the 'excluded' state of the specific paths may be tracked
+        in the local state of the repository.
+
         If sparse checkouts are not supported, then this method simply updates
-        the (entire) repository such that these paths are new.
+        the (entire) repository such that all paths are up to date.
         """
 
         raise NotImplementedError('Must be implemented by subclass')

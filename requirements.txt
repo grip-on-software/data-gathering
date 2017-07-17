@@ -26,6 +26,8 @@ pyocclient
 # Python compatibility
 future
 configparser
+# Data types
+ordered-set
 # Encryption
 bcrypt
 # Controller daemons

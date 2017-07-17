@@ -201,7 +201,7 @@ do
 done
 
 if [ $cleanupRepos = "true" ]; then
-	python retrieve_metrics_repository.py $project --log $logLevel
+	python retrieve_metrics_repository.py $project --delete --all --log $logLevel
 fi
 
 # Clean up retrieved dropins

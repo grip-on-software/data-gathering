@@ -35,5 +35,5 @@ python export_files.py $project --update $updateFiles --export $exportFiles
 
 if [ $cleanupRepos = "true" ]; then
 	rm -rf project-git-repos/$project
-	python retrieve_metrics_repository.py $project --delete --log $logLevel
+	python retrieve_metrics_repository.py $project --delete --all --log $logLevel
 fi

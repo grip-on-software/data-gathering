@@ -191,18 +191,30 @@ class Project(Project_Meta):
 
         return None
 
-    def get_key_setting(self, section, key):
+    def get_key_setting(self, section, key, *format_values, **format_args):
         """
         Retrieve a setting from a configuration section `group`, using the `key`
-        as well as the project key. If a setting with a combined key that equals
-        to the `key`, a period and the project key exists, then this setting's
-        value is used, otherwise the `key` itself is used as the setting key.
+        as well as the project key, unless `project` is set to `False`.
+        If a setting with a combined key that equals to the `key`, a period and
+        the project key exists, then this setting's value is used, otherwise the
+        `key` itself is used as the setting key.
+
+        If additional arguments are provided, then the returned value has its
+        placeholders ('{}' and the like) replaced with these positional
+        arguments and keyword arguments.
         """
 
-        if self.settings.has_option(section, '{}.{}'.format(key, self.key)):
-            return self.settings.get(section, '{}.{}'.format(key, self.key))
+        project_key = '{}.{}'.format(key, self.key)
+        project = format_args.pop('project', True)
+        if project and self.settings.has_option(section, project_key):
+            value = self.settings.get(section, project_key)
+        else:
+            value = self.settings.get(section, key)
 
-        return self.settings.get(section, key)
+        if format_values or format_args:
+            value = value.format(*format_values, **format_args)
+
+        return value
 
     def add_source(self, source):
         """
@@ -366,21 +378,36 @@ class Project(Project_Meta):
 
         return self._main_project
 
-    def _init_project_definitions(self):
+    def make_project_definitions(self, base=False):
+        """
+        Create a `Source` object for a repository containing project definitions
+        and metrics history, or other dependency files. If `base` is `True`,
+        then the base code source repository is provided instead.
+        """
+
+        if base:
+            repo_name = self.get_key_setting('definitions', 'base')
+        else:
+            repo_name = self.quality_metrics_name
+
         source_type = self.get_key_setting('definitions', 'source_type')
         name = self.get_key_setting('definitions', 'name')
-        url = self.get_key_setting('definitions', 'url')
-        self._project_definitions = Source.from_type(source_type,
-                                                     name=name, url=url)
+        url = self.get_key_setting('definitions', 'url', repo_name,
+                                   project=not base)
+        return Source.from_type(source_type, name=name, url=url)
 
     @property
     def project_definitions_source(self):
         """
         Retrieve a `Source` object that describes the project definitions
-        version control system.
+        version control system. If the project has no definitions, then `None`
+        is returned.
         """
 
+        if self.quality_metrics_name is None:
+            return None
+
         if self._project_definitions is None:
-            self._init_project_definitions()
+            self._project_definitions = self.make_project_definitions()
 
         return self._project_definitions
