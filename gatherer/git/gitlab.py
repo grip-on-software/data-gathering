@@ -218,7 +218,7 @@ class GitLab_Repository(Git_Repository):
         self._tables.update(tables)
         # List of dropin files that contain table data for GitLab only.
         self._table_dropin_files = tuple([
-            'data_{}.json'.format(table) for table in table.keys()
+            'data_{}.json'.format(table) for table in tables
         ])
 
         self._update_trackers["gitlab_update"] = self.NULL_TIMESTAMP
