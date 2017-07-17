@@ -88,18 +88,14 @@ def read_project_file(data_file, start_from=0):
     logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
 
-def make_path(project, prefix):
+def make_path(prefix):
     """
-    Create a path or URL to the metrics history file for the given project.
+    Create a path or URL to the metrics history file.
     """
 
-    project_name = project.quality_metrics_name
-    if project_name is None:
-        raise RuntimeError('No metrics history file URL available')
+    return prefix + "/history.json.gz"
 
-    return prefix + project_name + "/history.json.gz"
-
-def get_setting(config, arg, key, project):
+def get_setting(arg, key, project):
     """
     Retrieve a configuration setting from the history section using the `key`
     as well as the project key for the option name, using multiple variants.
@@ -107,11 +103,12 @@ def get_setting(config, arg, key, project):
     If `arg` is set to a valid setting then this value is used instead.
     """
 
-    if arg is None or arg is True:
-        if config.has_option('history', '{}.{}'.format(key, project.key)):
-            return config.get('history', '{}.{}'.format(key, project.key))
+    project_name = project.quality_metrics_name
+    if project_name is None:
+        raise RuntimeError('No metrics history file URL available')
 
-        return config.get('history', key)
+    if arg is None or arg is True:
+        return project.get_key_setting('history', key, project_name)
 
     return arg
 
@@ -121,26 +118,24 @@ def get_data_source(project, args):
     Yield an open file containing the historical metric values of the project.
     """
 
-    config = Configuration.get_settings()
-
     if args.export_path is not None:
-        export_path = get_setting(config, args.export_path, 'path', project)
-        if export_path != "" and os.path.exists(export_path):
+        export_path = get_setting(args.export_path, 'path', project)
+        if Configuration.has_value(export_path) and os.path.exists(export_path):
             logging.info('Found metrics history path: %s', export_path)
-            yield make_path(project, export_path) + "|"
+            yield make_path(export_path) + "|"
             return
     elif args.file is not None:
         yield open(args.file, 'r')
         return
 
     if args.export_url is not None:
-        export_url = get_setting(config, args.export_url, 'url', project)
-        if export_url != "":
+        export_url = get_setting(args.export_url, 'url', project)
+        if Configuration.has_value(export_url):
             logging.info('Found metrics history URL: %s', export_url)
-            yield make_path(project, export_url)
+            yield make_path(export_url)
     elif args.url is not None:
-        url_prefix = get_setting(config, args.url, 'url', project)
-        url = make_path(project, url_prefix)
+        url_prefix = get_setting(args.url, 'url', project)
+        url = make_path(url_prefix)
         request = requests.get(url)
         stream = io.BytesIO(request.content)
         yield gzip.GzipFile(mode='r', fileobj=stream)
