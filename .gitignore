@@ -13,7 +13,7 @@ export/
 kwaliteitsmetingen/
 project-git-repos/
 quality-report-data/
-quality-report-definiton/
+quality-report-definition/
 quality-report-history/
 src/*/
 src/pip-delete-this-directory.txt

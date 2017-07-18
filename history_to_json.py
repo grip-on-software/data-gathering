@@ -23,6 +23,7 @@ import os
 import requests
 from gatherer.config import Configuration
 from gatherer.domain import Project
+from gatherer.domain.source import Source, GitLab
 from gatherer.log import Log_Setup
 from gatherer.utils import parse_date
 
@@ -112,28 +113,93 @@ def get_setting(arg, key, project):
 
     return arg
 
+def check_sparse_base(export_path):
+    """
+    Determine whether the export directory is a sparse base directory, where
+    a repository containing multiple project's histories are cloned to.
+    """
+
+    return '/' not in export_path.rstrip('/')
+
+def check_gitlab_url(project, args, export_url):
+    """
+    Check whether the provided export URL and if so, whether the repository
+    would be cloned to a sparse base directory. Return a URL that can be
+    used to download the history file for the project, which may be situated
+    in a subpath in the repository.
+    """
+
+    if GitLab.is_gitlab_url(export_url):
+        export_url = export_url + "/raw/master"
+
+        repo_path = get_setting(args.export_path, 'path', project)
+        if Configuration.has_value(repo_path) and check_sparse_base(repo_path):
+            return export_url + "/" + project.quality_metrics_name
+
+    return export_url
+
+def check_gitlab_path(project, args, export_path):
+    """
+    Check if the arguments or settings have a GitLab URL. If so, clone the
+    repository containing the metrics history from there.
+
+    Returns the most directly known path to the cloned history file, or the
+    provided `export_path` if no GitLab repository was found.
+    """
+
+    gitlab_url = get_setting(args.url, 'url', project)
+    if Configuration.has_value(gitlab_url) and GitLab.is_gitlab_url(gitlab_url):
+        if check_sparse_base(export_path):
+            paths = [project.quality_metrics_name]
+            clone_path = os.path.join(export_path, project.quality_metrics_name)
+        else:
+            paths = []
+            clone_path = export_path
+
+        logging.info('Pulling quality metrics history repository to %s',
+                     export_path)
+        source = Source.from_type('gitlab', name='quality-report-history',
+                                  url=gitlab_url)
+        repo_class = source.repository_class
+        repo_class.from_source(source, export_path, checkout=paths)
+        return clone_path
+
+    return export_path
+
 @contextmanager
 def get_data_source(project, args):
     """
-    Yield an open file containing the historical metric values of the project.
+    Yield a path, URL or a read-only opened file containing the historical
+    metric values of the project. When used as a context manager in a 'with'
+    statement, any opened file is closed upon exiting the 'with' block.
     """
 
     if args.export_path is not None:
+        # Path to a local directory or a repository target for a GitLab URL.
+        # The local directory contains history.json.gz, th GitLab repository
+        # contains it as well or possibly in a subdirectory.
         export_path = get_setting(args.export_path, 'path', project)
-        if Configuration.has_value(export_path) and os.path.exists(export_path):
-            logging.info('Found metrics history path: %s', export_path)
-            yield make_path(export_path) + "|"
-            return
+        if Configuration.has_value(export_path):
+            export_path = check_gitlab_path(project, args, export_path)
+            if os.path.exists(export_path):
+                logging.info('Found metrics history path: %s', export_path)
+                yield make_path(export_path) + "|"
+                return
     elif args.file is not None:
+        # Path to a local uncompressed file that can be opened
         yield open(args.file, 'r')
         return
 
     if args.export_url is not None:
+        # URL to a specific GZIP file or a GitLab repository that can be
+        # accessed in an unauthenticated manner by the importer.
         export_url = get_setting(args.export_url, 'url', project)
         if Configuration.has_value(export_url):
+            export_url = check_gitlab_url(project, args, export_url)
             logging.info('Found metrics history URL: %s', export_url)
             yield make_path(export_url)
     elif args.url is not None:
+        # URL to a specific GZIP file download.
         url_prefix = get_setting(args.url, 'url', project)
         url = make_path(url_prefix)
         request = requests.get(url)
