@@ -15,7 +15,7 @@ import svn.remote
 from .difference import Difference
 from ..table import Table, Key_Table
 from ..utils import format_date, parse_unicode, Iterator_Limiter
-from ..version_control import Version_Control_Repository, FileNotFoundException
+from ..version_control.repo import Version_Control_Repository, FileNotFoundException
 
 class Subversion_Repository(Version_Control_Repository):
     """

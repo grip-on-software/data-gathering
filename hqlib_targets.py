@@ -11,7 +11,7 @@ import os.path
 from gatherer.domain import Source
 from gatherer.git import Git_Repository
 from gatherer.log import Log_Setup
-from gatherer.version_control import FileNotFoundException
+from gatherer.version_control.repo import FileNotFoundException
 
 def parse_args():
     """

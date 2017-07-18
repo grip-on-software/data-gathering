@@ -13,7 +13,7 @@ from ordered_set import OrderedSet
 from .progress import Git_Progress
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
-from ..version_control import Change_Type, Version_Control_Repository, FileNotFoundException
+from ..version_control.repo import Change_Type, Version_Control_Repository, FileNotFoundException
 
 class Sparse_Checkout_Paths(object):
     """

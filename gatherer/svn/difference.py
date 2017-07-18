@@ -5,7 +5,7 @@ Module for parsing Subversion difference formats.
 from builtins import object, str
 import logging
 import svn.exception
-from ..version_control import Change_Type
+from ..version_control.repo import Change_Type
 from ..table import Table
 
 class Difference_State(object):

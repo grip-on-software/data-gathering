@@ -6,7 +6,7 @@ by the database importer.
 import argparse
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.version_control import Repositories_Holder
+from gatherer.version_control.holder import Repositories_Holder
 
 def parse_args():
     """
