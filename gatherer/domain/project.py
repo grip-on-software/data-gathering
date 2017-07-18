@@ -387,12 +387,14 @@ class Project(Project_Meta):
 
         if base:
             repo_name = self.get_key_setting('definitions', 'base')
+            key = 'base_url'
         else:
             repo_name = self.quality_metrics_name
+            key = 'url'
 
         source_type = self.get_key_setting('definitions', 'source_type')
         name = self.get_key_setting('definitions', 'name')
-        url = self.get_key_setting('definitions', 'url', repo_name,
+        url = self.get_key_setting('definitions', key, repo_name,
                                    project=not base)
         return Source.from_type(source_type, name=name, url=url)
 
