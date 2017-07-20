@@ -18,6 +18,7 @@ class Controller(object):
     HOME_DIRECTORY = '/agents'
     USERNAME = 'agent-{}'
     SSH_DIRECTORY = '/etc/ssh/control'
+    KEY_FILENAME = 'authorized_keys'
     CONTROLLER_DIRECTORY = '/controller'
 
     def _create_directory(self, project_key, directory, user=None,
@@ -130,7 +131,7 @@ class Controller(object):
 
         self._create_directory(project_key, ssh_directory)
 
-        key_filename = os.path.join(ssh_directory, 'authorized_keys')
+        key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
         with open(key_filename, 'w') as key_file:
             key_file.write(public_key)
 
@@ -141,9 +142,14 @@ class Controller(object):
 
         home_directories = self.get_home_subdirectories(project_key)
         ssh_directory = self.get_ssh_directory(project_key)
-        for directory in reversed(home_directories + (ssh_directory,)):
+        for directory in reversed(home_directories):
             self._update_owner(project_key, directory)
             subprocess.check_call(['sudo', 'chmod', '2770', directory])
+
+        key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
+        subprocess.check_call(['sudo', 'chmod', '2600', key_filename])
+        self._update_owner(project_key, ssh_directory)
+        subprocess.check_call(['sudo', 'chmod', '2700', ssh_directory])
 
     def create_controller(self, project_key):
         """
