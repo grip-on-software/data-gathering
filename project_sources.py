@@ -19,8 +19,8 @@ def parse_args():
     description = "Obtain project sources definition"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--repo", default="kwaliteitsmetingen/trunk",
-                        help="Subversion directory with project definitions")
+    parser.add_argument("--repo", default=None,
+                        help="Repository directory with project definitions")
     parser.add_argument("--context", type=int, default=3,
                         help="Number of context lines for parser problems")
     parser.add_argument("--all", action="store_true", default=False,
@@ -57,7 +57,13 @@ def main():
         project.export_sources()
         return
 
-    collector = Sources_Collector(project, args.repo,
+    if args.repo is not None:
+        repo_path = args.repo
+    else:
+        repo_path = project.get_key_setting('definitions', 'path',
+                                            project.quality_metrics_name)
+
+    collector = Sources_Collector(project, repo_path,
                                   context_lines=args.context)
     if args.all or args.from_revision is not None or args.to_revision is not None:
         collector.collect(args.from_revision, args.to_revision)

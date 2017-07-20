@@ -9,6 +9,7 @@ try:
 except ImportError:
     raise
 
+from past.builtins import basestring
 from builtins import str
 import argparse
 from contextlib import contextmanager
@@ -19,6 +20,7 @@ import itertools
 import json
 import logging
 import os
+import shutil
 # Non-standard imports
 import requests
 from gatherer.config import Configuration
@@ -45,7 +47,8 @@ def parse_args():
                            nargs='?', const=True,
                            help="url prefix to use as a reference rather than reading all data")
     path_group = parser.add_mutually_exclusive_group()
-    path_group.add_argument("--file", help="local file to read from")
+    path_group.add_argument("--file", default=None,
+                            help="local file to read from")
     path_group.add_argument("--export-path", default=None, dest="export_path",
                             nargs='?', const=True,
                             help="path prefix to use as a reference rather than reading all data")
@@ -152,6 +155,13 @@ def check_gitlab_path(project, args, export_path):
         if check_sparse_base(export_path):
             paths = [project.quality_metrics_name]
             clone_path = os.path.join(export_path, project.quality_metrics_name)
+            git_path = os.path.join(export_path, '.git')
+            if os.path.exists(export_path) and not os.path.exists(git_path):
+                # The sparse clone has not yet been created (no .git directory)
+                # but it must be placed in the root directory of the clones.
+                # The other clones must be removed before the clone operation.
+                logging.info('Making way to clone into %s', export_path)
+                shutil.rmtree(export_path)
         else:
             paths = []
             clone_path = export_path
@@ -176,8 +186,9 @@ def get_data_source(project, args):
 
     if args.export_path is not None:
         # Path to a local directory or a repository target for a GitLab URL.
-        # The local directory contains history.json.gz, th GitLab repository
-        # contains it as well or possibly in a subdirectory.
+        # The local directory contains history.json.gz or the GitLab repository
+        # contains it in its root or possibly in a subdirectory matching the
+        # quality dashboard name.
         export_path = get_setting(args.export_path, 'path', project)
         if Configuration.has_value(export_path):
             export_path = check_gitlab_path(project, args, export_path)
@@ -229,7 +240,7 @@ def main():
 
     try:
         with get_data_source(project, args) as data:
-            if isinstance(data, str):
+            if isinstance(data, basestring):
                 metric_data = '{0}#{1}'.format(data, start_from)
                 line_count = 0
             else:

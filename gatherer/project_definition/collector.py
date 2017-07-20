@@ -4,6 +4,7 @@ Module for collecting data from various versions of project definitions.
 
 from builtins import object
 import logging
+import os.path
 from .metric import Metric_Difference
 from .parser import Metric_Options_Parser, Sources_Parser
 from .update import Update_Tracker
@@ -15,6 +16,8 @@ class Collector(object):
     definition files.
     """
 
+    FILENAME = 'project_definition.py'
+
     def __init__(self, project, repo_path, target='project_definition',
                  **options):
         self._project = project
@@ -22,7 +25,11 @@ class Collector(object):
         repo_class = project.project_definitions_source.repository_class
         self._repo = repo_class(project.project_definitions_source,
                                 repo_path, project=self._project)
-        self._filename = '{}/project_definition.py'.format(project.quality_metrics_name)
+        if project.quality_metrics_name not in repo_path:
+            self._filename = '{}/{}'.format(project.quality_metrics_name,
+                                            self.FILENAME)
+        else:
+            self._filename = self.FILENAME
 
         self._options = options
 
@@ -104,7 +111,10 @@ class Sources_Collector(Collector):
         super(Sources_Collector, self).__init__(project, repo_path,
                                                 target='project_sources',
                                                 **kwargs)
-        self._repo_path = repo_path
+        if project.quality_metrics_name in repo_path:
+            self._repo_path = os.path.dirname(os.path.abspath(repo_path))
+        else:
+            self._repo_path = repo_path
 
     def build_parser(self, version):
         return Sources_Parser(self._repo_path, **self._options)
