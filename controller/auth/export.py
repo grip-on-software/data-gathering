@@ -46,6 +46,7 @@ def main():
         return
 
     exporter = Pyro4.Proxy("PYRONAME:gros.exporter")
+    exporter.start_scrape(project_key)
     exporter.export_data(project_key)
 
     print('Status: 202 Accepted')

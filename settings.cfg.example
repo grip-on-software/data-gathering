@@ -35,6 +35,11 @@ url = $IMPORTER_URL
 [bigboat]
 host = $BIGBOAT_HOST
 key = $BIGBOAT_KEY
+[jenkins]
+host = $JENKINS_HOST
+scrape = $JENKINS_JOB
+crumb = $JENKINS_CRUMB
+token = $JENKINS_TOKEN
 [projects]
 $JIRA_KEY = $PROJECT_NAME
 [subprojects]
