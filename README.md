@@ -102,10 +102,21 @@ Next, start the Docker instance based on the container. Use `docker run --name
 data-gathering-agent -e VAR1=value1 -e VAR2=value2 [options]... 
 ictu/gros-data-gathering` to start the instance using environment variables to 
 set [configuration](#configuration). By default the Docker instance 
-periodically scrapes and it should be started in a daemonized for using the 
+periodically scrapes and it should be started in a daemonized form using the 
 option `-d`. You can put it in a 'Jenkins-style' run using the environment 
 variable `JENKINS_URL=value`. You can also enter the docker instance using 
 `docker exec data-gathering-agent su agent` and run any scripts there.
+
+With regard to the files in this repository, `docker-init.sh` is the entry 
+point which sets up the periodic scraping and permissions, `docker-start.sh` 
+substitutes the variables in the environment and sets up the SSH keys, while 
+`docker-scraper.sh` collects data from the version control systems, exporting 
+it to the controller server.
+
+For more advanced setups with many variables that need configuration or 
+persistent volume mounts, it is advisable to create 
+a [docker-compose](https://docs.docker.com/compose/) file to manage the Docker 
+environment.
 
 ## Configuration
 
@@ -114,11 +125,16 @@ initial source locations and to apply it in a certain secured environment.
 
 Inspect the `settings.cfg.example` and `credentials.cfg.example` files. Both 
 files have sections, option names and values, and dollar signs indicate values 
-that should be filled in. For Docker builds, the dollar signs are environment 
-variables (passed with `-e`) that are filled in when starting the instance, as 
-explained in the Docker section. Many configuration values can also be supplied 
-through arguments to the relevant pipeline scripts as shown in their `--help` 
-output.
+that should be filled in. You can do this by copying the file to the name 
+without `.example` at the end and editing it. For Docker builds, the dollar 
+signs indicate environment variables (passed with `-e`) that are filled in when 
+starting the instance, as explained in the [Docker](#docker) section. Many 
+configuration values can also be supplied through arguments to the relevant 
+pipeline scripts as shown in their `--help` output.
+
+Some options may have their value set to a falsy value ('false', 'no', '-' or 
+the empty string) to disable a certain feature or to indicate that the setting 
+is not used in this environment.
 
 - jira (used by `jira_to_json.py`): JIRA access settings.
   - `server` (`$JIRA_SERVER`): Base URL of the JIRA server used by the 
@@ -211,3 +227,48 @@ output.
   - `$PROJECT_NAME`: Name of the scraped project in the quality dashboard.
 - subprojects: Subprojects and their main project.
   - `$SUBPROJECT_KEY`: JIRA key of the subproject.
+
+The credentials file follows a similar section-option-value, but 
+`credentials.cfg.example` contains only one section whose name `$SOURCE_HOST` 
+is to be replaced by the hostname of a version control system that requires 
+authentication. Additional sections may be added if the project(s) have more 
+VCS hosts.
+
+- `env` (`$SOURCE_CREDENTIALS_ENV`): Name of the environment variable that 
+  contains the path to the SSH identity file. This option is only used by Git. 
+  The references variable's value must have a valid path to actually succeed in 
+  using SSH access. The path may be symbolic, e.g., `~/.ssh/id_rsa`.
+- `username` (`$SOURCE_USERNAME`): Username to log in to the version control 
+  system. For GitLab with SSH, this is 'git'.
+- `password` (`$SOURCE_PASSWORD`): Password to log in to the version control 
+  system. Ignored if `env` is not a falsy value.
+- `gitlab_token` (`$SOURCE_GITLAB_TOKEN`): API token for GitLab instances in 
+  order to obtain auxiliary data from GitLab.
+- `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
+  is a Team Foundation Server and thus has auxliary data aside from the Git 
+  repository.
+- `group` (`$SOURCE_GITLAB_GROUP`): The name of the custom GitLab group. Used 
+  for group URL updates when the repositories are archived, and for API queries 
+  for finding more repositories.
+- `from_date` (`$SOURCE_FROM_DATE`): Date from which to start collecting commit 
+  revisions during normal scrape operations. This allows for ignoring all 
+  commits authored before this date in all repositories on this host, which can 
+  be useful for ignoring migration commits. Note that the `tag` option 
+  overrides this behavior. Only for Git repositories.
+- `tag` (`$SOURCE_TAG`): If the given value is a tag name in a selected Git 
+  repository, then only the commits leading to this tag are collected during 
+  normal scrape operations. This overrides normal master branch collection and 
+  the `from_date` option, and can be useful for scraping a subset of 
+  a repository in relation to migration.
+
+Finally, for `topdesk_to_json.py`, the presence of a `topdesk.cfg` 
+configuration file is necessary. The projects section has option names 
+corresponding to JIRA keys and values corresponding to the project 
+representation pass number in the CSV dump. The names section have internal 
+identifiers for the columns in the CSV dump as options, and their associated 
+values are the actual names in the CSV dump. The whitelist section contains 
+a global whitelist, which is a regular expression that matches descriptions of 
+items that are relevant events. The project-specific whitelist(s) instead match 
+event descriptions that are specifically relevant to the project. The blacklist 
+section can only have a global blacklist that filters irrelevant events based 
+on their description.

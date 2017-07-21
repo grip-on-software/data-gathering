@@ -1,0 +1,18 @@
+[projects]
+$JIRA_KEY = $TOPDESK_NAME
+[names]
+state = Fase
+reservation_id = Reserveringnummer
+number_of_people = Aantal personen
+description = Korte omschrijving
+requester = Naam aanvrager
+start_date = Geplande startdatum
+end_date = Geplande einddatum
+prepare_date = Geplande startdatum inclusief voorbereiden
+close_date = Einddatum inclusief be\xc3\xabindigen
+project_pass = Representatiepasnummer (Annuleren/wijzigen reservering)
+[whitelist]
+all = $GLOBAL_WHITELIST
+$PROJECT_KEY = $PROJECT_WHITELIST
+[blacklist]
+all = $GLOBAL_BLACKLIST
