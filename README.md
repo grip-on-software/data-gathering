@@ -24,11 +24,21 @@ gather Topdesk data, then run `pip install [--user] regex`.
 
 The usual pipeline setup runs the scripts in the following order:
 
+- `retrieve_importer.py`: Retrieve the Java-based importer application that is 
+  used to efficiently import the scraped data into the database.
+- `retrieve_metrics_repository.py`: Retrieve or update project definitions and 
+  other tools to parse the definitions from repositories.
+- `retrieve_update_trackers.py`: Retrieve update tracker files from a database 
+  that is already filled up to a certain period in time, such that the scraper 
+  can continue from the indicated checkpoints.
+- `retrieve_dropins.py`: Retrieve dropin files that may be provided for 
+  archived projects, containing already-scraped export data.
 - `project_sources.py`: Retrieve source data from project definitions, which is 
   then used for later version control gathering purposes.
 - `jira_to_json.py`: Retrieve issue changes and metadata from a JIRA instance.
-- `gitlab_sources.py`: Retrieve addition source data from a GitLab instance, 
-  based on the group in which the repositories live.
+- `environment_sources.py`: Retrieve additional source data from known version 
+  control systems, based on the group/namespace/collection in which the 
+  repositories that were found earlier live.
 - `git_to_json.py`: Retrieve version information from Git or Subversion 
   instances, possibly including additional information such as GitLab project 
   data (commit comments, merge requests).
@@ -36,3 +46,168 @@ The usual pipeline setup runs the scripts in the following order:
   for metrics during the project, or only output a reference to it.
 - `metric_options_to_json.py`: Retrieve changes to metric targets from 
   a Subversion repository holding the project definitions.
+
+These scripts are already streamlined in the `jenkins-scraper.sh` script 
+suitable for a Jenkins job, as well as in a number of Docker scripts explained 
+in the [Docker](#docker) section.
+
+Additionally `topdesk_to_json.py` can be manually run to retrieve reservation 
+data related to projects from a CSV dump.
+
+There are also a few tools for inspecting data or setting up sources:
+
+- `gitlab_events.py`: Create a dropin dump for events on a GitLab instance.
+- `hqlib_targets.py`: Extract default metric norms from the quality reporting 
+  library repository.
+- `init_gitlab.py`: Set up repositories for filtered or archived source code.
+- `retrieve_salts.py`: Retrieve project salts from the database.
+- `update_jira_mails.py`: Update email addresses in legacy dropin developer 
+  data from JIRA.
+
+All of these scripts and tools make use of the `gatherer` library, contained 
+within this repository, which supplies abstracted and standardized access and 
+data storage OOP classes with various functionality.
+
+Finally, this repository also contains agent-only tools, a controller API and 
+its backend daemons:
+
+- `bigboat_to_json.py` (agent): Request the status of a BigBoat dashboard and 
+  publish this data to the controller server.
+- `generate_key.py` (agent): Generate a public-private key pair and distribute 
+  the public part to supporting sources (GitLab) and the controller server, for 
+  registration purposes.
+- `controller/auth/`: API endpoints of the controller, at which agents can 
+  register themselves, pulish health status and logs, or indicate that they 
+  have exported their scraped data.
+- `controller/daemon.py`: Internal daemon for handling agent user creation and 
+  permissions of their files.
+- `daemon.py`: Internal daemon for providing update tracking and project salts 
+  for use by the agent.
+- `exporter/daemon.py` and `controller-export.sh`: Internal daemon for handling 
+  agent's collected data to import into the database.
+
+## Docker
+
+The data gathering scripts can be run on a centralized machine with the 
+appropriate setup (see [Installation](#installation)) or within one or more 
+Docker instances which collect (a part of) the data.
+
+First, you must have a (self-signed) SSL certificate for the controller server 
+which provides the API endpoints. Place the public certificate in the `certs/` 
+directory. Run `docker build -t ictu/gros-data-gathering .` to build the Docker 
+image. You may wish to use a registry URL in place of `ictu` and push the image 
+there for distributed deployments.
+
+Next, start the Docker instance based on the container. Use `docker run --name 
+data-gathering-agent -e VAR1=value1 -e VAR2=value2 [options]... 
+ictu/gros-data-gathering` to start the instance using environment variables to 
+set [configuration](#configuration). By default the Docker instance 
+periodically scrapes and it should be started in a daemonized for using the 
+option `-d`. You can put it in a 'Jenkins-style' run using the environment 
+variable `JENKINS_URL=value`. You can also enter the docker instance using 
+`docker exec data-gathering-agent su agent` and run any scripts there.
+
+## Configuration
+
+A number of configuration files are used to point the scraper to the correct 
+initial source locations and to apply it in a certain secured environment.
+
+Inspect the `settings.cfg.example` and `credentials.cfg.example` files. Both 
+files have sections, option names and values, and dollar signs indicate values 
+that should be filled in. For Docker builds, the dollar signs are environment 
+variables (passed with `-e`) that are filled in when starting the instance, as 
+explained in the Docker section. Many configuration values can also be supplied 
+through arguments to the relevant pipeline scripts as shown in their `--help` 
+output.
+
+- jira (used by `jira_to_json.py`): JIRA access settings.
+  - `server` (`$JIRA_SERVER`): Base URL of the JIRA server used by the 
+    projects.
+  - `username` (`$JIRA_USER`): Username to log in to JIRA with.
+  - `password` (`$JIRA_PASSWORD`): Password to log in to JIRA with.
+- definitions (used by `retrieve_metrics_repository.py` and 
+  `project_sources.py`): Project definitions source. The settings in this 
+  section may be customized per-project by suffixing the option name with 
+  a period and the JIRA key of the custom project.
+  - `source_type` (`$DEFINITIONS_TYPE`): Version control system used by the 
+    project definitions repository, e.g., 'subversion' or 'git'.
+  - `name` (`$DEFINITIONS_NAME`): The internal name of the repository.
+  - `url` (`$DEFINITONS_URL`): The HTTP(S) URL from which the repository can be 
+    accessed. GitLab URLs can be converted to SSH if the credentials require.
+  - `path` (`$DEFINITIONS_PATH`): The local directory to check out the 
+    repository to. May contain a formatter parameter `{}` which is replaced by 
+    the project's quality dashboard name.
+  - `base` (`$DEFINITIONS_BASE`): The name of the base library/path that is 
+    required to parse the project definitions correctly.
+  - `base_url` (`$DEFINITIONS_BASE_URL`): The HTTP(S) URL from which the 
+    repository containing the base library for parsing project definitions can 
+    be accessed. GitLab URLs can be converted to SSH.
+  - `required_paths` (`$DEFINITIONS_REQUIRED_PATHS`): If non-empty, paths to 
+    check out in a sparse checkout of the repository. For paths that do not 
+    contain a slash, the quality metrics name is always added to the sparse 
+    checkout.
+- history (used by `history_to_json.py`): Quality dashboard metrics history 
+  dump locations.  The settings in this section may be customized per-project 
+  by suffixing the option name with a period and the JIRA key of the custom 
+  project.
+  - `url` (`$HISTORY_URL`): The HTTP(S) URL from which the history dump can be 
+    accessed. The filename "history.json.gz" is automatically appended. For 
+    GitLab repositories, provide the repository URL containing the dump in the 
+    root directory or a subdirectory with the project's quality dashboard.
+  - `path` (`$HISTORY_PATH`): The local directory where the history dump file 
+    can be found or a GitLab repository containing the dump file should be 
+    checked out to. May contain a formatter parameter `{}` which is replaced by 
+    the project's quality dashboard name; otherwise it is appended 
+    automatically. The filename "history.json.gz" is automatically appended.
+- gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
+  repositories can be stored.
+  - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
+  - `token` (`$GITLAB_TOKEN`): API token to authenticate with.
+- dropins (used by `retrieve_dropins.py`): Storage instance where dropin files 
+  can be retrieved from.
+  - `type` (`$DROPINS_STORE`): Store type. The only supported type at this 
+    moment is 'owncloud', which must have a 'dropins' folder containing dropins 
+    further sorted per-project.
+  - `url` (`$DROPINS_URL`): Base URL of the data store.
+  - `username` (`$DROPINS_USER`): Username to log in to the data store.
+  - `password` (`$DROPINS_PASSWORD`): Password to log in to the data store.
+- database (used by `retrieve_update_trackers.py` and `retrieve_salts.py`): 
+  Credentials to access the MonetDB database with collected data.
+  - `username` (`$MONETDB_USER`): The username to authenticate to the database 
+    host with.
+  - `password` (`$MONETDB_PASSWORD`): The password of the user.
+  - `host` (`$MONETDB_HOST`): The hostname of the database.
+  - `name` (`$MONETDB_NAME`): The database name.
+- ssh (used by various agent scripts and `retrieve_update_trackers.py`): 
+  Configuration of the controller server.
+  - `username` (`$SSH_USERNAME`): SSH username to log in to the server for 
+    transferring files.
+  - `host` (`$SSH_HOST`): Hostname of the controller server, used for both SSH 
+    access and HTTPS API requests.
+  - `cert` (`$SSH_HTTPS_CERT`): Local path to the certificate to verify the 
+    server's certificate against.
+- importer (used by `retrieve_importer.py`): Location of the importer 
+  distribution.
+  - `url` (`$IMPORTER_URL`): HTTP(S) URL at which the distribution ZIP file can 
+    be accessed.
+- bigboat (used by `bigboat_to_json.py`): BigBoat dashboard to monitor with 
+  health checks.
+  - `host` (`$BIGBOAT_HOST`): Base URL of the BigBoat dashboard.
+  - `key` (`$BIGBOAT_KEY`): API key to use on the BigBoat dashboard.
+- jenkins (used by `exporter/daemon.py`): Jenkins instance where jobs can be 
+  started.
+  - `host` (`$JENKINS_HOST`): Base URL of the Jenkins instance.
+  - `scrape` (`$JENKINS_JOB`): Name of the parameterized Jenkins job to start 
+    a (partial) scrape.
+  - `crumb` (`$JENKINS_CRUMB`): Whether the Jenkins instance has CSRF 
+    protection and thus a crumb must be requested. Allowed values: yes, no.
+  - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
+    the Jenkins instance has authorization security. This token must be 
+    configured in the build job itself.
+- projects: A list of project JIRA keys and their long names in quality metrics 
+  dashboard and repositories. You may add any number of projects here; the 
+  pipeline can obtain project definitions only if they exist here.
+  - `$JIRA_KEY`: JIRA key of the project that the Docker instance scrapes.
+  - `$PROJECT_NAME`: Name of the scraped project in the quality dashboard.
+- subprojects: Subprojects and their main project.
+  - `$SUBPROJECT_KEY`: JIRA key of the subproject.
