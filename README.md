@@ -132,9 +132,9 @@ starting the instance, as explained in the [Docker](#docker) section. Many
 configuration values can also be supplied through arguments to the relevant 
 pipeline scripts as shown in their `--help` output.
 
-Some options may have their value set to a falsy value ('false', 'no', '-' or 
-the empty string) to disable a certain feature or to indicate that the setting 
-is not used in this environment.
+Some options may have their value set to a falsy value ('false', 'no', 'off', 
+'-', '0' or the empty string) to disable a certain feature or to indicate that 
+the setting is not used in this environment.
 
 - jira (used by `jira_to_json.py`): JIRA access settings.
   - `server` (`$JIRA_SERVER`): Base URL of the JIRA server used by the 
