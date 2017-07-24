@@ -28,7 +28,7 @@ except ImportError:
 
 from gatherer.config import Configuration
 from gatherer.domain import Project
-from gatherer.domain.source import GitLab
+from gatherer.domain.source import Source
 from gatherer.log import Log_Setup
 
 def parse_args():
@@ -175,7 +175,7 @@ def main():
             source = project.gitlab_source
         else:
             url = 'http://{}'.format(args.gitlab)
-            source = GitLab(url=url, name='GitLab', source_type='gitlab')
+            source = Source.from_type('gitlab', url=url, name='GitLab')
 
         try:
             update_gitlab_key(source, public_key)

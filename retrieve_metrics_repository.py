@@ -8,7 +8,7 @@ import logging
 import os
 import shutil
 from gatherer.domain import Project
-from gatherer.domain.source import Git
+from gatherer.domain.source.git import Git
 from gatherer.log import Log_Setup
 
 def parse_args():

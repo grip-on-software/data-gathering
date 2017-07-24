@@ -12,7 +12,8 @@ from builtins import object
 import json
 import os
 from ..config import Configuration
-from .source import Source, GitLab
+from .source import Source
+from .source.gitlab import GitLab
 
 class Sources(object):
     """

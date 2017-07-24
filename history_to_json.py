@@ -25,7 +25,8 @@ import shutil
 import requests
 from gatherer.config import Configuration
 from gatherer.domain import Project
-from gatherer.domain.source import Source, GitLab
+from gatherer.domain.source import Source
+from gatherer.domain.source.gitlab import GitLab
 from gatherer.log import Log_Setup
 from gatherer.utils import parse_date
 

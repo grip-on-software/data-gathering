@@ -9,16 +9,12 @@ except ImportError:
     raise
 
 from builtins import object
-import logging
 import os
-import re
 try:
     import urllib.parse
 except ImportError:
     raise
 from ...config import Configuration
-from ...git import Git_Repository, GitLab_Repository
-from ...git.tfs import TFS_Repository, TFS_Project
 
 class Source_Types(object):
     """
