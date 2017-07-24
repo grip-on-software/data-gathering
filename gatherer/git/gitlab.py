@@ -14,8 +14,6 @@ import json
 import logging
 import os
 import dateutil.tz
-import gitlab3
-from gitlab3.exceptions import GitLabException
 from .repo import Git_Repository
 from ..table import Table, Key_Table, Link_Table
 from ..utils import get_local_datetime, convert_local_datetime, format_date, \
@@ -283,14 +281,6 @@ class GitLab_Repository(Git_Repository):
             return True
 
         return False
-
-    @staticmethod
-    def _create_api(source):
-        try:
-            logging.info('Setting up API for %s', source.host)
-            return gitlab3.GitLab(source.host, source.gitlab_token)
-        except (AttributeError, GitLabException):
-            raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
 
     @property
     def api(self):
