@@ -13,6 +13,7 @@ import json
 import os
 from ..config import Configuration
 from .source import Source
+from .source.github import GitHub
 from .source.gitlab import GitLab
 
 class Sources(object):
@@ -123,6 +124,23 @@ class Project_Meta(object):
     def _init_settings(cls):
         cls._settings = Configuration.get_settings()
 
+    def get_key_setting(self, section, key, *format_values, **format_args):
+        """
+        Retrieve a setting from a configuration section `section`. The `key`
+        is used as the setting key.
+
+        If additional arguments are provided, then the returned value has its
+        placeholders ('{}' and the like) replaced with these positional
+        arguments and keyword arguments.
+        """
+
+        value = self.settings.get(section, key)
+
+        if format_values or format_args:
+            value = value.format(*format_values, **format_args)
+
+        return value
+
     @property
     def settings(self):
         """
@@ -150,6 +168,31 @@ class Project_Meta(object):
 
         return self._update_directory
 
+    def make_project_definitions(self, base=False, project_name=None):
+        """
+        Create a `Source` object for a repository containing project definitions
+        and metrics history, or other dependency files. If `base` is `True`,
+        then the base code source repository is provided. If `project_name` is
+        not `None`, then this is used for the quality metrics repository name.
+        At least one of the two arguments must be provided, otherwise this
+        method raises a `ValueError`.
+        """
+
+        if base:
+            repo_name = self.get_key_setting('definitions', 'base')
+            key = 'base_url'
+        elif project_name is not None:
+            repo_name = project_name
+            key = 'url'
+        else:
+            raise ValueError('One of base or project_name must be non-falsy')
+
+        source_type = self.get_key_setting('definitions', 'source_type')
+        name = self.get_key_setting('definitions', 'name')
+        url = self.get_key_setting('definitions', key, repo_name,
+                                   project=not base)
+        return Source.from_type(source_type, name=name, url=url)
+
 class Project(Project_Meta):
     """
     Object that holds information about a certain project.
@@ -173,6 +216,7 @@ class Project(Project_Meta):
         # definitions.
         self._project_name = self.get_group_setting('projects')
         self._main_project = self.get_group_setting('subprojects')
+        self._github_team = self.get_group_setting('teams')
 
         self._project_definitions = None
 
@@ -194,8 +238,8 @@ class Project(Project_Meta):
 
     def get_key_setting(self, section, key, *format_values, **format_args):
         """
-        Retrieve a setting from a configuration section `group`, using the `key`
-        as well as the project key, unless `project` is set to `False`.
+        Retrieve a setting from a configuration section `section`, using the
+        `key` as well as the project key, unless `project` is set to `False`.
         If a setting with a combined key that equals to the `key`, a period and
         the project key exists, then this setting's value is used, otherwise the
         `key` itself is used as the setting key.
@@ -208,14 +252,11 @@ class Project(Project_Meta):
         project_key = '{}.{}'.format(key, self.key)
         project = format_args.pop('project', True)
         if project and self.settings.has_option(section, project_key):
-            value = self.settings.get(section, project_key)
-        else:
-            value = self.settings.get(section, key)
+            key = project_key
 
-        if format_values or format_args:
-            value = value.format(*format_values, **format_args)
-
-        return value
+        return super(Project, self).get_key_setting(section, key,
+                                                    *format_values,
+                                                    **format_args)
 
     def add_source(self, source):
         """
@@ -325,6 +366,22 @@ class Project(Project_Meta):
         return self._project_key
 
     @property
+    def github_team(self):
+        """
+        Retrieve the slug of the GitHub team that manages the repositories for
+        this project.
+
+        If there are no GitHub sources for this project or no defined team,
+        then this property returns `None`.
+        """
+
+        source = self._find_source_type(GitHub)
+        if source is None:
+            return None
+
+        return self._github_team
+
+    @property
     def gitlab_group_name(self):
         """
         Retrieve the name used for a GitLab group that contains all repositories
@@ -350,8 +407,11 @@ class Project(Project_Meta):
         If there is no such source, then this property returns `None`.
         """
 
+        return self._find_source_type(GitLab)
+
+    def _find_source_type(self, source_type):
         for source in self.sources:
-            if isinstance(source, GitLab):
+            if isinstance(source, source_type):
                 return source
 
         return None
@@ -379,26 +439,6 @@ class Project(Project_Meta):
 
         return self._main_project
 
-    def make_project_definitions(self, base=False):
-        """
-        Create a `Source` object for a repository containing project definitions
-        and metrics history, or other dependency files. If `base` is `True`,
-        then the base code source repository is provided instead.
-        """
-
-        if base:
-            repo_name = self.get_key_setting('definitions', 'base')
-            key = 'base_url'
-        else:
-            repo_name = self.quality_metrics_name
-            key = 'url'
-
-        source_type = self.get_key_setting('definitions', 'source_type')
-        name = self.get_key_setting('definitions', 'name')
-        url = self.get_key_setting('definitions', key, repo_name,
-                                   project=not base)
-        return Source.from_type(source_type, name=name, url=url)
-
     @property
     def project_definitions_source(self):
         """
@@ -411,6 +451,8 @@ class Project(Project_Meta):
             return None
 
         if self._project_definitions is None:
-            self._project_definitions = self.make_project_definitions()
+            project = self.quality_metrics_name
+            self._project_definitions = \
+                self.make_project_definitions(project_name=project)
 
         return self._project_definitions

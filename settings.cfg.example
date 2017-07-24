@@ -44,3 +44,5 @@ token = $JENKINS_TOKEN
 $JIRA_KEY = $PROJECT_NAME
 [subprojects]
 $SUBPROJECT_KEY = $JIRA_KEY
+[teams]
+$JIRA_KEY = $TEAM_NAME

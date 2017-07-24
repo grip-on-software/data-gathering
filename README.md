@@ -227,6 +227,9 @@ the setting is not used in this environment.
   - `$PROJECT_NAME`: Name of the scraped project in the quality dashboard.
 - subprojects: Subprojects and their main project.
   - `$SUBPROJECT_KEY`: JIRA key of the subproject.
+- teams: GitHub teams and their main project.
+  - `$TEAM_NAME`: GitHub slug of the team that manages the repositories 
+    relevant to the project.
 
 The credentials file follows a similar section-option-value, but 
 `credentials.cfg.example` contains only one section whose name `$SOURCE_HOST` 
@@ -242,6 +245,11 @@ VCS hosts.
   system. For GitLab with SSH, this is 'git'.
 - `password` (`$SOURCE_PASSWORD`): Password to log in to the version control 
   system. Ignored if `env` is not a falsy value.
+- `github_api_url` (`$SOURCE_GITHUB_API`): URL to the GitHub API. This can 
+  usually be set to a falsy value, which falls back to the default GitHub API. 
+  You need to set this for GitHub Enterprise when hosted on a custom domain.
+- `github_token` (`$SOURCE_GITHUB_TOKEN`): API token for GitHub in order to 
+  obtain auxiliary data from GitHub.
 - `gitlab_token` (`$SOURCE_GITLAB_TOKEN`): API token for GitLab instances in 
   order to obtain auxiliary data from GitLab.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
