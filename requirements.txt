@@ -3,6 +3,7 @@
 jira
 # git_to_json.py
 gitpython
+PyGithub
 # history_to_json.py
 requests
 requests_ntlm
@@ -13,7 +14,7 @@ quality_report<=1.79.3; python_version < '3.0'
 quality_report>=1.80.0; python_version >= '3.0'
 -e git+https://github.com/dsoprea/PySvn.git@06de88419044f0241747f7259f440680992cfc22#egg=svn
 enum34; python_version < '3.4'
-# gitlab_to_json.py
+# init_gitlab.py
 -e git+http://github.com/lhelwerd/python-gitlab3.git@json-import#egg=gitlab3
 # bigboat_to_json.py
 bigboat
