@@ -248,7 +248,8 @@ class Git_Repository(Version_Control_Repository):
     def update(self, shallow=False):
         # Update the repository from the origin URL.
         if shallow:
-            self.repo.remotes.origin.fetch('master', depth=1)
+            self.repo.remotes.origin.fetch('master', depth=1,
+                                           progress=self._progress)
             self.repo.head.reset('origin/master', hard=True)
             self.repo.git.reflog(['expire', '--expire=now', '--all'])
             self.repo.git.gc(['--prune=now'])
