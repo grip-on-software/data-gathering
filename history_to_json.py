@@ -163,7 +163,7 @@ def check_gitlab_path(project, args, export_path):
                 logging.info('Making way to clone into %s', export_path)
                 shutil.rmtree(export_path)
         else:
-            paths = []
+            paths = None
             clone_path = export_path
 
         logging.info('Pulling quality metrics history repository to %s',
