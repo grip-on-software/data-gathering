@@ -18,10 +18,10 @@ except ImportError:
     raise
 import gitlab3
 from gitlab3.exceptions import GitLabException, ResourceNotFound
-from ..config import Configuration
-from ..svn import Subversion_Repository
-from ..git import Git_Repository, GitLab_Repository
-from ..git.tfs import TFS_Repository, TFS_Project
+from ...config import Configuration
+from ...svn import Subversion_Repository
+from ...git import Git_Repository, GitLab_Repository
+from ...git.tfs import TFS_Repository, TFS_Project
 
 class Source_Types(object):
     """
@@ -307,7 +307,7 @@ class Source(object):
 @Source_Types.register('subversion')
 class Subversion(Source):
     """
-    Subversion source information
+    Subversion source repository.
     """
 
     @property
@@ -325,7 +325,7 @@ class Subversion(Source):
 @Source_Types.register('git')
 class Git(Source):
     """
-    Git source information
+    Git source repository.
     """
 
     @property
@@ -377,7 +377,7 @@ class Git(Source):
                                          follow_host_change=follow_host_change))
 class GitLab(Git):
     """
-    GitLab source repository
+    GitLab source repository.
     """
 
     def __init__(self, *args, **kwargs):
@@ -393,7 +393,8 @@ class GitLab(Git):
     @classmethod
     def is_gitlab_url(cls, url, follow_host_change=True):
         """
-        Check whether a given URL is part of a GitLab instance.
+        Check whether a given URL is part of a GitLab instance for which we have
+        credentials.
         """
 
         parts = urllib.parse.urlsplit(url)
@@ -403,7 +404,8 @@ class GitLab(Git):
     @classmethod
     def is_gitlab_host(cls, host, follow_host_change=True):
         """
-        Check whether a given host (without scheme part) is a GitLab host.
+        Check whether a given host (without scheme part) is a GitLab host for
+        which we have credentials.
         """
 
         cls._init_credentials()
