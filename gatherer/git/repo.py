@@ -164,20 +164,26 @@ class Git_Repository(Version_Control_Repository):
         A value of `True` checks out the entire repository as on a normal clone
         or pull. If `checkout` receives a list, then the paths in this list
         are added to a sparse checkout, and updated from the remote.
+
+        Another optional keyword argument is `shallow`. If it is set to `True`,
+        then the local directory only contains the default branch's head commit
+        after cloning. Note that no precautions are made to prevent pulling in
+        more commits unless `shallow` is provided to each action.
         """
 
         checkout = kwargs.pop('checkout', False)
+        shallow = kwargs.pop('shallow', False)
         repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
             if not repository.is_empty():
                 if isinstance(checkout, list):
-                    repository.checkout_sparse(checkout)
+                    repository.checkout_sparse(checkout, shallow=shallow)
                 else:
-                    repository.update()
+                    repository.update(shallow=shallow)
         elif isinstance(checkout, bool):
-            repository.clone(checkout=checkout)
+            repository.clone(checkout=checkout, shallow=shallow)
         else:
-            repository.checkout(paths=checkout)
+            repository.checkout(paths=checkout, shallow=shallow)
 
         return repository
 
@@ -239,17 +245,23 @@ class Git_Repository(Version_Control_Repository):
 
         return not self.repo.branches
 
-    def update(self):
+    def update(self, shallow=False):
         # Update the repository from the origin URL.
-        self.repo.remotes.origin.pull('master', progress=self._progress)
+        if shallow:
+            self.repo.remotes.origin.fetch('master', depth=1)
+            self.repo.head.reset('origin/master', hard=True)
+            self.repo.git.reflog(['expire', '--expire=now', '--all'])
+            self.repo.git.gc(['--prune=now'])
+        else:
+            self.repo.remotes.origin.pull('master', progress=self._progress)
 
-    def checkout(self, paths=None):
-        self.clone(checkout=paths is None)
+    def checkout(self, paths=None, shallow=False):
+        self.clone(checkout=paths is None, shallow=shallow)
 
         if paths is not None:
-            self.checkout_sparse(paths)
+            self.checkout_sparse(paths, shallow=shallow)
 
-    def checkout_sparse(self, paths, remove=False):
+    def checkout_sparse(self, paths, remove=False, shallow=False):
         self.repo.config_writer().set_value('core', 'sparseCheckout', True)
         sparse = Sparse_Checkout_Paths(self.repo)
 
@@ -262,19 +274,23 @@ class Git_Repository(Version_Control_Repository):
         self.repo.git.read_tree(['-m', '-u', 'HEAD'])
 
         # Ensure repository is up to date.
-        self.update()
+        self.update(shallow=shallow)
 
-    def clone(self, checkout=True):
+    def clone(self, checkout=True, shallow=False):
         """
         Clone the repository, optionally according to a certain checkout
         scheme. If `checkout` is `False`, then do not check out the local files
         of the default branch (all repository actions still function).
+        If `shallow` is `True`, then only the default branch's head commit is
+        fetched. Note that not precautions are made to prevent pulling in more
+        commits later on unless `shallow` is used for all actions.
         """
 
         self.repo = Repo.clone_from(self.source.url, self.repo_directory,
                                     progress=self._progress,
                                     env=self.environment,
-                                    no_checkout=not checkout)
+                                    no_checkout=not checkout,
+                                    depth=1 if shallow else None)
 
     def _query(self, refspec, paths='', descending=True):
         return self.repo.iter_commits(refspec, paths=paths,

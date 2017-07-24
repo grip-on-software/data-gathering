@@ -165,17 +165,20 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError("Must be implemented by subclass")
 
-    def update(self):
+    def update(self, shallow=False):
         """
         Update the local state of the repository to its latest upstream state.
 
-        If the repository cannot be updated, for example if it has no prior local state, then
-        an exception may be raised.
+        If the repository cannot be updated, for example if it has no prior
+        local state, then an exception may be raised.
+
+        If `shallow` is `True`, then check out as few commits from the remote
+        repository as possible.
         """
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout(self, paths=None):
+    def checkout(self, paths=None, shallow=False):
         """
         Create a local state of the repository based on the current uptream
         state or a part of it.
@@ -185,11 +188,14 @@ class Version_Control_Repository(object):
         directory paths to check out in the repository local state. The local
         repository should either be a complete checkout or contain at least
         these path patterns.
+
+        If `shallow` is `True`, then check out as few commits from the remote
+        repository as possible.
         """
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout_sparse(self, paths, remove=False):
+    def checkout_sparse(self, paths, remove=False, shallow=False):
         """
         Update information and checked out files in the local state of the
         repository such that it also contains the given list of `paths`.
@@ -201,6 +207,9 @@ class Version_Control_Repository(object):
         state, they are removed from the local state if they existed.
         Additionally, the 'excluded' state of the specific paths may be tracked
         in the local state of the repository.
+
+        If `shallow` is `True`, then check out as few commits from the remote
+        repository as possible.
 
         If sparse checkouts are not supported, then this method simply updates
         the (entire) repository such that all paths are up to date.

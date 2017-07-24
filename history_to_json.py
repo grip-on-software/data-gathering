@@ -171,7 +171,8 @@ def check_gitlab_path(project, args, export_path):
         source = Source.from_type('gitlab', name='quality-report-history',
                                   url=gitlab_url)
         repo_class = source.repository_class
-        repo_class.from_source(source, export_path, checkout=paths)
+        repo_class.from_source(source, export_path, checkout=paths,
+                               shallow=True, progress=True)
         return clone_path
 
     return export_path

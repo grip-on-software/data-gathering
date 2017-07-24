@@ -87,14 +87,14 @@ class Subversion_Repository(Version_Control_Repository):
         else:
             return False
 
-    def update(self):
+    def update(self, shallow=False):
         # pylint: disable=no-member
         if not isinstance(self.repo, svn.local.LocalClient):
             raise TypeError('Repository has no local client, check out the repository first')
 
         self.repo.update()
 
-    def checkout(self, paths=None):
+    def checkout(self, paths=None, shallow=False):
         if not isinstance(self.repo, svn.remote.RemoteClient):
             raise TypeError('Repository is already local, update the repository instead')
 
@@ -112,7 +112,7 @@ class Subversion_Repository(Version_Control_Repository):
         if paths is not None:
             self.checkout_sparse(paths)
 
-    def checkout_sparse(self, paths, remove=False):
+    def checkout_sparse(self, paths, remove=False, shallow=False):
         if remove:
             depth = 'empty'
         else:
