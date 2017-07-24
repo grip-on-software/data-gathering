@@ -16,7 +16,7 @@ except ImportError:
 
 import gitlab3
 from gitlab3.exceptions import GitLabException, ResourceNotFound
-from . import Source, Source_Types
+from .types import Source, Source_Types
 from .git import Git
 from ...git.gitlab import GitLab_Repository
 

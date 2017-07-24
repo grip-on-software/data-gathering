@@ -3,7 +3,7 @@ Subversion source domain object.
 """
 
 import re
-from . import Source, Source_Types
+from .types import Source, Source_Types
 from ...svn import Subversion_Repository
 
 @Source_Types.register('subversion')

@@ -14,7 +14,7 @@ try:
 except ImportError:
     raise
 
-from . import Source, Source_Types
+from .types import Source, Source_Types
 from .git import Git
 from ...git.tfs import TFS_Repository, TFS_Project
 

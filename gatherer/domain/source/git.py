@@ -2,7 +2,7 @@
 Git source domain object.
 """
 
-from . import Source, Source_Types
+from .types import Source, Source_Types
 from ...git import Git_Repository
 
 @Source_Types.register('git')
