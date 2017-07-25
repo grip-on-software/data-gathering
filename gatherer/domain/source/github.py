@@ -18,7 +18,7 @@ import logging
 import github
 from .types import Source, Source_Types
 from .git import Git
-#from ...git.github import GitHub_Repository
+from ...git.github import GitHub_Repository
 
 @Source_Types.register('github')
 @Source_Types.register('git',
@@ -34,6 +34,7 @@ class GitHub(Git):
         self._github_api = None
         self._github_api_url = github.MainClass.DEFAULT_BASE_URL
         self._github_owner = None
+        self._github_repo = None
         self._github_team = kwargs.pop('github_team', None)
 
         super(GitHub, self).__init__(*args, **kwargs)
@@ -80,7 +81,7 @@ class GitHub(Git):
 
     @property
     def repository_class(self):
-        return None#return GitHub_Repository
+        return GitHub_Repository
 
     @property
     def environment(self):
@@ -110,6 +111,18 @@ class GitHub(Git):
         """
 
         return self._github_team
+
+    @property
+    def github_repo(self):
+        """
+        Retrieve the repository information from the GitHub API for this
+        source's repository.
+        """
+
+        if self._github_repo is None:
+            self._github_repo = self.github_api.get_repo(self.path_name)
+
+        return self._github_repo
 
     @property
     def github_api(self):
@@ -146,7 +159,8 @@ class GitHub(Git):
             source = Source.from_type('github',
                                       name=repo.name,
                                       url=repo.clone_url,
-                                      github_team=self._github_team)
+                                      github_team=self._github_team,
+                                      github_repo=repo)
             sources.append(source)
 
         return sources
