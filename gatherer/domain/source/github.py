@@ -34,7 +34,7 @@ class GitHub(Git):
         self._github_api = None
         self._github_api_url = github.MainClass.DEFAULT_BASE_URL
         self._github_owner = None
-        self._github_repo = None
+        self._github_repo = kwargs.pop('github_repo', None)
         self._github_team = kwargs.pop('github_team', None)
 
         super(GitHub, self).__init__(*args, **kwargs)
