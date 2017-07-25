@@ -3,6 +3,13 @@ Module that handles access to a Team Foundation Server-based repository,
 augmenting the usual repository version information such as pull requests.
 """
 
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
+from builtins import str
 import datetime
 import re
 import dateutil.tz
@@ -307,7 +314,7 @@ class TFS_Repository(Git_Repository):
     def add_pull_request(self, repository_id, pull_request):
         """
         Add a pull request described by its TFS API response object to the
-        pull requests table.
+        merge requests table.
         """
 
         request_id = str(pull_request['pullRequestId'])
@@ -375,7 +382,7 @@ class TFS_Repository(Git_Repository):
     def add_review(self, request_id, reviewer):
         """
         Add a pull request review described by its TFS API response object to
-        the pull request reviews table.
+        the merge request reviews table.
         """
 
         # Ignore project team container accounts (aggregate votes)
@@ -391,7 +398,7 @@ class TFS_Repository(Git_Repository):
     def add_comment(self, request_id, thread):
         """
         Add a pull request code review comment described by its TFS API
-        response object to the pull request notes table.
+        response object to the merge request notes table.
         """
 
         properties = thread['properties']
@@ -475,7 +482,7 @@ class TFS_Repository(Git_Repository):
 
     def add_event(self, event):
         """
-        Add a push event from the TFS API.
+        Add a push event from the TFS API to the VCS events table.
         """
 
         # Ignore incomplete/group/automated accounts
