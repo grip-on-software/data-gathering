@@ -13,11 +13,11 @@ from builtins import str
 import json
 import logging
 import os
-import dateutil.tz
 from .repo import Git_Repository
-from ..table import Table, Key_Table, Link_Table
-from ..utils import get_local_datetime, convert_local_datetime, format_date, \
-    parse_date, parse_unicode
+from ..table import Table, Key_Table
+from ..utils import convert_local_datetime, format_date, parse_date, \
+    parse_unicode
+from ..version_control.review import Review_System
 
 class GitLab_Dropins_Parser(object):
     """
@@ -180,15 +180,10 @@ class GitLab_Events_Dropins_Parser(GitLab_Combined_Dropins_Parser):
             event = api.Project.Event(api, json_data=event_data)
             self.repo.add_event(event)
 
-class GitLab_Repository(Git_Repository):
+class GitLab_Repository(Git_Repository, Review_System):
     """
     Git repository hosted by a GitLab instance.
     """
-
-    # Timestamp to use as a default, when no timestamp is known, in contexts
-    # where we wish to compare against other timestamps and have the other
-    # timestamp win the comparison. This must still be a valid date.
-    NULL_TIMESTAMP = "0001-01-01 01:01:01"
 
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(GitLab_Repository, self).__init__(source, repo_directory,
@@ -200,28 +195,23 @@ class GitLab_Repository(Git_Repository):
         else:
             self._has_commit_comments = True
 
-        author_fields = ('author', 'author_username')
-        assignee_fields = ('assignee', 'assignee_username')
-        tables = {
-            "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
-            "merge_request": Key_Table('merge_request', 'id',
-                                       encrypted_fields=author_fields + assignee_fields),
-            "merge_request_note": Link_Table('merge_request_note',
-                                             ('merge_request_id', 'note_id'),
-                                             encrypted_fields=author_fields),
-            "commit_comment": Table('commit_comment',
-                                    encrypted_fields=author_fields),
-            "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
-        }
-        self._tables.update(tables)
         # List of dropin files that contain table data for GitLab only.
         self._table_dropin_files = tuple([
-            'data_{}.json'.format(table) for table in tables
+            'data_{}.json'.format(table) for table in self.review_tables
         ])
 
-        self._update_trackers["gitlab_update"] = self.NULL_TIMESTAMP
-        self._previous_date = None
-        self._latest_date = None
+    @property
+    def review_tables(self):
+        review_tables = super(GitLab_Repository, self).review_tables
+        review_tables.update({
+            "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
+            "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
+        })
+        return review_tables
+
+    @property
+    def update_tracker_name(self):
+        return "gitlab_update"
 
     def _check_dropin_files(self, project=None):
         if project is None:
@@ -304,25 +294,6 @@ class GitLab_Repository(Git_Repository):
                 raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
 
         return self._repo_project
-
-    def set_update_tracker(self, file_name, value):
-        super(GitLab_Repository, self).set_update_tracker(file_name, value)
-        self._previous_date = None
-        self._latest_date = None
-
-    def _is_newer(self, date):
-        if self._previous_date is None:
-            self._previous_date = get_local_datetime(self._update_trackers['gitlab_update'])
-            self._latest_date = self._previous_date
-
-        if date.tzinfo is None:
-            date = date.replace(tzinfo=dateutil.tz.tzutc())
-
-        if date > self._previous_date:
-            self._latest_date = max(date, self._latest_date)
-            return True
-
-        return False
 
     def get_data(self, from_revision=None, to_revision=None, **kwargs):
         # Check if we can retrieve the data from legacy dropin files.

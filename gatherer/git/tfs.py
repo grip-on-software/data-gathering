@@ -17,9 +17,10 @@ from git import Commit
 import requests
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
-from ..table import Table, Key_Table, Link_Table
-from ..utils import get_local_datetime, convert_local_datetime, format_date, \
-    parse_date, parse_unicode, Iterator_Limiter
+from ..table import Table, Link_Table
+from ..utils import convert_local_datetime, format_date, parse_date, \
+    parse_unicode, Iterator_Limiter
+from ..version_control.review import Review_System
 
 class TFS_Project(object):
     """
@@ -201,7 +202,7 @@ class TFS_Project(object):
                              api_version='3.0-preview.1', artifactUri=artifact)
         return comments['value']
 
-class TFS_Repository(Git_Repository):
+class TFS_Repository(Git_Repository, Review_System):
     """
     Git repository hosted by a TFS server.
     """
@@ -209,36 +210,34 @@ class TFS_Repository(Git_Repository):
     # Key prefix to use to retrieve certain commit comment properties.
     PROPERTY = 'Microsoft.TeamFoundation.Discussion'
 
-    # Timestamp to use as a default for the update tracker. This timestamp
-    # must be within the valid range of TFS DateTime fields, which must not
-    # be earlier than the year 1753 due to the Gregorian calendar.
-    TFS_NULL_TIMESTAMP = "1900-01-01 01:01:01"
-
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(TFS_Repository, self).__init__(source, repo_directory,
                                              project=project, **kwargs)
 
         self._project_id = None
 
-        author_fields = ('author', 'author_username')
-        review_fields = ('reviewer', 'reviewer_username')
-        self._tables.update({
-            "merge_request": Key_Table('merge_request', 'id',
-                                       encrypted_fields=author_fields),
-            "merge_request_note": Link_Table('merge_request_note',
-                                             ('merge_request_id', 'note_id'),
-                                             encrypted_fields=author_fields),
-            "commit_comment": Table('commit_comment',
-                                    encrypted_fields=author_fields),
+    @property
+    def review_tables(self):
+        review_tables = super(TFS_Repository, self).review_tables
+        review_fields = self.build_user_fields('reviewer')
+        review_tables.update({
             "merge_request_review": Link_Table('merge_request_review',
                                                ('merge_request_id', 'reviewer'),
                                                encrypted_fields=review_fields),
             "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
         })
+        return review_tables
 
-        self._update_trackers["tfs_update"] = self.TFS_NULL_TIMESTAMP
-        self._previous_date = None
-        self._latest_date = None
+    @property
+    def update_tracker_name(self):
+        return "tfs_update"
+
+    @property
+    def null_timestamp(self):
+        # Timestamp to use as a default for the update tracker. This timestamp
+        # must be within the valid range of TFS DateTime fields, which must not
+        # be earlier than the year 1753 due to the Gregorian calendar.
+        return "1900-01-01 01:01:01"
 
     @property
     def api(self):
@@ -259,23 +258,6 @@ class TFS_Repository(Git_Repository):
             self._project_id = self.api.get_project_id(self._source.tfs_repo)
 
         return self._project_id
-
-    def set_update_tracker(self, file_name, value):
-        super(TFS_Repository, self).set_update_tracker(file_name, value)
-        self._previous_date = None
-        self._latest_date = None
-
-    def _is_newer(self, date):
-        date = self._parse_date(date)
-        if self._previous_date is None:
-            self._previous_date = get_local_datetime(self._update_trackers['tfs_update'])
-            self._latest_date = self._previous_date
-
-        if date > self._previous_date:
-            self._latest_date = max(date, self._latest_date)
-            return True
-
-        return False
 
     @staticmethod
     def _parse_date(date):
