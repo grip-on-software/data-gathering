@@ -20,8 +20,8 @@ class GitHub_Repository(Git_Repository, Review_System):
     Git repository hosted by GitHub.
     """
 
-    REVIEW_UPVOTE = 'APPROVED'
-    REVIEW_DOWNVOTE = 'CHANGES_REQUESTED'
+    UPVOTE = 'APPROVED'
+    DOWNVOTE = 'CHANGES_REQUESTED'
 
     @property
     def review_tables(self):
