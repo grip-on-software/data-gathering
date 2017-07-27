@@ -61,7 +61,6 @@ class GitHub(Git):
 
     @classmethod
     def _has_github_token(cls, host):
-        logging.info('Host: %s', host)
         return cls.has_option(host, 'github_token')
 
     def _update_credentials(self):
