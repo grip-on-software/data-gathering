@@ -53,7 +53,7 @@ class Review_System(Version_Control_Repository):
         if date.tzinfo is None:
             date = date.replace(tzinfo=dateutil.tz.tzutc())
 
-        if date > self._previous_date:
+        if date > self.tracker_date:
             self._latest_date = max(date, self._latest_date)
             return True
 
