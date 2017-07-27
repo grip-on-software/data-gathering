@@ -10,6 +10,7 @@ except ImportError:
     raise
 
 from builtins import str
+import re
 from .repo import Git_Repository
 from ..table import Key_Table, Link_Table
 from ..utils import format_date, parse_unicode, convert_utc_datetime
@@ -47,6 +48,14 @@ class GitHub_Repository(Git_Repository, Review_System):
         return "github_update"
 
     @property
+    def null_timestamp(self):
+        # The datetime strftime() methods require year >= 1900.
+        # This is used in get_data to retrieve API data since a given date.
+        # All API responses have updated dates that stem from GitHub itself
+        # and can thus not be earlier than GitHub's foundation.
+        return "1900-01-01 01:01:01"
+
+    @property
     def api(self):
         """
         Retrieve an instance of the GitHub API connection for this source.
@@ -70,8 +79,7 @@ class GitHub_Repository(Git_Repository, Review_System):
                 for review in reviews:
                     self.add_review(review, pull_request.number)
 
-        since = format_date(convert_utc_datetime(self.tracker_date),
-                            '%Y-%m-%dT%H:%M:%SZ')
+        since = convert_utc_datetime(self.tracker_date)
         for issue in self._source.github_repo.get_issues(since=since):
             newer = self.add_issue(issue)
             if newer:
@@ -249,6 +257,25 @@ class GitHub_Repository(Git_Repository, Review_System):
         else:
             position = str(comment.position)
 
+        if comment.diff_hunk is not None and comment.diff_hunk.startswith('@@'):
+            lines = comment.diff_hunk.split('\n')
+            match = re.match(r'@@ -(\d+),(\d+) \+(\d+),(\d+) @@', lines[0])
+            if match:
+                line = int(match.group(3))
+            else:
+                line = 0
+
+            end_line = line + position
+            if lines[position].startswith('-'):
+                line_type = 'old'
+            elif lines[position].startswith('+'):
+                line_type = 'new'
+            else:
+                line_type = 'context'
+        else:
+            line = position
+            end_line = position
+
         note.update({
             'thread_id': str(0),
             'parent_id': str(0),
@@ -256,9 +283,9 @@ class GitHub_Repository(Git_Repository, Review_System):
             'created_date': note['created_at'],
             'updated_date': note['updated_at'],
             'file': comment.path,
-            'line': position,
-            'end_line': position,
-            'line_type': str(0),
+            'line': line,
+            'end_line': end_line,
+            'line_type': line_type,
             'commit_id': comment.commit_id
         })
         del note['created_at']
