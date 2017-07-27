@@ -287,11 +287,16 @@ class Git_Repository(Version_Control_Repository):
         commits later on unless `shallow` is used for all actions.
         """
 
+        kwargs = {
+            "no_checkout": not checkout
+        }
+        if shallow:
+            kwargs["depth"] = 1
+
         self.repo = Repo.clone_from(self.source.url, self.repo_directory,
                                     progress=self._progress,
                                     env=self.environment,
-                                    no_checkout=not checkout,
-                                    depth=1 if shallow else None)
+                                    **kwargs)
 
     def _query(self, refspec, paths='', descending=True):
         return self.repo.iter_commits(refspec, paths=paths,
