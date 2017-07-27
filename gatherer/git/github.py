@@ -194,11 +194,16 @@ class GitHub_Repository(Git_Repository, Review_System):
             if match:
                 pull_request_id = int(match.group(1))
 
+        if issue.closed_at is not None:
+            closed_date = format_date(issue.closed_at)
+        else:
+            closed_date = str(0)
+
         issue_row = self._format_issue(issue)
         issue_row.update({
             'pull_request_id': str(pull_request_id),
             'labels': len(issue.labels),
-            'closed_at': format_date(issue.closed_at),
+            'closed_at': closed_date,
             'closed_by': self._get_username(issue.closed_by)
         })
         self._tables["github_issue"].append(issue_row)
