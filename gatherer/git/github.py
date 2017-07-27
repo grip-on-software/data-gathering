@@ -35,7 +35,7 @@ class GitHub_Repository(Git_Repository, Review_System):
             "merge_request_review": Link_Table('merge_request_review',
                                                ('merge_request_id', 'reviewer'),
                                                encrypted_fields=reviewer),
-            "github_issue": Key_Table('github_issue', 'issue_id',
+            "github_issue": Key_Table('github_issue', 'id',
                                       encrypted_fields=author + assignee),
             "github_issue_note": Link_Table('github_issue_note',
                                             ('issue_id', 'note_id'),
@@ -133,7 +133,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         assignee_username = self._get_username(issue.assignee)
         return {
             'repo_name': str(self._repo_name),
-            'issue_id': str(issue.number),
+            'id': str(issue.number),
             'title': parse_unicode(issue.title),
             'description': parse_unicode(issue.body),
             'status': issue.state,
@@ -163,6 +163,9 @@ class GitHub_Repository(Git_Repository, Review_System):
         ])
 
         request = self._format_issue(pull_request)
+        if request['status'] == 'closed' and pull_request.merged:
+            request['status'] = 'merged'
+
         request.update({
             'source_branch': pull_request.head.ref,
             'target_branch': pull_request.base.ref,
@@ -183,8 +186,17 @@ class GitHub_Repository(Git_Repository, Review_System):
         if not self._is_newer(issue.updated_at):
             return False
 
+        pull_request_id = 0
+        if issue.pull_request is not None:
+            pulls_url = re.sub('{/[^}]+}', r'/(\d+)',
+                               self._source.github_repo.pulls_url)
+            match = re.match(pulls_url, issue.pull_request.raw_data['url'])
+            if match:
+                pull_request_id = int(match.group(1))
+
         issue_row = self._format_issue(issue)
         issue_row.update({
+            'pull_request_id': str(pull_request_id),
             'labels': len(issue.labels),
             'closed_at': format_date(issue.closed_at),
             'closed_by': self._get_username(issue.closed_by)
@@ -254,9 +266,9 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         note = self._format_note(comment)
         if comment.position is None:
-            position = str(comment.original_position)
+            position = comment.original_position
         else:
-            position = str(comment.position)
+            position = comment.position
 
         if comment.diff_hunk is not None and comment.diff_hunk.startswith('@@'):
             lines = comment.diff_hunk.split('\n')
@@ -284,8 +296,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             'created_date': note['created_at'],
             'updated_date': note['updated_at'],
             'file': comment.path,
-            'line': line,
-            'end_line': end_line,
+            'line': str(line),
+            'end_line': str(end_line),
             'line_type': line_type,
             'commit_id': comment.commit_id
         })
