@@ -169,6 +169,9 @@ class GitHub_Repository(Git_Repository, Review_System):
         the update tracker date.
         """
 
+        if not self._is_newer(issue.updated_at):
+            return False
+
         issue_row = self._format_issue(issue)
         issue_row.update({
             'labels': len(issue.labels),
@@ -176,6 +179,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             'closed_by': self._get_username(issue.closed_by)
         })
         self._tables["github_issue"].append(issue_row)
+
+        return True
 
     def _format_note(self, comment):
         author = self._get_username(comment.user)
