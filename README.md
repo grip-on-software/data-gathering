@@ -235,7 +235,8 @@ The credentials file follows a similar section-option-value, but
 `credentials.cfg.example` contains only one section whose name `$SOURCE_HOST` 
 is to be replaced by the hostname of a version control system that requires 
 authentication. Additional sections may be added if the project(s) have more 
-VCS hosts.
+VCS hosts. All options may be set to falsy values, e.g., to perform 
+unauthenticated access to to disable access to the service completely.
 
 - `env` (`$SOURCE_CREDENTIALS_ENV`): Name of the environment variable that 
   contains the path to the SSH identity file. This option is only used by Git. 

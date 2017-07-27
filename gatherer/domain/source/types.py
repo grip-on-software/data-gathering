@@ -133,7 +133,7 @@ class Source(object):
                 credentials_env = self._credentials.get(host, 'env')
                 self._credentials_path = os.getenv(credentials_env)
                 self._url = str(username + '@' + host + ':' + orig_parts.path)
-            else:
+            elif self.has_option(host, 'password'):
                 password = self._credentials.get(host, 'password')
 
                 auth = '{0}:{1}'.format(username, password)
