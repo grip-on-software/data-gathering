@@ -197,18 +197,28 @@ class GitHub_Repository(Git_Repository, Review_System):
     def add_issue_comment(self, comment, issue_id):
         """
         Add an issue comment described by its GitHub API response object to the
-        issue notes table.
+        issue notes table. Returns whether the issue comment is updated more
+        recently than the update tracker date.
         """
+
+        if not self._is_newer(comment.updated_at):
+            return False
 
         note = self._format_note(comment)
         note['issue_id'] = issue_id
         self._tables["github_issue_note"].append(note)
 
+        return True
+
     def add_pull_comment(self, comment, request_id):
         """
         Add a normal pull request comment described by its GitHub API response
-        object to the repo merge request notes table.
+        object to the repo merge request notes table. Returns whether the pull
+        request comment is updated more recently than the update tracker date.
         """
+
+        if not self._is_newer(comment.updated_at):
+            return False
 
         note = self._format_note(comment)
         note.update({
@@ -219,11 +229,17 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         self._tables["merge_request_note"].append(note)
 
+        return True
+
     def add_commit_comment(self, comment, request_id=0):
         """
         Add a commit comment or pull request review comment described by its
-        GitHub API response object to the commit comments table.
+        GitHub API response object to the commit comments table. Returns
+        whether the issue is updated more recently than the update tracker date.
         """
+
+        if not self._is_newer(comment.updated_at):
+            return False
 
         note = self._format_note(comment)
         if comment.position is None:
@@ -247,6 +263,8 @@ class GitHub_Repository(Git_Repository, Review_System):
         del note['updated_at']
 
         self._tables["commit_comment"].append(note)
+
+        return True
 
     def add_review(self, review, request_id):
         """
