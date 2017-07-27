@@ -120,7 +120,8 @@ class GitHub(Git):
         """
 
         if self._github_repo is None:
-            self._github_repo = self.github_api.get_repo(self.path_name)
+            full_path = '{}/{}'.format(self._github_owner, self.path_name)
+            self._github_repo = self.github_api.get_repo(full_path)
 
         return self._github_repo
 
