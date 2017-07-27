@@ -12,7 +12,7 @@ except ImportError:
 from builtins import str
 from .repo import Git_Repository
 from ..table import Key_Table, Link_Table
-from ..utils import format_date, parse_unicode
+from ..utils import format_date, parse_unicode, convert_utc_datetime
 from ..version_control.review import Review_System
 
 class GitHub_Repository(Git_Repository, Review_System):
@@ -70,10 +70,12 @@ class GitHub_Repository(Git_Repository, Review_System):
                 for review in reviews:
                     self.add_review(review, pull_request.number)
 
-        for issue in self._source.github_repo.get_issues():
+        since = format_date(convert_utc_datetime(self.tracker_date),
+                            '%Y-%m-%dT%H:%M:%SZ')
+        for issue in self._source.github_repo.get_issues(since=since):
             newer = self.add_issue(issue)
             if newer:
-                for issue_comment in issue.get_comments():
+                for issue_comment in issue.get_comments(since=since):
                     self.add_issue_comment(issue_comment, issue.number)
 
         return versions

@@ -26,19 +26,29 @@ class Review_System(Version_Control_Repository):
         self._tables.update(self.review_tables)
 
         self._update_trackers[self.update_tracker_name] = self.null_timestamp
-        self._previous_date = None
+        self._tracker_date = None
         self._latest_date = None
 
     def set_update_tracker(self, file_name, value):
         super(Review_System, self).set_update_tracker(file_name, value)
-        self._previous_date = None
+        self._tracker_date = None
         self._latest_date = None
 
-    def _is_newer(self, date):
-        if self._previous_date is None:
+    @property
+    def tracker_date(self):
+        """
+        Retrieve the update tracker's timestamp as a datetime object.
+        """
+
+        if self._tracker_date is None:
             update_tracker = self._update_trackers[self.update_tracker_name]
-            self._previous_date = get_local_datetime(update_tracker)
-            self._latest_date = self._previous_date
+            self._tracker_date = get_local_datetime(update_tracker)
+
+        return self._tracker_date
+
+    def _is_newer(self, date):
+        if self._latest_date is None:
+            self._latest_date = self.tracker_date
 
         if date.tzinfo is None:
             date = date.replace(tzinfo=dateutil.tz.tzutc())
@@ -78,7 +88,6 @@ class Review_System(Version_Control_Repository):
                                              encrypted_fields=author),
             "commit_comment": Table('commit_comment', encrypted_fields=author)
         }
-
 
     @property
     def update_tracker_name(self):

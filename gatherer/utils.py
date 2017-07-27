@@ -184,6 +184,13 @@ def convert_local_datetime(date):
 
     return date.astimezone(dateutil.tz.tzlocal())
 
+def convert_utc_datetime(date):
+    """
+    Convert a datetime object `date` to one that is in the UTC timezone.
+    """
+
+    return date.astimezone(dateutil.tz.tzutc())
+
 def format_date(date, date_format='%Y-%m-%d %H:%M:%S'):
     """
     Format a datetime object in a standard YYYY-MM-DD HH:MM:SS format or
