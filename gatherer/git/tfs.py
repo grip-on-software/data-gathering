@@ -18,7 +18,7 @@ import requests
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..table import Table, Link_Table
-from ..utils import parse_date, parse_unicode, Iterator_Limiter
+from ..utils import format_date, parse_unicode, Iterator_Limiter
 from ..version_control.review import Review_System
 
 class TFS_Project(object):
@@ -309,13 +309,14 @@ class TFS_Repository(Git_Repository, Review_System):
         upvotes = len([1 for reviewer in reviewers if reviewer['vote'] > 0])
         downvotes = len([1 for reviewer in reviewers if reviewer['vote'] < 0])
 
+        created_date = self._parse_date(pull_request['creationDate'])
         if 'closedDate' in pull_request:
-            updated_date = pull_request['closedDate']
+            updated_date = self._parse_date(pull_request['closedDate'])
 
             if not self._is_newer(updated_date):
                 return
         else:
-            updated_date = pull_request['creationDate']
+            updated_date = created_date
 
         if 'description' in pull_request:
             description = pull_request['description']
@@ -336,8 +337,8 @@ class TFS_Repository(Git_Repository, Review_System):
             'assignee_username': str(0),
             'upvotes': str(upvotes),
             'downvotes': str(downvotes),
-            'created_at': parse_date(pull_request['creationDate']),
-            'updated_at': parse_date(updated_date)
+            'created_at': format_date(created_date),
+            'updated_at': format_date(updated_date)
         })
 
         for reviewer in reviewers:
@@ -391,7 +392,10 @@ class TFS_Repository(Git_Repository, Review_System):
                 continue
             if comment['isDeleted']:
                 continue
-            if not self._is_newer(comment['lastUpdatedDate']):
+
+            created_date = self._parse_date(comment['publishedDate'])
+            updated_date = self._parse_date(comment['lastUpdatedDate'])
+            if not self._is_newer(updated_date):
                 continue
 
             if 'authorDisplayName' in comment:
@@ -410,8 +414,8 @@ class TFS_Repository(Git_Repository, Review_System):
                 'author': parse_unicode(display_name),
                 'author_username': parse_unicode(unique_name),
                 'comment': parse_unicode(comment['content']),
-                'created_at': parse_date(comment['publishedDate']),
-                'updated_at': parse_date(comment['lastUpdatedDate'])
+                'created_at': format_date(created_date),
+                'updated_at': format_date(updated_date)
             }
 
             # Determine whether to add as commit comment or request note
@@ -468,7 +472,8 @@ class TFS_Repository(Git_Repository, Review_System):
         if event['pushedBy']['uniqueName'].startswith('vstfs:///'):
             return
 
-        if not self._is_newer(event['date']):
+        event_date = self._parse_date(event['date'])
+        if not self._is_newer(event_date):
             return
 
         for ref_update in event['refUpdates']:
@@ -495,5 +500,5 @@ class TFS_Repository(Git_Repository, Review_System):
                 'ref': ref_name,
                 'user': parse_unicode(event['pushedBy']['uniqueName']),
                 'user_name': parse_unicode(event['pushedBy']['displayName']),
-                'date': parse_date(event['date'])
+                'date': format_date(event_date)
             })
