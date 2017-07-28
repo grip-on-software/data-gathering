@@ -65,7 +65,7 @@ def update_controller(host, project, cert):
     url = 'https://{}/auth/export.py?project={}'.format(host, project.jira_key)
     request = requests.post(url, verify=cert)
 
-    if request.status_code != requests.codes['ok']:
+    if request.status_code != requests.codes['accepted']:
         raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
 
 def main():
