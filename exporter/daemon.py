@@ -59,7 +59,7 @@ class Exporter(object):
         payload = {
             "parameter": [
                 {"name": "listOfProjects", "value": project_key},
-                {"name": "importerTasks", "valie": "all,developerlink,-vcs"},
+                {"name": "importerTasks", "value": "all,developerlink,-vcs"},
                 {"name": "logLevel", "value": "INFO"},
                 {"name": "cleanupRepos", "value": "true"},
                 {"name": "gathererScripts", "value": " ".join(scripts)}
