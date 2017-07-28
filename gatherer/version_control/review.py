@@ -6,7 +6,7 @@ the repository itself.
 
 import dateutil.tz
 from ..table import Table, Key_Table, Link_Table
-from ..utils import get_local_datetime
+from ..utils import convert_local_datetime, format_date, get_local_datetime
 from ..version_control.repo import Version_Control_Repository
 
 class Review_System(Version_Control_Repository):
@@ -33,6 +33,15 @@ class Review_System(Version_Control_Repository):
         super(Review_System, self).set_update_tracker(file_name, value)
         self._tracker_date = None
         self._latest_date = None
+
+    def set_latest_date(self):
+        """
+        Alter the update tracker to match the latest date found.
+        """
+
+        if self._latest_date is not None:
+            latest_date = format_date(convert_local_datetime(self._latest_date))
+            self._update_trackers[self.update_tracker_name] = latest_date
 
     @property
     def tracker_date(self):

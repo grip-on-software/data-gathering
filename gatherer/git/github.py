@@ -87,6 +87,8 @@ class GitHub_Repository(Git_Repository, Review_System):
                 for issue_comment in issue.get_comments(since=since):
                     self.add_issue_comment(issue_comment, issue.number)
 
+        self.set_latest_date()
+
         return versions
 
     def fill_repo_table(self, repo):

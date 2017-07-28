@@ -315,9 +315,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                     for note in merge_request.notes():
                         self.add_note(note, merge_request.id)
 
-        if self._latest_date is not None:
-            latest_date = format_date(convert_local_datetime(self._latest_date))
-            self._update_trackers['gitlab_update'] = latest_date
+        self.set_latest_date()
 
         return versions
 

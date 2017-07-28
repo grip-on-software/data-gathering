@@ -18,8 +18,7 @@ import requests
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..table import Table, Link_Table
-from ..utils import convert_local_datetime, format_date, parse_date, \
-    parse_unicode, Iterator_Limiter
+from ..utils import parse_date, parse_unicode, Iterator_Limiter
 from ..version_control.review import Review_System
 
 class TFS_Project(object):
@@ -287,9 +286,7 @@ class TFS_Repository(Git_Repository, Review_System):
         for pull_request in self.api.pull_requests(repository_id):
             self.add_pull_request(repository_id, pull_request)
 
-        if self._latest_date is not None:
-            latest_date = format_date(convert_local_datetime(self._latest_date))
-            self._update_trackers['tfs_update'] = latest_date
+        self.set_latest_date()
 
         return versions
 
