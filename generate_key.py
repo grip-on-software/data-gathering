@@ -48,8 +48,12 @@ def parse_args():
                         help='Do not distribute key to controller API host')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
-    parser.add_argument('--gitlab', nargs='*', const=True,
+    parser.add_argument('--gitlab', nargs='*',
                         help='GitLab host(s) to distribute key to')
+    parser.add_argument('--no-gitlab', dest='gitlab', action='store_false',
+                        help='Do not distribute key to GitLab host(s)')
+    parser.add_argument('--dry-run', dest='dry_run', action='store_true',
+                        default=False, help='Only show what would be affected')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -122,7 +126,7 @@ def update_controller_key(host, project, cert, public_key):
 
     export_secrets(response)
 
-def update_gitlab_key(project, source, public_key):
+def update_gitlab_key(project, source, public_key, dry_run=False):
     """
     Update the public keys of a user in a GitLab instance.
     """
@@ -140,12 +144,15 @@ def update_gitlab_key(project, source, public_key):
     title = 'GROS agent for the {} project'.format(project.key)
     logging.info('Deleting old SSH keys of %s from GitLab instance %s...',
                  title, source.host)
-    for key in user.ssh_keys():
-        if key.title == title:
-            user.delete_ssh_key(key)
+
+    if not dry_run:
+        for key in user.ssh_keys():
+            if key.title == title:
+                user.delete_ssh_key(key)
 
     logging.info('Adding new SSH key to GitLab instance %s...', source.host)
-    user.add_ssh_key(title, public_key)
+    if not dry_run:
+        user.add_ssh_key(title, public_key)
 
 def main():
     """
@@ -156,24 +163,34 @@ def main():
     project = Project(args.project)
 
     inform.Inform(mute=True)
+    if args.dry_run:
+        logging.info('Dry run: Logging output only describes what would happen')
 
     private_key_filename = os.path.expanduser(args.path)
     if not os.path.exists(private_key_filename):
-        key_filename = generate_key_pair(project)
-        shutil.move(key_filename, private_key_filename)
-        shutil.move('{}.pub'.format(key_filename),
-                    '{}.pub'.format(private_key_filename))
-        os.chmod(private_key_filename, 0o600)
+        logging.info('Generating new key pair to %s', private_key_filename)
+        if not args.dry_run:
+            key_filename = generate_key_pair(project)
+            shutil.move(key_filename, private_key_filename)
+            shutil.move('{}.pub'.format(key_filename),
+                        '{}.pub'.format(private_key_filename))
+            os.chmod(private_key_filename, 0o600)
+    else:
+        logging.info('Using existing key pair from %s', private_key_filename)
 
     with open('{}.pub'.format(private_key_filename), 'r') as public_key_file:
         public_key = public_key_file.read()
 
     if args.ssh and Configuration.has_value(args.ssh):
-        update_controller_key(args.ssh, project, args.cert, public_key)
+        logging.info('Updating key via controller API at %s', args.ssh)
+        if not args.dry_run:
+            update_controller_key(args.ssh, project, args.cert, public_key)
 
-    if args.gitlab:
+    if args.gitlab is not False:
         sources = []
-        if args.gitlab is True:
+        # If --gitlab is not provided or it has no remaining arguments, then
+        # fall back to a project source and the project definitions source.
+        if not args.gitlab:
             sources.append(project.gitlab_source)
             sources.append(project.project_definitions_source)
         else:
@@ -184,7 +201,7 @@ def main():
 
         for source in sources:
             try:
-                update_gitlab_key(project, source, public_key)
+                update_gitlab_key(project, source, public_key, args.dry_run)
             except RuntimeError:
                 logging.exception('Could not publish public key to GitLab')
 
