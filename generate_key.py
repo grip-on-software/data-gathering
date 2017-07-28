@@ -48,8 +48,8 @@ def parse_args():
                         help='Do not distribute key to controller API host')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
-    parser.add_argument('--gitlab', nargs='?', const=True,
-                        help='GitLab host to distribute key to')
+    parser.add_argument('--gitlab', nargs='*', const=True,
+                        help='GitLab host(s) to distribute key to')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -122,7 +122,7 @@ def update_controller_key(host, project, cert, public_key):
 
     export_secrets(response)
 
-def update_gitlab_key(source, public_key):
+def update_gitlab_key(project, source, public_key):
     """
     Update the public keys of a user in a GitLab instance.
     """
@@ -137,13 +137,14 @@ def update_gitlab_key(source, public_key):
     # pylint: disable=no-member
     user = api.current_user()
 
-    logging.info('Deleting old SSH keys for the agent from GitLab...')
-    title = 'GROS agent'
+    title = 'GROS agent for the {} project'.format(project.key)
+    logging.info('Deleting old SSH keys of %s from GitLab instance %s...',
+                 title, source.host)
     for key in user.ssh_keys():
         if key.title == title:
             user.delete_ssh_key(key)
 
-    logging.info('Adding new SSH key to GitLab')
+    logging.info('Adding new SSH key to GitLab instance %s...', source.host)
     user.add_ssh_key(title, public_key)
 
 def main():
@@ -171,16 +172,21 @@ def main():
         update_controller_key(args.ssh, project, args.cert, public_key)
 
     if args.gitlab:
+        sources = []
         if args.gitlab is True:
-            source = project.gitlab_source
+            sources.append(project.gitlab_source)
+            sources.append(project.project_definitions_source)
         else:
-            url = 'http://{}'.format(args.gitlab)
-            source = Source.from_type('gitlab', url=url, name='GitLab')
+            for gitlab_host in args.gitlab:
+                url = 'http://{}'.format(gitlab_host)
+                source = Source.from_type('gitlab', url=url, name='GitLab')
+                sources.append(source)
 
-        try:
-            update_gitlab_key(source, public_key)
-        except RuntimeError:
-            logging.exception('Could not publish public key to GitLab')
+        for source in sources:
+            try:
+                update_gitlab_key(project, source, public_key)
+            except RuntimeError:
+                logging.exception('Could not publish public key to GitLab')
 
 if __name__ == "__main__":
     main()

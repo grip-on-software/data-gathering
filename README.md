@@ -232,11 +232,17 @@ the setting is not used in this environment.
     relevant to the project.
 
 The credentials file follows a similar section-option-value, but 
-`credentials.cfg.example` contains only one section whose name `$SOURCE_HOST` 
-is to be replaced by the hostname of a version control system that requires 
-authentication. Additional sections may be added if the project(s) have more 
-VCS hosts. All options may be set to falsy values, e.g., to perform 
-unauthenticated access to to disable access to the service completely.
+`credentials.cfg.example` contains two sections: the first, whose name is 
+`$SOURCE_HOST`, is to be replaced by the hostname of a version control system 
+that contains the project repositories. The second section with the placeholder 
+name `$DEFINITIONS_HOST`, is the hostname containing project definitions, 
+matching the URLs in the `definitions` section of the settings. The two 
+sections by default share a few of their credentials.
+
+These sections may be edited and additional sections may be added if the 
+project(s) have different setups, such as more VCS hosts. All options may be 
+set to falsy values, e.g., to perform unauthenticated access to to disable 
+access to the service completely.
 
 - `env` (`$SOURCE_CREDENTIALS_ENV`): Name of the environment variable that 
   contains the path to the SSH identity file. This option is only used by Git. 
@@ -251,8 +257,9 @@ unauthenticated access to to disable access to the service completely.
   You need to set this for GitHub Enterprise when hosted on a custom domain.
 - `github_token` (`$SOURCE_GITHUB_TOKEN`): API token for GitHub in order to 
   obtain auxiliary data from GitHub.
-- `gitlab_token` (`$SOURCE_GITLAB_TOKEN`): API token for GitLab instances in 
-  order to obtain auxiliary data from GitLab.
+- `gitlab_token` (`$SOURCE_GITLAB_TOKEN` and `$DEFINITONS_GITLAB_TOKEN`): API 
+  token for GitLab instances in order to obtain auxiliary data from GitLab or 
+  interface with its authorization scheme.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
   is a Team Foundation Server and thus has auxliary data aside from the Git 
   repository.
