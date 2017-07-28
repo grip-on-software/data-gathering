@@ -75,7 +75,7 @@ class GitHub_Repository(Git_Repository, Review_System):
                 for issue_comment in pull_request.get_issue_comments():
                     self.add_pull_comment(issue_comment, pull_request.number)
                 for review_comment in pull_request.get_review_comments():
-                    self.add_commit_comment(review_comment, pull_request.number)
+                    self.add_review_comment(review_comment, pull_request.number)
                 for review in reviews:
                     self.add_review(review, pull_request.number)
 
@@ -86,6 +86,9 @@ class GitHub_Repository(Git_Repository, Review_System):
             if newer:
                 for issue_comment in issue.get_comments(since=since):
                     self.add_issue_comment(issue_comment, issue.number)
+
+        for commit_comment in self._source.github_repo.get_comments():
+            self.add_commit_comment(commit_comment)
 
         self.set_latest_date()
 
@@ -261,17 +264,48 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def add_commit_comment(self, comment, request_id=0):
+    def _add_commit_comment(self, comment, **kwargs):
+        note = self._format_note(comment)
+        note.update({
+            'thread_id': str(0),
+            'parent_id': str(0),
+            'merge_request_id': str(kwargs.get('request_id', 0)),
+            'created_date': note['created_at'],
+            'updated_date': note['updated_at'],
+            'file': comment.path,
+            'line': str(kwargs.get('line', 0)),
+            'end_line': str(kwargs.get('end_line', 0)),
+            'line_type': str(kwargs.get('line_type', 0)),
+            'commit_id': comment.commit_id
+        })
+        del note['created_at']
+        del note['updated_at']
+        self._tables["commit_comment"].append(note)
+
+    def add_commit_comment(self, comment):
         """
-        Add a commit comment or pull request review comment described by its
-        GitHub API response object to the commit comments table. Returns
-        whether the issue is updated more recently than the update tracker date.
+        Add a commit comment described by its GitHub API response object to the
+        commit comments table. Returns whether the commit comment is updated
+        more recently than the update tracker date.
         """
 
         if not self._is_newer(comment.updated_at):
             return False
 
-        note = self._format_note(comment)
+        line = comment.line
+        self._add_commit_comment(comment, line=line, end_line=line)
+        return True
+
+    def add_review_comment(self, comment, request_id=0):
+        """
+        Add a pull request review comment described by its GitHub API response
+        object to the commit comments table. Returns whether the comment is
+        updated more recently than the update tracker date.
+        """
+
+        if not self._is_newer(comment.updated_at):
+            return False
+
         if comment.position is None:
             position = comment.original_position
         else:
@@ -296,22 +330,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             line = position
             end_line = position
 
-        note.update({
-            'thread_id': str(0),
-            'parent_id': str(0),
-            'merge_request_id': str(request_id),
-            'created_date': note['created_at'],
-            'updated_date': note['updated_at'],
-            'file': comment.path,
-            'line': str(line),
-            'end_line': str(end_line),
-            'line_type': line_type,
-            'commit_id': comment.commit_id
-        })
-        del note['created_at']
-        del note['updated_at']
-
-        self._tables["commit_comment"].append(note)
+        self._add_commit_comment(comment, line=line, end_line=end_line,
+                                 line_type=line_type, request_id=request_id)
 
         return True
 
