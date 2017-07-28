@@ -65,7 +65,7 @@ class Exporter(object):
                 {"name": "gathererScripts", "value": " ".join(scripts)}
             ]
         }
-        requests.post(url, headers=headers, data=json.dumps(payload))
+        requests.post(url, headers=headers, data={"json": json.dumps(payload)})
 
 def main():
     """
