@@ -237,21 +237,22 @@ The credentials file follows a similar section-option-value, but
 that contains the project repositories. The second section with the placeholder 
 name `$DEFINITIONS_HOST`, is the hostname containing project definitions, 
 matching the URLs in the `definitions` section of the settings. The two 
-sections by default share a few of their credentials.
+sections by default use separate credentials.
 
 These sections may be edited and additional sections may be added if the 
 project(s) have different setups, such as more VCS hosts. All options may be 
 set to falsy values, e.g., to perform unauthenticated access to to disable 
 access to the service completely.
 
-- `env` (`$SOURCE_CREDENTIALS_ENV`): Name of the environment variable that 
-  contains the path to the SSH identity file. This option is only used by Git. 
-  The references variable's value must have a valid path to actually succeed in 
-  using SSH access. The path may be symbolic, e.g., `~/.ssh/id_rsa`.
-- `username` (`$SOURCE_USERNAME`): Username to log in to the version control 
-  system. For GitLab with SSH, this is 'git'.
-- `password` (`$SOURCE_PASSWORD`): Password to log in to the version control 
-  system. Ignored if `env` is not a falsy value.
+- `env` (`$SOURCE_CREDENTIALS_ENV` and `$DEFINITIONS_CREDENTIALS_ENV`): Name of 
+  the environment variable that contains the path to the SSH identity file. 
+  This option is only used by Git. The references variable's value must have 
+  a valid path to actually succeed in using SSH access. The path may be 
+  symbolic, e.g., `~/.ssh/id_rsa`.
+- `username` (`$SOURCE_USERNAME` and `$DEFINITIONS_USERNAME`): Username to log 
+  in to the version control system. For GitLab with SSH, this is 'git'.
+- `password` (`$SOURCE_PASSWORD` and `$DEFINITIONS_PASSWORD`): Password to log 
+  in to the version control system. Ignored if `env` is not a falsy value.
 - `github_api_url` (`$SOURCE_GITHUB_API`): URL to the GitHub API. This can 
   usually be set to a falsy value, which falls back to the default GitHub API. 
   You need to set this for GitHub Enterprise when hosted on a custom domain.
