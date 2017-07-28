@@ -52,8 +52,9 @@ class Collector(object):
                                            to_revision=to_revision,
                                            descending=False, stats=False)
         end_revision = None
-        for version in versions:
-            logging.debug('Collecting version %s', version['version_id'])
+        for index, version in enumerate(versions):
+            logging.debug('Collecting version %s (%d in sequence)',
+                          version['version_id'], index)
             self.collect_version(version)
             end_revision = version['version_id']
 
