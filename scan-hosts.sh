@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 
 if [ -z "$HOSTS" ]; then
-	HOSTS="$SOURCE_HOST"
+	HOSTS="$SOURCE_HOST $DEFINITIONS_HOST"
 fi
 
 if [ -z "$KNOWN_HOSTS" ]; then
