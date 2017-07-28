@@ -55,7 +55,8 @@ def main():
     if args.repo is not None:
         repo_path = args.repo
     else:
-        repo_path = project.get_key_setting('definitions', 'path')
+        repo_path = project.get_key_setting('definitions', 'path',
+                                            project.quality_metrics_name)
 
     collector = Metric_Options_Collector(project, repo_path,
                                          context_lines=args.context)
