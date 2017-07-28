@@ -51,7 +51,7 @@ class Exporter(object):
 
         job = config.get('jenkins', 'scrape')
         token = config.get('jenkins', 'token')
-        url = '{}/job/{}/buildWithParameters?token={}'.format(host, job, token)
+        url = '{}/job/{}/build?token={}'.format(host, job, token)
         scripts = [
             "project_sources.py", "jira_to_json.py", "history_to_json.py",
             "metric_options_to_json.py"
