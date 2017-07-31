@@ -140,9 +140,7 @@ function export_handler() {
 
 # Retrieve Python scripts from a subdirectory
 if [ -d scripts ]; then
-	cp scripts/*.py scripts/*.py.export scripts/*.py.update scripts/*.json scripts/requirements.txt scripts/list-files.sh .
-	rm -rf gatherer/
-	cp -r scripts/gatherer/ gatherer/
+	scripts/copy-files.sh scripts
 fi
 
 # Install Python dependencies
