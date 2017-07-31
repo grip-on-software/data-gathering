@@ -371,8 +371,8 @@ class TFS_Repository(Git_Repository, Review_System):
             self._tables["merge_request_review"].append({
                 'repo_name': str(self._repo_name),
                 'merge_request_id': request_id,
-                'reviewer': parse_unicode(reviewer['uniqueName']),
-                'reviewer_name': parse_unicode(reviewer['displayName']),
+                'reviewer': parse_unicode(reviewer['displayName']),
+                'reviewer_username': parse_unicode(reviewer['uniqueName']),
                 'vote': str(reviewer['vote'])
             })
 

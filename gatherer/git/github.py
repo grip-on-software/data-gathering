@@ -353,6 +353,6 @@ class GitHub_Repository(Git_Repository, Review_System):
             'repo_name': str(self._repo_name),
             'merge_request_id': request_id,
             'reviewer': reviewer,
-            'reviewer_name': reviewer,
+            'reviewer_username': reviewer,
             'vote': str(vote)
         })
