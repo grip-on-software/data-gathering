@@ -3,10 +3,10 @@ Table structures.
 """
 
 from builtins import object, str
-from configparser import RawConfigParser
 import hashlib
 import json
 import os
+import re
 from copy import copy, deepcopy
 
 class Table(object):
@@ -22,9 +22,9 @@ class Table(object):
         self._encrypt_fields = encrypt_fields
         self._options = kwargs
 
-        if self._encrypt_fields is not None and os.path.exists("secrets.cfg"):
-            self._secrets = RawConfigParser()
-            self._secrets.read("secrets.cfg")
+        if self._encrypt_fields is not None and os.path.exists("secrets.json"):
+            with open("secrets.json") as secrets_file:
+                self._secrets = json.load(secrets_file)
         else:
             self._secrets = None
 
@@ -41,6 +41,24 @@ class Table(object):
 
         return self._name
 
+    def _convert_username(self, username):
+        for search_set in self._secrets['usernames']:
+            if 'pattern' in search_set:
+                pattern = search_set['pattern']
+                replace = search_set['replace'].replace('$', '\\')
+            else:
+                pattern = re.escape(search_set['prefix'])
+                replace = ''
+
+            if re.match(pattern, username):
+                username = re.sub(pattern, replace, username)
+                if 'mutate' in search_set and search_set['mutate'] == 'lower':
+                    username = username.lower()
+
+                return username
+
+        return username
+
     def _encrypt(self, row):
         if self._encrypt_fields is None:
             return row
@@ -52,10 +70,13 @@ class Table(object):
         if "encrypted" in row and row["encrypted"] != str(0):
             return row
 
-        salt = str(self._secrets.get('salts', 'salt')).encode('utf-8')
-        pepper = str(self._secrets.get('salts', 'pepper')).encode('utf-8')
+        salt = str(self._secrets['salts']['salt']).encode('utf-8')
+        pepper = str(self._secrets['salts']['pepper']).encode('utf-8')
 
         for field in self._encrypt_fields:
+            if 'usernames' in self._secrets and field.endswith('username'):
+                row[field] = self._convert_username(row[field])
+
             if row[field] != str(0):
                 row[field] = hashlib.sha256(salt + row[field].encode('utf-8') + pepper).hexdigest()
 

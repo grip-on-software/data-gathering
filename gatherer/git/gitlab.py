@@ -205,7 +205,8 @@ class GitLab_Repository(Git_Repository, Review_System):
         review_tables = super(GitLab_Repository, self).review_tables
         review_tables.update({
             "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
-            "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
+            "vcs_event": Table('vcs_event',
+                               encrypted_fields=('user', 'username', 'email'))
         })
         return review_tables
 
@@ -454,6 +455,7 @@ class GitLab_Repository(Git_Repository, Review_System):
             else:
                 commits = [commit['id'] for commit in event.data['commits']]
 
+            username = parse_unicode(event.author_username)
             for commit_id in commits:
                 self._tables["vcs_event"].append({
                     'repo_name': str(self._repo_name),
@@ -461,7 +463,8 @@ class GitLab_Repository(Git_Repository, Review_System):
                     'action': str(event.action_name),
                     'kind': str(event.data['object_kind']),
                     'ref': str(event.data['ref']),
-                    'user': parse_unicode(event.author_username),
+                    'user': username,
+                    'username': username,
                     'email': str(event.data['user_email']),
                     'date': created_date
                 })

@@ -227,6 +227,7 @@ class Subversion_Repository(Version_Control_Repository):
             'message': parse_unicode(message),
             'type': 'commit',
             'developer': commit.author,
+            'developer_username': commit.author,
             'developer_email': str(0),
             'commit_date': format_date(commit_datetime),
             'author_date': str(0)

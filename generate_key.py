@@ -9,7 +9,6 @@ except ImportError:
     raise
 
 import argparse
-from configparser import RawConfigParser
 import json
 import logging
 import os
@@ -91,18 +90,12 @@ def generate_key_pair(project):
 
 def export_secrets(secrets):
     """
-    Write a configuration file with secrets according to a dictionary structure
-    with a depth of two levels (section names, configuration keys and values).
+    Write a JSON file with secrets according to a dictionary structure received
+    from the controller API.
     """
 
-    parser = RawConfigParser()
-    for section, section_secrets in secrets.items():
-        parser.add_section(section)
-        for key, value in section_secrets.items():
-            parser.set(section, key, value)
-
-    with open('secrets.cfg', 'w') as secrets_file:
-        parser.write(secrets_file)
+    with open('secrets.json', 'w') as secrets_file:
+        json.dump(secrets, secrets_file)
 
 def update_controller_key(host, project, cert, public_key):
     """

@@ -78,6 +78,13 @@ class Response(object):
 
         return self._gatherer.get_salts(self._project_key)
 
+    def get_usernames(self):
+        """
+        Retrieve username patterns that need to be replaced before encryption.
+        """
+
+        return self._gatherer.get_usernames(self._project_key)
+
 class Parameters(object):
     """
     Object that holds GET and POST data from a CGI request.
@@ -156,12 +163,19 @@ def main():
     response = Response(project_key)
     response.get_update_trackers(permissions.get_home_directory())
     salt, pepper = response.get_salts()
+    usernames = response.get_usernames()
 
     permissions.update_permissions()
 
     print('Content-Type: text/json')
     print()
-    json.dump({'salts': {'salt': salt, 'pepper': pepper}}, sys.stdout)
+    json.dump({
+        'salts': {
+            'salt': salt,
+            'pepper': pepper
+        },
+        'usernames': usernames
+    }, sys.stdout)
 
 if __name__ == "__main__":
     main()

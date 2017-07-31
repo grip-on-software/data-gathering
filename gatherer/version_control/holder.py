@@ -96,8 +96,8 @@ class Repositories_Holder(object):
 
         self._load_latest_versions()
 
-        versions = Table('vcs_versions',
-                         encrypt_fields=('developer', 'developer_email'))
+        encrypt_fields = ('developer', 'developer_username', 'developer_email')
+        versions = Table('vcs_versions', encrypt_fields=encrypt_fields)
         tables = {}
         for repo in self.get_repositories():
             # Retrieve all tables from the repositories so that we know the

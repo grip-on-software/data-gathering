@@ -3,6 +3,7 @@
 *.pyc
 *.swp
 *.cfg
+secrets.json
 !.isort.cfg
 importerjson.jar
 data_vcsdev_to_dev.json

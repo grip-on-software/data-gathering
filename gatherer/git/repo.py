@@ -375,6 +375,7 @@ class Git_Repository(Version_Control_Repository):
         if len(commit.parents) > 1:
             commit_type = 'merge'
 
+        developer = parse_unicode(commit.author.name)
         git_commit = {
             # Primary data
             'repo_name': str(self._repo_name),
@@ -383,7 +384,8 @@ class Git_Repository(Version_Control_Repository):
             # Additional data
             'message': parse_unicode(commit.message),
             'type': commit_type,
-            'developer': parse_unicode(commit.author.name),
+            'developer': developer,
+            'developer_username': developer,
             'developer_email': str(commit.author.email),
             'commit_date': format_date(commit_datetime),
             'author_date': format_date(author_datetime)

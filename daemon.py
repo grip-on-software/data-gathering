@@ -8,10 +8,12 @@ try:
 except ImportError:
     raise
 
+import json
 import os.path
 import Pyro4
 from gatherer.config import Configuration
 from gatherer.domain import Project
+from gatherer.files import File_Store
 from gatherer.salt import Salt
 from gatherer.update import Database_Tracker
 
@@ -55,6 +57,27 @@ class Gatherer(object):
                     host=self._config.get('database', 'host'),
                     database=self._config.get('database', 'name'))
         return salt.execute()
+
+    def get_usernames(self, project_key):
+        """
+        Retrieve username patterns that need to be replaced before encryption.
+        """
+
+        store_type = File_Store.get_type(self._config.get('dropins', 'type'))
+        store = store_type(self._config.get('dropins', 'url'))
+        store.login(self._config.get('dropins', 'username'),
+                    self._config.get('dropins', 'password'))
+
+        data_file = 'data_vcsdev_to_dev.json'
+        usernames_file = store.get_file_contents('import/{}'.format(data_file))
+        patterns = json.loads(usernames_file)
+        usernames = []
+        for pattern in patterns:
+            if 'projects' in pattern and project_key in pattern['projects']:
+                del pattern['projects']
+                usernames.append(pattern)
+
+        return usernames
 
 def main():
     """

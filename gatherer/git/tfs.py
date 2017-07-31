@@ -223,7 +223,8 @@ class TFS_Repository(Git_Repository, Review_System):
             "merge_request_review": Link_Table('merge_request_review',
                                                ('merge_request_id', 'reviewer'),
                                                encrypted_fields=review_fields),
-            "vcs_event": Table('vcs_event', encrypted_fields=('user', 'email'))
+            "vcs_event": Table('vcs_event',
+                               encrypted_fields=('user', 'username', 'email'))
         })
         return review_tables
 
@@ -498,7 +499,7 @@ class TFS_Repository(Git_Repository, Review_System):
                 'action': action,
                 'kind': 'push',
                 'ref': ref_name,
-                'user': parse_unicode(event['pushedBy']['uniqueName']),
-                'user_name': parse_unicode(event['pushedBy']['displayName']),
+                'user': parse_unicode(event['pushedBy']['displayName']),
+                'username': parse_unicode(event['pushedBy']['uniqueName']),
                 'date': format_date(event_date)
             })
