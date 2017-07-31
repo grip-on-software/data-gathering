@@ -31,6 +31,8 @@ def parse_args():
                         help='type of the data store (owncloud)')
     parser.add_argument('--url', default=config.get('dropins', 'url'),
                         help='URL of the data store')
+    parser.add_argument('--path', default='dropins',
+                        help='Remote path prefix, without project directory')
     parser.add_argument('--username', default=config.get('dropins', 'username'),
                         help='user to connect to the file store with')
     parser.add_argument('--password', default=config.get('dropins', 'password'),
@@ -49,6 +51,7 @@ def main():
 
     args = parse_args()
 
+    remote_path = '{}/{}'.format(args.path, args.project)
     path = os.path.join('dropins', args.project)
     if os.path.exists(path):
         logging.info('Removing old dropins path %s', path)
@@ -63,7 +66,7 @@ def main():
     store.login(args.username, args.password)
 
     try:
-        store.get_directory(path, path)
+        store.get_directory(remote_path, path)
     except PathExistenceError:
         logging.warning('Project %s has no dropin files', args.project)
     else:
