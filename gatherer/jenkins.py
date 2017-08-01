@@ -56,20 +56,26 @@ class Base(with_metaclass(ABCMeta, object)):
 
         return self._base_url
 
+    def _retrieve(self):
+        request = self.instance.session.get(self.base_url + 'api/json')
+        if request.status_code == requests.codes['not_found']:
+            self._exists = False
+            self._data = NoneMapping()
+        else:
+            self._data = request.json()
+            self._has_data = True
+            self._exists = True
+
     @property
     def data(self):
         """
-        Retrieve the raw data from the API.
+        Retrieve the raw data from the API. The API is accessed if the data has
+        not been retrieved before since the last invalidation or since the
+        construction of this object.
         """
 
-        if self._exists and not self._has_data:
-            request = self.instance.session.get(self.base_url + 'api/json')
-            if request.status_code == requests.codes['not_found']:
-                self._exists = False
-                self._data = NoneMapping()
-            else:
-                self._data = request.json()
-                self._has_data = True
+        if self._exists is not False and not self._has_data:
+            self._retrieve()
 
         return self._data
 
@@ -106,6 +112,9 @@ class Base(with_metaclass(ABCMeta, object)):
         """
         Retrieve whether this object exists on the Jenkins instance.
         """
+
+        if self._exists is None:
+            self._retrieve()
 
         return self._exists
 
@@ -184,14 +193,14 @@ class Jenkins(Base):
         Retrieve a job from the Jenkins instance by its name.
         """
 
-        return Job(self, name=name)
+        return Job(self, name=name, exists=None)
 
     def get_view(self, name):
         """
         Retrieve a view from the Jenkins instance by its name.
         """
 
-        return View(self, name=name)
+        return View(self, name=name, exists=None)
 
     def __eq__(self, other):
         if isinstance(other, Jenkins):
@@ -207,13 +216,13 @@ class View(Base):
     View on a Jenkins instance.
     """
 
-    def __init__(self, instance, name=None, url=None, **kwargs):
+    def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
         if name is None:
             raise ValueError('Name must be provided')
         if url is None:
             url = '{}view/{}'.format(instance.base_url, quote(name))
 
-        super(View, self).__init__(instance, url)
+        super(View, self).__init__(instance, url, exists=exists)
         self._name = name
         self._data = kwargs
 
@@ -244,13 +253,13 @@ class Job(Base):
     Job on a Jenkins instance.
     """
 
-    def __init__(self, instance, name=None, url=None, **kwargs):
+    def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
         if name is None:
             raise ValueError('Name must be provided')
         if url is None:
             url = '{}job/{}/'.format(self.instance.base_url, quote(name))
 
-        super(Job, self).__init__(instance, url)
+        super(Job, self).__init__(instance, url, exists=exists)
         self._name = name
         self._data = kwargs
         self._last_builds = {}
@@ -280,7 +289,7 @@ class Job(Base):
                     self._last_builds[name] = Build(self, **self.data[name])
             else:
                 url = '{}{}/'.format(self.base_url, name)
-                self._last_builds[name] = Build(self, url=url)
+                self._last_builds[name] = Build(self, url=url, exists=None)
 
         return self._last_builds[name]
 
@@ -357,7 +366,7 @@ class Job(Base):
             numbers = [build['number'] for build in self.data['builds']]
             exists = number in numbers
         else:
-            exists = True
+            exists = None
 
         return Build(self, number=number, exists=exists)
 
@@ -399,8 +408,8 @@ class Build(Base):
 
     def __init__(self, job, number=None, url=None, exists=True, **kwargs):
         if url is None:
-            url = '{}{}/'.format(job.base_url, number, exists=exists)
-        super(Build, self).__init__(job.instance, url)
+            url = '{}{}/'.format(job.base_url, number)
+        super(Build, self).__init__(job.instance, url, exists=exists)
         self._job = job
         self._number = number
         self._data = kwargs
