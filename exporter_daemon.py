@@ -8,12 +8,11 @@ try:
 except ImportError:
     raise
 
-from configparser import RawConfigParser
-import json
 import os.path
 import subprocess
 import Pyro4
-import requests
+from gatherer.config import Configuration
+from gatherer.jenkins import Jenkins
 
 @Pyro4.expose
 class Exporter(object):
@@ -22,7 +21,9 @@ class Exporter(object):
     """
 
     AGENT_DIRECTORY = '/agents'
-    SETTINGS_FILE = 'settings.cfg'
+
+    def __init__(self):
+        self._config = Configuration.get_settings()
 
     def export_data(self, project_key):
         """
@@ -39,33 +40,24 @@ class Exporter(object):
         Request a Jenkins instance to start a scrape job for the remaining data.
         """
 
-        config = RawConfigParser()
-        config.read(self.SETTINGS_FILE)
+        host = self._config.get('jenkins', 'host')
+        job_name = self._config.get('jenkins', 'scrape')
+        token = self._config.get('jenkins', 'token')
+        jenkins = Jenkins(host)
+        job = jenkins.get_job(job_name)
 
-        host = config.get('jenkins', 'host')
-        if config.getboolean('jenkins', 'crumb'):
-            crumb_data = requests.get(host + '/crumbIssuer/api/json').json()
-            headers = {crumb_data['crumbRequestField']: crumb_data['crumb']}
-        else:
-            headers = {}
-
-        job = config.get('jenkins', 'scrape')
-        token = config.get('jenkins', 'token')
-        url = '{}/job/{}/build?token={}'.format(host, job, token)
         scripts = [
             "project_sources.py", "jira_to_json.py", "history_to_json.py",
             "metric_options_to_json.py"
         ]
-        payload = {
-            "parameter": [
-                {"name": "listOfProjects", "value": project_key},
-                {"name": "importerTasks", "value": "all,developerlink,-vcs"},
-                {"name": "logLevel", "value": "INFO"},
-                {"name": "cleanupRepos", "value": "true"},
-                {"name": "gathererScripts", "value": " ".join(scripts)}
-            ]
-        }
-        requests.post(url, headers=headers, data={"json": json.dumps(payload)})
+        parameters = [
+            {"name": "listOfProjects", "value": project_key},
+            {"name": "importerTasks", "value": "all,developerlink,-vcs"},
+            {"name": "logLevel", "value": "INFO"},
+            {"name": "cleanupRepos", "value": "true"},
+            {"name": "gathererScripts", "value": " ".join(scripts)}
+        ]
+        job.build(parameters=parameters, token=token)
 
 def main():
     """

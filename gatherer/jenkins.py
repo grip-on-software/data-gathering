@@ -179,6 +179,20 @@ class Jenkins(Base):
 
         return [View(self, **view) for view in self.data['views']]
 
+    def get_job(self, name):
+        """
+        Retrieve a job from the Jenkins instance by its name.
+        """
+
+        return Job(self, name=name)
+
+    def get_view(self, name):
+        """
+        Retrieve a view from the Jenkins instance by its name.
+        """
+
+        return View(self, name=name)
+
     def __eq__(self, other):
         if isinstance(other, Jenkins):
             return self.base_url == other.base_url
@@ -333,6 +347,19 @@ class Job(Base):
         """
 
         return self.data['nextBuildNumber']
+
+    def get_build(self, number):
+        """
+        Retrieve a previous build based on its number.
+        """
+
+        if self.has_data:
+            numbers = [build['number'] for build in self.data['builds']]
+            exists = number in numbers
+        else:
+            exists = True
+
+        return Build(self, number=number, exists=exists)
 
     def build(self, parameters=None, token=None):
         """

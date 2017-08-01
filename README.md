@@ -215,8 +215,6 @@ the setting is not used in this environment.
   - `host` (`$JENKINS_HOST`): Base URL of the Jenkins instance.
   - `scrape` (`$JENKINS_JOB`): Name of the parameterized Jenkins job to start 
     a (partial) scrape.
-  - `crumb` (`$JENKINS_CRUMB`): Whether the Jenkins instance has CSRF 
-    protection and thus a crumb must be requested. Allowed values: yes, no.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
     the Jenkins instance has authorization security. This token must be 
     configured in the build job itself.
