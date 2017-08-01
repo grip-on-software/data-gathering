@@ -213,6 +213,15 @@ the setting is not used in this environment.
 - jenkins (used by `exporter/daemon.py`): Jenkins instance where jobs can be 
   started.
   - `host` (`$JENKINS_HOST`): Base URL of the Jenkins instance.
+  - `username` (`$JENKINS_USERNAME`): Username to log in to the Jenkins 
+    instance. Use a falsy value to not authenticate to Jenkins this way.
+  - `password` (`$JENKINS_PASSWORD`): Password to log in to the Jenkins 
+    instance. Use a falsy value to not authenticate to Jenkins this way.
+  - `verify` (`$JENKINS_VERIFY`): SSL certificate verification for the Jenkins 
+    instance. This option has no effect is the Jenkins `host` URL does not use 
+    HTTPS. Use a falsy value to disable verification, a path name to specify 
+    a specific (self-signed) certificate to match against, or any other value 
+    to enable secure verification.
   - `scrape` (`$JENKINS_JOB`): Name of the parameterized Jenkins job to start 
     a (partial) scrape.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 

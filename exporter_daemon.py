@@ -40,10 +40,9 @@ class Exporter(object):
         Request a Jenkins instance to start a scrape job for the remaining data.
         """
 
-        host = self._config.get('jenkins', 'host')
+        jenkins = Jenkins.from_config(self._config)
         job_name = self._config.get('jenkins', 'scrape')
         token = self._config.get('jenkins', 'token')
-        jenkins = Jenkins(host)
         job = jenkins.get_job(job_name)
 
         scripts = [

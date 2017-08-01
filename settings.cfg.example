@@ -37,6 +37,9 @@ host = $BIGBOAT_HOST
 key = $BIGBOAT_KEY
 [jenkins]
 host = $JENKINS_HOST
+username = $JENKINS_USERNAME
+password = $JENKINS_PASSWORD
+verify = $JENKINS_VERIFY
 scrape = $JENKINS_JOB
 token = $JENKINS_TOKEN
 [projects]

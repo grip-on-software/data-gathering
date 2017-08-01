@@ -6,10 +6,12 @@ from builtins import object
 from abc import ABCMeta
 from collections import Mapping
 import json
+import os
 from future.utils import with_metaclass
 import requests
 from requests.auth import HTTPBasicAuth
 from requests.utils import quote
+from .config import Configuration
 
 class NoneMapping(Mapping): # pylint: disable=no-init
     """
@@ -149,6 +151,27 @@ class Jenkins(Base):
             self._session.auth = HTTPBasicAuth(username, password)
 
         self._add_crumb_header()
+
+    @classmethod
+    def from_config(cls, config):
+        """
+        Create a Jenkins instance based on a settings from a 'jenkins' section
+        that has been read by the configuration parser `config`.
+        """
+
+        host = config.get('jenkins', 'host')
+        username = config.get('jenkins', 'username')
+        password = config.get('jenkins', 'password')
+        verify = config.get('jenkins', 'verify')
+        if not Configuration.has_value(username):
+            username = None
+            password = None
+        if not Configuration.has_value(verify):
+            verify = False
+        elif not os.path.exists(verify):
+            verify = True
+
+        return cls(host, username=username, password=password, verify=verify)
 
     def _add_crumb_header(self):
         request = self._session.get(self.base_url + 'crumbIssuer/api/json')
