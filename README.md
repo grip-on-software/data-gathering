@@ -69,7 +69,7 @@ within this repository, which supplies abstracted and standardized access and
 data storage OOP classes with various functionality.
 
 Finally, this repository also contains agent-only tools, a controller API and 
-its backend daemons:
+its backend daemons, and a deployment interface:
 
 - `bigboat_to_json.py` (agent): Request the status of a BigBoat dashboard and 
   publish this data to the controller server.
@@ -83,8 +83,9 @@ its backend daemons:
   permissions of their files.
 - `daemon.py`: Internal daemon for providing update tracking and project salts 
   for use by the agent.
-- `exporter/daemon.py` and `controller-export.sh`: Internal daemon for handling 
+- `exporter_daemon.py` and `controller-export.sh`: Internal daemon for handling 
   agent's collected data to import into the database.
+- `deployer.py`: Deployment web service for triggering updates.
 
 ## Docker
 

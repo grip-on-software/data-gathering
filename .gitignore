@@ -3,6 +3,8 @@
 *.pyc
 *.swp
 *.cfg
+*.log
+deployment.json
 secrets.json
 !.isort.cfg
 importerjson.jar
