@@ -8,6 +8,7 @@ from io import BytesIO
 import logging
 import os
 import re
+import tempfile
 from git import Repo, Blob, Commit, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
 from ordered_set import OrderedSet
 from .progress import Git_Progress
@@ -218,7 +219,16 @@ class Git_Repository(Version_Control_Repository):
             if self._unsafe_hosts:
                 ssh_command += '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
-            environment['GIT_SSH_COMMAND'] = ssh_command
+            if self.version_info < (2, 3, 0):
+                with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+                    tmpfile.write(ssh_command + ' $*')
+                    command_filename = tmpfile.name
+
+                os.chmod(command_filename, 0o700)
+                environment['GIT_SSH'] = command_filename
+                logging.debug('Command filename: %s', command_filename)
+            else:
+                environment['GIT_SSH_COMMAND'] = ssh_command
 
         return environment
 
