@@ -280,7 +280,7 @@ class Job(Base):
         if name is None:
             raise ValueError('Name must be provided')
         if url is None:
-            url = '{}job/{}/'.format(self.instance.base_url, quote(name))
+            url = '{}job/{}/'.format(instance.base_url, quote(name))
 
         super(Job, self).__init__(instance, url, exists=exists)
         self._name = name
@@ -455,6 +455,14 @@ class Build(Base):
             self._number = self.data['number']
 
         return self._number
+
+    @property
+    def result(self):
+        """
+        Retrieve the build result.
+        """
+
+        return self.data['result']
 
     def _related(self, other):
         if isinstance(other, Build):
