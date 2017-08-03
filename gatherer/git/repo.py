@@ -9,7 +9,7 @@ import logging
 import os
 import re
 import tempfile
-from git import Repo, Blob, Commit, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
+from git import Git, Repo, Blob, Commit, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
 from ordered_set import OrderedSet
 from .progress import Git_Progress
 from ..table import Table, Key_Table
@@ -201,11 +201,10 @@ class Git_Repository(Version_Control_Repository):
         if not isinstance(repo, Repo):
             raise TypeError('Repository must be a gitpython Repo instance')
 
-        repo.git.update_environment(**self.environment)
+        repo.git.update_environment(**self._create_environment(repo))
         self._repo = repo
 
-    @property
-    def environment(self):
+    def _create_environment(self, repo=None):
         """
         Retrieve the environment variables for the Git subcommands.
         """
@@ -219,7 +218,12 @@ class Git_Repository(Version_Control_Repository):
             if self._unsafe_hosts:
                 ssh_command += '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
-            if self.version_info < (2, 3, 0):
+            if repo is not None:
+                version_info = repo.git.version_info
+            else:
+                version_info = Git().version_info
+
+            if version_info < (2, 3, 0):
                 with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
                     tmpfile.write(ssh_command + ' $*')
                     command_filename = tmpfile.name
@@ -305,7 +309,7 @@ class Git_Repository(Version_Control_Repository):
 
         self.repo = Repo.clone_from(self.source.url, self.repo_directory,
                                     progress=self._progress,
-                                    env=self.environment,
+                                    env=self._create_environment(),
                                     **kwargs)
 
     def _query(self, refspec, paths='', descending=True):
