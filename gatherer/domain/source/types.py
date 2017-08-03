@@ -223,6 +223,17 @@ class Source(object):
 
         return self._credentials_path
 
+    @credentials_path.setter
+    def credentials_path(self, value):
+        """
+        Update the credentials path to another location.
+
+        Note that this may set an SSH private key even though the connection is
+        not using SSH.
+        """
+
+        self._credentials_path = value
+
     def get_option(self, option):
         """
         Retrieve an option from the credentials configuration of the host of
