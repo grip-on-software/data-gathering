@@ -33,3 +33,4 @@ ordered-set
 bcrypt
 # Controller daemons
 Pyro4
+cherrypy
