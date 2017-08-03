@@ -3,4 +3,5 @@
 # Controller daemons and web interfaces
 Pyro4
 cherrypy
+flup
 python-ldap
