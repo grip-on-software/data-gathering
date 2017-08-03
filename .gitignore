@@ -5,6 +5,7 @@
 *.cfg
 *.log
 deployment.json
+key-*
 secrets.json
 !.isort.cfg
 importerjson.jar
