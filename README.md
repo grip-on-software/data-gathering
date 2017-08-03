@@ -228,6 +228,23 @@ the setting is not used in this environment.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
     the Jenkins instance has authorization security. This token must be 
     configured in the build job itself.
+- ldap (used by `deployer.py`): Connection, authentication and query parameters 
+  for an LDAP server.
+  - `server` (`$LDAP_SERVER`): URL of the LDAP server, including protocol, host 
+    and port.
+  - `root_dn` (`$LDAP_ROOT_DN`): The base DN to use for all queries.
+  - `search_filter` (`$LDAP_SEARCH_FILTER`): Query to find users based on their 
+    login name.
+  - `manager_dn` (`$LDAP_MANAGER_DN`): Distinguished Name of the manager 
+    account which can query the LDAP server.
+  - `manager_password` (`$LDAP_MANAGER_PASSWORD`): Password of the manager 
+    account which can query the LDAP server.
+  - `group_dn` (`$LDAP_GROUP_DN`): Query to find a group of which the user must 
+    be a member to be allowed to login.
+  - `group_attr` (`$LDAP_GROUP_ATTR`): Attribute in the group that holds group 
+    member login names.
+  - `display_name` (`$LDAP_DISPLAY_NAME`): Attribute of the user that holds 
+    their displayable name (instead of the login name).
 - projects: A list of project JIRA keys and their long names in quality metrics 
   dashboard and repositories. You may add any number of projects here; the 
   pipeline can obtain project definitions only if they exist here.

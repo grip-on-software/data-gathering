@@ -34,3 +34,4 @@ bcrypt
 # Controller daemons
 Pyro4
 cherrypy
+python-ldap

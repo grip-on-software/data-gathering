@@ -42,6 +42,15 @@ password = $JENKINS_PASSWORD
 verify = $JENKINS_VERIFY
 scrape = $JENKINS_JOB
 token = $JENKINS_TOKEN
+[ldap]
+server = $LDAP_SERVER
+root_dn = $LDAP_ROOT_DN
+search_filter = $LDAP_SEARCH_FILTER
+manager_dn = $LDAP_MANAGER_DN
+manager_password = $LDAP_MANAGER_PASSWORD
+group_dn = $LDAP_GROUP_DN
+group_attr = $LDAP_GROUP_ATTR
+display_name = $LDAP_DISPLAY_NAME
 [projects]
 $JIRA_KEY = $PROJECT_NAME
 [subprojects]
