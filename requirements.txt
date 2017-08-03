@@ -31,7 +31,3 @@ configparser
 ordered-set
 # Encryption
 bcrypt
-# Controller daemons
-Pyro4
-cherrypy
-python-ldap

@@ -12,6 +12,8 @@ data_vcsdev_to_dev.json
 lib/
 controller/
 daemon.py
+exporter_daemon.py
+deployer.py
 dropins/*
 export/
 kwaliteitsmetingen/

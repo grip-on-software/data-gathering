@@ -1,0 +1,6 @@
+# Install normal dependencies as well
+-r requirements.txt
+# Controller daemons and web interfaces
+Pyro4
+cherrypy
+python-ldap

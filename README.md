@@ -2,9 +2,10 @@ Software development process data gathering
 ===========================================
 
 The scripts and modules in this repository gather data from different sources 
-that are used by software development teams and projects. The scripts are part 
-of a larger pipeline where the gathered data is made available for analysis 
-purposes through a database setup.
+that are used by software development teams and projects, as well as control 
+a distributed setup of data gathering. The scripts are part of a larger 
+pipeline where the gathered data is made available for analysis purposes 
+through a database setup.
 
 The scripts read data from a source based on the requested project and any 
 additional parameters (command-line arguments, settings and credentials). 
@@ -13,12 +14,18 @@ objects with properties.
 
 ## Installation
 
-The data gathering scripts require Python version 2.7.x or 3.6+.
+The data gathering scripts require Python version 2.7.x or 3.6+. Certain 
+webservice daemons only work on Python 2.7.x due to dependencies.
 
-Run `pip install -r requirements.txt` to install the dependencies. Add `--user` 
-if you do not have access to the system libraries, or do not want to store the 
-libraries in that path but in your home directory. Additionally, if you want to 
-gather Topdesk data, then run `pip install [--user] regex`.
+Run `pip install -r requirements.txt` to install the dependencies for the data 
+gathering scripts. Add `--user` if you do not have access to the system 
+libraries, or do not want to store the libraries in that path but in your home 
+directory. Additionally, if you want to gather Topdesk data, then run `pip 
+install [--user] regex` (which is not installed by default because it requires 
+compilation on Linux hosts).
+
+For the webservice daemons, run `pip install -r requirements-daemon.txt`, which 
+also installs the normal dependencies.
 
 ## Overview
 
@@ -68,14 +75,17 @@ All of these scripts and tools make use of the `gatherer` library, contained
 within this repository, which supplies abstracted and standardized access and 
 data storage OOP classes with various functionality.
 
-Finally, this repository also contains agent-only tools, a controller API and 
-its backend daemons, and a deployment interface:
+This repository also contains agent-only tools:
 
 - `bigboat_to_json.py` (agent): Request the status of a BigBoat dashboard and 
   publish this data to the controller server.
 - `generate_key.py` (agent): Generate a public-private key pair and distribute 
   the public part to supporting sources (GitLab) and the controller server, for 
   registration purposes.
+
+Finally, the repository contains a controller API and its backend daemons, and 
+a deployment interface:
+
 - `controller/auth/`: API endpoints of the controller, at which agents can 
   register themselves, pulish health status and logs, or indicate that they 
   have exported their scraped data.
