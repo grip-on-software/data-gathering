@@ -5,3 +5,4 @@ Pyro4
 cherrypy
 flup
 python-ldap
+pyyaml
