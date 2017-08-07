@@ -429,6 +429,10 @@ class Metric_Options_Parser(Project_Definition_Parser):
                     targets[key] = str(options[key])
 
         targets.update(self.parse_debt_target(options))
+        targets.update({
+            'base_name': class_name,
+            'domain_name': name
+        })
 
         self.data[metric_name] = targets
 
