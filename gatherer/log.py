@@ -16,14 +16,14 @@ class Log_Setup(object):
     """
 
     @staticmethod
-    def add_argument(parser):
+    def add_argument(parser, default='WARNING'):
         """
         Register a log level argument in an argument parser.
         """
 
         options = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        parser.add_argument('--log', default='WARNING', choices=options,
-                            help='log level (WARNING by default)')
+        parser.add_argument('--log', default=default, choices=options,
+                            help='log level ({} by default)'.format(default))
 
     @staticmethod
     def add_upload_arguments(parser):
