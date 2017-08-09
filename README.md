@@ -53,6 +53,7 @@ The usual pipeline setup runs the scripts in the following order:
   for metrics during the project, or only output a reference to it.
 - `metric_options_to_json.py`: Retrieve changes to metric targets from 
   a Subversion repository holding the project definitions.
+- `jenkins_to_json.py`: Retrieve usage statistics from a Jenkins instance.
 
 These scripts are already streamlined in the `jenkins-scraper.sh` script 
 suitable for a Jenkins job, as well as in a number of Docker scripts explained 
@@ -221,8 +222,8 @@ the setting is not used in this environment.
   health checks.
   - `host` (`$BIGBOAT_HOST`): Base URL of the BigBoat dashboard.
   - `key` (`$BIGBOAT_KEY`): API key to use on the BigBoat dashboard.
-- jenkins (used by `exporter/daemon.py`): Jenkins instance where jobs can be 
-  started.
+- jenkins (used by `jenkins_to_json.py` and `exporter/daemon.py`): Jenkins 
+  instance where jobs can be started.
   - `host` (`$JENKINS_HOST`): Base URL of the Jenkins instance.
   - `username` (`$JENKINS_USERNAME`): Username to log in to the Jenkins 
     instance. Use a falsy value to not authenticate to Jenkins this way.

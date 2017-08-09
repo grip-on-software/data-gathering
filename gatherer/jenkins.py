@@ -4,7 +4,7 @@ Module for accessing Jenkins build information and starting jobs.
 
 from builtins import object
 from abc import ABCMeta
-from collections import Mapping
+from collections import Mapping, Sequence
 import json
 import os
 from future.utils import with_metaclass
@@ -196,6 +196,14 @@ class Jenkins(Base):
         return self._session
 
     @property
+    def nodes(self):
+        """
+        Retrieve the nodes linked to the Jenkins instance.
+        """
+
+        return Nodes(self)
+
+    @property
     def jobs(self):
         """
         Retrieve the jobs on the Jenkins instance.
@@ -233,6 +241,75 @@ class Jenkins(Base):
 
     def __hash__(self):
         return hash(self.base_url)
+
+class Nodes(Base, Sequence):
+    """
+    Collection of nodes linked to the Jenkins instance.
+    """
+
+    def __init__(self, instance):
+        url = '{}computer/'.format(instance.base_url)
+        super(Nodes, self).__init__(instance, url, exists=True)
+        self.instance.session.headers.update({'Accept-Language': 'en'})
+        self._nodes = None
+
+    @property
+    def nodes(self):
+        """
+        Retrieve all the linked nodes.
+        """
+
+        if self._nodes is None:
+            self._nodes = [
+                Node(self.instance, **node) for node in self.data['computer']
+            ]
+
+        return self._nodes
+
+    def __eq__(self, other):
+        if isinstance(other, Nodes):
+            return self.base_url == other.base_url
+
+        return False
+
+    def __getitem__(self, index):
+        return self.nodes[index]
+
+    def __len__(self):
+        return len(self.nodes)
+
+class Node(Base):
+    """
+    Computer node linked to a Jenkins instance.
+    """
+
+    def __init__(self, instance, displayName=None, **kwargs):
+        if displayName is None:
+            raise ValueError('Display name must be provided')
+
+        if displayName == "master":
+            name = "({})".format(displayName)
+        else:
+            name = displayName
+
+        url = '{}computer/{}'.format(instance.base_url, quote(name))
+        super(Node, self).__init__(instance, url, exists=True)
+        self._name = name
+        self._data = kwargs
+
+    @property
+    def name(self):
+        """
+        Retrieve the name of the node.
+        """
+
+        return self._name
+
+    def __eq__(self, other):
+        if isinstance(other, Node):
+            return self.instance == other.instance and self.name == other.name
+
+        return False
 
 class View(Base):
     """
