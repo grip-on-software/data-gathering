@@ -10,6 +10,7 @@ secrets.json
 !.isort.cfg
 importerjson.jar
 data_vcsdev_to_dev.json
+metric_base_names.json
 lib/
 certs/*.crt
 dropins/*/
