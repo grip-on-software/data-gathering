@@ -24,6 +24,16 @@ class GitHub_Repository(Git_Repository, Review_System):
     UPVOTE = 'APPROVED'
     DOWNVOTE = 'CHANGES_REQUESTED'
 
+    def __init__(self, source, repo_directory, project=None, **kwargs):
+        super(GitHub_Repository, self).__init__(source, repo_directory,
+                                                project=project, **kwargs)
+
+        bots = source.get_option('github_bots')
+        if bots is None:
+            self._github_bots = set()
+        else:
+            self._github_bots = set([bot.strip() for bot in bots.split(',')])
+
     @property
     def review_tables(self):
         review_tables = super(GitHub_Repository, self).review_tables
@@ -132,6 +142,14 @@ class GitHub_Repository(Git_Repository, Review_System):
             return str(0)
 
         return parse_unicode(part.login)
+
+    def _is_bot_user(self, user):
+        if user.type == "Bot":
+            return True
+        if user.login in self._github_bots:
+            return True
+
+        return False
 
     def _format_issue(self, issue):
         author_username = self._get_username(issue.user)
@@ -247,10 +265,13 @@ class GitHub_Repository(Git_Repository, Review_System):
         """
         Add a normal pull request comment described by its GitHub API response
         object to the repo merge request notes table. Returns whether the pull
-        request comment is updated more recently than the update tracker date.
+        request comment is updated more recently than the update tracker date
+        and is not a bot-generated comment.
         """
 
         if not self._is_newer(comment.updated_at):
+            return False
+        if self._is_bot_user(comment.user):
             return False
 
         note = self._format_note(comment)
@@ -286,10 +307,13 @@ class GitHub_Repository(Git_Repository, Review_System):
         """
         Add a commit comment described by its GitHub API response object to the
         commit comments table. Returns whether the commit comment is updated
-        more recently than the update tracker date.
+        more recently than the update tracker date and is not a bot-generated
+        comment.
         """
 
         if not self._is_newer(comment.updated_at):
+            return False
+        if self._is_bot_user(comment.user):
             return False
 
         line = comment.line
@@ -300,10 +324,13 @@ class GitHub_Repository(Git_Repository, Review_System):
         """
         Add a pull request review comment described by its GitHub API response
         object to the commit comments table. Returns whether the comment is
-        updated more recently than the update tracker date.
+        updated more recently than the update tracker date and is not
+        a bot-generated comment.
         """
 
         if not self._is_newer(comment.updated_at):
+            return False
+        if self._is_bot_user(comment.user):
             return False
 
         # We store the most recent line indexes to which the comment applies.
@@ -342,6 +369,9 @@ class GitHub_Repository(Git_Repository, Review_System):
         Add a pull request review described by its GitHub API response object
         to the merge request reviews table.
         """
+
+        if self._is_bot_user(review.user):
+            return
 
         reviewer = self._get_username(review.user)
         if review.state == self.UPVOTE:
