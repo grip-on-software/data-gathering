@@ -101,7 +101,6 @@ class Git_Repository(Version_Control_Repository):
     def __init__(self, source, repo_directory, progress=None, **kwargs):
         super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
         self._repo = None
-        self._unsafe_hosts = bool(source.get_option('unsafe'))
         self._from_date = source.get_option('from_date')
         self._tag = source.get_option('tag')
 
@@ -188,6 +187,17 @@ class Git_Repository(Version_Control_Repository):
 
         return repository
 
+    @classmethod
+    def is_up_to_date(cls, source, latest_version):
+        git = Git()
+        git.update_environment(**cls._create_environment(source, git))
+        remote_refs = git.ls_remote('--heads', source.url, 'master')
+        head_version = remote_refs.split('\t', 1)[0]
+        if head_version == latest_version:
+            return True
+
+        return False
+
     @property
     def repo(self):
         if self._repo is None:
@@ -201,28 +211,32 @@ class Git_Repository(Version_Control_Repository):
         if not isinstance(repo, Repo):
             raise TypeError('Repository must be a gitpython Repo instance')
 
-        repo.git.update_environment(**self._create_environment(repo))
+        self._update_environment(repo)
         self._repo = repo
 
-    def _create_environment(self, repo=None):
+    def _update_environment(self, repo):
+        environment = self._create_environment(self.source, repo.git)
+        repo.git.update_environment(**environment)
+
+    @classmethod
+    def _create_environment(cls, source, git=None):
         """
         Retrieve the environment variables for the Git subcommands.
         """
 
         environment = {}
 
-        credentials_path = self.source.credentials_path
+        credentials_path = source.credentials_path
         if credentials_path is not None:
             logging.debug('Using credentials path %s', credentials_path)
             ssh_command = "ssh -i '{}'".format(credentials_path)
-            if self._unsafe_hosts:
+            if source.get_option('unsafe_hosts'):
                 ssh_command += '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
-            if repo is not None:
-                version_info = repo.git.version_info
-            else:
-                version_info = Git().version_info
+            if git is None:
+                git = Git()
 
+            version_info = git.version_info
             if version_info < (2, 3, 0):
                 with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
                     tmpfile.write(ssh_command + ' $*')
@@ -309,7 +323,7 @@ class Git_Repository(Version_Control_Repository):
 
         self.repo = Repo.clone_from(self.source.url, self.repo_directory,
                                     progress=self._progress,
-                                    env=self._create_environment(),
+                                    env=self._create_environment(self.source),
                                     **kwargs)
 
     def _query(self, refspec, paths='', descending=True):
