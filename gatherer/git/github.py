@@ -306,6 +306,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         if not self._is_newer(comment.updated_at):
             return False
 
+        # We store the most recent line indexes to which the comment applies.
         if comment.position is None:
             position = comment.original_position
         else:
@@ -320,9 +321,10 @@ class GitHub_Repository(Git_Repository, Review_System):
                 line = 0
 
             end_line = line + position
-            if lines[position].startswith('-'):
+            # Determine line type using the last line in the diff hunk.
+            if lines[-1].startswith('-'):
                 line_type = 'old'
-            elif lines[position].startswith('+'):
+            elif lines[-1].startswith('+'):
                 line_type = 'new'
             else:
                 line_type = 'context'
