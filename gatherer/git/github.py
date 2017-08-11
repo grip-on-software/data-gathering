@@ -225,7 +225,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         issue_row = self._format_issue(issue)
         issue_row.update({
             'pull_request_id': str(pull_request_id),
-            'labels': len(issue.labels),
+            'labels': str(len(issue.labels)),
             'closed_at': closed_date,
             'closed_by': self._get_username(issue.closed_by)
         })
@@ -237,7 +237,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         author = self._get_username(comment.user)
         return {
             'repo_name': str(self._repo_name),
-            'note_id': comment.id,
+            'note_id': str(comment.id),
             'author': author,
             'author_username': author,
             'comment': parse_unicode(comment.body),
@@ -278,7 +278,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         note.update({
             'thread_id': str(0),
             'parent_id': str(0),
-            'merge_request_id': request_id
+            'merge_request_id': str(request_id)
         })
 
         self._tables["merge_request_note"].append(note)
@@ -383,7 +383,7 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         self._tables["merge_request_review"].append({
             'repo_name': str(self._repo_name),
-            'merge_request_id': request_id,
+            'merge_request_id': str(request_id),
             'reviewer': reviewer,
             'reviewer_username': reviewer,
             'vote': str(vote)
