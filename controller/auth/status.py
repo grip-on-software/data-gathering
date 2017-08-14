@@ -203,8 +203,8 @@ def display_status(project_key):
         Daemon_Status(),
         Total_Status(status)
     ]
-    for key, generator in generators:
-        status[key] = generator.generate()
+    for generator in generators:
+        status[generator.key] = generator.generate()
 
     if status['total']['ok']:
         print('Status: 200 OK')
