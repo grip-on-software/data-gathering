@@ -4,6 +4,7 @@ Script to obtain attributes and metadata relating to a specific project.
 
 import argparse
 import json
+import logging
 import os.path
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -45,11 +46,15 @@ def main():
         'main_project': project.main_project
     }
 
-    collector = Project_Collector(project, repo_path=args.repo,
-                                  context_lines=args.context)
-    collector.collect_latest()
+    if project.quality_metrics_name is None:
+        logging.warning('No project defintion available for %s, missing out.',
+                        project_key)
+    else:
+        collector = Project_Collector(project, repo_path=args.repo,
+                                      context_lines=args.context)
+        collector.collect_latest()
 
-    data.update(collector.meta)
+        data.update(collector.meta)
 
     export_filename = os.path.join(project.export_key, 'data_project.json')
     with open(export_filename, 'w') as export_file:
