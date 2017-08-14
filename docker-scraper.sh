@@ -21,6 +21,8 @@ scripts="project_sources.py git_to_json.py"
 updateFiles=$(./list-files.sh update $scripts)
 exportFiles=$(./list-files.sh export $scripts)
 
+python preflight.py $project --log $logLevel
+
 # Remove old update files so that the remote update trackers are always used
 for updateFile in $updateFiles; do
 	rm -f export/$project/$updateFile
