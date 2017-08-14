@@ -10,8 +10,10 @@ except ImportError:
 
 import json
 import os.path
+import pymonetdb
 import Pyro4
 from gatherer.config import Configuration
+from gatherer.database import Database
 from gatherer.domain import Project
 from gatherer.files import File_Store
 from gatherer.salt import Salt
@@ -25,6 +27,31 @@ class Gatherer(object):
 
     def __init__(self):
         self._config = Configuration.get_settings()
+
+    def get_database_status(self, project_key):
+        """
+        Retrieve status information from the database related to its
+        availability and acceptance of new results.
+        """
+
+        try:
+            database = Database(user=self._config.get('database', 'username'),
+                                password=self._config.get('database', 'password'),
+                                host=self._config.get('database', 'host'),
+                                database=self._config.get('database', 'name'))
+        except (EnvironmentError, pymonetdb.Error) as error:
+            return {
+                'ok': False,
+                'message': str(error)
+            }
+
+        if database.get_project_id(project_key) is None:
+            return {
+                'ok': False,
+                'message': 'Project is not yet registered in the database'
+            }
+
+        return {'ok': True}
 
     def get_update_trackers(self, project_key, home_directory):
         """
