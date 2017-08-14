@@ -294,6 +294,8 @@ access to the service completely.
   You need to set this for GitHub Enterprise when hosted on a custom domain.
 - `github_token` (`$SOURCE_GITHUB_TOKEN`): API token for GitHub in order to 
   obtain auxiliary data from GitHub.
+- `github_bots` (`$SOURCE_GITHUB_BOTS`): Comma-separated list of GitHub user 
+  login names whose comments are excluded from the import of auxiliary data.
 - `gitlab_token` (`$SOURCE_GITLAB_TOKEN` and `$DEFINITONS_GITLAB_TOKEN`): API 
   token for GitLab instances in order to obtain auxiliary data from GitLab or 
   interface with its authorization scheme.
