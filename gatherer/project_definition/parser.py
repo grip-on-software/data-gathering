@@ -246,6 +246,42 @@ class Project_Definition_Parser(object):
 
         return class_name
 
+class Project_Parser(Project_Definition_Parser):
+    """
+    A project definition parser that retrieves the project name.
+    """
+
+    def get_hqlib_submodules(self):
+        return {}
+
+    def get_mock_modules(self):
+        modules = super(Project_Parser, self).get_mock_modules()
+
+        ictu = mock.MagicMock()
+        ictu_convention = mock.MagicMock()
+        ictu_metric_source = mock.MagicMock()
+
+        modules.update(self.get_compatibility_modules('ictu', ictu))
+        modules.update(self.get_compatibility_modules('ictu.convention',
+                                                      ictu_convention))
+        modules.update(self.get_compatibility_modules('ictu.metric_source',
+                                                      ictu_metric_source))
+
+        return modules
+
+    def filter_domain_object(self, mock_object):
+        return isinstance(mock_object, domain.Project)
+
+    def parse_domain_call(self, args, keywords):
+        if "name" in keywords:
+            name = keywords["name"]
+        elif len(args) > 1:
+            name = args[1]
+        else:
+            return
+
+        self.data['quality_display_name'] = name
+
 class Sources_Parser(Project_Definition_Parser):
     """
     A project definition parser that extracts source URLs for the products
@@ -253,6 +289,7 @@ class Sources_Parser(Project_Definition_Parser):
     """
 
     METRIC_SOURCE = 'hqlib.metric_source'
+    DOMAIN_OBJECTS = (domain.Product, domain.Application, domain.Component)
 
     def __init__(self, path, **kwargs):
         super(Sources_Parser, self).__init__(**kwargs)
@@ -293,7 +330,7 @@ class Sources_Parser(Project_Definition_Parser):
             super(Sources_Parser, self).load_definition(filename, contents)
 
     def filter_domain_object(self, mock_object):
-        return isinstance(mock_object, (domain.Product, domain.Application, domain.Component))
+        return isinstance(mock_object, self.DOMAIN_OBJECTS)
 
     def parse_domain_call(self, args, keywords):
         if "name" in keywords:
@@ -307,8 +344,7 @@ class Sources_Parser(Project_Definition_Parser):
         if "metric_source_ids" not in keywords:
             return
 
-        logging.debug('metric source ids: %s',
-                      repr(keywords["metric_source_ids"]))
+        logging.debug('metric source ids: %r', keywords["metric_source_ids"])
         if not isinstance(keywords["metric_source_ids"], dict):
             return
 

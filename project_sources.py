@@ -3,7 +3,6 @@ Script to parse current project definitions and extract metric sources from
 the products and components.
 """
 
-from builtins import str
 import argparse
 import logging
 
@@ -57,20 +56,12 @@ def main():
         project.export_sources()
         return
 
-    if args.repo is not None:
-        repo_path = args.repo
-    else:
-        repo_path = project.get_key_setting('definitions', 'path',
-                                            project.quality_metrics_name)
-
-    collector = Sources_Collector(project, repo_path,
+    collector = Sources_Collector(project, repo_path=args.repo,
                                   context_lines=args.context)
     if args.all or args.from_revision is not None or args.to_revision is not None:
         collector.collect(args.from_revision, args.to_revision)
     else:
-        latest_version = str(collector.repo.get_latest_version())
-        collector.collect_version({'version_id': latest_version})
-        collector.finish(latest_version)
+        collector.collect_latest()
 
     project.export_sources()
 

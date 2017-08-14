@@ -6,7 +6,7 @@ from builtins import object
 import logging
 import os.path
 from .metric import Metric_Difference
-from .parser import Metric_Options_Parser, Sources_Parser
+from .parser import Metric_Options_Parser, Project_Parser, Sources_Parser
 from .update import Update_Tracker
 from ..domain import Source
 
@@ -18,13 +18,18 @@ class Collector(object):
 
     FILENAME = 'project_definition.py'
 
-    def __init__(self, project, repo_path, target='project_definition',
+    def __init__(self, project, repo_path=None, target='project_definition',
                  **options):
+        if repo_path is None:
+            repo_path = project.get_key_setting('definitions', 'path',
+                                                project.quality_metrics_name)
+
         self._project = project
         self._update_tracker = Update_Tracker(self._project, target=target)
         repo_class = project.project_definitions_source.repository_class
         self._repo = repo_class(project.project_definitions_source,
                                 repo_path, project=self._project)
+
         if project.quality_metrics_name not in repo_path:
             self._filename = '{}/{}'.format(project.quality_metrics_name,
                                             self.FILENAME)
@@ -87,6 +92,16 @@ class Collector(object):
             logging.warning("Problem with revision %s: %s",
                             version['version_id'], str(error))
 
+    def collect_latest(self):
+        """
+        Collect information from the latest version of the project definition,
+        and finalize the collection immediately.
+        """
+
+        latest_version = self._repo.get_latest_version()
+        self.collect_version({"version_id": latest_version})
+        self.finish(latest_version)
+
     def aggregate_result(self, version, result):
         """
         Perform an action on the collected result to format it according to our
@@ -103,15 +118,42 @@ class Collector(object):
 
         raise NotImplementedError('Must be implemented by subclasses')
 
+class Project_Collector(Collector):
+    """
+    Collector that retrieves project information.
+    """
+
+    def __init__(self, project, **kwargs):
+        super(Project_Collector, self).__init__(project,
+                                                target='project_meta',
+                                                **kwargs)
+        self._meta = {}
+
+    def build_parser(self, version):
+        return Project_Parser(**self._options)
+
+    def aggregate_result(self, version, result):
+        self._meta = result
+
+    @property
+    def meta(self):
+        """
+        Retrieve the parsed project metadata.
+        """
+
+        return self._meta
+
 class Sources_Collector(Collector):
     """
     Collector that retrieves version control sources from project definitions.
     """
 
-    def __init__(self, project, repo_path, **kwargs):
-        super(Sources_Collector, self).__init__(project, repo_path,
+    def __init__(self, project, **kwargs):
+        super(Sources_Collector, self).__init__(project,
                                                 target='project_sources',
                                                 **kwargs)
+
+        repo_path = self._repo.repo_directory
         if project.quality_metrics_name in repo_path:
             self._repo_path = os.path.dirname(os.path.abspath(repo_path))
         else:
@@ -138,8 +180,8 @@ class Metric_Options_Collector(Collector):
     Collector that retrieves changes to metric targets from project definitions.
     """
 
-    def __init__(self, project, repo_path, **kwargs):
-        super(Metric_Options_Collector, self).__init__(project, repo_path,
+    def __init__(self, project, **kwargs):
+        super(Metric_Options_Collector, self).__init__(project,
                                                        target='metric_options',
                                                        **kwargs)
         self._diff = Metric_Difference(project,
