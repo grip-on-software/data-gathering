@@ -78,11 +78,13 @@ data storage OOP classes with various functionality.
 
 This repository also contains agent-only tools:
 
-- `bigboat_to_json.py` (agent): Request the status of a BigBoat dashboard and 
-  publish this data to the controller server.
-- `generate_key.py` (agent): Generate a public-private key pair and distribute 
-  the public part to supporting sources (GitLab) and the controller server, for 
+- `bigboat_to_json.py`: Request the status of a BigBoat dashboard and publish 
+  this data to the controller server.
+- `generate_key.py`: Generate a public-private key pair and distribute the 
+  public part to supporting sources (GitLab) and the controller server, for 
   registration purposes.
+- `preflight.py`: Perform status checks, including integrity of secrets and the 
+  controller server, before collecting and exporting data.
 
 Finally, the repository contains a controller API and its backend daemons, and 
 a deployment interface:
