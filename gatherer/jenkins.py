@@ -541,6 +541,14 @@ class Build(Base):
 
         return self.data['result']
 
+    @property
+    def building(self):
+        """
+        Retrieve whether this build is currently building.
+        """
+
+        return self.data['building']
+
     def _related(self, other):
         if isinstance(other, Build):
             return self.exists and other.exists and self.job == other.job
