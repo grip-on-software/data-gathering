@@ -13,7 +13,10 @@ try:
     import spwd
 except ImportError:
     spwd = None
-import ldap
+try:
+    import ldap
+except ImportError:
+    ldap = None
 from .config import Configuration
 
 class LoginException(RuntimeError):
@@ -162,6 +165,9 @@ class LDAP(Authentication):
 
     def __init__(self, args):
         super(LDAP, self).__init__(args)
+        if ldap is None:
+            raise ImportError('Unable to use LDAP; install the python-ldap package')
+
         self._group = self._retrieve_ldap_group()
 
     def _retrieve_ldap_group(self):
@@ -195,7 +201,7 @@ class LDAP(Authentication):
 
     def _validate_ldap(self, username, password):
         # Pre-check: user in group?
-        if username not in self.group:
+        if username not in self._group:
             raise LoginException('User {} not in group'.format(username))
 
         # Next check: get DN from uid
