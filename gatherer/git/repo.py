@@ -103,7 +103,7 @@ class Git_Repository(Version_Control_Repository):
         self._repo = None
         self._from_date = source.get_option('from_date')
         self._tag = source.get_option('tag')
-        self._prev_head = self.NULL_TREE
+        self._prev_head = NULL_TREE
 
         # If `progress` is `True`, then add progress lines from Git commands to
         # the logging output. If `progress` is a nonzero number, then sample
