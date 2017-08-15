@@ -103,6 +103,7 @@ class Git_Repository(Version_Control_Repository):
         self._repo = None
         self._from_date = source.get_option('from_date')
         self._tag = source.get_option('tag')
+        self._prev_head = self.NULL_TREE
 
         # If `progress` is `True`, then add progress lines from Git commands to
         # the logging output. If `progress` is a nonzero number, then sample
@@ -254,6 +255,22 @@ class Git_Repository(Version_Control_Repository):
     def version_info(self):
         return self.repo.git.version_info
 
+    @property
+    def prev_head(self):
+        """
+        Indicator of the previous head state before a pull, fetch/merge, or
+        checkout operation, such as when pulling an existing repository.
+        The previous head is then given by the commit that the branch was on
+        in before the latest relevant operation.
+
+        If no such operation has been done (or the repository was just cloned),
+        then this property returns the NULL_TREE object, which indicates the
+        empty tree (no commit has been made). The return value is thus suitable
+        to use in GitPython difference operations.
+        """
+
+        return self._prev_head
+
     def exists(self):
         """
         Check whether the repository exists, i.e., the path points to a valid
@@ -275,6 +292,7 @@ class Git_Repository(Version_Control_Repository):
 
     def update(self, shallow=False):
         # Update the repository from the origin URL.
+        self._prev_head = self.repo.head.commit
         if shallow:
             self.repo.remotes.origin.fetch('master', depth=1,
                                            progress=self._progress)
