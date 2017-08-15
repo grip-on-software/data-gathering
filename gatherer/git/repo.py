@@ -174,15 +174,21 @@ class Git_Repository(Version_Control_Repository):
 
         checkout = kwargs.pop('checkout', False)
         shallow = kwargs.pop('shallow', False)
+        shared = kwargs.pop('shared', False)
         repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
+            if not repository.is_shared(shared=shared):
+                raise RuntimeError("Existing clone does is not shared as '{}'".format(shared))
+
             if not repository.is_empty():
                 if isinstance(checkout, list):
                     repository.checkout_sparse(checkout, shallow=shallow)
                 else:
                     repository.update(shallow=shallow)
         elif isinstance(checkout, bool):
-            repository.clone(checkout=checkout, shallow=shallow)
+            repository.clone(checkout=checkout, shallow=shallow, shared=shared)
+        elif shared is not False:
+            raise RuntimeError('Shared repositories are not supported for sparse checkouts')
         else:
             repository.checkout(paths=checkout, shallow=shallow)
 
@@ -290,6 +296,40 @@ class Git_Repository(Version_Control_Repository):
 
         return not self.repo.branches
 
+    def is_shared(self, shared=True):
+        """
+        Check whether the repository is shared in the same way as the `shared`
+        parameter indicates. A `shared` value of `True` may correspond to
+        either "group" or "true" in the repository configuration, while when
+        `shared` is `False`, the configuration must be set to "umask", "false"
+        or be unset in order to match. The `shared` value may also be "all"
+        which matches "all", "world" or "everybody" configuration. For future
+        compatibility, other `shared` may match exactly with the configuration.
+
+        Note that this only matches configuration variables written exactly
+        as "sharedRepository" in the "core" section of the Git config.
+        """
+
+        shared_mapping = {
+            "true": True,
+            "group": True,
+            "false": False,
+            "umask": False,
+            "all": "all",
+            "world": "all",
+            "everybody": "all"
+        }
+
+        config = self.repo.config_reader()
+        if not config.has_option('core', 'sharedRepository'):
+            return shared is False
+
+        value = config.get_value('core', 'sharedRepository')
+        if value not in shared_mapping:
+            return shared == value
+
+        return shared == shared_mapping[value]
+
     def update(self, shallow=False):
         # Update the repository from the origin URL.
         self._prev_head = self.repo.head.commit
@@ -323,14 +363,23 @@ class Git_Repository(Version_Control_Repository):
         # Ensure repository is up to date.
         self.update(shallow=shallow)
 
-    def clone(self, checkout=True, shallow=False):
+    def clone(self, checkout=True, shallow=False, shared=False):
         """
         Clone the repository, optionally according to a certain checkout
         scheme. If `checkout` is `False`, then do not check out the local files
         of the default branch (all repository actions still function).
+
         If `shallow` is `True`, then only the default branch's head commit is
         fetched. Note that not precautions are made to prevent pulling in more
         commits later on unless `shallow` is used for all actions.
+
+        If `shared` is something other than `False`, then this value is used
+        for the core.sharedRepository configuration, causing the repository
+        permissions to be set such that it is shared with a group or all.
+        A boolean `True` becomes "true" which means group sharing. Note that
+        this option does not alter any ownership behavior, is dependent on
+        the user performing actions and the setgid permission on the (parent)
+        directory that may alter the group used.
         """
 
         kwargs = {
@@ -338,6 +387,9 @@ class Git_Repository(Version_Control_Repository):
         }
         if shallow:
             kwargs["depth"] = 1
+        if shared is not False:
+            value = "true" if shared is True else shared
+            kwargs["config"] = "core.sharedRepository={}".format(value)
 
         self.repo = Repo.clone_from(self.source.url, self.repo_directory,
                                     progress=self._progress,
