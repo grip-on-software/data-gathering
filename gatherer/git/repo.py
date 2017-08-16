@@ -321,10 +321,7 @@ class Git_Repository(Version_Control_Repository):
         }
 
         config = self.repo.config_reader()
-        if not config.has_option('core', 'sharedRepository'):
-            return shared is False
-
-        value = config.get_value('core', 'sharedRepository')
+        value = config.get_value('core', 'sharedRepository', default=False)
         if value not in shared_mapping:
             return shared == value
 
