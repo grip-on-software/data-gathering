@@ -64,6 +64,7 @@ def main():
                       verify=args.verify)
 
     data = {
+        'host': jenkins.base_url,
         'jobs': len(jenkins.jobs),
         'views': len(jenkins.views),
         'nodes': len(jenkins.nodes)
