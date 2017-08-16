@@ -46,12 +46,13 @@ class Exporter(object):
         job = jenkins.get_job(job_name)
 
         scripts = [
-            "project_sources.py", "jira_to_json.py", "history_to_json.py",
-            "metric_options_to_json.py"
+            "project_sources.py", "project_to_json.py",
+            "jira_to_json.py", "history_to_json.py", "metric_options_to_json.py"
         ]
+        tasks = ["all", "developerlink", "-vcs", "-jenkins"]
         parameters = [
             {"name": "listOfProjects", "value": project_key},
-            {"name": "importerTasks", "value": "all,developerlink,-vcs"},
+            {"name": "importerTasks", "value": ",".join(tasks)},
             {"name": "logLevel", "value": "INFO"},
             {"name": "cleanupRepos", "value": "true"},
             {"name": "gathererScripts", "value": " ".join(scripts)}

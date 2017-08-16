@@ -24,7 +24,7 @@ perform_export() {
 	if [ -z "$(ls -A $controller_directory/export/$project)" ]; then
 		echo "Skipping import of $project because export directory is empty"
 	else
-		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,update,developerlink" logLevel="INFO" skipGather="true" IMPORTER_BASE="$CONTROLLER_DIRECTORY" SKIP_REQUIREMENTS="true" importerProperties="-Dimporter.relPath=$project/export" ./jenkins-scraper.sh
+		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,jenkins,update,developerlink" logLevel="INFO" skipGather="true" IMPORTER_BASE="$CONTROLLER_DIRECTORY" SKIP_REQUIREMENTS="true" importerProperties="-Dimporter.relPath=$project/export" ./jenkins-scraper.sh
 		local status=$?
 
 		if [ $status -eq 0 ]; then
