@@ -9,7 +9,7 @@ if [ -z "$listOfProjects" ]; then
 fi
 
 # The scripts that export data during the gathering
-scripts="project_sources.py jira_to_json.py environment_sources.py git_to_json.py history_to_json.py metric_options_to_json.py"
+scripts="project_sources.py project_to_json.py jira_to_json.py environment_sources.py git_to_json.py history_to_json.py metric_options_to_json.py jenkins_to_json.py"
 
 # Declare the script tasks to run during the gathering export, space-separated
 if [ -z "$gathererScripts" ]; then
@@ -183,11 +183,13 @@ do
 		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
 
 		export_handler project_sources.py $project --log $logLevel
+		export_handler project_to_json.py $project --log $logLevel
 		export_handler jira_to_json.py $project --log $logLevel
 		export_handler environment_sources.py $project --log $logLevel
 		export_handler git_to_json.py $project --log $logLevel
 		export_handler history_to_json.py $project --export-path --export-url --log $logLevel
 		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
+		export_handler jenkins_to_json.py $project --log $logLevel
 	fi
 	if [ $importerTasks != "skip" ]; then
 		status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" $importerProperties -jar "$IMPORTER_BASE/importerjson.jar" $project $importerTasks

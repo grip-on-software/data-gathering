@@ -4,6 +4,7 @@ Script to obtain statistics from a Jenkins instance.
 
 import argparse
 import json
+import logging
 import os.path
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -54,6 +55,11 @@ def main():
     config = Configuration.get_settings()
     args = parse_args(config)
     project = Project(args.project)
+    if not Configuration.has_value(args.host):
+        logging.warning('Project %s has no Jenkins instance configured',
+                        project.key)
+        return
+
     jenkins = Jenkins(args.host, username=args.username, password=args.password,
                       verify=args.verify)
 

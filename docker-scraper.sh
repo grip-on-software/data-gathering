@@ -17,7 +17,7 @@ if [ -z "$logLevel" ]; then
 fi
 
 # Declare update and export files
-scripts="project_sources.py git_to_json.py"
+scripts="project_sources.py git_to_json.py jenkins_to_json.py"
 updateFiles=$(./list-files.sh update $scripts)
 exportFiles=$(./list-files.sh export $scripts)
 
@@ -33,6 +33,7 @@ python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
 python project_sources.py $project --log $logLevel
 python environment_sources.py $project --log $logLevel
 python git_to_json.py $project --log $logLevel
+python jenkins_to_json.py $project --log $logLevel
 python export_files.py $project --update $updateFiles --export $exportFiles
 
 if [ $cleanupRepos = "true" ]; then
