@@ -258,6 +258,10 @@ the setting is not used in this environment.
     member login names.
   - `display_name` (`$LDAP_DISPLAY_NAME`): Attribute of the user that holds 
     their displayable name (instead of the login name).
+- deploy (used by `deployer.py`): The deployment application.
+  - `auth` (`$DEPLOYER_AUTH`): Authentication scheme to use for the deployment. 
+    Accepted values are 'open' (all logins allowed, only in debug environment), 
+    'pwd' (/etc/passwd), 'spwd' (/etc/shadow), and 'ldap' (LDAP server).
 - projects: A list of project JIRA keys and their long names in quality metrics 
   dashboard and repositories. You may add any number of projects here; the 
   pipeline can obtain project definitions only if they exist here.

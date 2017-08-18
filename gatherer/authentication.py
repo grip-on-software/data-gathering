@@ -17,7 +17,6 @@ try:
     import ldap
 except ImportError:
     ldap = None
-from .config import Configuration
 
 class LoginException(RuntimeError):
     """
@@ -68,9 +67,9 @@ class Authentication(object):
 
         return cls._auth_types.keys()
 
-    def __init__(self, args):
+    def __init__(self, args, config):
         self.args = args
-        self.config = Configuration.get_settings()
+        self.config = config
 
     def validate(self, username, password):
         """
@@ -91,8 +90,8 @@ class Open(Authentication):
     Only to be used in debugging environments.
     """
 
-    def __init__(self, args):
-        super(Open, self).__init__(args)
+    def __init__(self, args, config):
+        super(Open, self).__init__(args, config)
         if not args.debug:
             raise RuntimeError('Open authentication must not be used outside debug environment')
 
@@ -129,8 +128,8 @@ class UnixPwd(Unix):
     Authentication using the `/etc/passwd` database.
     """
 
-    def __init__(self, args):
-        super(UnixPwd, self).__init__(args)
+    def __init__(self, args, config):
+        super(UnixPwd, self).__init__(args, config)
         if pwd is None:
             raise ImportError('pwd not available on this platform')
 
@@ -146,8 +145,8 @@ class UnixSpwd(Unix):
     Authentication using the `/etc/shadow` privileged database.
     """
 
-    def __init__(self, args):
-        super(UnixSpwd, self).__init__(args)
+    def __init__(self, args, config):
+        super(UnixSpwd, self).__init__(args, config)
         if spwd is None:
             raise ImportError('spwd not available on this platform')
 
@@ -163,8 +162,8 @@ class LDAP(Authentication):
     LDAP group-based authentication scheme.
     """
 
-    def __init__(self, args):
-        super(LDAP, self).__init__(args)
+    def __init__(self, args, config):
+        super(LDAP, self).__init__(args, config)
         if ldap is None:
             raise ImportError('Unable to use LDAP; install the python-ldap package')
 

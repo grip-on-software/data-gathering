@@ -51,6 +51,8 @@ manager_password = $LDAP_MANAGER_PASSWORD
 group_dn = $LDAP_GROUP_DN
 group_attr = $LDAP_GROUP_ATTR
 display_name = $LDAP_DISPLAY_NAME
+[deploy]
+auth = $DEPLOYER_AUTH
 [projects]
 $JIRA_KEY = $PROJECT_NAME
 [subprojects]
