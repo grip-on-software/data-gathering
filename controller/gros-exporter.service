@@ -1,0 +1,17 @@
+[Unit]
+Description=GROS agent data exporter daemon
+After=network.target
+Requires=pyro-ns.service
+
+[Service]
+ExecStart=/bin/python /usr/local/bin/exporter-daemon.py
+WorkingDirectory=/srv/data-gathering
+Type=simple
+User=exporter
+Group=controller
+Environment=PYRO_LOGLEVEL=INFO PYRO_LOGFILE={stderr}
+Restart=always
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target

@@ -13,13 +13,28 @@ class Controller(object):
     Object that updates access and permissions for agents.
     """
 
+    # Permissions to use when creating a directory related to an agent.
+    # The permissions ensure that the controller has access to it, and the
+    # agent may not be able to log in while it has these permissions due to SSH
+    # server security. Individual directories receive correct permissions after
+    # all data is created.
     CREATE_PERMISSIONS = '2770'
 
+    # The root directory where agent home directories are created and kept.
     HOME_DIRECTORY = '/agents'
+    # Format string for the user login name of an agent.
     USERNAME = 'agent-{}'
+    # The directory where public keys of the agents are stored. This is kept
+    # separate from the home directory for increased login security.
     SSH_DIRECTORY = '/etc/ssh/control'
+    # The filename to use when storing the public keys in the key store.
     KEY_FILENAME = 'authorized_keys'
+    # Directory where the controllers can work on copies of the agent data.
     CONTROLLER_DIRECTORY = '/controller'
+    # Executable command to create a user. This command must accept options
+    # to set up login shell, home directory path and other user properties and
+    # create the user without any interactive prompts.
+    ADD_USER_COMMAND = 'useradd'
 
     def _create_directory(self, project_key, directory, user=None,
                           permissions=None):
@@ -108,7 +123,7 @@ class Controller(object):
             subprocess.check_call(['sudo', 'rm', '-rf', home_directory])
         else:
             subprocess.check_call([
-                'sudo', 'adduser',
+                'sudo', self.ADD_USER_COMMAND,
                 '-M', # Do not create home directory at this point
                 '-N', # Do not create any additional groups
                 '-d', home_directory,

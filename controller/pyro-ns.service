@@ -1,0 +1,15 @@
+[Unit]
+Description=Pyro4 object nameserver daemon
+After=network.target
+
+[Service]
+ExecStart=/bin/pyro4-ns
+Type=simple
+User=pyro-ns
+Group=pyro-ns
+Environment=PYRO_LOGLEVEL=INFO PYRO_LOGFILE='{stderr}'
+Restart=always
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
