@@ -306,8 +306,9 @@ class Git_Repository(Version_Control_Repository):
         which matches "all", "world" or "everybody" configuration. For future
         compatibility, other `shared` may match exactly with the configuration.
 
-        Note that this only matches configuration variables written exactly
-        as "sharedRepository" in the "core" section of the Git config.
+        Note that this only matches configuration variables written as either
+        "sharedRepository" or "sharedrepository" in the "core" section of the
+        Git config; other case variants are not looked up.
         """
 
         shared_mapping = {
@@ -321,7 +322,9 @@ class Git_Repository(Version_Control_Repository):
         }
 
         config = self.repo.config_reader()
-        value = config.get_value('core', 'sharedRepository', default=False)
+        value = config.get_value('core', 'sharedRepository', default=None)
+        if value is None:
+            value = config.get_value('core', 'sharedrepository', default=False)
         if value not in shared_mapping:
             return shared == value
 
