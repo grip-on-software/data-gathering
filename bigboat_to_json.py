@@ -45,6 +45,47 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
+def filter_statuses(statuses):
+    """
+    Convert a list of status dictionaries into a list of relevant metrics.
+    """
+
+    details_values = ['usedIps', 'used', 'loadavg', 'time']
+    details_max = ['totalIps', 'total']
+
+    output = []
+    for status in statuses:
+        details = status.get('details')
+        output.append({
+            'name': status['name'],
+            'checked_time': parse_date(status['lastCheck']['ISO']),
+            'ok': status['isOk'],
+            'value': find_details(details, details_values, '15'),
+            'max': find_details(details, details_max, None)
+        })
+
+    return output
+
+def find_details(details, keys, subkey=None):
+    """
+    Retrieve a relevant numeric value from a details dictionary.
+    """
+
+    if details is None:
+        return None
+
+    for key in keys:
+        if key in details:
+            value = details[key]
+            if isinstance(value, (float, int)):
+                return value
+            if subkey is not None and subkey in value:
+                return value[subkey]
+
+            raise ValueError('Value is not numeric and does not hold the subkey')
+
+    return None
+
 def main():
     """
     Main entry point.
@@ -72,13 +113,7 @@ def main():
     client = Client_v2(host, api_key=key)
     statuses = client.statuses()
 
-    output = []
-    for status in statuses:
-        output.append({
-            'name': status['name'],
-            'checked_time': parse_date(status['lastCheck']['ISO']),
-            'ok': '1' if status['isOk'] else '0'
-        })
+    output = filter_statuses(statuses)
 
     if args.ssh:
         url = 'https://{}/auth/status.py?project={}'.format(args.ssh,

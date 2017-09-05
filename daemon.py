@@ -18,6 +18,7 @@ from gatherer.domain import Project
 from gatherer.files import File_Store
 from gatherer.salt import Salt
 from gatherer.update import Database_Tracker
+from gatherer.utils import get_local_datetime
 
 @Pyro4.expose
 class Gatherer(object):
@@ -105,6 +106,40 @@ class Gatherer(object):
                 usernames.append(pattern)
 
         return usernames
+
+    def add_bigboat_status(self, project_key, statuses):
+        """
+        Add rows containing health status information from BigBoat for the
+        given project to the database.
+        """
+
+        try:
+            database = Database(user=self._config.get('database', 'username'),
+                                password=self._config.get('database', 'password'),
+                                host=self._config.get('database', 'host'),
+                                database=self._config.get('database', 'name'))
+        except (EnvironmentError, pymonetdb.Error):
+            return False
+
+        project_id = database.get_project_id(project_key)
+        if project_id is None:
+            return False
+
+        query = '''INSERT INTO gros.bigboat_status
+                   (project_id, name, checked_date, ok, value, max)
+                   VALUES (%s, %s, %s, %s, %s, %s)'''
+        parameters = []
+
+        for status in statuses:
+            checked_date = get_local_datetime(status['checked_time'])
+            parameters.append([
+                project_id, status['name'], checked_date, bool(status['ok']),
+                status.get('value'), status.get('max')
+            ])
+
+        database.execute_many(query, parameters)
+
+        return True
 
 def main():
     """

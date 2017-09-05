@@ -49,3 +49,12 @@ class Database(object):
             return self._cursor.fetchone()
         else:
             return self._cursor.fetchall()
+
+    def execute_many(self, query, parameter_sets):
+        """
+        Execute the same prepared query for all sequences of parameters
+        and commit the changes.
+        """
+
+        self._cursor.executemany(query, parameter_sets)
+        self._connection.commit()
