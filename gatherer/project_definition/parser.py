@@ -18,7 +18,7 @@ import traceback
 import mock
 from hqlib import domain, metric, metric_source
 from .compatibility import Compatibility
-from ..utils import parse_unicode
+from ..utils import get_datetime, parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
 
@@ -40,8 +40,7 @@ class Project_Definition_Parser(object):
         if file_time is None:
             self.file_time = datetime.datetime.now()
         else:
-            self.file_time = datetime.datetime.strptime(file_time,
-                                                        '%Y-%m-%d %H:%M:%S')
+            self.file_time = get_datetime(file_time, '%Y-%m-%d %H:%M:%S')
 
         self.data = {}
 

@@ -10,7 +10,6 @@ except ImportError:
     raise
 
 from builtins import str
-import datetime
 import re
 import dateutil.tz
 from git import Commit
@@ -18,7 +17,7 @@ import requests
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..table import Table, Link_Table
-from ..utils import format_date, parse_unicode, Iterator_Limiter
+from ..utils import format_date, get_datetime, parse_unicode, Iterator_Limiter
 from ..version_control.review import Review_System
 
 class TFS_Project(object):
@@ -270,7 +269,7 @@ class TFS_Repository(Git_Repository, Review_System):
         else:
             microsecond = 0
 
-        parsed_date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
+        parsed_date = get_datetime(date, '%Y-%m-%dT%H:%M:%S')
         return parsed_date.replace(microsecond=microsecond,
                                    tzinfo=dateutil.tz.tzutc())
 

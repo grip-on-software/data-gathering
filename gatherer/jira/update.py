@@ -4,7 +4,7 @@ Updated time trackers
 
 from builtins import object
 import os
-from datetime import datetime
+from ..utils import get_datetime
 
 class Updated_Time(object):
     """
@@ -14,7 +14,7 @@ class Updated_Time(object):
 
     def __init__(self, timestamp):
         self._timestamp = timestamp
-        self._date = datetime.strptime(self._timestamp, '%Y-%m-%d %H:%M')
+        self._date = get_datetime(self._timestamp, '%Y-%m-%d %H:%M')
 
     def is_newer(self, timestamp, timestamp_format='%Y-%m-%d %H:%M:%S'):
         """
@@ -22,7 +22,7 @@ class Updated_Time(object):
         to `timestamp_format`, is newer than the update date.
         """
 
-        if self._date < datetime.strptime(timestamp, timestamp_format):
+        if self._date < get_datetime(timestamp, timestamp_format):
             return True
 
         return False
