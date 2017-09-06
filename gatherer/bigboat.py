@@ -4,7 +4,7 @@ Utilities for BigBoat API response data.
 
 import pymonetdb
 from .database import Database
-from .utils import get_datetime, parse_date
+from .utils import convert_utc_datetime, get_datetime, parse_date
 
 class Statuses(object):
     """
@@ -144,6 +144,7 @@ class Statuses(object):
 
         for status in self._statuses:
             checked_date = get_datetime(status['checked_time'])
+            checked_date = convert_utc_datetime(checked_date)
             parameters.append([
                 self.project_id, status['name'], checked_date,
                 bool(int(status['ok'])), status.get('value'), status.get('max')
