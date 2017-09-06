@@ -40,6 +40,8 @@ def parse_args():
     parser.add_argument("project", help="project key")
     parser.add_argument("--start-from", dest="start_from", type=int,
                         default=None, help="line number to start reading from")
+    parser.add_argument("--filename", default=None,
+                        help="filename of the history file")
 
     url_group = parser.add_mutually_exclusive_group()
     url_group.add_argument("--url", default=None,
@@ -93,12 +95,12 @@ def read_project_file(data_file, start_from=0):
     logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
 
-def make_path(prefix):
+def make_path(prefix, filename):
     """
     Create a path or URL to the metrics history file.
     """
 
-    return prefix + "/history.json.gz"
+    return prefix + "/" + filename
 
 def get_setting(arg, key, project):
     """
@@ -186,6 +188,8 @@ def get_data_source(project, args):
     statement, any opened file is closed upon exiting the 'with' block.
     """
 
+    filename = get_setting(args.filename, 'filename', project)
+
     if args.export_path is not None:
         # Path to a local directory or a repository target for a GitLab URL.
         # The local directory contains history.json.gz or the GitLab repository
@@ -196,7 +200,7 @@ def get_data_source(project, args):
             export_path = check_gitlab_path(project, args, export_path)
             if os.path.exists(export_path):
                 logging.info('Found metrics history path: %s', export_path)
-                yield make_path(export_path) + "|"
+                yield make_path(export_path, filename) + "|"
                 return
     elif args.file is not None:
         # Path to a local uncompressed file that can be opened
@@ -210,11 +214,11 @@ def get_data_source(project, args):
         if Configuration.has_value(export_url):
             export_url = check_gitlab_url(project, args, export_url)
             logging.info('Found metrics history URL: %s', export_url)
-            yield make_path(export_url)
+            yield make_path(export_url, filename)
     elif args.url is not None:
         # URL to a specific GZIP file download.
         url_prefix = get_setting(args.url, 'url', project)
-        url = make_path(url_prefix)
+        url = make_path(url_prefix, filename)
         request = requests.get(url)
         stream = io.BytesIO(request.content)
         yield gzip.GzipFile(mode='r', fileobj=stream)
@@ -232,11 +236,15 @@ def main():
 
     project = Project(project_key)
 
-    line_filename = os.path.join(project.export_key, 'history_line_count.txt')
+    # Check most recent history format tracker first
+    start_filenames = ['history_record_count.txt', 'history_line_count.txt']
     if start_from is None:
-        if os.path.exists(line_filename):
-            with open(line_filename, 'r') as line_file:
-                start_from = int(line_file.read())
+        for filename in start_filenames:
+            if os.path.exists(filename):
+                with open(filename, 'r') as start_file:
+                    start_from = int(start_file.read())
+
+                break
         else:
             start_from = 0
 
@@ -244,9 +252,11 @@ def main():
         with get_data_source(project, args) as data:
             if isinstance(data, basestring):
                 metric_data = '{0}#{1}'.format(data, start_from)
-                line_count = 0
             else:
                 metric_data, line_count = read_project_file(data, start_from)
+                line_filename = os.path.join(project.export_key, 'history_line_count.txt')
+                with open(line_filename, 'w') as line_file:
+                    line_file.write(str(start_from + line_count))
     except RuntimeError as error:
         logging.warning('Skipping quality metrics history import for %s: %s',
                         project_key, str(error))
@@ -255,9 +265,6 @@ def main():
     output_filename = os.path.join(project.export_key, 'data_metrics.json')
     with open(output_filename, 'w') as outfile:
         json.dump(metric_data, outfile, indent=4)
-
-    with open(line_filename, 'w') as line_file:
-        line_file.write(str(start_from + line_count))
 
 if __name__ == "__main__":
     main()

@@ -13,6 +13,7 @@ required_paths = $DEFINITIONS_REQUIRED_PATHS
 [history]
 url = $HISTORY_URL
 path = $HISTORY_PATH
+filename = $HISTORY_FILENAME
 [gitlab]
 url = $GITLAB_URL
 token = $GITLAB_TOKEN

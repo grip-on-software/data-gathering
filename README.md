@@ -181,14 +181,15 @@ the setting is not used in this environment.
   by suffixing the option name with a period and the JIRA key of the custom 
   project.
   - `url` (`$HISTORY_URL`): The HTTP(S) URL from which the history dump can be 
-    accessed. The filename "history.json.gz" is automatically appended. For 
-    GitLab repositories, provide the repository URL containing the dump in the 
-    root directory or a subdirectory with the project's quality dashboard.
+    accessed, excluding the filename itself. For GitLab repositories, provide 
+    the repository URL containing the dump in the root directory or 
+    a subdirectory with the project's quality dashboard.
   - `path` (`$HISTORY_PATH`): The local directory where the history dump file 
     can be found or a GitLab repository containing the dump file should be 
     checked out to. May contain a formatter parameter `{}` which is replaced by 
     the project's quality dashboard name; otherwise it is appended 
-    automatically. The filename "history.json.gz" is automatically appended.
+    automatically. The path does not include the filename.
+  - `file` (`HISTORY_FILE`): The file name of the history file to use.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
