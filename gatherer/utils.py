@@ -188,16 +188,29 @@ def get_local_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
     parsed_date = get_datetime(date, date_format)
     return parsed_date.replace(tzinfo=dateutil.tz.tzlocal())
 
+def get_utc_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
+    """
+    Convert a date string to a `datetime` object with the UTC timezone.
+
+    The date string has a standard YYYY-MM-DD HH:MM:SS format or another
+    parseable `date_format`.
+    """
+
+    parsed_date = get_datetime(date, date_format)
+    return parsed_date.replace(tzinfo=dateutil.tz.tzutc())
+
 def convert_local_datetime(date):
     """
-    Convert a datetime object `date` to one that is in the local timezone.
+    Convert a timezone-aware datetime object `date` to one that is in the local
+    timezone.
     """
 
     return date.astimezone(dateutil.tz.tzlocal())
 
 def convert_utc_datetime(date):
     """
-    Convert a datetime object `date` to one that is in the UTC timezone.
+    Convert a timezone-aware datetime object `date` to one that is in the UTC
+    timezone.
     """
 
     return date.astimezone(dateutil.tz.tzutc())
