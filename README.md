@@ -189,7 +189,7 @@ the setting is not used in this environment.
     checked out to. May contain a formatter parameter `{}` which is replaced by 
     the project's quality dashboard name; otherwise it is appended 
     automatically. The path does not include the filename.
-  - `file` (`HISTORY_FILE`): The file name of the history file to use.
+  - `filename` (`HISTORY_FILENAME`): The file name of the history file to use.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
