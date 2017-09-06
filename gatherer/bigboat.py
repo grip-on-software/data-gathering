@@ -11,12 +11,19 @@ class Statuses(object):
     Conversion of BigBoat status items to event records suitable for MonetDB.
     """
 
-    def __init__(self, project, statuses, **options):
+    MAX_BATCH_SIZE = 100
+
+    def __init__(self, project, statuses=None, **options):
         self._project = project
         self._project_id = None
+
         self._database = None
         self._options = options
-        self._statuses = statuses
+
+        if statuses is None:
+            self._statuses = []
+        else:
+            self._statuses = statuses
 
     @staticmethod
     def _find_details(details, keys, subkey=None):
@@ -99,6 +106,23 @@ class Statuses(object):
 
         return self._project_id
 
+    def add_batch(self, statuses):
+        """
+        Add new statuses to the batch, and optionally update the database with the
+        current batch if it becomes too large. Returns whether the loaded data is
+        still intact, i.e., the status records are either in the batch or in the
+        database; misconfigurations result in `False`.
+        """
+
+        if len(self._statuses) > self.MAX_BATCH_SIZE:
+            result = self.update()
+            self._statuses = []
+        else:
+            result = True
+
+        self._statuses.extend(statuses)
+        return result
+
     def update(self):
         """
         Add rows containing the BigBoat status information to the database.
@@ -109,6 +133,10 @@ class Statuses(object):
         if self.database is False or self.project_id is False:
             return False
 
+        # If the batch is empty, then we do not need to do anything else.
+        if not self._statuses:
+            return True
+
         query = '''INSERT INTO gros.bigboat_status
                    (project_id, name, checked_date, ok, value, max)
                    VALUES (%s, %s, %s, %s, %s, %s)'''
@@ -118,7 +146,7 @@ class Statuses(object):
             checked_date = get_local_datetime(status['checked_time'])
             parameters.append([
                 self.project_id, status['name'], checked_date,
-                bool(status['ok']), status.get('value'), status.get('max')
+                bool(int(status['ok'])), status.get('value'), status.get('max')
             ])
 
         self.database.execute_many(query, parameters)
