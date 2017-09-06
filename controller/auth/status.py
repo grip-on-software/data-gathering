@@ -185,9 +185,13 @@ def receive_status(fields, project_key):
     except ValueError:
         raise RuntimeError('Status field must be valid JSON')
 
-    controller = Pyro4.Proxy("PYRONAME:gros.controller")
-    controller.create_controller(project_key)
-    controller.update_status_file(project_key, 'data_status.json', statuses)
+    gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
+    if not gatherer.add_bigboat_status(project_key, statuses):
+        # If there are any database problems, write the statuses to
+        # a controller file for later import.
+        controller = Pyro4.Proxy("PYRONAME:gros.controller")
+        controller.create_controller(project_key)
+        controller.update_status_file(project_key, 'data_status.json', statuses)
 
     print('Status: 202 Accepted')
     print()

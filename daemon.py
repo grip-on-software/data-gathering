@@ -12,6 +12,7 @@ import json
 import os.path
 import pymonetdb
 import Pyro4
+from gatherer.bigboat import Statuses
 from gatherer.config import Configuration
 from gatherer.database import Database
 from gatherer.domain import Project
@@ -27,6 +28,12 @@ class Gatherer(object):
 
     def __init__(self):
         self._config = Configuration.get_settings()
+        self._options = {
+            'user': self._config.get('database', 'username'),
+            'password': self._config.get('database', 'password'),
+            'host': self._config.get('database', 'host'),
+            'database': self._config.get('database', 'name')
+        }
 
     def get_database_status(self, project_key):
         """
@@ -35,10 +42,7 @@ class Gatherer(object):
         """
 
         try:
-            database = Database(user=self._config.get('database', 'username'),
-                                password=self._config.get('database', 'password'),
-                                host=self._config.get('database', 'host'),
-                                database=self._config.get('database', 'name'))
+            database = Database(**self._options)
         except (EnvironmentError, pymonetdb.Error) as error:
             return {
                 'ok': False,
@@ -65,11 +69,7 @@ class Gatherer(object):
         project = Project(project_key,
                           export_directory=update_directory,
                           update_directory=update_directory)
-        track = Database_Tracker(project,
-                                 user=self._config.get('database', 'username'),
-                                 password=self._config.get('database', 'password'),
-                                 host=self._config.get('database', 'host'),
-                                 database=self._config.get('database', 'name'))
+        track = Database_Tracker(project, **self._options)
         track.retrieve()
 
     def get_salts(self, project_key):
@@ -78,11 +78,7 @@ class Gatherer(object):
         """
 
         project = Project(project_key)
-        salt = Salt(project,
-                    user=self._config.get('database', 'username'),
-                    password=self._config.get('database', 'password'),
-                    host=self._config.get('database', 'host'),
-                    database=self._config.get('database', 'name'))
+        salt = Salt(project, **self._options)
         return salt.execute()
 
     def get_usernames(self, project_key):
@@ -105,6 +101,16 @@ class Gatherer(object):
                 usernames.append(pattern)
 
         return usernames
+
+    def add_bigboat_status(self, project_key, statuses):
+        """
+        Add rows containing health status information from BigBoat for the
+        given project to the database. Returns whether the rows could be added
+        to the database; database errors or unknown projects result in `False`.
+        """
+
+        project = Project(project_key)
+        return Statuses(project, statuses, **self._options).update()
 
 def main():
     """

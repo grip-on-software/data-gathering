@@ -16,10 +16,10 @@ import os.path
 from bigboat import Client_v2
 import requests
 
+from gatherer.bigboat import Statuses
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.utils import parse_date
 
 def parse_args():
     """
@@ -70,15 +70,8 @@ def main():
             logging.warning('No BigBoat API key defined for %s', project_key)
 
     client = Client_v2(host, api_key=key)
-    statuses = client.statuses()
-
-    output = []
-    for status in statuses:
-        output.append({
-            'name': status['name'],
-            'checked_time': parse_date(status['lastCheck']['ISO']),
-            'ok': '1' if status['isOk'] else '0'
-        })
+    statuses = Statuses.from_api(project, client.statuses())
+    output = statuses.export()
 
     if args.ssh:
         url = 'https://{}/auth/status.py?project={}'.format(args.ssh,
