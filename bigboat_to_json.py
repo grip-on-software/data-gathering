@@ -16,10 +16,10 @@ import os.path
 from bigboat import Client_v2
 import requests
 
+from gatherer.bigboat import Statuses
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.utils import parse_date
 
 def parse_args():
     """
@@ -44,47 +44,6 @@ def parse_args():
     args = parser.parse_args()
     Log_Setup.parse_args(args)
     return args
-
-def filter_statuses(statuses):
-    """
-    Convert a list of status dictionaries into a list of relevant metrics.
-    """
-
-    details_values = ['usedIps', 'used', 'loadavg', 'time']
-    details_max = ['totalIps', 'total']
-
-    output = []
-    for status in statuses:
-        details = status.get('details')
-        output.append({
-            'name': status['name'],
-            'checked_time': parse_date(status['lastCheck']['ISO']),
-            'ok': status['isOk'],
-            'value': find_details(details, details_values, '15'),
-            'max': find_details(details, details_max, None)
-        })
-
-    return output
-
-def find_details(details, keys, subkey=None):
-    """
-    Retrieve a relevant numeric value from a details dictionary.
-    """
-
-    if details is None:
-        return None
-
-    for key in keys:
-        if key in details:
-            value = details[key]
-            if isinstance(value, (float, int)):
-                return value
-            if subkey is not None and subkey in value:
-                return value[subkey]
-
-            raise ValueError('Value is not numeric and does not hold the subkey')
-
-    return None
 
 def main():
     """
@@ -111,9 +70,8 @@ def main():
             logging.warning('No BigBoat API key defined for %s', project_key)
 
     client = Client_v2(host, api_key=key)
-    statuses = client.statuses()
-
-    output = filter_statuses(statuses)
+    statuses = Statuses.from_api(project, client.statuses())
+    output = statuses.export()
 
     if args.ssh:
         url = 'https://{}/auth/status.py?project={}'.format(args.ssh,
