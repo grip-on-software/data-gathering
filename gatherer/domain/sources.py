@@ -2,22 +2,22 @@
 Collections of sources.
 """
 
+from collections import MutableSet
 import json
 import os
 from .source import Source
 
-class Sources(object):
+class Sources(MutableSet):
     """
     Collection of sources related to a project.
     """
 
     def __init__(self, sources_path=None, follow_host_change=True):
+        # pylint: disable=super-init-not-called
         self._sources_path = sources_path
         self._follow_host_change = follow_host_change
 
-        self._sources = set()
-        self._source_urls = set()
-        self._source_environments = {}
+        self.clear()
 
         if self._sources_path is not None:
             self.load_file(self._sources_path)
@@ -51,7 +51,7 @@ class Sources(object):
 
         return self._sources
 
-    def add(self, source):
+    def include(self, source):
         """
         Add a new source to the collection.
 
@@ -68,7 +68,7 @@ class Sources(object):
 
         self._source_environments[environment].add(source)
 
-    def remove(self, source):
+    def delete(self, source):
         """
         Remove an existing source from the project domain.
 
@@ -89,6 +89,32 @@ class Sources(object):
         """
 
         return url in self._source_urls
+
+    def __contains__(self, source):
+        return source in self._sources
+
+    def __iter__(self):
+        return iter(self._sources)
+
+    def __len__(self):
+        return len(self._sources)
+
+    def add(self, value):
+        return self.include(value)
+
+    def discard(self, value):
+        try:
+            self.delete(value)
+        except KeyError:
+            pass
+
+    def remove(self, value):
+        self.delete(value)
+
+    def clear(self):
+        self._sources = set()
+        self._source_urls = set()
+        self._source_environments = {}
 
     def get_environments(self):
         """
@@ -115,3 +141,6 @@ class Sources(object):
                 json.dump(sources_data, sources_file)
 
         return sources_data
+
+    def __repr__(self):
+        return 'Sources({!r})'.format(self._sources)
