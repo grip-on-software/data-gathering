@@ -237,7 +237,7 @@ def main():
     project = Project(project_key)
 
     # Check most recent history format tracker first
-    start_filenames = ['history_record_count.txt', 'history_line_count.txt']
+    start_filenames = ['history_record_time.txt', 'history_line_count.txt']
     if start_from is None:
         for filename in start_filenames:
             if os.path.exists(filename):
