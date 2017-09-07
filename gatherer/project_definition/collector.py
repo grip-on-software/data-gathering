@@ -150,7 +150,9 @@ class Sources_Collector(Collector):
 
     SOURCES_MAP = {
         'Subversion': 'subversion',
-        'Git': 'git'
+        'Git': 'git',
+        'History': 'history',
+        'CompactHistory': 'compact-history'
     }
 
     def __init__(self, project, **kwargs):
