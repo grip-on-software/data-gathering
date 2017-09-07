@@ -148,6 +148,11 @@ class Sources_Collector(Collector):
     Collector that retrieves version control sources from project definitions.
     """
 
+    SOURCES_MAP = {
+        'Subversion': 'subversion',
+        'Git': 'git'
+    }
+
     def __init__(self, project, **kwargs):
         super(Sources_Collector, self).__init__(project,
                                                 target='project_sources',
@@ -164,16 +169,19 @@ class Sources_Collector(Collector):
 
     def aggregate_result(self, version, result):
         for name, metric_source in result.items():
-            if 'Subversion' in metric_source:
-                source = Source('subversion', name=name,
-                                url=metric_source['Subversion'])
-            elif 'Git' in metric_source:
-                source = Source('git', name=name, url=metric_source['Git'])
-            else:
-                continue
+            for metric_source_name, source_name in self.SOURCES_MAP.items():
+                # Loop over all known metric source class names and convert
+                # them to our own Source objects.
+                if metric_source_name in metric_source:
+                    source = Source(source_name, name=name,
+                                    url=metric_source[metric_source_name])
 
-            if not self._project.has_source(source):
-                self._project.add_source(source)
+                    if not self._project.has_source(source):
+                        self._project.add_source(source)
+
+                    # There should be only one metric source type per metric
+                    # source.
+                    break
 
 class Metric_Options_Collector(Collector):
     """

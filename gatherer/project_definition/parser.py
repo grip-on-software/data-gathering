@@ -19,6 +19,26 @@ import mock
 from hqlib import domain, metric, metric_source
 from .compatibility import Compatibility
 from ..utils import get_datetime, parse_unicode
+try:
+    COMPACT_HISTORY = metric_source.CompactHistory
+except AttributeError:
+    def produce_mock(name):
+        """
+        Method which produces a dynamic class, which in turn produces a magic
+        mock object upon instantiation. The dynamic class is given the name.
+
+        This can be used to pass isinstance checks against this class.
+        """
+
+        def __new__(cls, *args, **kwargs):
+            obj = mock.MagicMock(spec=cls)
+            obj.name = cls.__name__
+            obj(*args, **kwargs)
+            return obj
+
+        return type(name, (object,), {"__new__": __new__})
+
+    COMPACT_HISTORY = produce_mock('CompactHistory')
 
 __all__ = ["Project_Definition_Parser"]
 
@@ -229,7 +249,7 @@ class Project_Definition_Parser(object):
     @staticmethod
     def get_class_name(class_type):
         """
-        Retrieve the class name for a class type variable.
+        Retrieve the class name for a class type variable or object.
 
         This function handles mock objects by retrieving the appropriate name
         from it.
@@ -241,6 +261,9 @@ class Project_Definition_Parser(object):
                 # pylint: disable=protected-access
                 class_name = class_type._mock_name
         else:
+            if not isinstance(class_type, type):
+                class_type = class_type.__class__
+
             class_name = class_type.__name__
 
         return class_name
@@ -288,7 +311,14 @@ class Sources_Parser(Project_Definition_Parser):
     """
 
     METRIC_SOURCE = 'hqlib.metric_source'
-    DOMAIN_OBJECTS = (domain.Product, domain.Application, domain.Component)
+    DOMAIN_OBJECTS = (domain.Project, domain.Product, domain.Application, domain.Component)
+    SOURCE_OBJECTS = {
+        'History': metric_source.History,
+        'CompactHistory': COMPACT_HISTORY,
+        'Jenkins': metric_source.Jenkins,
+        'Git': metric_source.Git,
+        'Subversion': metric_source.Subversion
+    }
 
     def __init__(self, path, **kwargs):
         super(Sources_Parser, self).__init__(**kwargs)
@@ -296,9 +326,8 @@ class Sources_Parser(Project_Definition_Parser):
         self.sys_path = path
         self.source_objects = self.get_mock_domain_objects(metric_source,
                                                            self.METRIC_SOURCE)
-        self.source_objects['Jenkins'] = metric_source.Jenkins
-        self.source_objects['Git'] = metric_source.Git
-        self.source_objects['Subversion'] = metric_source.Subversion
+        self.source_objects.update(self.SOURCE_OBJECTS)
+        self.source_classes = tuple(self.SOURCE_OBJECTS.values())
 
     def get_hqlib_submodules(self):
         return {
@@ -340,22 +369,39 @@ class Sources_Parser(Project_Definition_Parser):
             # Likely a call to a superclass constructor
             return
 
-        if "metric_source_ids" not in keywords:
+        logging.debug('Name: %s', name)
+
+        self._parse_sources(name, keywords, "metric_source_ids", from_key=True)
+        self._parse_sources(name, keywords, "metric_sources", from_key=False)
+
+    def _parse_sources(self, name, keywords, keyword, from_key=True):
+        if keyword not in keywords:
             return
 
-        logging.debug('metric source ids: %r', keywords["metric_source_ids"])
-        if not isinstance(keywords["metric_source_ids"], dict):
+        if not isinstance(keywords[keyword], dict):
+            logging.debug('keyword %s does not hold a dict', keyword)
             return
 
         sources = {}
-        for key, value in list(keywords["metric_source_ids"].items()):
-            if isinstance(key, (metric_source.Git, metric_source.Subversion)):
+        for key, value in list(keywords[keyword].items()):
+            if from_key and isinstance(key, self.source_classes):
                 class_name = self.get_class_name(type(key))
                 source_url = key.url()
                 if source_url is None or value.startswith(source_url):
                     source_url = value
 
                 sources[class_name] = source_url
+            elif not from_key and isinstance(value, self.source_classes):
+                class_name = self.get_class_name(value)
+                logging.debug('Class name: %s', class_name)
+                if isinstance(value, mock.MagicMock):
+                    source_value = value.call_args_list[0][0][0]
+                else:
+                    source_value = value.url()
+
+                if source_value is not None:
+                    logging.debug('Source value: %s', source_value)
+                    sources[class_name] = source_value
 
         if sources:
             self.data[name] = sources

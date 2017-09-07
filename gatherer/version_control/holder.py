@@ -68,10 +68,15 @@ class Repositories_Holder(object):
         for source in self._project.sources:
             repo_class = source.repository_class
 
-            # Check up-to-dateness before retrieving from source
+            # Check if the source has version control repository functionality.
+            if repo_class is None:
+                continue
+
+            # Check up-to-dateness before retrieving from source.
             # Note that this excludes the entire repository from the gathering
             # process if it is considered up to date, which might also mean
-            # that auxiliary table data is not retrieved.
+            # that auxiliary table data is not retrieved. Repository classes
+            # must override is_up_to_date to support auxliary data updates.
             if source.name in self._latest_versions:
                 latest_version = self._latest_versions[source.name]
                 if repo_class.is_up_to_date(source, latest_version):
