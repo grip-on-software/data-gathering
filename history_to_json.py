@@ -9,7 +9,6 @@ try:
 except ImportError:
     raise
 
-from past.builtins import basestring
 from builtins import str
 import argparse
 from contextlib import contextmanager
@@ -27,6 +26,7 @@ from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.domain.source import Source
 from gatherer.domain.source.gitlab import GitLab
+from gatherer.domain.source.history import History
 from gatherer.log import Log_Setup
 from gatherer.utils import parse_date
 
@@ -38,20 +38,22 @@ def parse_args():
     description = "Obtain a metrics history file and output JSON"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--start-from", dest="start_from", type=int,
-                        default=None, help="line number to start reading from")
+    parser.add_argument("--start-from", dest="start_from",
+                        default=None, help="record to start reading from")
     parser.add_argument("--filename", default=None,
                         help="filename of the history file")
+    parser.add_argument("--compact", action="store_true", default=False,
+                        help="read the history file as a compact file")
 
     url_group = parser.add_mutually_exclusive_group()
     url_group.add_argument("--url", default=None,
-                           help="url prefix to obtain the file from")
+                           help="url prefix without filename to read from")
     url_group.add_argument("--export-url", default=None, dest="export_url",
                            nargs='?', const=True,
                            help="url prefix to use as a reference rather than reading all data")
     path_group = parser.add_mutually_exclusive_group()
-    path_group.add_argument("--file", default=None,
-                            help="local file to read from")
+    path_group.add_argument("--path", default=None,
+                            help="path prefix without filename to read from")
     path_group.add_argument("--export-path", default=None, dest="export_path",
                             nargs='?', const=True,
                             help="path prefix to use as a reference rather than reading all data")
@@ -180,6 +182,76 @@ def check_gitlab_path(project, args, export_path):
 
     return export_path
 
+class Data_Source(object):
+    """
+    Object holding properties, path or URL, and possibly open file descriptor
+    for a history data source.
+    """
+
+    def __init__(self, source, location, local=True, open_file=None):
+        self._source = source
+        self._location = location
+        self._local = local
+        self._file = open_file
+
+    @property
+    def source(self):
+        """
+        Retrieve the `History` source object which was involved in locating
+        the history file, or `None` if there is no such source object.
+        """
+
+        return self._source
+
+    @property
+    def location(self):
+        """
+        Retrieve the path or URL to the history file.
+        """
+
+        return self._location
+
+    @property
+    def local(self):
+        """
+        Retrieve whether the history file location is a local path. If this is
+        `False`, the location is instead a networked URL.
+        """
+
+        return self._local
+
+    @property
+    def file(self):
+        """
+        Retrieve an open file descriptor for the history file, or `None` if
+        the file is not opened.
+        """
+
+        return self._file
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self._file is not None:
+            self._file.close()
+            self._file = None
+
+def get_filename(project, source, args):
+    """
+    Retrieve the file name of the history file. This name, without any preceding
+    paths, may be set from a command line argument, the history source, or the
+    (project-specific) settings configuration, in that order of precedence.
+    """
+
+    if args.filename is not None:
+        return args.filename
+
+    if source is not None:
+        return source.file_name
+
+    return project.get_key_setting('history', 'filename')
+
 @contextmanager
 def get_data_source(project, args):
     """
@@ -188,7 +260,8 @@ def get_data_source(project, args):
     statement, any opened file is closed upon exiting the 'with' block.
     """
 
-    filename = get_setting(args.filename, 'filename', project)
+    source = project.sources.find_source_type(History)
+    filename = get_filename(project, source, args)
 
     if args.export_path is not None:
         # Path to a local directory or a repository target for a GitLab URL.
@@ -200,11 +273,13 @@ def get_data_source(project, args):
             export_path = check_gitlab_path(project, args, export_path)
             if os.path.exists(export_path):
                 logging.info('Found metrics history path: %s', export_path)
-                yield make_path(export_path, filename) + "|"
+                yield Data_Source(source, make_path(export_path, filename),
+                                  local=True)
                 return
-    elif args.file is not None:
+    elif args.path is not None:
         # Path to a local uncompressed file that can be opened
-        yield open(args.file, 'r')
+        path = make_path(args.path, filename)
+        yield Data_Source(source, path, local=True, open_file=open(path, 'r'))
         return
 
     if args.export_url is not None:
@@ -214,16 +289,37 @@ def get_data_source(project, args):
         if Configuration.has_value(export_url):
             export_url = check_gitlab_url(project, args, export_url)
             logging.info('Found metrics history URL: %s', export_url)
-            yield make_path(export_url, filename)
+            yield Data_Source(source, make_path(export_url, filename),
+                              local=False)
     elif args.url is not None:
         # URL to a specific GZIP file download.
         url_prefix = get_setting(args.url, 'url', project)
         url = make_path(url_prefix, filename)
         request = requests.get(url)
         stream = io.BytesIO(request.content)
-        yield gzip.GzipFile(mode='r', fileobj=stream)
+        yield Data_Source(source, url, local=False,
+                          open_file=gzip.GzipFile(mode='r', fileobj=stream))
     else:
         raise RuntimeError('No metrics history source defined')
+
+def get_tracker_start(args):
+    """
+    Retrieve an indicator of where to start reading from in the history file.
+    """
+
+    if args.start_from is not None:
+        return args.start_from
+
+    start_filenames = ['history_record_time.txt', 'history_line_count.txt']
+    start_from = 0
+    for filename in start_filenames:
+        if os.path.exists(filename):
+            with open(filename, 'r') as start_file:
+                start_from = int(start_file.read())
+
+            break
+
+    return start_from
 
 def main():
     """
@@ -232,28 +328,32 @@ def main():
 
     args = parse_args()
     project_key = args.project
-    start_from = args.start_from
 
     project = Project(project_key)
 
     # Check most recent history format tracker first
-    start_filenames = ['history_record_time.txt', 'history_line_count.txt']
-    if start_from is None:
-        for filename in start_filenames:
-            if os.path.exists(filename):
-                with open(filename, 'r') as start_file:
-                    start_from = int(start_file.read())
-
-                break
-        else:
-            start_from = 0
+    start_from = get_tracker_start(args)
 
     try:
         with get_data_source(project, args) as data:
-            if isinstance(data, basestring):
-                metric_data = '{0}#{1}'.format(data, start_from)
+            if data.source is not None and data.source.is_compact:
+                is_compact = True
             else:
-                metric_data, line_count = read_project_file(data, start_from)
+                is_compact = args.compact
+
+            if data.file is None:
+                flags = [str(start_from)]
+                if data.local:
+                    flags.append('local')
+                if is_compact:
+                    flags.append('compact')
+
+                metric_data = '{0}#{1}'.format(data.location, '|'.join(flags))
+            elif is_compact:
+                raise RuntimeError('Cannot read compact history during gather')
+            else:
+                metric_data, line_count = read_project_file(data.file,
+                                                            int(start_from))
                 line_filename = os.path.join(project.export_key, 'history_line_count.txt')
                 with open(line_filename, 'w') as line_file:
                     line_file.write(str(start_from + line_count))
