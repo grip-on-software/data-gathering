@@ -63,6 +63,9 @@ class Sources(MutableSet):
         self._source_urls.add(source.url)
 
         environment = source.environment
+        if environment is None:
+            return
+
         if environment not in self._source_environments:
             self._source_environments[environment] = set()
 
@@ -80,7 +83,10 @@ class Sources(MutableSet):
 
         self._sources.remove(source)
         self._source_urls.remove(source.url)
-        self._source_environments[source.environment].remove(source)
+
+        environment = source.environment
+        if environment in self._source_environments:
+            self._source_environments[environment].remove(source)
 
     def has_url(self, url):
         """
