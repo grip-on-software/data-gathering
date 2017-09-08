@@ -313,8 +313,7 @@ class Source(object):
         returned.
         """
 
-        # pylint: disable=no-self-use
-        return []
+        return [self]
 
     def export(self):
         """
