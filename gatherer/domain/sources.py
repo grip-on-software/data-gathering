@@ -119,10 +119,26 @@ class Sources(MutableSet):
     def get_environments(self):
         """
         Yield Source objects that are distinctive for each environment.
+
+        The environments may contain multiple sources that share some traits,
+        and can thus be used to find more sources within the environment.
+
+        Only one source per environment is provided by the generator.
         """
 
         for sources in list(self._source_environments.values()):
             yield next(iter(sources))
+
+    def find_source_type(self, source_type):
+        """
+        Retrieve a `Source` object for a specific source type.
+        """
+
+        for source in self._sources:
+            if isinstance(source, source_type):
+                return source
+
+        return None
 
     def export(self):
         """

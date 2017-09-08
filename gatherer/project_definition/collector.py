@@ -179,7 +179,7 @@ class Sources_Collector(Collector):
                                     url=metric_source[metric_source_name])
 
                     if not self._project.has_source(source):
-                        self._project.add_source(source)
+                        self._project.sources.add(source)
 
                     # There should be only one metric source type per metric
                     # source.

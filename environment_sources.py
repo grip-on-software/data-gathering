@@ -32,12 +32,12 @@ def retrieve_sources(project):
     multiple sources with similar traits.
     """
 
-    for environment_source in project.get_environment_sources():
+    for environment_source in project.sources.get_environments():
         sources = environment_source.get_sources()
         for source in sources:
             # Check if there is already another source with the same URL.
             if not project.has_source(source):
-                project.add_source(source)
+                project.sources.add(source)
 
 def main():
     """

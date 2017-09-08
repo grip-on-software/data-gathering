@@ -165,28 +165,6 @@ class Project(Project_Meta):
                                                     *format_values,
                                                     **format_args)
 
-    def add_source(self, source):
-        """
-        Add a new source to the project domain.
-
-        This source only becomes persistent if the sources are exported later on
-        using `export_sources`.
-        """
-
-        self._sources.add(source)
-
-    def remove_source(self, source):
-        """
-        Remove an existing source from the project domain.
-
-        This method raises a `KeyError` if the source cannot be found.
-
-        The removal only becomes persistent if the sources are exported later on
-        using `export_sources`.
-        """
-
-        self._sources.remove(source)
-
     def has_source(self, source):
         """
         Check whether the project already has a source with the exact same URL
@@ -194,16 +172,6 @@ class Project(Project_Meta):
         """
 
         return self._sources.has_url(source.url)
-
-    def get_environment_sources(self):
-        """
-        Yield a distinctive `Source` object for each known source environment.
-
-        The environments may contain multiple sources that share some traits,
-        and can thus be used to find more sources within the environment.
-        """
-
-        return self._sources.get_environments()
 
     def make_export_directory(self):
         """
@@ -228,7 +196,7 @@ class Project(Project_Meta):
         Retrieve all sources of the project.
         """
 
-        return self._sources.get()
+        return self._sources
 
     @property
     def export_key(self):
@@ -282,7 +250,7 @@ class Project(Project_Meta):
         then this property returns `None`.
         """
 
-        source = self._find_source_type(GitHub)
+        source = self.sources.find_source_type(GitHub)
         if source is None:
             return None
 
@@ -314,14 +282,7 @@ class Project(Project_Meta):
         If there is no such source, then this property returns `None`.
         """
 
-        return self._find_source_type(GitLab)
-
-    def _find_source_type(self, source_type):
-        for source in self.sources:
-            if isinstance(source, source_type):
-                return source
-
-        return None
+        return self.sources.find_source_type(GitLab)
 
     @property
     def quality_metrics_name(self):
