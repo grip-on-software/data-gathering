@@ -42,8 +42,10 @@ def parse_args():
                         default=None, help="record to start reading from")
     parser.add_argument("--filename", default=None,
                         help="filename of the history file")
-    parser.add_argument("--compact", action="store_true", default=False,
+    parser.add_argument("--compact", action="store_true", default=None,
                         help="read the history file as a compact file")
+    parser.add_argument("--no-compact", action="store_false", dest="compact",
+                        help="read the history file as a legacy file")
 
     url_group = parser.add_mutually_exclusive_group()
     url_group.add_argument("--url", default=None,
@@ -336,10 +338,12 @@ def main():
 
     try:
         with get_data_source(project, args) as data:
-            if data.source is not None and data.source.is_compact:
+            if args.compact is not None:
+                is_compact = args.compact
+            elif data.source is not None and data.source.is_compact:
                 is_compact = True
             else:
-                is_compact = args.compact
+                is_compact = False
 
             if data.file is None:
                 flags = [str(start_from)]
