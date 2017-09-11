@@ -46,6 +46,11 @@ def parse_args():
                         help="read the history file as a compact file")
     parser.add_argument("--no-compact", action="store_false", dest="compact",
                         help="read the history file as a legacy file")
+    parser.add_argument("--compression", nargs="?", default=None, const="gz",
+                        help="compression to use for the file")
+    parser.add_argument("--no-compression", action="store_false",
+                        dest="compression",
+                        help="do not use compression for the file")
 
     url_group = parser.add_mutually_exclusive_group()
     url_group.add_argument("--url", default=None,
@@ -254,6 +259,24 @@ def get_filename(project, source, args):
 
     return project.get_key_setting('history', 'filename')
 
+def get_file_opener(compression):
+    """
+    Retrieve a method or class that, when called, returns an open file object
+    applicable for the given `compression`, which may be `None` or `False` to
+    indicate no compression. The returned callable object can be called with
+    a filename and a mode argument, in that order, or when `compression` is
+    not `None`, an open file object through keyword argument `fileobj`.
+
+    Raises a `ValueError` if the compression is not supported.
+    """
+
+    if not compression:
+        return open
+    if compression == "gz":
+        return gzip.GzipFile
+
+    raise ValueError("Compression '{}' is not supported".format(compression))
+
 @contextmanager
 def get_data_source(project, args):
     """
@@ -264,6 +287,9 @@ def get_data_source(project, args):
 
     source = project.sources.find_source_type(History)
     filename = get_filename(project, source, args)
+    compression = get_setting(args.compression, 'compression', project)
+    if compression is not None and os.path.splitext(filename)[1] != compression:
+        filename += "." + compression
 
     if args.export_path is not None:
         # Path to a local directory or a repository target for a GitLab URL.
@@ -279,14 +305,16 @@ def get_data_source(project, args):
                                   local=True)
                 return
     elif args.path is not None:
-        # Path to a local uncompressed file that can be opened
+        # Path to a directory with a local file that can be opened.
         path = make_path(args.path, filename)
-        yield Data_Source(source, path, local=True, open_file=open(path, 'r'))
+        opener = get_file_opener(compression)
+
+        yield Data_Source(source, path, local=True, open_file=opener(path, 'r'))
         return
 
     if args.export_url is not None:
-        # URL to a specific GZIP file or a GitLab repository that can be
-        # accessed in an unauthenticated manner by the importer.
+        # URL or a GitLab repository that can be accessed in an unauthenticated
+        # manner by the importer.
         export_url = get_setting(args.export_url, 'url', project)
         if Configuration.has_value(export_url):
             export_url = check_gitlab_url(project, args, export_url)
@@ -294,13 +322,18 @@ def get_data_source(project, args):
             yield Data_Source(source, make_path(export_url, filename),
                               local=False)
     elif args.url is not None:
-        # URL to a specific GZIP file download.
+        # URL prefix to a specific download location.
         url_prefix = get_setting(args.url, 'url', project)
         url = make_path(url_prefix, filename)
         request = requests.get(url)
         stream = io.BytesIO(request.content)
-        yield Data_Source(source, url, local=False,
-                          open_file=gzip.GzipFile(mode='r', fileobj=stream))
+        if compression:
+            opener = get_file_opener(compression)
+            open_file = opener(mode='r', fileobj=stream)
+        else:
+            open_file = stream
+
+        yield Data_Source(source, url, local=False, open_file=open_file)
     else:
         raise RuntimeError('No metrics history source defined')
 
