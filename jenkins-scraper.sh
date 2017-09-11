@@ -60,6 +60,7 @@ function error_handler() {
 		for project in $listOfProjects
 		do
 			rm -rf "$ROOT/project-git-repos/$project"
+			rm -rf "$ROOT/quality-report-history/$project"
 		done
 	fi
 }
