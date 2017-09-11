@@ -285,10 +285,14 @@ def get_data_source(project, args):
     statement, any opened file is closed upon exiting the 'with' block.
     """
 
+    # Retrieve the history file name as defined in the source, or from other
+    # environment settings. See `get_filename` for details. We adjust the
+    # filename to contain the compression extension if it did not have one;
+    # note that we do not remove extensions if compression is disabled.
     source = project.sources.find_source_type(History)
     filename = get_filename(project, source, args)
     compression = get_setting(args.compression, 'compression', project)
-    if compression is not None and os.path.splitext(filename)[1] != compression:
+    if compression and os.path.splitext(filename)[1] != compression:
         filename += "." + compression
 
     if args.export_path is not None:
