@@ -44,6 +44,10 @@ def main():
     project_key = args.project
     project = Project(project_key)
 
+    # Clear the existing project sources such that we only take the ones that
+    # are retrieved in this run.
+    project.sources.clear()
+
     project_name = project.quality_metrics_name
     if project_name is None:
         if project.main_project is not None:
