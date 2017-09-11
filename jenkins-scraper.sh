@@ -135,7 +135,7 @@ function export_handler() {
 		done
 	fi
 	if [ "$skip_script" = "0" ]; then
-		status_handler python $script $project $args
+		skip_dropin=$skip_dropin status_handler python $script $project $args
 	fi
 }
 

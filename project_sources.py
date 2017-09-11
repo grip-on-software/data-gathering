@@ -5,6 +5,7 @@ the products and components.
 
 import argparse
 import logging
+import os
 
 from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Sources_Collector
@@ -45,8 +46,9 @@ def main():
     project = Project(project_key)
 
     # Clear the existing project sources such that we only take the ones that
-    # are retrieved in this run.
-    project.sources.clear()
+    # are retrieved in this run; dropins are kept though.
+    if os.getenv('skip_dropin') != '0':
+        project.sources.clear()
 
     project_name = project.quality_metrics_name
     if project_name is None:
