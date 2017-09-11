@@ -9,6 +9,7 @@ from .metric import Metric_Difference
 from .parser import Metric_Options_Parser, Project_Parser, Sources_Parser
 from .update import Update_Tracker
 from ..domain import Source
+from ..domain.source.types import Source_Type_Error
 
 class Collector(object):
     """
@@ -169,21 +170,24 @@ class Sources_Collector(Collector):
     def build_parser(self, version):
         return Sources_Parser(self._repo_path, **self._options)
 
+    def _build_metric_source(self, name, metric_source, metric_type, source_type):
+        try:
+            source = Source.from_type(source_type, name=name,
+                                      url=metric_source[metric_type])
+
+            if not self._project.has_source(source):
+                self._project.sources.add(source)
+        except Source_Type_Error:
+            logging.exception('Could not register source')
+
     def aggregate_result(self, version, result):
         for name, metric_source in result.items():
-            for metric_source_name, source_name in self.SOURCES_MAP.items():
+            for metric_type, source_type in self.SOURCES_MAP.items():
                 # Loop over all known metric source class names and convert
                 # them to our own Source objects.
-                if metric_source_name in metric_source:
-                    source = Source(source_name, name=name,
-                                    url=metric_source[metric_source_name])
-
-                    if not self._project.has_source(source):
-                        self._project.sources.add(source)
-
-                    # There should be only one metric source type per metric
-                    # source.
-                    break
+                if metric_type in metric_source:
+                    self._build_metric_source(name, metric_source,
+                                              metric_type, source_type)
 
 class Metric_Options_Collector(Collector):
     """

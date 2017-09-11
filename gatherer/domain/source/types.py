@@ -16,6 +16,11 @@ except ImportError:
     raise
 from ...config import Configuration
 
+class Source_Type_Error(ValueError):
+    """
+    An error that the source type is not supported.
+    """
+
 class Source_Types(object):
     """
     Holder for source type registration
@@ -65,7 +70,7 @@ class Source_Types(object):
             source_class = cls._types[source_type]
 
         if source_class is None:
-            raise ValueError("Source type '{}' is not supported".format(source_type))
+            raise Source_Type_Error("Source type '{}' is not supported".format(source_type))
 
         return source_class(source_type, **source_data)
 
