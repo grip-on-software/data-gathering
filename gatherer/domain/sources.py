@@ -164,5 +164,21 @@ class Sources(MutableSet):
 
         return sources_data
 
+    def export_environments(self, environments_path):
+        """
+        Export a description of each environment as a JSON list to the file
+        located at `environments_path`.
+        """
+
+        environment_data = []
+        for environment, sources in list(self._source_environments.items()):
+            source = next(iter(sources))
+            environment_data.append({
+                "type": source.type,
+                "environment": environment
+            })
+        with open(environments_path, 'w') as environments_file:
+            json.dump(environment_data, environments_file)
+
     def __repr__(self):
         return 'Sources({!r})'.format(self._sources)

@@ -199,6 +199,16 @@ class Source(object):
         return self._plain_url
 
     @property
+    def type(self):
+        """
+        Retrieve the literal type of the source, as it was initially defined.
+        Note that some source classes register themselves for more than one type
+        and there may be multiple classes registered for the same type.
+        """
+
+        return self._type
+
+    @property
     def url(self):
         """
         Retrieve the final URL, after following host changes and including

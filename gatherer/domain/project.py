@@ -189,6 +189,9 @@ class Project(Project_Meta):
 
         self.make_export_directory()
         self._sources.export()
+        environments_path = os.path.join(self.export_key,
+                                         'data_environments.json')
+        self._sources.export_environments(environments_path)
 
     @property
     def sources(self):
