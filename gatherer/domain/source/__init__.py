@@ -9,5 +9,14 @@ from .github import GitHub
 from .gitlab import GitLab
 from .tfs import TFS
 from .history import History
+from .jenkins import Jenkins
+from .jira import Jira
 
-__all__ = ["Source", "Subversion", "Git", "GitHub", "GitLab", "TFS", "History"]
+__all__ = [
+    # Main classes
+    "Source",
+    # Version control system classes
+    "Subversion", "Git", "GitHub", "GitLab", "TFS",
+    # Other sources
+    "History", "Jenkins", "Jira"
+]

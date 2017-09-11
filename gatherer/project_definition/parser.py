@@ -316,6 +316,7 @@ class Sources_Parser(Project_Definition_Parser):
         'History': metric_source.History,
         'CompactHistory': COMPACT_HISTORY,
         'Jenkins': metric_source.Jenkins,
+        'Jira': metric_source.Jira,
         'Git': metric_source.Git,
         'Subversion': metric_source.Subversion
     }

@@ -153,7 +153,9 @@ class Sources_Collector(Collector):
         'Subversion': 'subversion',
         'Git': 'git',
         'History': 'history',
-        'CompactHistory': 'compact-history'
+        'CompactHistory': 'compact-history',
+        'Jenkins': 'jenkins',
+        'Jira': 'jira'
     }
 
     def __init__(self, project, **kwargs):
