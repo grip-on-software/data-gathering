@@ -234,11 +234,23 @@ class Source(object):
         """
         Retrieve an indicator of the environment that the source lives in.
 
-        The environment is a shared signature that other Source objects that
-        are situated on he same host or group all have. For example, Source
-        objects that are retrieved using `get_sources` have this signature.
+        The environment is a shared signature with other Source objects that
+        are situated on the same host or group. For example, Source objects that
+        are retrieved using `get_sources` have this signature.
 
-        The returned value must be hashable.
+        The returned value is hashable.
+        """
+
+        return None
+
+    @property
+    def environment_url(self):
+        """
+        Retrieve a URL for the environment that the source lives in.
+
+        The environment's URL is a human-readable site that describes the
+        sources that are situated on the same host or group. For example, Source
+        objects that are retrieved using `get_sources` have the same (base) URL.
         """
 
         return None

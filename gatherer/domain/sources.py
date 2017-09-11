@@ -175,6 +175,7 @@ class Sources(MutableSet):
             source = next(iter(sources))
             environment_data.append({
                 "type": source.type,
+                "url": source.environment_url,
                 "environment": environment
             })
         with open(environments_path, 'w') as environments_file:

@@ -97,6 +97,10 @@ class TFS(Git):
         return (self._tfs_host,) + self._tfs_collections
 
     @property
+    def environment_url(self):
+        return self._tfs_host + '/' + '/'.join(self._tfs_collections)
+
+    @property
     def tfs_api(self):
         """
         Retrieve an instance of the TFS API connection for the TFS collection

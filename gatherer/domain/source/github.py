@@ -30,6 +30,7 @@ class GitHub(Git):
     """
 
     def __init__(self, *args, **kwargs):
+        self._github_url = None
         self._github_token = None
         self._github_api = None
         self._github_api_url = github.MainClass.DEFAULT_BASE_URL
@@ -70,6 +71,7 @@ class GitHub(Git):
         path = orig_parts.path.lstrip('/')
         path_parts = path.split('/', 1)
         self._github_owner = path_parts[0]
+        self._github_url = self._create_url(orig_parts.scheme, host, '', '', '')
 
         if self._has_github_token(host):
             self._github_token = self._credentials.get(host, 'github_token')
@@ -85,6 +87,10 @@ class GitHub(Git):
     @property
     def environment(self):
         return (self._host, self.github_owner, self.github_team)
+
+    @property
+    def environment_url(self):
+        return self._github_url + '/' + self.github_owner
 
     @property
     def github_token(self):

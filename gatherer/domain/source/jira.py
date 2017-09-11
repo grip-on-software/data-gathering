@@ -13,3 +13,7 @@ class Jira(Source):
     @property
     def environment(self):
         return self.url
+
+    @property
+    def environment_url(self):
+        return self.url
