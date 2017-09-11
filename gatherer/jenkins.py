@@ -129,7 +129,7 @@ class Base(with_metaclass(ABCMeta, object)):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return self.exists
 
     def __hash__(self):
