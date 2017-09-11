@@ -8,6 +8,7 @@ import logging
 import os.path
 from gatherer.config import Configuration
 from gatherer.domain import Project
+from gatherer.domain import source
 from gatherer.jenkins import Jenkins
 from gatherer.log import Log_Setup
 
@@ -55,13 +56,23 @@ def main():
     config = Configuration.get_settings()
     args = parse_args(config)
     project = Project(args.project)
-    if not Configuration.has_value(args.host):
-        logging.warning('Project %s has no Jenkins instance configured',
-                        project.key)
-        return
+    if Configuration.has_value(args.host):
+        url = args.host
+    else:
+        jenkins = project.sources.find_source_type(source.Jenkins)
+        if not jenkins:
+            logging.warning('Project %s has no Jenkins instance configured',
+                            project.key)
+            return
 
-    jenkins = Jenkins(args.host, username=args.username, password=args.password,
-                      verify=args.verify)
+        url = jenkins.url
+
+    try:
+        jenkins = Jenkins(url, username=args.username, password=args.password,
+                          verify=args.verify)
+    except EnvironmentError:
+        logging.exception('Could not log in to Jenkins')
+        return
 
     data = {
         'host': jenkins.base_url,
