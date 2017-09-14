@@ -198,7 +198,7 @@ do
 
 	if [ $cleanupRepos = "true" ]; then
 		rm -rf project-git-repos/$project
-		rm -rf quality-report-history/$project
+		rm -rf quality-report-history
 	fi
 done
 
