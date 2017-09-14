@@ -51,6 +51,10 @@ def parse_args():
     parser.add_argument("--no-compression", action="store_false",
                         dest="compression",
                         help="do not use compression for the file")
+    parser.add_argument("--delete", action="store_true", default=None,
+                        help="Delete local repository before a shallow clone")
+    parser.add_argument("--no-delete", action="store_false", dest="delete",
+                        help="Update local repository via shallow fetch")
 
     url_group = parser.add_mutually_exclusive_group()
     url_group.add_argument("--url", default=None,
@@ -111,12 +115,15 @@ def make_path(prefix, filename):
 
     return prefix + "/" + filename
 
-def get_setting(arg, key, project):
+def get_setting(arg, key, project, boolean=False):
     """
     Retrieve a configuration setting from the history section using the `key`
     as well as the project key for the option name, using multiple variants.
 
     If `arg` is set to a valid setting then this value is used instead.
+
+    If `boolean` is `True`, then configuration settings (not provided via `arg`)
+    are casted to boolean via `Configuration.has_value`.
     """
 
     project_name = project.quality_metrics_name
@@ -124,7 +131,9 @@ def get_setting(arg, key, project):
         raise RuntimeError('No metrics history file URL available')
 
     if arg is None or arg is True:
-        return project.get_key_setting('history', key, project_name)
+        arg = project.get_key_setting('history', key, project_name)
+        if boolean:
+            return Configuration.has_value(arg)
 
     return arg
 
@@ -164,6 +173,10 @@ def check_gitlab_path(project, args, export_path):
 
     gitlab_url = get_setting(args.url, 'url', project)
     if Configuration.has_value(gitlab_url) and GitLab.is_gitlab_url(gitlab_url):
+        if get_setting(args.delete, 'delete', project, boolean=True):
+            logging.info('Removing old history clone %s', export_path)
+            shutil.rmtree(export_path)
+
         if check_sparse_base(export_path):
             paths = [project.quality_metrics_name]
             clone_path = os.path.join(export_path, project.quality_metrics_name)

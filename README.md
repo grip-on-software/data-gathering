@@ -189,7 +189,14 @@ the setting is not used in this environment.
     checked out to. May contain a formatter parameter `{}` which is replaced by 
     the project's quality dashboard name; otherwise it is appended 
     automatically. The path does not include the filename.
+  - `compression` (`$HISTORY_COMPRESSION`): The compression extension to use
+    for the file. This may be added to the filename if it was not provided, and
+    determines the file opening method.
   - `filename` (`HISTORY_FILENAME`): The file name of the history file to use.
+  - `delete` (`$HISTORY_DELETE`): Whether to delete a local clone of the 
+    repository containing the history file before a shallow fetch/clone.
+    This option may need to be enabled for Git older than 1.9 which does not
+    fully support shallow fetches due to which file updates are not available.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
