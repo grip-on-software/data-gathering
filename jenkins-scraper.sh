@@ -124,7 +124,7 @@ function export_handler() {
 		read -r export_files < "$script.export"
 		for export_file in $export_files; do
 			if [ -e "dropins/$project/$export_file" ]; then
-				if [ "$skip_dropin" = "0" ]; then
+				if [ ! -z "$always_use_dropin" ] || [ "$skip_dropin" = "0" ]; then
 					cp "dropins/$project/$export_file" "export/$project/$export_file"
 				else
 					echo "[]" > export/$project/$export_file
@@ -183,7 +183,7 @@ do
 		status_handler python retrieve_update_trackers.py $project --files $restoreFiles --log $logLevel $trackerParameters
 		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
 
-		export_handler project_sources.py $project --log $logLevel
+		always_use_dropin=1 export_handler project_sources.py $project --log $logLevel
 		export_handler project_to_json.py $project --log $logLevel
 		export_handler jira_to_json.py $project --log $logLevel
 		export_handler environment_sources.py $project --log $logLevel
