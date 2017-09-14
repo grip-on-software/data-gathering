@@ -173,7 +173,8 @@ def check_gitlab_path(project, args, export_path):
 
     gitlab_url = get_setting(args.url, 'url', project)
     if Configuration.has_value(gitlab_url) and GitLab.is_gitlab_url(gitlab_url):
-        if get_setting(args.delete, 'delete', project, boolean=True):
+        delete = get_setting(args.delete, 'delete', project, boolean=True)
+        if delete and os.path.exists(export_path):
             logging.info('Removing old history clone %s', export_path)
             shutil.rmtree(export_path)
 
