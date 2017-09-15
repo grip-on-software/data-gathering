@@ -266,10 +266,14 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         # pylint: disable=no-member
         project = api.project(source.gitlab_path)
+
+        # Check if the API indicates that there are updates
         if update_tracker is not None:
             tracker_date = get_local_datetime(update_tracker)
-            return tracker_date > project.last_activity_at
+            if tracker_date < project.last_activity_at:
+                return False
 
+        # Use the API to fetch the latest commit
         if project.commit('HEAD').id == latest_version:
             return True
 
