@@ -256,7 +256,7 @@ class GitHub_Repository(Git_Repository, Review_System):
             return False
 
         note = self._format_note(comment)
-        note['issue_id'] = issue_id
+        note['issue_id'] = str(issue_id)
         self._tables["github_issue_note"].append(note)
 
         return True
