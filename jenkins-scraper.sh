@@ -90,7 +90,17 @@ function export_handler() {
 	local status=$?
 	set -e
 
+	export_files=$(./list-files.sh export $script)
+	update_files=$(./list-files.sh update $script)
 	if [ $status -ne 0 ]; then
+		# Remove export and update files to ensure that a previous run is not
+		# reimported since we did not gather or override them.
+		for export_file in $export_files; do
+			rm -f "export/$project/$export_file"
+		done
+		for update_file in $update_files; do
+			rm -f "export/$project/$update_file"
+		done
 		return
 	fi
 
@@ -100,11 +110,10 @@ function export_handler() {
 	# information.
 	local skip_dropin=0
 	local skip_script=0
-	if [ -e "$script.export" ]; then
+	if [ ! -z "$export_files" ]; then
 		skip_dropin=1
 		skip_script=1
-		if [ -e "$script.update" ]; then
-			read -r update_files < "$script.update"
+		if [ ! -z "$update_files" ]; then
 			for update_file in $update_files; do
 				set +e
 				cmp -s "dropins/$project/$update_file" "export/$project/$update_file"
@@ -121,7 +130,6 @@ function export_handler() {
 			done
 		fi
 
-		read -r export_files < "$script.export"
 		for export_file in $export_files; do
 			if [ -e "dropins/$project/$export_file" ]; then
 				if [ ! -z "$always_use_dropin" ] || [ "$skip_dropin" = "0" ]; then
