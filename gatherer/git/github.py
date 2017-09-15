@@ -11,9 +11,11 @@ except ImportError:
 
 from builtins import str
 import re
+import dateutil.tz
 from .repo import Git_Repository
 from ..table import Key_Table, Link_Table
-from ..utils import format_date, parse_unicode, convert_utc_datetime
+from ..utils import convert_utc_datetime, format_date, get_local_datetime, \
+    parse_unicode
 from ..version_control.review import Review_System
 
 class GitHub_Repository(Git_Repository, Review_System):
@@ -62,6 +64,21 @@ class GitHub_Repository(Git_Repository, Review_System):
         # All API responses have updated dates that stem from GitHub itself
         # and can thus not be earlier than GitHub's foundation.
         return "1900-01-01 01:01:01"
+
+    @classmethod
+    def is_up_to_date(cls, source, latest_version, update_tracker=None):
+        if update_tracker is None:
+            return super(GitHub_Repository, cls).is_up_to_date(source,
+                                                               latest_version)
+
+        try:
+            repo = source.github_repo
+        except RuntimeError:
+            return False
+
+        # Check if the API indicates that there are updates
+        tracker_date = get_local_datetime(update_tracker)
+        return tracker_date >= repo.updated_at.replace(tzinfo=dateutil.tz.tzutc())
 
     @property
     def api(self):
