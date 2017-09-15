@@ -39,6 +39,9 @@ class Repositories_Holder(object):
         return self._latest_versions
 
     def _load_update_tracker(self, file_name):
+        if file_name in self._update_trackers:
+            return self._update_trackers[file_name]
+
         path = self._make_tracker_path(file_name)
         if os.path.exists(path):
             with open(path) as update_file:
@@ -46,14 +49,35 @@ class Repositories_Holder(object):
         else:
             self._update_trackers[file_name] = {}
 
+        return self._update_trackers[file_name]
+
     def _check_update_trackers(self, repo, repo_name):
         for file_name in repo.update_trackers.keys():
-            if file_name not in self._update_trackers:
-                self._load_update_tracker(file_name)
-
-            update_tracker = self._update_trackers[file_name]
+            update_tracker = self._load_update_tracker(file_name)
             if repo_name in update_tracker:
                 repo.set_update_tracker(file_name, update_tracker[repo_name])
+
+    def _check_up_to_date(self, source, repo_class):
+        # Check up-to-dateness before retrieving from source.
+        # Note that this excludes the entire repository from the gathering
+        # process if it is considered up to date, which might also mean
+        # that auxiliary table data is not retrieved. Repository classes
+        # must override is_up_to_date to support auxliary data updates.
+        if source.name in self._latest_versions:
+            latest_version = self._latest_versions[source.name]
+            update_tracker = None
+            if repo_class.UPDATE_TRACKER_NAME is not None:
+                data = self._load_update_tracker(repo_class.UPDATE_TRACKER_NAME)
+                if source.name in data:
+                    update_tracker = data[source.name]
+
+            if repo_class.is_up_to_date(source, latest_version,
+                                        update_tracker=update_tracker):
+                logging.info('Repository %s: Already up to date.',
+                             source.name)
+                return True
+
+        return False
 
     def get_repositories(self):
         """
@@ -72,17 +96,8 @@ class Repositories_Holder(object):
             if repo_class is None:
                 continue
 
-            # Check up-to-dateness before retrieving from source.
-            # Note that this excludes the entire repository from the gathering
-            # process if it is considered up to date, which might also mean
-            # that auxiliary table data is not retrieved. Repository classes
-            # must override is_up_to_date to support auxliary data updates.
-            if source.name in self._latest_versions:
-                latest_version = self._latest_versions[source.name]
-                if repo_class.is_up_to_date(source, latest_version):
-                    logging.info('Repository %s: Already up to date.',
-                                 source.name)
-                    continue
+            if self._check_up_to_date(repo_class, source):
+                continue
 
             path = os.path.join(self._repo_directory, source.path_name)
             repo = repo_class.from_source(source, path, project=self._project,

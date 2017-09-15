@@ -4,6 +4,7 @@ requests and commit comments, in addition to the usual version information from
 the repository itself.
 """
 
+from abc import abstractmethod
 import dateutil.tz
 from ..table import Table, Key_Table, Link_Table
 from ..utils import convert_local_datetime, format_date, get_local_datetime
@@ -19,13 +20,17 @@ class Review_System(Version_Control_Repository):
     version control system.
     """
 
+    @abstractmethod
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(Review_System, self).__init__(source, repo_directory,
                                             project=project, **kwargs)
 
+        if self.UPDATE_TRACKER_NAME is None:
+            raise NotImplementedError('Review_System subclass must define UPDATE_TRACKER_NAME')
+
         self._tables.update(self.review_tables)
 
-        self._update_trackers[self.update_tracker_name] = self.null_timestamp
+        self._update_trackers[self.UPDATE_TRACKER_NAME] = self.null_timestamp
         self._tracker_date = None
         self._latest_date = None
 
@@ -41,7 +46,7 @@ class Review_System(Version_Control_Repository):
 
         if self._latest_date is not None:
             latest_date = format_date(convert_local_datetime(self._latest_date))
-            self._update_trackers[self.update_tracker_name] = latest_date
+            self._update_trackers[self.UPDATE_TRACKER_NAME] = latest_date
 
     @property
     def tracker_date(self):
@@ -50,7 +55,7 @@ class Review_System(Version_Control_Repository):
         """
 
         if self._tracker_date is None:
-            update_tracker = self._update_trackers[self.update_tracker_name]
+            update_tracker = self._update_trackers[self.UPDATE_TRACKER_NAME]
             self._tracker_date = get_local_datetime(update_tracker)
 
         return self._tracker_date
@@ -97,14 +102,6 @@ class Review_System(Version_Control_Repository):
                                              encrypted_fields=author),
             "commit_comment": Table('commit_comment', encrypted_fields=author)
         }
-
-    @property
-    def update_tracker_name(self):
-        """
-        Retrieve the name of the update tracker for this repository type.
-        """
-
-        raise NotImplementedError('Must be implemented by subclasses')
 
     @property
     def null_timestamp(self):

@@ -24,6 +24,8 @@ class GitHub_Repository(Git_Repository, Review_System):
     UPVOTE = 'APPROVED'
     DOWNVOTE = 'CHANGES_REQUESTED'
 
+    UPDATE_TRACKER_NAME = 'github_update'
+
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(GitHub_Repository, self).__init__(source, repo_directory,
                                                 project=project, **kwargs)
@@ -52,10 +54,6 @@ class GitHub_Repository(Git_Repository, Review_System):
                                             encrypted_fields=author)
         })
         return review_tables
-
-    @property
-    def update_tracker_name(self):
-        return "github_update"
 
     @property
     def null_timestamp(self):

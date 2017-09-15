@@ -45,6 +45,10 @@ class Version_Control_Repository(object):
     Abstract repository interface for a version control system.
     """
 
+    # A single file name (without the .json extension) used for update tracking
+    # of auxiliary data provided by this repository.
+    UPDATE_TRACKER_NAME = None
+
     def __init__(self, source, repo_directory, sprints=None, project=None,
                  **kwargs):
         if kwargs:
@@ -72,12 +76,14 @@ class Version_Control_Repository(object):
         raise NotImplementedError("Must be implemented by subclass")
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version):
+    def is_up_to_date(cls, source, latest_version, update_tracker=None):
         # pylint: disable=unused-argument
         """
         Check whether the `source` is up to date without retrieving the entire
         repository. The `latest_version` is a version identifier of the version
-        that has been collected previously.
+        that has been collected previously. Optionally, `update_tracker` is
+        the update tracker value for the repository in the file referenced by
+        `UPDATE_TRACKER_NAME`.
 
         If it is impossible to determine up-to-dateness, or the entire
         repository does not need to be retrieved beforehand to check this

@@ -195,7 +195,7 @@ class Git_Repository(Version_Control_Repository):
         return repository
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version):
+    def is_up_to_date(cls, source, latest_version, update_tracker=None):
         git = Git()
         git.update_environment(**cls._create_environment(source, git))
         remote_refs = git.ls_remote('--heads', source.url, 'master')

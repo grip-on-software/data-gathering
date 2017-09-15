@@ -208,6 +208,8 @@ class TFS_Repository(Git_Repository, Review_System):
     # Key prefix to use to retrieve certain commit comment properties.
     PROPERTY = 'Microsoft.TeamFoundation.Discussion'
 
+    UPDATE_TRACKER_NAME = 'tfs_update'
+
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(TFS_Repository, self).__init__(source, repo_directory,
                                              project=project, **kwargs)
@@ -226,10 +228,6 @@ class TFS_Repository(Git_Repository, Review_System):
                                encrypted_fields=('user', 'username', 'email'))
         })
         return review_tables
-
-    @property
-    def update_tracker_name(self):
-        return "tfs_update"
 
     @property
     def null_timestamp(self):

@@ -15,8 +15,8 @@ import logging
 import os
 from .repo import Git_Repository
 from ..table import Table, Key_Table
-from ..utils import convert_local_datetime, format_date, parse_date, \
-    parse_unicode
+from ..utils import convert_local_datetime, format_date, get_local_datetime, \
+    parse_date, parse_unicode
 from ..version_control.review import Review_System
 
 class GitLab_Dropins_Parser(object):
@@ -185,6 +185,8 @@ class GitLab_Repository(Git_Repository, Review_System):
     Git repository hosted by a GitLab instance.
     """
 
+    UPDATE_TRACKER_NAME = 'gitlab_update'
+
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(GitLab_Repository, self).__init__(source, repo_directory,
                                                 project=project, **kwargs)
@@ -209,10 +211,6 @@ class GitLab_Repository(Git_Repository, Review_System):
                                encrypted_fields=('user', 'username', 'email'))
         })
         return review_tables
-
-    @property
-    def update_tracker_name(self):
-        return "gitlab_update"
 
     def _check_dropin_files(self, project=None):
         if project is None:
@@ -260,7 +258,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         return parser.parse()
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version):
+    def is_up_to_date(cls, source, latest_version, update_tracker=None):
         try:
             api = source.gitlab_api
         except RuntimeError:
@@ -268,6 +266,10 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         # pylint: disable=no-member
         project = api.project(source.gitlab_path)
+        if update_tracker is not None:
+            tracker_date = get_local_datetime(update_tracker)
+            return tracker_date > project.last_activity_at
+
         if project.commit('HEAD').id == latest_version:
             return True
 
