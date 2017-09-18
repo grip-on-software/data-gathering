@@ -19,6 +19,7 @@ if is_in_list "$logLevel" DEBUG INFO; then
 	}
 else
 	function log_info() {
+		return
 	}
 fi
 
@@ -26,7 +27,7 @@ function log_error() {
 	echo "ERROR:${FUNCNAME[1]}:$*" >&2
 }
 
-enable_line_debug()
+enable_line_debug
 
 # Declare the current working directory
 ROOT=$PWD
