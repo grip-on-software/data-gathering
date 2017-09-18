@@ -8,13 +8,8 @@ if [ -z "$listOfProjects" ]; then
 	listOfProjects="PROJ1 PROJ2 PROJN"
 fi
 
-# The scripts that export data during the gathering
-scripts="project_sources.py project_to_json.py jira_to_json.py environment_sources.py git_to_json.py history_to_json.py metric_options_to_json.py jenkins_to_json.py"
-
-# Declare the script tasks to run during the gathering export, space-separated
-if [ -z "$gathererScripts" ]; then
-	gathererScripts=$scripts
-fi
+# The files that the importer uses
+files=""
 
 # Declare the tasks to run during the import, comma-separated
 if [ -z "$importerTasks" ]; then
@@ -40,20 +35,34 @@ if [ -z "$IMPORTER_BASE" ]; then
 	IMPORTER_BASE="."
 fi
 
-# Declare restore files, populated with update files later on
+# Declare restore files, populated with update files as scripts are run
 restoreFiles=""
+# Declare run scripts, populated with script names on the first loop iteration
+runScripts=""
+# Declare the current project, updated in the main loop
 currentProject=""
 
+# Check if an element is in a space-separated list.
+# Returns 0 if the element is in the list, and 1 otherwise.
+function is_in_list() {
+	local element=$1
+	shift
+	local list=$*
+
+	set +e
+	echo $list | grep -w -q "\b$element\b"
+	local status=$?
+	set -e
+
+	return $status
+}
+
 function error_handler() {
-	echo "Reverting workspace tracking data..."
+	echo "Cleaning up workspace tracking data..."
 	if [ ! -z "$currentProject" ]; then
 		for restoreFile in $restoreFiles
 		do
-			if [ -e "$ROOT/export/$currentProject/$restoreFile.bak" ]; then
-				mv "$ROOT/export/$currentProject/$restoreFile.bak" "$ROOT/export/$currentProject/$restoreFile"
-			else
-				rm -f "$ROOT/export/$currentProject/$restoreFile"
-			fi
+			rm -f "$ROOT/export/$currentProject/$restoreFile"
 		done
 	fi
 	if [ $cleanupRepos = "true" ]; then
@@ -84,14 +93,23 @@ function export_handler() {
 	shift
 	local args=$*
 
-	# Check whether the script should be run according to the environment.
-	set +e
-	echo $gathererScripts | grep -w -q "\b$script\b"
-	local status=$?
-	set -e
-
 	export_files=$(./list-files.sh export $script)
 	update_files=$(./list-files.sh update $script)
+
+	# Check whether the script should be run according to the environment or
+	# the importers that make use of their data.
+	local status=1
+	if [ -z "$gathererScripts" ]; then
+		for export_file in $export_files; do
+			if [ is_in_list $export_file $files ]; then
+				status=0
+				break
+			fi
+		done
+	else
+		status=$(is_in_list $script $gathererScripts)
+	fi
+
 	if [ $status -ne 0 ]; then
 		# Remove export and update files to ensure that a previous run is not
 		# reimported since we did not gather or override them.
@@ -144,7 +162,18 @@ function export_handler() {
 	fi
 	if [ "$skip_script" = "0" ]; then
 		skip_dropin=$skip_dropin status_handler python $script $project $args
+		if [ ! is_in_list $script $runScripts ]; then
+			runScripts="$runScripts $script"
+			restoreFiles="$restoreFiles $update_files"
+		fi
 	fi
+}
+
+function import_handler() {
+	local project=$1
+	shift
+	local tasks=$*
+	status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" $importerProperties -jar "$IMPORTER_BASE/importerjson.jar" $project $tasks
 }
 
 # Retrieve Python scripts from a subdirectory
@@ -157,25 +186,14 @@ if [ -z "$SKIP_REQUIREMENTS" ]; then
 	pip install -r requirements.txt
 fi
 
-# Determine files that are backed up in case of errors for each project
-restoreFiles=$(./list-files.sh update $gathererScripts)
-
 # Retrieve Java importer
 rm -f data_vcsdev_to_dev.json
 python retrieve_importer.py --base $IMPORTER_BASE
+if [ -z "$gathererScripts" ] && [ "$importerTasks" != "skip" ]; then
+	files=$(import_handler --files $importerTasks)
+fi
 
-for project in $listOfProjects
-do
-	# Create backups of tracking files
-	for restoreFile in $restoreFiles
-	do
-		if [ -e "export/$project/$restoreFile" ]; then
-			cp "export/$project/$restoreFile" "export/$project/$restoreFile.bak"
-		fi
-	done
-done
-
-## now loop through the list of projects
+# Now loop through the list of projects
 for project in $listOfProjects
 do
 	echo "$project"
@@ -188,7 +206,10 @@ do
 		# Retrieve quality metrics repository
 		status_handler python retrieve_metrics_repository.py $project --log $logLevel
 
+		# Retrieve trackers for current database state
 		status_handler python retrieve_update_trackers.py $project --files $restoreFiles --log $logLevel $trackerParameters
+
+		# Retrieve archived project dropins
 		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
 
 		always_use_dropin=1 export_handler project_sources.py $project --log $logLevel
@@ -201,7 +222,7 @@ do
 		export_handler jenkins_to_json.py $project --log $logLevel
 	fi
 	if [ $importerTasks != "skip" ]; then
-		status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" $importerProperties -jar "$IMPORTER_BASE/importerjson.jar" $project $importerTasks
+		import_handler $project $importerTasks
 	fi
 
 	if [ $cleanupRepos = "true" ]; then
