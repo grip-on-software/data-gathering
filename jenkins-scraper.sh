@@ -28,9 +28,17 @@ function enable_line_debug() {
 	fi
 }
 
+function log() {
+	local level=$1
+	shift
+	local stack=$1
+	shift
+	echo "$(date '+%Y-%m-%d %H:%M:%S'):$level:$stack:$*" >&2
+}
+
 if is_in_list "$logLevel" DEBUG INFO; then
 	function log_info() {
-		echo "INFO:${FUNCNAME[1]}:$*" >&2
+		log "INFO" "${FUNCNAME[1]}" $*
 	}
 else
 	function log_info() {
@@ -39,7 +47,7 @@ else
 fi
 
 function log_error() {
-	echo "ERROR:${FUNCNAME[1]}:$*" >&2
+	log "ERROR" "${FUNCNAME[1]}" $*
 }
 
 enable_line_debug
@@ -201,7 +209,7 @@ function export_handler() {
 		done
 	fi
 	if [ "$skip_script" = "0" ]; then
-		if [ ! is_in_list $script $runScripts ]; then
+		if ! is_in_list $script $runScripts; then
 			runScripts="$runScripts $script"
 			restoreFiles="$restoreFiles $update_files"
 		fi
