@@ -103,7 +103,7 @@ function export_handler() {
 	local status=1
 	if [ -z "$gathererScripts" ]; then
 		for export_file in $export_files; do
-			if [ is_in_list $export_file $files ]; then
+			if [ $(is_in_list $export_file $files) ]; then
 				status=0
 				break
 			fi
