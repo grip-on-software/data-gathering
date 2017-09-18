@@ -5,6 +5,21 @@ if [ -z "$logLevel" ]; then
 	logLevel="INFO"
 fi
 
+# Check if an element is in a space-separated list.
+# Returns 0 if the element is in the list, and 1 otherwise.
+function is_in_list() {
+	local element=$1
+	shift
+	local list=$*
+
+	set +e
+	echo $list | grep -w -q "\b$element\b"
+	local status=$?
+	set -e
+
+	return $status
+}
+
 function enable_line_debug() {
 	if is_in_list "$logLevel" DEBUG INFO; then
 		set -x
@@ -67,21 +82,6 @@ restoreFiles=""
 runScripts=""
 # Declare the current project, updated in the main loop
 currentProject=""
-
-# Check if an element is in a space-separated list.
-# Returns 0 if the element is in the list, and 1 otherwise.
-function is_in_list() {
-	local element=$1
-	shift
-	local list=$*
-
-	set +e
-	echo $list | grep -w -q "\b$element\b"
-	local status=$?
-	set -e
-
-	return $status
-}
 
 function error_handler() {
 	log_error "Cleaning up workspace tracking data..."
