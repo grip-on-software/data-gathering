@@ -8,6 +8,8 @@ if [ -z "$listOfProjects" ]; then
 	listOfProjects="PROJ1 PROJ2 PROJN"
 fi
 
+# The scripts that export data during the gathering
+scripts="project_sources.py project_to_json.py jira_to_json.py environment_sources.py git_to_json.py history_to_json.py metric_options_to_json.py jenkins_to_json.py"
 # The files that the importer uses
 files=""
 
@@ -161,11 +163,14 @@ function export_handler() {
 		done
 	fi
 	if [ "$skip_script" = "0" ]; then
-		skip_dropin=$skip_dropin status_handler python $script $project $args
 		if [ ! is_in_list $script $runScripts ]; then
 			runScripts="$runScripts $script"
 			restoreFiles="$restoreFiles $update_files"
 		fi
+		# Retrieve trackers for current database state
+		status_handler python retrieve_update_trackers.py $project --files $update_files --log $logLevel $trackerParameters
+
+		skip_dropin=$skip_dropin status_handler python $script $project $args
 	fi
 }
 
@@ -205,9 +210,6 @@ do
 	if [ $skipGather = "false" ]; then
 		# Retrieve quality metrics repository
 		status_handler python retrieve_metrics_repository.py $project --log $logLevel
-
-		# Retrieve trackers for current database state
-		status_handler python retrieve_update_trackers.py $project --files $restoreFiles --log $logLevel $trackerParameters
 
 		# Retrieve archived project dropins
 		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
