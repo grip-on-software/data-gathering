@@ -1,4 +1,32 @@
-#!/bin/bash -ex
+#!/bin/bash -e
+
+# Declare log level
+if [ -z "$logLevel" ]; then
+	logLevel="INFO"
+fi
+
+function enable_line_debug() {
+	if is_in_list "$logLevel" DEBUG INFO; then
+		set -x
+	else
+		set +x
+	fi
+}
+
+if is_in_list "$logLevel" DEBUG INFO; then
+	function log_info() {
+		echo "INFO:${FUNCNAME[1]}:$*" >&2
+	}
+else
+	function log_info() {
+	}
+fi
+
+function log_error() {
+	echo "ERROR:${FUNCNAME[1]}:$*" >&2
+}
+
+enable_line_debug()
 
 # Declare the current working directory
 ROOT=$PWD
@@ -16,11 +44,6 @@ files=""
 # Declare the tasks to run during the import, comma-separated
 if [ -z "$importerTasks" ]; then
 	importerTasks="all"
-fi
-
-# Declare log level
-if [ -z "$logLevel" ]; then
-	logLevel="INFO"
 fi
 
 # Declare repository cleanup
@@ -57,18 +80,6 @@ function is_in_list() {
 	set -e
 
 	return $status
-}
-
-if is_in_list $logLevel DEBUG INFO; then
-	function log_info() {
-		echo "INFO:${FUNCNAME[1]}:$*" >&2
-	}
-else
-	function log_info() {}
-fi
-
-function log_error() {
-	echo "ERROR:${FUNCNAME[1]}:$*" >&2
 }
 
 function error_handler() {
@@ -139,7 +150,7 @@ function export_handler() {
 		for update_file in $update_files; do
 			rm -f "export/$project/$update_file"
 		done
-		set -x
+		enable_line_debug
 		return
 	fi
 
@@ -200,7 +211,7 @@ function export_handler() {
 		log_info "Running python $script $project $args"
 		skip_dropin=$skip_dropin status_handler python $script $project $args
 	fi
-	set -x
+	enable_line_debug
 }
 
 function import_handler() {
