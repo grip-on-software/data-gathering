@@ -5,6 +5,8 @@ if [ -z "$logLevel" ]; then
 	logLevel="INFO"
 fi
 
+# Common logic and logging functions
+
 # Check if an element is in a space-separated list.
 # Returns 0 if the element is in the list, and 1 otherwise.
 function is_in_list() {
@@ -21,7 +23,7 @@ function is_in_list() {
 }
 
 function enable_line_debug() {
-	if is_in_list "$logLevel" DEBUG INFO; then
+	if [ "$logLevel" = "DEBUG" ]; then
 		set -x
 	else
 		set +x
@@ -52,6 +54,8 @@ function log_error() {
 
 enable_line_debug
 
+# Declare configuration
+
 # Declare the current working directory
 ROOT=$PWD
 
@@ -59,11 +63,6 @@ ROOT=$PWD
 if [ -z "$listOfProjects" ]; then
 	listOfProjects="PROJ1 PROJ2 PROJN"
 fi
-
-# The scripts that export data during the gathering
-scripts="project_sources.py project_to_json.py jira_to_json.py environment_sources.py git_to_json.py history_to_json.py metric_options_to_json.py jenkins_to_json.py"
-# The files that the importer uses
-files=""
 
 # Declare the tasks to run during the import, comma-separated
 if [ -z "$importerTasks" ]; then
@@ -84,12 +83,23 @@ if [ -z "$IMPORTER_BASE" ]; then
 	IMPORTER_BASE="."
 fi
 
+log_info "Configuration:"
+log_info "listOfProjects=$listOfProjects"
+log_info "importerTasks=$importerTasks"
+log_info "gathererScripts=$gathererScripts"
+log_info "cleanupRepos=$cleanupRepos skipGather=$skipGather"
+log_info "logLevel=$logLevel ROOT=$ROOT IMPORTER_BASE=$IMPORTER_BASE"
+
+# The files that the importer uses
+files=""
 # Declare restore files, populated with update files as scripts are run
 restoreFiles=""
 # Declare run scripts, populated with script names on the first loop iteration
 runScripts=""
 # Declare the current project, updated in the main loop
 currentProject=""
+
+# Handler functions
 
 function error_handler() {
 	log_error "Cleaning up workspace tracking data..."
@@ -230,18 +240,23 @@ function import_handler() {
 	status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" $importerProperties -jar "$IMPORTER_BASE/importerjson.jar" $project $tasks
 }
 
+# Setup
+
 # Retrieve Python scripts from a subdirectory
 if [ -d scripts ]; then
+	log_info "Copying scripts from subdirectory"
 	scripts/copy-files.sh scripts
 fi
 
 # Install Python dependencies
 if [ -z "$SKIP_REQUIREMENTS" ]; then
+	log_info "Installing Python dependencies"
 	pip install -r requirements.txt
 fi
 
 # Retrieve Java importer
 rm -f data_vcsdev_to_dev.json
+log_info "Retrieving importer"
 python retrieve_importer.py --base $IMPORTER_BASE
 if [ -z "$gathererScripts" ] && [ "$importerTasks" != "skip" ]; then
 	files=$(import_handler --files $importerTasks)
@@ -250,7 +265,7 @@ fi
 # Now loop through the list of projects
 for project in $listOfProjects
 do
-	log_info "Project: $project"
+	log_info "Gathering data for project $project"
 	currentProject=$project
 
 	mkdir -p export/$project
@@ -273,17 +288,19 @@ do
 		export_handler jenkins_to_json.py $project --log $logLevel
 	fi
 	if [ $importerTasks != "skip" ]; then
+		log_info "Importing data for project $project"
 		import_handler $project $importerTasks
 	fi
 
 	if [ $cleanupRepos = "true" ]; then
+		log_info "Cleaning up repositories for $project"
 		rm -rf project-git-repos/$project
 		rm -rf quality-report-history
 	fi
 done
 
 if [ $cleanupRepos = "true" ]; then
-	python retrieve_metrics_repository.py $project --delete --all --log $logLevel
+	python retrieve_metrics_repository.py $currentProject --delete --all --log $logLevel
 fi
 
 # Clean up retrieved dropins
