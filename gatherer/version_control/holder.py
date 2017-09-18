@@ -96,7 +96,7 @@ class Repositories_Holder(object):
             if repo_class is None:
                 continue
 
-            if self._check_up_to_date(repo_class, source):
+            if self._check_up_to_date(source, repo_class):
                 continue
 
             path = os.path.join(self._repo_directory, source.path_name)
