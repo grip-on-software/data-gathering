@@ -59,8 +59,20 @@ function is_in_list() {
 	return $status
 }
 
+if is_in_list $logLevel DEBUG INFO; then
+	function log_info() {
+		echo "INFO:${FUNCNAME[1]}:$*" >&2
+	}
+else
+	function log_info() {}
+fi
+
+function log_error() {
+	echo "ERROR:${FUNCNAME[1]}:$*" >&2
+}
+
 function error_handler() {
-	echo "Cleaning up workspace tracking data..."
+	log_error "Cleaning up workspace tracking data..."
 	if [ ! -z "$currentProject" ]; then
 		for restoreFile in $restoreFiles
 		do
@@ -82,13 +94,14 @@ function status_handler() {
 	local status=$?
 	set -e
 	if [ $status -ne 0 ]; then
-		echo "[$@] Failed with status code $status" >&2
+		log_error "[$@] Failed with status code $status"
 		error_handler
 	fi
 	return $status
 }
 
 function export_handler() {
+	set +x
 	local script=$1
 	shift
 	local project=$1
@@ -103,24 +116,30 @@ function export_handler() {
 	local status=1
 	if [ -z "$gathererScripts" ]; then
 		for export_file in $export_files; do
-			if [ $(is_in_list $export_file $files) ]; then
+			if is_in_list $export_file $files; then
 				status=0
 				break
 			fi
 		done
 	else
-		status=$(is_in_list $script $gathererScripts)
+		if is_in_list $script $gathererScripts; then
+			status=0
+		else
+			status=1
+		fi
 	fi
 
 	if [ $status -ne 0 ]; then
 		# Remove export and update files to ensure that a previous run is not
 		# reimported since we did not gather or override them.
+		log_info "Removing local export and update files of skipped script $script"
 		for export_file in $export_files; do
 			rm -f "export/$project/$export_file"
 		done
 		for update_file in $update_files; do
 			rm -f "export/$project/$update_file"
 		done
+		set -x
 		return
 	fi
 
@@ -141,9 +160,13 @@ function export_handler() {
 				set -e
 				if [ "$status" != "0" ]; then
 					if [ -e "dropins/$project/$update_file" ]; then
+						log_info "Copying $update_file dropin to export/$project"
 						cp "dropins/$project/$update_file" "export/$project/$update_file"
 					elif [ -e "export/$project/$update_file" ]; then
+						log_info "We have an earlier run with $update_file"
 						skip_script=0
+					else
+						log_info "Neither export nor dropin update files exist"
 					fi
 					skip_dropin=0
 				fi
@@ -153,11 +176,14 @@ function export_handler() {
 		for export_file in $export_files; do
 			if [ -e "dropins/$project/$export_file" ]; then
 				if [ ! -z "$always_use_dropin" ] || [ "$skip_dropin" = "0" ]; then
+					log_info "Copying $export_file dropin to export/$project"
 					cp "dropins/$project/$export_file" "export/$project/$export_file"
 				else
+					log_info "Empty JSON to export/$project/$export_file"
 					echo "[]" > export/$project/$export_file
 				fi
 			else
+				log_info "No dropin file $export_file exists"
 				skip_script=0
 			fi
 		done
@@ -168,10 +194,13 @@ function export_handler() {
 			restoreFiles="$restoreFiles $update_files"
 		fi
 		# Retrieve trackers for current database state
+		log_info "Running python retrieve_update_trackers.py $project for files $update_files"
 		status_handler python retrieve_update_trackers.py $project --files $update_files --log $logLevel $trackerParameters
 
+		log_info "Running python $script $project $args"
 		skip_dropin=$skip_dropin status_handler python $script $project $args
 	fi
+	set -x
 }
 
 function import_handler() {
@@ -201,7 +230,7 @@ fi
 # Now loop through the list of projects
 for project in $listOfProjects
 do
-	echo "$project"
+	log_info "Project: $project"
 	currentProject=$project
 
 	mkdir -p export/$project
