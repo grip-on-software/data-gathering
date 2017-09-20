@@ -177,6 +177,7 @@ def receive_status(fields, project_key):
         raise RuntimeError('Status must be provided')
 
     status = fields.getlist('status')
+    source = fields.getfirst('source')
     if len(status) != 1:
         raise RuntimeError('Exactly one status field must be specified')
 
@@ -186,7 +187,7 @@ def receive_status(fields, project_key):
         raise RuntimeError('Status field must be valid JSON')
 
     gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
-    if not gatherer.add_bigboat_status(project_key, statuses):
+    if not gatherer.add_bigboat_status(project_key, statuses, source):
         # If there are any database problems, write the statuses to
         # a controller file for later import.
         controller = Pyro4.Proxy("PYRONAME:gros.controller")

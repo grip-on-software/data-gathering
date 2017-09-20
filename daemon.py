@@ -102,7 +102,7 @@ class Gatherer(object):
 
         return usernames
 
-    def add_bigboat_status(self, project_key, statuses):
+    def add_bigboat_status(self, project_key, statuses, source):
         """
         Add rows containing health status information from BigBoat for the
         given project to the database. Returns whether the rows could be added
@@ -110,7 +110,7 @@ class Gatherer(object):
         """
 
         project = Project(project_key)
-        return Statuses(project, statuses, **self._options).update()
+        return Statuses(project, statuses, source, **self._options).update()
 
 def main():
     """

@@ -13,7 +13,7 @@ class Statuses(object):
 
     MAX_BATCH_SIZE = 100
 
-    def __init__(self, project, statuses=None, **options):
+    def __init__(self, project, statuses=None, source=None, **options):
         self._project = project
         self._project_id = None
 
@@ -24,6 +24,8 @@ class Statuses(object):
             self._statuses = []
         else:
             self._statuses = statuses
+
+        self._source = source
 
     @staticmethod
     def _find_details(details, keys, subkey=None):
@@ -133,6 +135,9 @@ class Statuses(object):
         if self.database is False or self.project_id is False:
             return False
 
+        if self._source is not None:
+            self._insert_source()
+
         # If the batch is empty, then we do not need to do anything else.
         if not self._statuses:
             return True
@@ -153,6 +158,18 @@ class Statuses(object):
         self.database.execute_many(query, parameters)
 
         return True
+
+    def _insert_source(self):
+        check_query = '''SELECT url FROM gros.source_environment
+                         WHERE project_id = %s AND source_type = %s
+                         AND url = %s AND environment = %s'''
+        parameters = [self.project_id, 'bigboat', self._source, self._source]
+        row = self.database.execute(check_query, parameters, one=True)
+        if row is None:
+            update_query = '''INSERT INTO gros.source_environment
+                              (project_id, source_type, url, environment)
+                              VALUES (%s, %s, %s, %s)'''
+            self.database.execute(update_query, parameters, update=True)
 
     def export(self):
         """

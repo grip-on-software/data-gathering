@@ -76,8 +76,11 @@ def main():
     if args.ssh:
         url = 'https://{}/auth/status.py?project={}'.format(args.ssh,
                                                             project.jira_key)
-        request = requests.post(url, data={'status': json.dumps(output)},
-                                verify=args.cert)
+        data = {
+            'status': json.dumps(output),
+            'source': host
+        }
+        request = requests.post(url, data=data, verify=args.cert)
         if request.status_code != requests.codes['accepted']:
             raise RuntimeError('HTTP error {}: {}'.format(request.status_code,
                                                           request.text))
