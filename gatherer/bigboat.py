@@ -56,19 +56,33 @@ class Statuses(object):
         for each status item.
         """
 
+        api_version = None
+        for status in statuses:
+            if 'details' in status and 'api' in status['details']:
+                api_version = status['details']['api'].split('.')
+
+        if api_version is None:
+            raise ValueError('Could not extract API version')
+
         details_values = ['usedIps', 'used', 'loadavg', 'time']
         details_max = ['totalIps', 'total']
 
         output = []
         for status in statuses:
             details = status.get('details')
-            output.append({
+
+            data = {
                 'name': status['name'],
                 'checked_time': parse_date(status['lastCheck']['ISO']),
                 'ok': status['isOk'],
                 'value': cls._find_details(details, details_values, '15'),
                 'max': cls._find_details(details, details_max, None)
-            })
+            }
+            if data['name'] == 'Memory' and data['value'] is not None \
+                and data['max'] is not None:
+                data['value'] = data['max'] - data['value']
+
+            output.append(data)
 
         return cls(project, output)
 
