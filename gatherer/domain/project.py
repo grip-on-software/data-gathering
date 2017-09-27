@@ -125,6 +125,9 @@ class Project(Project_Meta):
         self._main_project = self.get_group_setting('subprojects')
         self._github_team = self.get_group_setting('teams')
 
+        support = self.get_group_setting('support')
+        self._is_support_team = Configuration.has_value(support)
+
         self._project_definitions = None
 
         sources_path = os.path.join(self.export_key, 'data_sources.json')
@@ -242,6 +245,14 @@ class Project(Project_Meta):
         """
 
         return self._project_key
+
+    @property
+    def is_support_team(self):
+        """
+        Retrieve whether the project is maintained by a support team.
+        """
+
+        return self._is_support_team
 
     @property
     def github_team(self):

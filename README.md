@@ -280,6 +280,8 @@ the setting is not used in this environment.
 - teams: GitHub teams and their main project.
   - `$TEAM_NAME`: GitHub slug of the team that manages the repositories 
     relevant to the project.
+- support: JIRA key of a project and an indication of whether they are 
+  considered to be a support team.
 
 The credentials file follows a similar section-option-value, but 
 `credentials.cfg.example` contains two sections: the first, whose name is 

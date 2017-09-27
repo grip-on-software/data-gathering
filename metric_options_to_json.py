@@ -25,7 +25,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default=None,
-                        help="Subversion directory with project definitions")
+                        help="Repository path with project definitions")
     parser.add_argument("--context", type=int, default=3,
                         help="Number of context lines for parser problems")
     parser.add_argument("--from-revision", dest="from_revision", default=None,
