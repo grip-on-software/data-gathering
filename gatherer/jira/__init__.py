@@ -13,7 +13,7 @@ from .field import Jira_Field, Primary_Field, Payload_Field, Property_Field
 from .parser import Int_Parser, String_Parser, Boolean_Parser, Date_Parser, \
     Unicode_Parser, Sprint_Parser, Developer_Parser, Decimal_Parser, \
     ID_List_Parser, Version_Parser, Rank_Parser, Issue_Key_Parser, \
-    Flag_Parser, Ready_Status_Parser, Labels_Parser
+    Flag_Parser, Ready_Status_Parser, Labels_Parser, Project_Parser
 from .query import Query
 from .special_field import Special_Field
 from .update import Updated_Time, Update_Tracker
@@ -112,7 +112,8 @@ class Jira(object):
             "issue_key": Issue_Key_Parser(self),
             "flag": Flag_Parser(self),
             "ready_status": Ready_Status_Parser(self),
-            "labels": Labels_Parser(self)
+            "labels": Labels_Parser(self),
+            "project": Project_Parser(self)
         }
 
         self._import_field_specifications()

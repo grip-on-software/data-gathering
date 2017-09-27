@@ -402,3 +402,45 @@ class Labels_Parser(Field_Parser):
             return str(len(value.split(' ')))
 
         return str(0)
+
+class Project_Parser(Field_Parser):
+    """
+    Parser for fields that hold a project.
+    """
+
+    def __init__(self, jira):
+        super(Project_Parser, self).__init__(jira)
+
+        self._projects = {}
+        self.jira.register_prefetcher(self.prefetch)
+
+    def prefetch(self, query):
+        """
+        Retrieve data about all projects known to us and keep a id-to-name
+        mapping.
+        """
+
+        for project in query.api.projects():
+            self.parse(project)
+
+    def parse(self, value):
+        if value is None:
+            return str(0)
+
+        if hasattr(value, 'id') and hasattr(value, 'key'):
+            encoded_key = str(value.key)
+            self._projects[str(value.id)] = encoded_key
+
+            return encoded_key
+
+        return str(0)
+
+    def parse_changelog(self, change, value, diffs):
+        if change["from"] is not None:
+            project_id = str(change["from"])
+            if project_id in self._projects:
+                return self._projects[project_id]
+
+            logging.info('Unknown old external project ID %s', project_id)
+
+        return value

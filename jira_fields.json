@@ -198,6 +198,11 @@
         "changelog_name": "labels",
         "type": "labels"
     },
+    "external_project": {
+        "field": "customfield_11701",
+        "changelog_name": "ISR Project Picker",
+        "type": "project"
+    },
     "expected_ltcs": {
         "field": "customfield_10210",
         "changelog_name": "Expected number of LTC's",
