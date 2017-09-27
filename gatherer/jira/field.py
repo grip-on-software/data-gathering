@@ -46,9 +46,6 @@ class Jira_Field(Base_Jira_Field):
         representation of the field.
         """
 
-        if field is None:
-            return str(0)
-
         for parser in self.get_types():
             field = parser.parse(field)
 
@@ -144,6 +141,8 @@ class Property_Field(Payload_Field):
                     has_data = True
                     prop = getattr(payload_field, name)
                     row[name] = self.jira.get_type_cast(datatype).parse(prop)
+                    if row[name] is None:
+                        row[name] = str(0)
                 else:
                     row[name] = str(0)
 

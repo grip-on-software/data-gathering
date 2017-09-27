@@ -8,12 +8,14 @@
     }, 
     "key": {
         "type": "str", 
+        "changelog_name": "Key",
         "primary": "key"
     }, 
     "issuetype": {
         "field": "issuetype", 
         "changelog_name": "issuetype", 
         "property": "id",
+        "type": "identifier",
         "table": {
             "name": "str",
             "description": "unicode"
@@ -23,7 +25,7 @@
         "field": "priority", 
         "changelog_name": "priority", 
         "property": "id", 
-        "type": "int",
+        "type": "identifier",
         "table": {
             "name": "unicode"
         }
@@ -32,7 +34,7 @@
         "field": "resolution", 
         "changelog_name": "resolution", 
         "property": "id", 
-        "type": "int",
+        "type": "identifier",
         "table": {
             "name": "str",
             "description": "unicode"
@@ -91,17 +93,16 @@
         "field": "duedate", 
         "type": ["unicode", "date"]
     }, 
-    "project_id": {
+    "project": {
         "field": "project", 
         "changelog_name": "project", 
-        "property": "id", 
-        "type": "int"
+        "type": "project"
     }, 
     "status": {
         "field": "status", 
         "changelog_name": "status", 
         "property": "id", 
-        "type": "int",
+        "type": "identifier",
         "table": {
             "name": "str",
             "description": "unicode"
@@ -232,6 +233,7 @@
         "field": "customfield_10208",
         "changelog_name": "Test execution",
         "property": "id",
+        "type": "identifier",
         "table": {
             "value": "str"
         }

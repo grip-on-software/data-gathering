@@ -52,6 +52,9 @@ class String_Parser(Field_Parser):
     """
 
     def parse(self, value):
+        if value is None:
+            return None
+
         return str(value)
 
 class Int_Parser(String_Parser):
@@ -62,9 +65,23 @@ class Int_Parser(String_Parser):
     """
 
     def parse(self, value):
+        if value is None:
+            return str(0)
+
         if isinstance(value, basestring) and '.' in value:
             logging.info('Decimal point in integer value: %s', value)
             value = value.split('.', 1)[0]
+
+        return str(int(value))
+
+class ID_Parser(Field_Parser):
+    """
+    Parser for identifier fields which may be missing.
+    """
+
+    def parse(self, value):
+        if value is None:
+            return None
 
         return str(int(value))
 
@@ -79,7 +96,7 @@ class Boolean_Parser(String_Parser):
         if value == "No":
             return str(-1)
         if value is None or value == "":
-            return str(0)
+            return None
 
         return value
 
@@ -92,6 +109,9 @@ class Date_Parser(Field_Parser):
     """
 
     def parse(self, value):
+        if value is None:
+            return None
+
         return parse_date(value)
 
 class Unicode_Parser(Field_Parser):
@@ -100,6 +120,9 @@ class Unicode_Parser(Field_Parser):
     """
 
     def parse(self, value):
+        if value is None:
+            return None
+
         return parse_unicode(value)
 
 class Sprint_Parser(Field_Parser):
@@ -134,15 +157,18 @@ class Sprint_Parser(Field_Parser):
         return sprint_data
 
     def parse(self, value):
+        if value is None:
+            return None
+
         if isinstance(value, list):
             sprints = []
             for sprint_field in value:
                 sprint_id = self._parse(sprint_field)
-                if sprint_id != str(0):
+                if sprint_id is not None:
                     sprints.append(sprint_id)
 
             if not sprints:
-                return str(0)
+                return None
 
             return sprints
 
@@ -150,13 +176,13 @@ class Sprint_Parser(Field_Parser):
 
     def _parse(self, sprint):
         # Parse an individual sprint, add its data to the table and return the
-        # sprint ID as an integer, or `str(0)` if it is not an acceptable
+        # sprint ID as an integer, or `None` if it is not an acceptable
         # sprint format.
         sprint_data = self._split_sprint(sprint)
         if not sprint_data:
-            return str(0)
+            return None
 
-        sprint_text = int(sprint_data["id"])
+        sprint_id = int(sprint_data["id"])
 
         if sprint_data["endDate"] != "<null>" and sprint_data["startDate"] != "<null>":
             if sprint_data["completeDate"] == "<null>":
@@ -165,18 +191,18 @@ class Sprint_Parser(Field_Parser):
                 complete_date = parse_date(sprint_data["completeDate"])
 
             self.jira.get_table("sprint").append({
-                "id": str(sprint_text),
+                "id": str(sprint_id),
                 "name": str(sprint_data["name"]),
                 "start_date": parse_date(sprint_data["startDate"]),
                 "end_date": parse_date(sprint_data["endDate"]),
                 "complete_date": complete_date
             })
 
-        return sprint_text
+        return sprint_id
 
     def parse_changelog(self, change, value, diffs):
         if change['from'] is None:
-            return str(0)
+            return None
 
         return [int(sprint) for sprint in change['from'].split(', ')]
 
@@ -194,6 +220,9 @@ class Decimal_Parser(Field_Parser):
     """
 
     def parse(self, value):
+        if value is None:
+            return None
+
         return str(float(value))
 
 class Developer_Parser(Field_Parser):
@@ -216,7 +245,7 @@ class Developer_Parser(Field_Parser):
         elif isinstance(value, str):
             return parse_unicode(value)
         else:
-            return str(0)
+            return None
 
     @property
     def table_name(self):
@@ -233,6 +262,10 @@ class ID_List_Parser(Field_Parser):
     """
 
     def parse(self, value):
+        # Determine the number of items in the list.
+        if value is None:
+            return str(0)
+
         if not isinstance(value, list):
             # Singular value (changelogs)
             return str(1)
@@ -270,11 +303,11 @@ class Version_Parser(Field_Parser):
 
     def parse(self, value):
         if value is None:
-            return str(0)
+            return None
         if not isinstance(value, list):
             return str(value)
 
-        encoded_value = str(0)
+        encoded_value = None
 
         required_properties = ('id', 'name', 'description', 'released')
         for fix_version in value:
@@ -316,9 +349,10 @@ class Rank_Parser(Field_Parser):
     """
 
     def parse(self, value):
-        return str(0)
+        return None
 
     def parse_changelog(self, change, value, diffs):
+        # Encode the rank change as "-1" or "1".
         if change["toString"] == "Ranked higher":
             return str(1)
         if change["toString"] == "Ranked lower":
@@ -335,7 +369,7 @@ class Issue_Key_Parser(String_Parser):
         if change["fromString"] is not None:
             return change["fromString"]
 
-        return str(0)
+        return None
 
 class Flag_Parser(Field_Parser):
     """
@@ -343,6 +377,7 @@ class Flag_Parser(Field_Parser):
     """
 
     def parse(self, value):
+        # Output the flagged state as either "0" or "1".
         if (isinstance(value, list) and value) or value != "":
             return str(1)
 
@@ -365,9 +400,9 @@ class Ready_Status_Parser(Field_Parser):
 
     def parse(self, value):
         if value is None:
-            return str(0)
+            return None
 
-        encoded_value = str(0)
+        encoded_value = None
 
         if hasattr(value, 'id') and hasattr(value, 'value'):
             encoded_value = str(value.id)
@@ -396,6 +431,7 @@ class Labels_Parser(Field_Parser):
     """
 
     def parse(self, value):
+        # Count the number of labels.
         if isinstance(value, list):
             return str(len(value))
         elif isinstance(value, str) and value != "":
@@ -425,15 +461,20 @@ class Project_Parser(Field_Parser):
 
     def parse(self, value):
         if value is None:
-            return str(0)
+            return None
 
         if hasattr(value, 'id') and hasattr(value, 'key'):
             encoded_key = str(value.key)
             self._projects[str(value.id)] = encoded_key
 
+            # Default value for the project is the own project.
+            # For external project, ignore the field if it is set to itself.
+            if encoded_key == self.jira.project.jira_key:
+                return None
+
             return encoded_key
 
-        return str(0)
+        return None
 
     def parse_changelog(self, change, value, diffs):
         if change["from"] is not None:

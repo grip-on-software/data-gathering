@@ -105,13 +105,27 @@ class Changelog(object):
         return result
 
     @classmethod
+    def _update_field(cls, new_data, old_data, field):
+        # Match the new_data field with the existence and the value of the same
+        # field in old_data. This means that the field is deleted from new_data
+        # if it did not exist in old_data.
+        if field in old_data:
+            new_data[field] = old_data[field]
+        elif field in new_data:
+            del new_data[field]
+
+    @classmethod
     def _alter_change_metadata(cls, data, diffs, sprints):
         # Data is either a full changelog entry or a difference entry that is
         # applied to it after this call. Diffs is a difference entry with data
         # that may be partially for this change, but after this call it only
         # contains fields for for an earlier change.
-        data["updated_by"] = diffs.pop("updated_by", str(0))
-        data["rank_change"] = diffs.pop("rank_change", str(0))
+
+        # Always use the updated_by and rank_change of the difference, even if
+        # it is not available, instead of falling back to the 'newer' value if
+        # the difference does not contain this field.
+        cls._update_field(data, diffs, "updated_by")
+        cls._update_field(data, diffs, "rank_change")
 
         if "sprint" in data and isinstance(data["sprint"], list):
             # Add the sprint list to the diff for the earlier change unless it
@@ -135,8 +149,8 @@ class Changelog(object):
                 data["sprint"] = str(sprint_id)
 
     def _create_first_version(self, issue, prev_data, prev_diffs, sprints):
-        prev_diffs["updated"] = prev_data["created"]
-        prev_diffs["sprint"] = prev_data["sprint"]
+        self._update_field(prev_diffs, prev_data, "updated")
+        self._update_field(prev_diffs, prev_data, "sprint")
         parser = self._jira.get_type_cast("developer")
         first_data = {
             "updated_by": parser.parse(issue.fields.creator)
