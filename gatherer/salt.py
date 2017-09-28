@@ -34,6 +34,10 @@ class Salt(object):
         if self._project_id is not None:
             return self._project_id
 
+        if self._project is None:
+            self._project_id = 0
+            return self._project_id
+
         self._project_id = self._database.get_project_id(self._project.key)
         if self._project_id is None:
             self._database.set_project_id(self._project.key)
