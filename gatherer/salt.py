@@ -3,6 +3,7 @@ Module for securely storing and retrieving project-specific encryption salts.
 """
 
 from builtins import object
+import hashlib
 import bcrypt
 from .database import Database
 
@@ -11,10 +12,18 @@ class Salt(object):
     Encryption salt storage.
     """
 
-    def __init__(self, project, **options):
+    def __init__(self, project=None, **options):
         self._project = project
         self._project_id = None
         self._database = Database(**options)
+
+    @staticmethod
+    def encrypt(value, salt, pepper):
+        """
+        Encode the string `value` using the provided `salt` and `pepper` hashes.
+        """
+
+        return hashlib.sha256(salt + value + pepper).hexdigest()
 
     @property
     def project_id(self):

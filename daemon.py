@@ -74,12 +74,27 @@ class Gatherer(object):
 
     def get_salts(self, project_key):
         """
-        Retrieve project-specific encryption salts.
+        Retrieve project-specific encryption salts, or the global salt if
+        `project_key` is the empty string.
         """
 
-        project = Project(project_key)
-        salt = Salt(project, **self._options)
+        if project_key == '':
+            project = None
+        else:
+            project = Project(project_key)
+
+        salt = Salt(project=project, **self._options)
         return salt.execute()
+
+    def encrypt(self, project_key, value):
+        """
+        Retrieve an encrypted representation of the text value using the salt
+        pair of the project `project_key` or the global salt if it is the empty
+        string.
+        """
+
+        salt, pepper = self.get_salts(project_key)
+        return Salt.encrypt(value, salt, pepper)
 
     def get_usernames(self, project_key):
         """

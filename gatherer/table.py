@@ -3,11 +3,11 @@ Table structures.
 """
 
 from builtins import object, str
-import hashlib
 import json
 import os
 import re
 from copy import copy, deepcopy
+from .salt import Salt
 
 class Table(object):
     """
@@ -78,7 +78,7 @@ class Table(object):
                 row[field] = self._convert_username(row[field])
 
             if row[field] != str(0):
-                row[field] = hashlib.sha256(salt + row[field].encode('utf-8') + pepper).hexdigest()
+                row[field] = Salt.encrypt(row[field].encode('utf-8'), salt, pepper)
 
         row["encrypted"] = str(1)
         return row
