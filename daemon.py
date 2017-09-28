@@ -83,8 +83,7 @@ class Gatherer(object):
         else:
             project = Project(project_key)
 
-        salt = Salt(project=project, **self._options)
-        return salt.execute()
+        return Salt(project=project, **self._options).execute()
 
     def encrypt(self, project_key, value):
         """
@@ -93,7 +92,16 @@ class Gatherer(object):
         string.
         """
 
-        salt, pepper = self.get_salts(project_key)
+        if project_key == '':
+            project = None
+        else:
+            project = Project(project_key)
+
+        pair = Salt(project=project, **self._options).get()
+        if not pair:
+            return ''
+
+        salt, pepper = pair
         return Salt.encrypt(value, salt, pepper)
 
     def get_usernames(self, project_key):

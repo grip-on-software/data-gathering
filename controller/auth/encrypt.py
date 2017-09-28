@@ -56,10 +56,18 @@ def main():
         return
 
     gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
+    encrypted_value = gatherer.encrypt(project_key, value)
+    if encrypted_value == '':
+        print('Status: 404 Not Found')
+        print('Content-Type: text/plain')
+        print()
+        print('The value could not be encrypted for the provided project')
+        return
+
     print('Content-Type: text/json')
     print()
     json.dump({
-        "value": gatherer.encrypt(project_key, value),
+        "value": encrypted_value,
         "encryption": 2 if project_key == '' else 1
     }, sys.stdout)
 
