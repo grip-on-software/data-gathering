@@ -5,7 +5,7 @@ Special field parsers.
 from builtins import str
 import logging
 from .base import Base_Jira_Field, Base_Changelog_Field
-from ..utils import get_local_datetime
+from ..utils import get_local_datetime, parse_unicode
 
 class Special_Field(Base_Jira_Field):
     """
@@ -108,16 +108,170 @@ class Comment_Field(Special_Field):
     def table_key(self):
         return "id"
 
-@Special_Field.register("issuelinks")
-class Issue_Link_Field(Special_Field, Base_Changelog_Field):
+class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
     """
-    Field parser for the issue links related to an issue.
+    Abstract base class for a special field which makes use of the changelog
+    to collect start and end dates of a range in between when a field contained
+    a value.
     """
 
     _changelog_map = {
         'to': 'start_date',
         'from': 'end_date'
     }
+
+    @property
+    def table(self):
+        """
+        Retrieve a table used by this field to store its values.
+
+        This table may be used for outputting the data of this field, searching
+        for existing rows and updating rows with new values.
+        """
+
+        return self.jira.get_table(self.table_name)
+
+    def search_row(self, data, issue, entry_field):
+        """
+        Find a row that was collected for this issue prior that matches the
+        properties of this version, to determine whether the value has existed
+        prior. The matched row is stored in the same key-based or link-based
+        table as the `table` property.
+
+        Returns both the partial row used to search for the matching row, and
+        the found row itself. The partial row must also be useful for appending
+        or updating rows. The partial row may be `None` to indicate that no
+        match could be made at all and no row should be added either. The found
+        row may also be `None` to indicate that there is no existing row that
+        meets the criteria.
+        """
+
+        raise NotImplementedError('Must be implemented by subclasses')
+
+    def parse_changelog(self, entry, diffs, issue):
+        data = entry.__dict__
+        self.check_changelog(data, diffs, issue, 'to')
+        self.check_changelog(data, diffs, issue, 'from')
+
+        return None
+
+    def check_changelog(self, data, diffs, issue, entry_field):
+        """
+        Check whether a changelog entry ('from' or 'to') provides useful data
+        and update or append the data to the table.
+        """
+
+        # If the changelog item is missing to/from entries, then ignore that
+        # part silently.
+        if data[entry_field] is None:
+            return
+
+        # Search for the row
+        match_row, found_row = self.search_row(data, issue, entry_field)
+        if match_row is None:
+            # We could not create a pattern row to match against in the first
+            # place, so ignore the entry field.
+            return
+
+        update_field = self._changelog_map[entry_field]
+        if found_row is None:
+            # Create a new row.
+            match_row.update({
+                "start_date": str(0),
+                "end_date": str(0)
+            })
+            match_row[update_field] = diffs["updated"]
+            self.table.append(match_row)
+            return
+
+        if found_row[update_field] != str(0):
+            # Links may be added and removed multiple times; we keep the
+            # earliest start date and latest end date of the link.
+            # We log the circumstances in case this happens too often.
+            older = get_local_datetime(diffs["updated"]) < \
+                    get_local_datetime(found_row[update_field])
+            key = str(issue.key)
+            if older and update_field == "end_date":
+                logging.info("Older %s end date in %s: %s, %s", self.table_name,
+                             key, diffs['updated'], found_row[update_field])
+                return
+            elif not older and update_field == "start_date":
+                logging.info("Newer %s start date in %s: %s, %s",
+                             self.table_name, key, diffs["updated"],
+                             found_row[update_field])
+                return
+
+        # Update the row to contain the new date.
+        self.table.update(match_row, {update_field: diffs["updated"]})
+
+@Special_Field.register("components")
+class Component_Field(Special_Changelog_Field):
+    """
+    Field parser for the components related to an issue.
+    """
+
+    def __init__(self, jira, name, **info):
+        super(Component_Field, self).__init__(jira, name, **info)
+        self._relations = {}
+        self.jira.register_table({
+            "table": "component",
+            "table_key": "id"
+        })
+        self.jira.register_prefetcher(self.prefetch)
+
+    def prefetch(self, query):
+        """
+        Retrieve all components from the query API.
+        """
+
+        components = query.api.project_components(self.jira.project.jira_key)
+        for component in components:
+            self._add_component(component)
+
+    def _add_component(self, component):
+        if hasattr(component, "description"):
+            description = parse_unicode(component.description)
+        else:
+            description = str(0)
+
+        self.jira.get_table("component").append({
+            "id": str(component.id),
+            "name": parse_unicode(component.name),
+            "description": description
+        })
+
+    def collect(self, issue, field):
+        for component in field:
+            self._add_component(component)
+            self.table.append({
+                "issue_id": str(issue.id),
+                "component_id": str(component.id),
+                "start_date": str(0),
+                "end_date": str(0),
+            })
+
+    def search_row(self, data, issue, entry_field):
+        match_row = {
+            "issue_id": str(issue.id),
+            "component_id": str(data[entry_field])
+        }
+        found_row = self.table.get_row(match_row)
+
+        return match_row, found_row
+
+    @property
+    def table_name(self):
+        return "issue_component"
+
+    @property
+    def table_key(self):
+        return ("issue_id", "component_id")
+
+@Special_Field.register("issuelinks")
+class Issue_Link_Field(Special_Changelog_Field):
+    """
+    Field parser for the issue links related to an issue.
+    """
 
     def __init__(self, jira, name, **info):
         super(Issue_Link_Field, self).__init__(jira, name, **info)
@@ -180,20 +334,9 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
                 'end_date': str(0)
             })
 
-    def parse_changelog(self, entry, diffs, issue):
+    def search_row(self, data, issue, entry_field):
         from_key = str(issue.key)
-        data = entry.__dict__
-        self._check_changelog(data, diffs, from_key, 'to')
-        self._check_changelog(data, diffs, from_key, 'from')
-
-        return None
-
-    def _check_changelog(self, data, diffs, from_key, entry_field):
-        if data[entry_field] is None:
-            return
-
         text = data['{}String'.format(entry_field)]
-        table = self.jira.get_table("issuelinks")
         search_row = {
             'from_key': from_key,
             'to_key': str(data[entry_field])
@@ -212,41 +355,16 @@ class Issue_Link_Field(Special_Field, Base_Changelog_Field):
                     'relationshiptype': candidate['id'],
                     'outward': candidate['outward']
                 })
-                row = table.get_row(match_row)
+                row = self.table.get_row(match_row)
                 if row is not None:
                     break
 
         if not match_row:
             # Cannot deduce relation
             logging.warning('Cannot deduce relation from changelog: %s', text)
-            return
+            return None, None
 
-        update_field = self._changelog_map[entry_field]
-        if row is None:
-            # Create a new row.
-            match_row.update({
-                'start_date': str(0),
-                'end_date': str(0)
-            })
-            match_row[update_field] = diffs["updated"]
-            table.append(match_row)
-            return
-
-        if row[update_field] != str(0):
-            # Links may be added and removed multiple times; we keep the
-            # earliest start date and latest end date of the link.
-            older = get_local_datetime(diffs['updated']) < \
-                    get_local_datetime(row[update_field])
-            if older and update_field == 'end_date':
-                logging.info('Older link end date in %s: %s, %s', from_key,
-                             diffs['updated'], row[update_field])
-                return
-            elif not older and update_field == 'start_date':
-                logging.info('Newer link start date in %s: %s, %s', from_key,
-                             diffs['updated'], row[update_field])
-                return
-
-        table.update(match_row, {update_field: diffs['updated']})
+        return match_row, row
 
     @property
     def table_name(self):

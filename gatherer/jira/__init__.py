@@ -163,8 +163,8 @@ class Jira(object):
         Create a new table storage according to a specification.
 
         The table can be addressable through a table name which is also used
-        by the table for the export filename. The table name is either retrieved
-        from a table source or `data`; `data` receives preference.
+        by the table for the export filename. The table name is either
+        retrieved from a table source or `data`; `data` receives preference.
         `data` must have a "table" key. In case it is a string, then the table
         name is simply that. Otherwise, it is retrieved from the field or other
         source that is registering the table, although a table name from the
@@ -172,19 +172,19 @@ class Jira(object):
         The `data` "table" key can also be a dictionary, which is used by some
         table sources for specifying which fields they are going to extract and
         parse. The type cast parser is retrieved from the "type" key of `data`
-        if it exists.
+        if it exists. A `data` "table_key" key may register a table key.
 
         The `table_source` may additionally provide a table key, which can be
-        `None`, a string or a tuple, which causes this method to register either
-        a normal `Table`, `Key_Table` or `Link_Table`, respectively. Note that
-        if the type cast parser has a table key or no table source is given at
-        all, then this check also falls back to the type cast parser.
+        `None`, a string or a tuple, which causes this method to register
+        either a normal `Table`, `Key_Table` or `Link_Table`, respectively.
+        Note that if the type cast parser has a table key, the table source
+        does not define a table key, or no table source is given at all,
+        then this check falls back to the type cast parser's table key.
 
-        The reason for this order of preference (`data` table name, type cast
-        table name (and key), table source (name and key)) is the specificity
-        of each source: the `data` is meant for exactly one field, the type
-        cast may be used by multiple fields, and the table source could be
-        some generic object.
+        The reason for this order of preference for name and key, in order
+        `data`, type cast, or table source, is the specificity of each source:
+        the `data` is meant for exactly one field, the type cast may be used
+        by multiple fields, and the table source could be some generic object.
         """
 
         if "table" in data:
@@ -203,6 +203,8 @@ class Jira(object):
 
             if not isinstance(data["table"], dict):
                 table_name = data["table"]
+            if "table_key" in data:
+                key = data["table_key"]
 
             table_options = {}
             if "table_options" in data:

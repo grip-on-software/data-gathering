@@ -261,6 +261,14 @@
             "updated_at": "updated"
         }
     },
+    "components": {
+        "special_parser": "components",
+        "changelog_name": "Component",
+        "table": {
+            "issue_id": "int",
+            "component_id": "int"
+        }
+    },
     "issuelinks": {
         "special_parser": "issuelinks",
         "changelog_name": "Link",
