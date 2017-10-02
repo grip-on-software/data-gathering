@@ -299,7 +299,7 @@ do
 	fi
 done
 
-if [ $cleanupRepos = "true" ]; then
+if [ $skipGather = "false" ] && [ $cleanupRepos = "true" ]; then
 	python retrieve_metrics_repository.py $currentProject --delete --all --log $logLevel
 fi
 
