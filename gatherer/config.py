@@ -64,8 +64,9 @@ class Configuration(object):
         """
         Check whether the value of an option is not set to a falsy value.
 
-        If the option is one of 'false', 'no', 'off', '-', '0' or the empty
-        string, then `False` is returned. Otherwise, `True` is returned.
+        If the option is one of 'false', 'no', 'off', '-', '0', the empty
+        string '' or `None`, then `False` is returned. Otherwise, `True` is
+        returned.
         """
 
-        return value not in ('false', 'no', 'off', '-', '0', '')
+        return value not in ('false', 'no', 'off', '-', '0', '', None)
