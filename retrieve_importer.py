@@ -11,6 +11,7 @@ except ImportError:
 
 import argparse
 import filecmp
+import logging
 import os
 import shutil
 import tempfile
@@ -19,6 +20,7 @@ from zipfile import ZipFile
 import requests
 from gatherer.config import Configuration
 from gatherer.files import File_Store
+from gatherer.jenkins import Jenkins
 from gatherer.log import Log_Setup
 
 def parse_args():
@@ -28,31 +30,94 @@ def parse_args():
 
     config = Configuration.get_settings()
 
+    verify = config.get('jenkins', 'verify')
+    if not Configuration.has_value(verify):
+        verify = False
+    elif not os.path.exists(verify):
+        verify = True
+
+    username = config.get('jenkins', 'username')
+    password = config.get('jenkins', 'password')
+    if not Configuration.has_value(username):
+        username = None
+        password = None
+
     description = 'Retrieve the database importer and auxiliary data'
     parser = argparse.ArgumentParser(description=description)
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--path', default=None,
                        help='local path to retrieve the dist directory from')
+    group.add_argument('--jenkins', nargs='?', default=None,
+                       const=config.get('jenkins', 'host'),
+                       help='Base URL of a Jenkins instance to retrieve from')
     group.add_argument('--url', default=config.get('importer', 'url'),
                        help='url to retrieve a dist.zip file from')
     group.add_argument('--base', default='.',
                        help='directory to place the importer and libraries in')
-    parser.add_argument('--type', default=config.get('dropins', 'type'),
-                        help='type of the data store (owncloud)')
-    parser.add_argument('--store', default=config.get('dropins', 'url'),
-                        help='URL of the data store')
-    parser.add_argument('--username', default=config.get('dropins', 'username'),
-                        help='user to connect to the file store with')
-    parser.add_argument('--password', default=config.get('dropins', 'password'),
-                        help='password to connect to the file store with')
-    parser.add_argument('--no-files', action='store_false', default=True,
-                        dest='files', help='Skip retrieving files from store')
+
+    store = parser.add_argument_group('Data store', 'Dropins data store')
+    store.add_argument('--type', default=config.get('dropins', 'type'),
+                       help='type of the data store (owncloud)')
+    store.add_argument('--store', default=config.get('dropins', 'url'),
+                       help='URL of the data store')
+    store.add_argument('--username', default=config.get('dropins', 'username'),
+                       help='user to connect to the file store with')
+    store.add_argument('--password', default=config.get('dropins', 'password'),
+                       help='password to connect to the file store with')
+    store.add_argument('--no-files', action='store_false', default=True,
+                       dest='files', help='Skip retrieving files from store')
+
+    jenkins = parser.add_argument_group('Jenkins', 'Jenkins configuration')
+    jenkins.add_argument('--job', default=config.get('importer', 'job'),
+                         help='Jenkins job to retrieve artifacts from')
+    jenkins.add_argument('--artifact',
+                         default=config.get('importer', 'artifact'),
+                         help='Path to the dist directory artifact')
+    jenkins.add_argument('--jenkins-username', dest='jenkins_username',
+                         default=username,
+                         help='Username to log into the Jenkins instance')
+    jenkins.add_argument('--jenkins-password', dest='jenkins_password',
+                         default=password,
+                         help='Password to log into the Jenkins instance')
+    jenkins.add_argument('--verify', nargs='?', const=True, default=verify,
+                         help='Enable SSL cerificate verification')
+    jenkins.add_argument('--no-verify', action='store_false', dest='verify',
+                         help='Disable SSL cerificate verification')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
 
     return args
+
+def get_jenkins_url(args):
+    """
+    Retrieve an URL from Jenkins using the build job API.
+    """
+
+    jenkins = Jenkins(args.jenkins, username=args.jenkins_username,
+                      password=args.jenkins_password,
+                      verify=args.verify)
+
+    job = jenkins.get_job(args.job)
+    build = job.last_build
+    if not build.exists:
+        raise ValueError('Jenkins job or its builds could not be found')
+
+    for action in build.data['actions']:
+        if 'buildsByBranchName' in action:
+            build_data = action['buildsByBranchName']
+            if 'origin/master' not in build_data:
+                raise ValueError('Master branch build could not be found')
+
+            build_number = build_data['origin/master']['buildNumber']
+            if build_number != build.number:
+                build = job.get_build(build_number)
+
+            break
+
+    return build.base_url + 'artifact/' + args.artifact + '/*zip*/dist.zip'
+
 
 def main():
     """
@@ -64,7 +129,21 @@ def main():
         shutil.copytree(os.path.join(os.path.expanduser(args.path), 'dist/'),
                         'dist/')
     else:
-        request = requests.get(args.url, stream=True)
+        # Use an URL to download a dist directory artifact archive
+        if args.jenkins is None:
+            url = args.url
+        else:
+            try:
+                url = get_jenkins_url(args)
+            except EnvironmentError:
+                logging.exception('Could not log in to Jenkins')
+                return
+            except ValueError:
+                logging.exception('Could not parse Jenkins job build data')
+                return
+
+        logging.info('Downloading distribution from %s', url)
+        request = requests.get(url, stream=True)
         with open('dist.zip', 'wb') as output_file:
             for chunk in request.iter_content(chunk_size=128):
                 output_file.write(chunk)

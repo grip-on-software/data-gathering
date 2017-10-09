@@ -273,7 +273,7 @@ do
 
 	if [ $skipGather = "false" ]; then
 		# Retrieve quality metrics repository
-		status_handler python retrieve_metrics_repository.py $project --log $logLevel
+		status_handler python retrieve_metrics_repository.py $project --jenkins --log $logLevel
 
 		# Retrieve archived project dropins
 		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters

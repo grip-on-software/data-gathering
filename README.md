@@ -228,6 +228,10 @@ the setting is not used in this environment.
   distribution.
   - `url` (`$IMPORTER_URL`): HTTP(S) URL at which the distribution ZIP file can 
     be accessed.
+  - `job` (`$IMPORTER_JOB`): Name of a Jenkins job that holds artifacts for 
+    multiple branches.
+  - `artifact` (`$IMPORTER_ARTIFACT`): Path to the distribution directory 
+    artifact in the job build artifacts.
 - bigboat (used by `bigboat_to_json.py`): BigBoat dashboard to monitor with 
   health checks.
   - `host` (`$BIGBOAT_HOST`): Base URL of the BigBoat dashboard.
