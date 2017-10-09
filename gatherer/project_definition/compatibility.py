@@ -44,8 +44,14 @@ class Compatibility(object):
             return cls.replacements[member]
 
         replacement = mock.Mock(name=name, spec_set=member)
+
+        configuration = {
+            'name': name,
+            'default_requirements.return_value': set(),
+            'optional_requirements.return_value': set()
+        }
         try:
-            replacement.configure_mock(name=name)
+            replacement.configure_mock(**configuration)
         except AttributeError:
             pass
 
