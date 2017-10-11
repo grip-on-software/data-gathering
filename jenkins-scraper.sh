@@ -257,7 +257,7 @@ fi
 # Retrieve Java importer
 rm -f data_vcsdev_to_dev.json
 log_info "Retrieving importer"
-python retrieve_importer.py --base $IMPORTER_BASE
+python retrieve_importer.py --jenkins --base $IMPORTER_BASE
 if [ -z "$gathererScripts" ] && [ "$importerTasks" != "skip" ]; then
 	files=$(import_handler --files $importerTasks)
 fi
@@ -273,7 +273,7 @@ do
 
 	if [ $skipGather = "false" ]; then
 		# Retrieve quality metrics repository
-		status_handler python retrieve_metrics_repository.py $project --jenkins --log $logLevel
+		status_handler python retrieve_metrics_repository.py $project --log $logLevel
 
 		# Retrieve archived project dropins
 		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
