@@ -32,8 +32,12 @@ class Exporter(object):
 
         directory = os.path.join(self.AGENT_DIRECTORY, project_key)
 
+        environment = {
+            'USER': os.getenv('USER'),
+            'CLEANUP_EXPORT': '1'
+        }
         subprocess.Popen(['/bin/bash', 'controller-export.sh', directory],
-                         stdout=None, stderr=None, env={'CLEANUP_EXPORT': '1'})
+                         stdout=None, stderr=None, env=environment)
 
     def start_scrape(self, project_key):
         """
