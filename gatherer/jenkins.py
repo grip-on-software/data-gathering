@@ -224,6 +224,12 @@ class Jenkins(Base):
         Retrieve a job from the Jenkins instance by its name.
         """
 
+        if '/' in name:
+            # Support workflow 'full project' job names
+            workflow_name, pipeline_name = name.split('/', 1)
+            workflow_job = Job(self, name=workflow_name, exists=None)
+            return workflow_job.get_job(pipeline_name)
+
         return Job(self, name=name, exists=None)
 
     def get_view(self, name):
@@ -359,6 +365,10 @@ class Job(Base):
         if url is None:
             url = '{}job/{}/'.format(instance.base_url, quote(name))
 
+        # Collect actual instance for multibranch workflow jobs
+        if isinstance(instance, Job):
+            instance = instance.instance
+
         super(Job, self).__init__(instance, url, exists=exists)
         self._name = name
         self._data = kwargs
@@ -378,7 +388,28 @@ class Job(Base):
         Retrieve the builds.
         """
 
+        if 'builds' not in self.data:
+            return []
+
         return [Build(self, **build) for build in self.data['builds']]
+
+    @property
+    def jobs(self):
+        """
+        Retrieve the jobs of a multibranch pipeline workflow.
+        """
+
+        if 'jobs' not in self.data:
+            return []
+
+        return [Job(self, **job) for job in self.data['jobs']]
+
+    def get_job(self, name):
+        """
+        Retrieve a job of a multibtanch pipeline workflow by its pipeline name.
+        """
+
+        return Job(self, name=name, exists=None)
 
     def _make_last_build(self, name):
         if name not in self._last_builds:
