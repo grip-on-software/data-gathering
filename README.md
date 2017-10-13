@@ -337,6 +337,9 @@ access to the service completely.
   normal scrape operations. This overrides normal master branch collection and 
   the `from_date` option, and can be useful for scraping a subset of 
   a repository in relation to migration.
+- `strip` (`$SOURCE_STRIP`): Strip an initial part of the path of any source
+  repository hosted from this host when converting the source HTTP(s) URL to an 
+  SSH URL. Useful for GitLab instaces hosted behind path-based proxies.
 
 Finally, for `topdesk_to_json.py`, the presence of a `topdesk.cfg` 
 configuration file is necessary. The projects section has option names 

@@ -162,17 +162,26 @@ class Source(object):
             if self.has_option(host, 'env'):
                 # Use SSH URL, either short (user@host:path) or long version
                 # (ssh://user@host:port/path) based on port requirement.
+                # If 'strip' exists, then this value is stripped from the
+                # beginning of the path.
                 credentials_env = self._credentials.get(host, 'env')
                 self._credentials_path = os.getenv(credentials_env)
                 auth = username + '@' + hostname
+                path = orig_parts.path
+                if self.has_option(host, 'strip'):
+                    strip = self._credentials.get(host, 'strip')
+                    if path.startswith(strip):
+                        path = path[len(strip):]
+                    elif path.startswith('/' + strip):
+                        path = path[len(strip)+1:]
+
                 if self.has_option(host, 'port'):
                     if hostname.startswith('-'):
                         raise ValueError('Long SSH host may not begin with dash')
 
-                    self._url = 'ssh://{0}:{1}{2}'.format(auth, port,
-                                                          orig_parts.path)
+                    self._url = 'ssh://{0}:{1}{2}'.format(auth, port, path)
                 else:
-                    self._url = '{0}:{1}'.format(auth, orig_parts.path)
+                    self._url = '{0}:{1}'.format(auth, path)
             elif self.has_option(host, 'password'):
                 # Use HTTP(s) URL (http://username:password@host:port/path)
                 password = self._credentials.get(host, 'password')
