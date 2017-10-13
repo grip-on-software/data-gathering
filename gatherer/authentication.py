@@ -112,13 +112,32 @@ class Unix(Authentication):
 
         raise NotImplementedError('Must be implemented in subclasses')
 
+    def get_display_name(self, username):
+        """
+        Retrieve the display name for the username.
+
+        If the display name is unavailable, then the username is returned.
+        """
+
+        # pylint: disable=no-self-use
+
+        try:
+            display_name = pwd.getpwnam(username).pw_gecos.split(',', 1)[0]
+        except KeyError:
+            return username
+
+        if display_name == '':
+            return username
+
+        return display_name
+
     def validate(self, username, password):
         crypted_password = self.get_crypted_password(username)
         if crypted_password in ('', 'x', '*', '********'):
             raise LoginException('Password is disabled for {}'.format(username))
 
         if crypt.crypt(password, crypted_password) == crypted_password:
-            return True
+            return self.get_display_name(username)
 
         raise LoginException('Invalid credentials')
 
