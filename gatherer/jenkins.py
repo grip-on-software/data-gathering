@@ -397,6 +397,9 @@ class Job(Base):
     def jobs(self):
         """
         Retrieve the jobs of a multibranch pipeline workflow.
+
+        The list of jobs never contains this job itself. If this is not
+        a multibranch pipeline job, then an empty list is returned.
         """
 
         if 'jobs' not in self.data:
@@ -500,6 +503,42 @@ class Job(Base):
             exists = None
 
         return Build(self, number=number, exists=exists)
+
+    def get_last_branch_build(self, branch):
+        """
+        Retrieve the latest build of this job for the given `branch`.
+
+        The returned tuple contains the `Build` object and the branch build data
+        which is separate from the build data itself.
+
+        If the job or its builds do not exist, then a `ValueError` is raised.
+
+        If the branch build cannot be found, then a tuple of `None` and `None`
+        is returned.
+        """
+
+        # Retrieve the latest build job. This may be a build for another
+        # branch, so we check the builds by branch name on this build.
+        # The job may have no builds in which case we cannot check stability.
+        build = self.last_build
+        if not build.exists:
+            raise ValueError('Jenkins job or its builds could not be found')
+
+        for action in build.data['actions']:
+            if 'buildsByBranchName' in action:
+                build_data = action['buildsByBranchName']
+                # Check if there has been a build for the branch.
+                if branch not in build_data:
+                    return None, None
+
+                # Retrieve the build job that actually built this branch.
+                build_number = build_data[branch]['buildNumber']
+                if build_number != build.number:
+                    build = self.get_build(build_number)
+
+                return build, build_data[branch]
+
+        return None, None
 
     def build(self, parameters=None, token=None):
         """

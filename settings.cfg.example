@@ -36,6 +36,7 @@ cert = $SSH_HTTPS_CERT
 [importer]
 url = $IMPORTER_URL
 job = $IMPORTER_JOB
+branch = $IMPORTER_BRANCH
 artifact = $IMPORTER_ARTIFACT
 [bigboat]
 host = $BIGBOAT_HOST

@@ -73,6 +73,8 @@ def parse_args():
     jenkins.add_argument('--artifact',
                          default=config.get('importer', 'artifact'),
                          help='Path to the dist directory artifact')
+    jenkins.add_argument('--branch', default=config.get('importer', 'branch'),
+                         help='Branch name to retrieve build artifact for')
     jenkins.add_argument('--jenkins-username', dest='jenkins_username',
                          default=username,
                          help='Username to log into the Jenkins instance')
@@ -100,21 +102,14 @@ def get_jenkins_url(args):
                       verify=args.verify)
 
     job = jenkins.get_job(args.job)
-    build = job.last_build
-    if not build.exists:
-        raise ValueError('Jenkins job or its builds could not be found')
+    if job.jobs:
+        # Multibranch pipeline job
+        job = job.get_job(args.branch)
 
-    for action in build.data['actions']:
-        if 'buildsByBranchName' in action:
-            build_data = action['buildsByBranchName']
-            if 'origin/master' not in build_data:
-                raise ValueError('Master branch build could not be found')
-
-            build_number = build_data['origin/master']['buildNumber']
-            if build_number != build.number:
-                build = job.get_build(build_number)
-
-            break
+    build = job.get_last_branch_build(args.branch)[0]
+    if build is None:
+        logging.warning('Could not find last build for branch %s', args.branch)
+        build = job.last_build
 
     return build.base_url + 'artifact/' + args.artifact + '/*zip*/dist.zip'
 
