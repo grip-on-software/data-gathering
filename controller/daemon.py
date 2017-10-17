@@ -20,6 +20,9 @@ class Controller(object):
     # all data is created.
     CREATE_PERMISSIONS = '2770'
 
+    # Permissions to use when creating a file related to an agent.
+    FILE_PERMISSIONS = '0660'
+
     # The root directory where agent home directories are created and kept.
     HOME_DIRECTORY = '/agents'
     # Format string for the user login name of an agent.
@@ -35,6 +38,9 @@ class Controller(object):
     # to set up login shell, home directory path and other user properties and
     # create the user without any interactive prompts.
     ADD_USER_COMMAND = 'useradd'
+    # File to create (owned by root:controller) without any contents in the
+    # agent's home directory.
+    HUSH_FILE = '.hushlogin'
 
     def _create_directory(self, project_key, directory, user=None,
                           permissions=None):
@@ -45,6 +51,16 @@ class Controller(object):
             'sudo', 'mkdir', '-m', permissions, directory
         ])
         self._update_owner(project_key, directory, user=user)
+
+    def _create_file(self, project_key, path, user=None, permissions=None):
+        if permissions is None:
+            permissions = self.FILE_PERMISSIONS
+
+        with open(path, 'w'):
+            pass
+
+        subprocess.check_call(['sudo', 'chmod', path, permissions])
+        self._update_owner(project_key, path, user=user)
 
     def _update_owner(self, project_key, path, user=None):
         if user is None:
@@ -135,6 +151,9 @@ class Controller(object):
         for directory in self.get_home_subdirectories(project_key):
             self._create_directory(project_key, directory)
 
+        path = os.path.join(home_directory, self.HUSH_FILE)
+        self._create_file(project_key, path)
+
         return home_directory
 
     def update_public_key(self, project_key, public_key):
@@ -185,9 +204,7 @@ class Controller(object):
         controller_path = self.get_controller_directory(project_key)
         data_filename = os.path.join(controller_path, filename)
         if not os.path.exists(data_filename):
-            os.mknod(data_filename)
-            subprocess.check_call(['sudo', 'chmod', '0660', data_filename])
-            self._update_owner(project_key, data_filename, 'exporter')
+            self._create_file(project_key, data_filename, 'exporter')
 
         with open(data_filename, 'a') as data_file:
             json.dump(statuses, data_file, indent=None)
