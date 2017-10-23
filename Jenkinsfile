@@ -21,12 +21,13 @@ pipeline {
     stages {
         stage('Build') {
             steps {
+                checkout scm
                 updateGitlabCommitStatus name: env.JOB_NAME, state: 'running'
                 withCredentials([file(credentialsId: 'upload-server-certificate', variable: 'SERVER_CERTIFICATE')]) {
                     sh 'rm -f certs/wwwgros.crt'
                     sh 'cp $SERVER_CERTIFICATE certs/wwwgros.crt'
                     sh 'chmod 444 certs/wwwgros.crt'
-                    sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = \\\\\\\'(.+)\\\\\\\'/\\\\1/")-$(cat .git/refs/heads/$BRANCH_NAME) > VERSION'
+                    sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = \\\'(.+)\\\'/\\1/")-$(cat .git/refs/heads/$BRANCH_NAME) > VERSION'
                     sh 'docker build -t $DOCKER_REGISTRY/gros-data-gathering .'
                 }
             }
