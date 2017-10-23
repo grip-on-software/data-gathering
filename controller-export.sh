@@ -2,7 +2,8 @@
 
 AGENTS_DIRECTORY="/agents"
 CONTROLLER_DIRECTORY="/controller"
-gathererScripts="project_sources.py environment_sources.py git_to_json.py jenkins_to_json.py"
+# The scripts that docker-scrape.sh runs
+gathererScripts="preflight.py project_to_json.py project_sources.py environment_sources.py git_to_json.py jenkins_to_json.py"
 updateFiles=$(./list-files.sh update $gathererScripts)
 
 perform_export() {
