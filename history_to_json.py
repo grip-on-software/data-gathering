@@ -21,7 +21,6 @@ import logging
 import os
 import shutil
 # Non-standard imports
-import requests
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.domain.source import Source
@@ -29,6 +28,7 @@ from gatherer.domain.source.gitlab import GitLab
 from gatherer.domain.source.history import History
 from gatherer.log import Log_Setup
 from gatherer.utils import parse_date
+from gatherer.request import Session
 
 def parse_args():
     """
@@ -343,7 +343,7 @@ def get_data_source(project, args):
         # URL prefix to a specific download location.
         url_prefix = get_setting(args.url, 'url', project)
         url = make_path(url_prefix, filename)
-        request = requests.get(url)
+        request = Session().get(url)
         stream = io.BytesIO(request.content)
         if compression:
             opener = get_file_opener(compression)

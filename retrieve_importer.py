@@ -17,11 +17,11 @@ import shutil
 import tempfile
 from zipfile import ZipFile
 # Not-standard imports
-import requests
 from gatherer.config import Configuration
 from gatherer.files import File_Store
 from gatherer.jenkins import Jenkins
 from gatherer.log import Log_Setup
+from gatherer.request import Session
 
 def parse_args():
     """
@@ -138,7 +138,7 @@ def main():
                 return
 
         logging.info('Downloading distribution from %s', url)
-        request = requests.get(url, stream=True)
+        request = Session().get(url)
         with open('dist.zip', 'wb') as output_file:
             for chunk in request.iter_content(chunk_size=128):
                 output_file.write(chunk)

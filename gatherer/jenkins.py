@@ -8,10 +8,10 @@ from collections import Mapping, Sequence
 import json
 import os
 from future.utils import with_metaclass
-import requests
 from requests.auth import HTTPBasicAuth
 from requests.utils import quote
 from .config import Configuration
+from .request import Session
 
 class NoneMapping(Mapping): # pylint: disable=no-init
     """
@@ -60,7 +60,7 @@ class Base(with_metaclass(ABCMeta, object)):
 
     def _retrieve(self):
         request = self.instance.session.get(self.base_url + 'api/json')
-        if request.status_code == requests.codes['not_found']:
+        if Session.is_code(request, 'not_found'):
             self._exists = False
             self._data = NoneMapping()
         else:
@@ -145,10 +145,13 @@ class Jenkins(Base):
 
     def __init__(self, host, username=None, password=None, verify=True):
         super(Jenkins, self).__init__(self, host)
-        self._session = requests.Session()
-        self._session.verify = verify
+
         if username is not None:
-            self._session.auth = HTTPBasicAuth(username, password)
+            auth = HTTPBasicAuth(username, password)
+        else:
+            auth = None
+
+        self._session = Session(verify=verify, auth=auth)
 
         self._add_crumb_header()
 
@@ -175,7 +178,7 @@ class Jenkins(Base):
 
     def _add_crumb_header(self):
         request = self._session.get(self.base_url + 'crumbIssuer/api/json')
-        if request.status_code == requests.codes['not_found']:
+        if Session.is_code(request, 'not_found'):
             return
 
         request.raise_for_status()

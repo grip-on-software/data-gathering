@@ -8,10 +8,10 @@ import json
 import logging
 import os
 import sys
-import requests
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
+from gatherer.request import Session
 from gatherer.utils import format_date
 
 def parse_args():
@@ -58,7 +58,7 @@ def check_controller(host, cert, project):
     """
 
     url = 'https://{}/auth/status.py?project={}'.format(host, project.jira_key)
-    request = requests.get(url, verify=cert)
+    request = Session(verify=cert).get(url)
 
     try:
         response = json.loads(request.text)
@@ -67,7 +67,7 @@ def check_controller(host, cert, project):
                           request.text)
         return False
 
-    if request.status_code != requests.codes['ok']:
+    if not Session.is_code(request, 'ok'):
         logging.critical('HTTP error %d for controller status',
                          request.status_code, extra=response)
         return False

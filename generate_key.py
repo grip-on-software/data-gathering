@@ -17,7 +17,6 @@ import sys
 import tempfile
 import gitlab3
 import inform
-import requests
 try:
     from mock import MagicMock
     sys.modules['abraxas'] = MagicMock()
@@ -29,6 +28,7 @@ from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.domain.source import Source
 from gatherer.log import Log_Setup
+from gatherer.request import Session
 
 def parse_args():
     """
@@ -103,9 +103,9 @@ def update_controller_key(host, project, cert, public_key):
     """
 
     url = 'https://{}/auth/agent.py?project={}'.format(host, project.jira_key)
-    request = requests.post(url, data={'public_key': public_key}, verify=cert)
+    request = Session(verify=cert).post(url, data={'public_key': public_key})
 
-    if request.status_code != requests.codes['ok']:
+    if not Session.is_code(request, 'ok'):
         raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
 
     # In return for our public key, we may receive some secrets (salts).

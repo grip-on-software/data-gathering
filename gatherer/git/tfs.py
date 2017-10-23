@@ -13,9 +13,9 @@ from builtins import str
 import re
 import dateutil.tz
 from git import Commit
-import requests
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
+from ..request import Session
 from ..table import Table, Link_Table
 from ..utils import format_date, get_datetime, parse_unicode, Iterator_Limiter
 from ..version_control.review import Review_System
@@ -33,13 +33,12 @@ class TFS_Project(object):
         else:
             self._project = None
 
-        self._session = requests.Session()
-        self._session.auth = HttpNtlmAuth(username, password, self._session)
+        self._session = Session(auth=HttpNtlmAuth(username, password))
         self._url = '{}/{}'.format(self._host, self._collection)
 
     @classmethod
     def _validate_request(cls, request):
-        if request.status_code != requests.codes['ok']:
+        if not Session.is_code(request, 'ok'):
             try:
                 data = request.json()
                 if 'value' in data and 'Message' in data['value']:

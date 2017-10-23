@@ -12,10 +12,10 @@ import argparse
 import logging
 import subprocess
 import sys
-import requests
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
+from gatherer.request import Session
 
 def parse_args():
     """
@@ -85,9 +85,9 @@ def update_controller(host, project, cert, dry_run=False):
         logging.info('Dry run: Would send a POST request to %s', url)
         return
 
-    request = requests.post(url, verify=cert)
+    request = Session(verify=cert).post(url)
 
-    if request.status_code != requests.codes['accepted']:
+    if not Session.is_code(request, 'accepted'):
         raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
 
 def main():

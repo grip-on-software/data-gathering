@@ -14,12 +14,12 @@ import logging
 import os.path
 
 from bigboat import Client_v2
-import requests
 
 from gatherer.bigboat import Statuses
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
+from gatherer.request import Session
 
 def parse_args():
     """
@@ -80,8 +80,8 @@ def main():
             'status': json.dumps(output),
             'source': host
         }
-        request = requests.post(url, data=data, verify=args.cert)
-        if request.status_code != requests.codes['accepted']:
+        request = Session(verify=args.cert).post(url, data=data)
+        if not Session.is_code(request, 'accepted'):
             raise RuntimeError('HTTP error {}: {}'.format(request.status_code,
                                                           request.text))
     else:
