@@ -26,6 +26,7 @@ pipeline {
                     sh 'rm -f certs/wwwgros.crt'
                     sh 'cp $SERVER_CERTIFICATE certs/wwwgros.crt'
                     sh 'chmod 444 certs/wwwgros.crt'
+                    sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = \'(.+)\'/\1/")-$GIT_COMMIT > VERSION'
                     sh 'docker build -t $DOCKER_REGISTRY/gros-data-gathering .'
                 }
             }
