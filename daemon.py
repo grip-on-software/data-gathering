@@ -8,6 +8,7 @@ try:
 except ImportError:
     raise
 
+from datetime import datetime, timedelta
 import json
 import os.path
 import pymonetdb
@@ -19,6 +20,7 @@ from gatherer.domain import Project
 from gatherer.files import File_Store
 from gatherer.salt import Salt
 from gatherer.update import Database_Tracker
+from gatherer.utils import get_datetime
 
 @Pyro4.expose
 class Gatherer(object):
@@ -56,6 +58,41 @@ class Gatherer(object):
             }
 
         return {'ok': True}
+
+    def get_tracker_status(self, project_key):
+        """
+        Retrieve the status of the update tracker schedule of the given project.
+        This uses the update tracker file 'preflight_date.txt' to compare
+        against the current date, to determine if the collected data is stale.
+        """
+
+        project = Project(project_key)
+        track = Database_Tracker(project, **self._options)
+        filename = 'preflight_date.txt'
+        content = track.retrieve_content(filename)
+        if content is None:
+            return {
+                'ok': True,
+                'message': 'No update tracker {} found'.format(filename)
+            }
+
+        try:
+            tracker_date = get_datetime(content)
+        except ValueError as error:
+            return {
+                'ok': True,
+                'message': 'Update tracker {} is unparseable: {}'.format(filename, str(error))
+            }
+
+        interval = datetime.now() - tracker_date
+        schedule = timedelta(days=int(self._config.get('schedule', 'days')))
+        if interval >= schedule:
+            return {'ok': True}
+
+        return {
+            'ok': False,
+            'message': 'Next scheduled gather moment is in {}'.format(schedule - interval)
+        }
 
     def get_update_trackers(self, project_key, home_directory):
         """

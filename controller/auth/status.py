@@ -57,6 +57,23 @@ class Database_Status(Status):
         gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
         return gatherer.get_database_status(self._project_key)
 
+class Tracker_Status(Status):
+    """
+    Status provider for the update tracker schedule.
+    """
+
+    def __init__(self, project_key):
+        super(Tracker_Status, self).__init__()
+        self._project_key = project_key
+
+    @property
+    def key(self):
+        return 'tracker'
+
+    def generate(self):
+        gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
+        return gatherer.get_tracker_status(self._project_key)
+
 class Daemon_Status(Status):
     """
     Status provider for the internal daemons.
@@ -205,6 +222,7 @@ def display_status(project_key):
     status = {}
     generators = [
         Database_Status(project_key),
+        Tracker_Status(project_key),
         Daemon_Status(),
         Total_Status(status)
     ]

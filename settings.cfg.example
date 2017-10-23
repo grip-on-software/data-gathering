@@ -48,6 +48,8 @@ password = $JENKINS_PASSWORD
 verify = $JENKINS_VERIFY
 scrape = $JENKINS_JOB
 token = $JENKINS_TOKEN
+[schedule]
+days = $SCHEDULE_DAYS
 [ldap]
 server = $LDAP_SERVER
 root_dn = $LDAP_ROOT_DN

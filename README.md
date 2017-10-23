@@ -254,6 +254,10 @@ the setting is not used in this environment.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
     the Jenkins instance has authorization security. This token must be 
     configured in the build job itself.
+- schedule (used by `daemon.py`): Schedule imposed by the controller API status
+  preflight checks to let the agents check whether they should collect data.
+  - `days` (`$SCHEDULE_DAYS`): Integer determining the interval in days between
+     each collection run by each agent.
 - ldap (used by `deployer.py`): Connection, authentication and query parameters 
   for an LDAP server.
   - `server` (`$LDAP_SERVER`): URL of the LDAP server, including protocol, host 

@@ -28,6 +28,17 @@ class Update_Tracker(object):
 
         raise NotImplementedError('Must be implemented by subclasses')
 
+    def retrieve_content(self, filename):
+        """
+        Retrieve the contents of a single update tracker file with name
+        `filename` from the source.
+
+        The update tracker file is not stored locally. If the filename cannot
+        be found remotely, then `None` is returned.
+        """
+
+        raise NotImplementedError('Must be implemented by subclasses')
+
     def update_file(self, filename, contents, update_date):
         """
         Check whether an update tracker file from a remote source is updated
@@ -83,6 +94,26 @@ class Database_Tracker(Update_Tracker):
             if not files or filename in files:
                 self.update_file(filename, contents, update_date)
 
+    def retrieve_content(self, filename):
+        connection = Database(**self._options)
+
+        project_id = connection.get_project_id(self._project.key)
+        if project_id is None:
+            logging.warning("Project '%s' is not in the database",
+                            self._project.key)
+            return None
+
+        result = connection.execute('''SELECT contents
+                                       FROM gros.update_tracker
+                                       WHERE project_id=%s
+                                       AND filename=%s''',
+                                    parameters=[project_id, filename], one=True)
+
+        if result is None:
+            return None
+
+        return result[0]
+
 class SSH_Tracker(Update_Tracker):
     """
     External server with SSH public key authentication setup and a home
@@ -95,17 +126,35 @@ class SSH_Tracker(Update_Tracker):
         self._host = host
         self._key_path = key_path
 
+    @property
+    def remote_path(self):
+        """
+        Retrieve the remote path of the SSH server from which to retrieve
+        update tracker files.
+        """
+
+        auth = self._username + '@' + self._host
+        return '{}:~/{}'.format(auth, self._project.update_key)
+
     def retrieve(self, files=None):
         if not files:
             # Cannot determine which files to retrieve.
             return
 
-        auth = self._username + '@' + self._host
-        path = '{}:~/{}'.format(auth, self._project.update_key)
 
         for filename in files:
             subprocess.call([
                 'scp', '-i', self._key_path,
-                '{}/{}'.format(path, filename),
+                '{}/{}'.format(self.remote_path, filename),
                 '{}/{}'.format(self._project.export_key, filename)
             ])
+
+    def retrieve_content(self, filename):
+        try:
+            return subprocess.check_output([
+                'scp', '-i', self._key_path,
+                '{}/{}'.format(self.remote_path, filename),
+                '/dev/stdout'
+            ])
+        except subprocess.CalledProcessError:
+            return None
