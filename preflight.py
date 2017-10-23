@@ -3,6 +3,7 @@ Perform pre-flight checks for the Docker agent scraper.
 """
 
 import argparse
+from datetime import datetime
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ import requests
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
+from gatherer.utils import format_date
 
 def parse_args():
     """
@@ -93,6 +95,10 @@ def main():
 
     if args.ssh and not check_controller(args.ssh, args.cert, project):
         return 1
+
+    date_filename = os.path.join(project.export_key, 'preflight_date.txt')
+    with open(date_filename, 'w') as date_file:
+        date_file.write(format_date(datetime.now()))
 
     return 0
 
