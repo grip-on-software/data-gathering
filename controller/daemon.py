@@ -59,7 +59,7 @@ class Controller(object):
         with open(path, 'w'):
             pass
 
-        subprocess.check_call(['sudo', 'chmod', path, permissions])
+        subprocess.check_call(['sudo', 'chmod', permissions, path])
         self._update_owner(project_key, path, user=user)
 
     def _update_owner(self, project_key, path, user=None):
