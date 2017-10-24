@@ -16,11 +16,11 @@ class Update_Tracker(object):
 
     def __init__(self, project):
         self._project = project
-        self._project.make_export_directory()
 
     def retrieve(self, files=None):
         """
-        Retrieve the update tracker files with names `files` from the source.
+        Retrieve the update tracker files with names `files` from the source,
+        and place them in the export directory for the project.
 
         If `files` is not given or an empty sequence, then retrieve all files
         for this project from the remote source.
@@ -75,6 +75,7 @@ class Database_Tracker(Update_Tracker):
         self._options = options
 
     def retrieve(self, files=None):
+        self._project.make_export_directory()
         connection = Database(**self._options)
 
         project_id = connection.get_project_id(self._project.key)
@@ -137,10 +138,11 @@ class SSH_Tracker(Update_Tracker):
         return '{}:~/{}'.format(auth, self._project.update_key)
 
     def retrieve(self, files=None):
+        self._project.make_export_directory()
+
         if not files:
             # Cannot determine which files to retrieve.
             return
-
 
         for filename in files:
             subprocess.call([
