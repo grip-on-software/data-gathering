@@ -44,6 +44,8 @@ def parse_args():
 
     description = 'Retrieve the database importer and auxiliary data'
     parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--base', default='.',
+                        help='directory to place the importer and libraries in')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--path', default=None,
                        help='local path to retrieve the dist directory from')
@@ -52,8 +54,6 @@ def parse_args():
                        help='Base URL of a Jenkins instance to retrieve from')
     group.add_argument('--url', default=config.get('importer', 'url'),
                        help='url to retrieve a dist.zip file from')
-    group.add_argument('--base', default='.',
-                       help='directory to place the importer and libraries in')
 
     store = parser.add_argument_group('Data store', 'Dropins data store')
     store.add_argument('--type', default=config.get('dropins', 'type'),
