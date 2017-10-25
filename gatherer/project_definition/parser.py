@@ -311,7 +311,10 @@ class Sources_Parser(Project_Definition_Parser):
     """
 
     METRIC_SOURCE = 'hqlib.metric_source'
-    DOMAIN_OBJECTS = (domain.Project, domain.Product, domain.Application, domain.Component)
+    DOMAIN_OBJECTS = (
+        domain.Application, domain.Component, domain.Environment,
+        domain.Product, domain.Project
+    )
     SOURCE_OBJECTS = {
         'History': metric_source.History,
         'CompactHistory': COMPACT_HISTORY,
