@@ -167,9 +167,10 @@ def main():
 
         path = tempfile.mktemp()
         data_file = 'data_vcsdev_to_dev.json'
+        data_path = os.path.join(args.base, data_file)
         store.get_file('import/{}'.format(data_file), path)
-        if not os.path.exists(data_file) or filecmp.cmp(data_file, path):
-            shutil.move(path, data_file)
+        if not os.path.exists(data_path) or filecmp.cmp(data_path, path):
+            shutil.move(path, data_path)
         else:
             raise RuntimeError('Not overwriting potentially updated file {}'.format(data_file))
 
