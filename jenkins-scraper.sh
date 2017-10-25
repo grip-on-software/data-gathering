@@ -93,7 +93,9 @@ log_info "logLevel=$logLevel ROOT=$ROOT IMPORTER_BASE=$IMPORTER_BASE"
 # The files that the importer uses
 files=""
 # Declare restore files, populated with update files as scripts are run
-restoreFiles=""
+if [ -z "$restoreFiles" ]; then
+	restoreFiles=""
+fi
 # Declare run scripts, populated with script names on the first loop iteration
 runScripts=""
 # Declare the current project, updated in the main loop
