@@ -11,7 +11,7 @@ if [ ! -z "$SSH_HOST" ] && [ "$SSH_HOST" != "-" ]; then
 fi
 ./scan-hosts.sh
 
-python generate_key.py $JIRA_KEY --gitlab $SOURCE_HOST $DEFINITIONS_HOST
+python generate_key.py $JIRA_KEY --gitlab $SOURCE_HOST $DEFINITIONS_HOST --log INFO
 if [ ! -z "$JENKINS_URL" ]; then
 	./docker-scraper.sh
 else
