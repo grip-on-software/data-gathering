@@ -38,14 +38,14 @@ class Difference_State(object):
         elif self._head:
             self._head = self._file.parse_head(line)
         else:
-            if self._file.parse_content(line):
-                self._size += len(line) - 1
+            self._file.parse_content(line)
 
     def _update_file(self):
         if self._file is not None:
             self._file.update_table()
             self._insertions += self._file.file_insertions
             self._deletions += self._file.file_deletions
+            self._size += self._file.file_size
 
     def get_data(self):
         """
@@ -85,6 +85,7 @@ class Difference_File(object):
         self._change_type = None
         self._file_insertions = 0
         self._file_deletions = 0
+        self._file_size = 0
 
     @property
     def file_insertions(self):
@@ -101,6 +102,14 @@ class Difference_File(object):
         """
 
         return self._file_deletions
+
+    @property
+    def file_size(self):
+        """
+        Retrieve the number of bytes on changed lines in the file.
+        """
+
+        return self._file_size
 
     def parse_index(self, line):
         """
@@ -133,16 +142,17 @@ class Difference_File(object):
         """
         Parse a line with difference content for this file.
 
-        Returns whether the line has an addition or deletion.
+        Returns whether the line is actually part of the content.
         """
 
         if line.startswith(b'+'):
             self._file_insertions += 1
         elif line.startswith(b'-'):
             self._file_deletions += 1
-        else:
+        elif not line.startswith(b' '):
             return False
 
+        self._file_size += len(line) - 1
         return True
 
     def update_table(self):

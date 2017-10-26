@@ -598,7 +598,8 @@ class Git_Repository(Version_Control_Repository):
                 'file': str(new_file),
                 'change_type': str(change_type.value),
                 'insertions': str(insertions),
-                'deletions': str(deletions)
+                'deletions': str(deletions),
+                'size': str(diff.b_blob.size)
             }
             self._tables['change_path'].append(change_data)
 
