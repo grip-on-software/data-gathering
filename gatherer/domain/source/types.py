@@ -184,7 +184,8 @@ class Source(object):
                     self._url = '{0}:{1}'.format(auth, path)
             elif self.has_option(host, 'password'):
                 # Use HTTP(s) URL (http://username:password@host:port/path)
-                password = self._credentials.get(host, 'password')
+                password = urllib.parse.quote(self._credentials.get(host,
+                                                                    'password'))
 
                 auth = '{0}:{1}'.format(username, password)
                 full_host = auth + '@' + hostname
