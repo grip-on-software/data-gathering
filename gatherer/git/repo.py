@@ -592,6 +592,11 @@ class Git_Repository(Version_Control_Repository):
             insertions = files[stat_file]['insertions']
             deletions = files[stat_file]['deletions']
 
+            if diff.b_blob is None:
+                size = 0
+            else:
+                size = diff.b_blob.size
+
             change_data = {
                 'repo_name': str(self._repo_name),
                 'version_id': str(commit.hexsha),
@@ -599,7 +604,7 @@ class Git_Repository(Version_Control_Repository):
                 'change_type': str(change_type.value),
                 'insertions': str(insertions),
                 'deletions': str(deletions),
-                'size': str(diff.b_blob.size)
+                'size': str(size)
             }
             self._tables['change_path'].append(change_data)
 
