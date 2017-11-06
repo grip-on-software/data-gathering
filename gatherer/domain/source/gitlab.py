@@ -22,8 +22,8 @@ from ...git.gitlab import GitLab_Repository
 
 @Source_Types.register('gitlab')
 @Source_Types.register('git',
-                       lambda cls, follow_host_change=True, **source_data: \
-                       cls.is_gitlab_url(source_data['url'],
+                       lambda cls, follow_host_change=True, url=None, **data: \
+                       cls.is_gitlab_url(url,
                                          follow_host_change=follow_host_change))
 class GitLab(Git):
     """
@@ -46,6 +46,9 @@ class GitLab(Git):
         Check whether a given URL is part of a GitLab instance for which we have
         credentials.
         """
+
+        if url is None:
+            return False
 
         parts = urllib.parse.urlsplit(url)
         return cls.is_gitlab_host(parts.netloc,

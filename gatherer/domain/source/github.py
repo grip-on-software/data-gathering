@@ -22,8 +22,8 @@ from ...git.github import GitHub_Repository
 
 @Source_Types.register('github')
 @Source_Types.register('git',
-                       lambda cls, **source_data: \
-                            cls.is_github_url(source_data['url']))
+                       lambda cls, url=None, **data: \
+                            cls.is_github_url(url))
 class GitHub(Git):
     """
     GitHub source repository.
@@ -46,6 +46,9 @@ class GitHub(Git):
         Check whether a given URL is part of a GitHub instance for which we have
         credentials.
         """
+
+        if url is None:
+            return False
 
         parts = urllib.parse.urlsplit(url)
         return cls.is_github_host(parts.netloc)
