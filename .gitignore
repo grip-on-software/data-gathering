@@ -15,6 +15,7 @@ lib/
 certs/*.crt
 dropins/*/
 export/
+filter.txt
 kwaliteitsmetingen/
 project-git-repos/
 quality-report-data/
