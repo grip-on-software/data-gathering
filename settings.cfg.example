@@ -19,6 +19,8 @@ delete = $HISTORY_DELETE
 [gitlab]
 url = $GITLAB_URL
 token = $GITLAB_TOKEN
+user = $GITLAB_USER
+level = $GITLAB_LEVEL
 [dropins]
 type = $DROPINS_STORE
 url = $DROPINS_URL

@@ -200,7 +200,13 @@ the setting is not used in this environment.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
-  - `token` (`$GITLAB_TOKEN`): API token to authenticate with.
+  - `token` (`$GITLAB_TOKEN`): API token to authenticate with. The user to 
+    which this token is associated should have administrative repository 
+    creation and user access management rights.
+  - `user` (`$GITLAB_USER`): User that should be able to access the repository 
+    containing filtered source code.
+  - `level` (`$GITLAB_LEVEL`): Access rights to give to the user that accesses 
+    the repository containing filtered source code.
 - dropins (used by `retrieve_dropins.py`): Storage instance where dropin files 
   can be retrieved from.
   - `type` (`$DROPINS_STORE`): Store type. The only supported type at this 
