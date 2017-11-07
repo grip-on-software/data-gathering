@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -ex
 
 # Declare log level
 if [ -z "$logLevel" ]; then

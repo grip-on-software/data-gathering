@@ -257,28 +257,29 @@ class Repository_Archive(object):
 
         logging.info('%sUploaded bundle to controller', self._dry_run_log)
 
-def get_git_directories(repo_directory, subdirectory=''):
+def get_git_repositories(project, repo_directory, repo_names=None):
     """
     Retrieve all immediate directories containing git repositories as well as
     all repositories in subdirectories.
     """
 
-    directories = []
-    search_directory = os.path.join(repo_directory, subdirectory)
-    for name in os.listdir(search_directory):
-        path = os.path.join(search_directory, name)
-        if os.path.isdir(path):
-            source = Source.from_type('git', name=name)
-            git = Git_Repository(source, path)
-            if git.exists():
-                directories.append(os.path.join(subdirectory, name))
-            elif subdirectory == '':
-                directories.extend(get_git_directories(repo_directory,
-                                                       subdirectory=name))
-            else:
-                logging.warning('Giving up on repository candidate %s', path)
+    repos = []
+    found_names = set()
+    for source in project.sources:
+        if repo_names is None or source.path_name in repo_names:
+            path = os.path.join(repo_directory, source.path_name)
+            repo = Git_Repository.from_source(source, path, project=project)
+            if repo.exists():
+                repos.append(repo)
+                found_names.add(source.path_name)
 
-    return directories
+    if repo_names is not None:
+        missing_names = set(repo_names) - found_names
+        if missing_names:
+            logging.warning('Missing source information for repositories: %s',
+                            ', '.join(missing_names))
+
+    return repos
 
 def main():
     """
@@ -289,15 +290,15 @@ def main():
     project_key = args.project
     project = Project(project_key)
     project_name = project.gitlab_group_name
+    if project_name is None:
+        logging.warning('Cannot determine GitLab group name')
+        return
 
     if args.dry_run:
         logging.info('Dry run: No actions are actually performed')
 
     repo_directory = os.path.join('project-git-repos', project_key)
-    if args.repos:
-        project_repos = args.repos
-    else:
-        project_repos = get_git_directories(repo_directory)
+    project_repos = get_git_repositories(project, repo_directory, args.repos)
 
     logging.info('%s: %s (%d repos)',
                  project_key, project_name, len(project_repos))

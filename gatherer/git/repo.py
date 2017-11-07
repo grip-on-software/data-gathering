@@ -169,7 +169,15 @@ class Git_Repository(Version_Control_Repository):
         Another optional keyword argument is `shallow`. If it is set to `True`,
         then the local directory only contains the default branch's head commit
         after cloning. Note that no precautions are made to prevent pulling in
-        more commits unless `shallow` is provided to each action.
+        more commits unless `shallow` is provided to each such action.
+
+        Use 'shared' to enable shared repository permissions during the clone
+        and subsequent pulls. 'shared' may be a boolean to enable or disable
+        global sharing, but it can also be a string such as "group" to enable
+        a specific shared permission scheme. An existing repository clone with
+        a different value for "core.sharedRepository" or "core.sharedrepository"
+        cause a `RuntimeError`, and so does a combination of `shared` and
+        `checkout` when the latter is a list of paths.
         """
 
         checkout = kwargs.pop('checkout', False)
@@ -188,6 +196,7 @@ class Git_Repository(Version_Control_Repository):
         elif isinstance(checkout, bool):
             repository.clone(checkout=checkout, shallow=shallow, shared=shared)
         elif shared is not False:
+            # Checkout is a list of paths to checkout, so sparse
             raise RuntimeError('Shared repositories are not supported for sparse checkouts')
         else:
             repository.checkout(paths=checkout, shallow=shallow)
