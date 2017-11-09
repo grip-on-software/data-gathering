@@ -20,6 +20,10 @@ RUN mkdir -p /home/agent/.ssh && \
 	chmod +x /home/agent/*.sh
 
 VOLUME /home/agent/export
+VOLUME /home/agent/config
 WORKDIR /home/agent
+
+ENV GATHERER_SETTINGS_FILE="/home/agent/config/settings.cfg" \
+    GATHERER_CREDENTIALS_FILE="/home/agent/config/credentials.cfg"
 
 CMD ["/bin/bash", "docker-init.sh"]

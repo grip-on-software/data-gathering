@@ -2,7 +2,7 @@
 
 # Update configuration based on docker compose environment variables.
 (find /home/agent -name '*.cfg.example' | while read file; do
-	envsubst < $file > ${file%.*}
+	envsubst < $file > /home/agent/config/$(basename ${file%.*})
 done)
 
 if [ ! -z "$SSH_HOST" ] && [ "$SSH_HOST" != "-" ]; then
