@@ -87,7 +87,7 @@ class Subversion_Repository(Version_Control_Repository):
         else:
             return False
 
-    def update(self, shallow=False):
+    def update(self, shallow=False, checkout=True):
         # pylint: disable=no-member
         if not isinstance(self.repo, svn.local.LocalClient):
             raise TypeError('Repository has no local client, check out the repository first')

@@ -171,7 +171,7 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError("Must be implemented by subclass")
 
-    def update(self, shallow=False):
+    def update(self, shallow=False, checkout=True):
         """
         Update the local state of the repository to its latest upstream state.
 
@@ -180,6 +180,10 @@ class Version_Control_Repository(object):
 
         If `shallow` is `True`, then check out as few commits from the remote
         repository as possible.
+
+        If `checkout` is `True`, then make the current state explicitly
+        available. If it is `False`, then the current state files need not be
+        stored explicitly on the filesystem.
         """
 
         raise NotImplementedError('Must be implemented by subclass')

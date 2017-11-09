@@ -192,7 +192,7 @@ class Git_Repository(Version_Control_Repository):
                 if isinstance(checkout, list):
                     repository.checkout_sparse(checkout, shallow=shallow)
                 else:
-                    repository.update(shallow=shallow)
+                    repository.update(shallow=shallow, checkout=checkout)
         elif isinstance(checkout, bool):
             repository.clone(checkout=checkout, shallow=shallow, shared=shared)
         elif shared is not False:
@@ -339,17 +339,23 @@ class Git_Repository(Version_Control_Repository):
 
         return shared == shared_mapping[value]
 
-    def update(self, shallow=False):
+    def update(self, shallow=False, checkout=True):
         # Update the repository from the origin URL.
         self._prev_head = self.repo.head.commit
         if shallow:
             self.repo.remotes.origin.fetch('master', depth=1,
                                            progress=self._progress)
-            self.repo.head.reset('origin/master', hard=True)
+            if checkout:
+                self.repo.head.reset('origin/master', hard=True)
+
             self.repo.git.reflog(['expire', '--expire=now', '--all'])
             self.repo.git.gc(['--prune=now'])
-        else:
+        elif checkout:
             self.repo.remotes.origin.pull('master', progress=self._progress)
+        else:
+            # Update local branch but not the working tree
+            self.repo.remotes.origin.fetch('master:master',
+                                           progress=self._progress)
 
     def checkout(self, paths=None, shallow=False):
         self.clone(checkout=paths is None, shallow=shallow)
