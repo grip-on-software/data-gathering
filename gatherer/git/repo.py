@@ -354,7 +354,7 @@ class Git_Repository(Version_Control_Repository):
             self.repo.remotes.origin.pull('master', progress=self._progress)
         else:
             # Update local branch but not the working tree
-            self.repo.remotes.origin.fetch('master:master',
+            self.repo.remotes.origin.fetch('master:master', update_head_ok=True,
                                            progress=self._progress)
 
     def checkout(self, paths=None, shallow=False):
