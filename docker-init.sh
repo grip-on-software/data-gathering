@@ -20,11 +20,7 @@ SH
 
 	cat >/etc/periodic/15min/bigboat <<'SH'
 #!/bin/sh
-set -o allexport
-source /home/agent/env
-source /home/agent/config/env
-set +o allexport
-su agent -c 'cd /home/agent && python bigboat_to_json.py ${JIRA_KEY}'
+/home/agent/agent-env.sh 'cd /home/agent && python bigboat_to_json.py ${JIRA_KEY}'
 SH
 	chmod +x /etc/periodic/15min/bigboat
 
@@ -35,4 +31,4 @@ chown -R agent:agent /home/agent/export
 find "/home/agent/export" -type d -exec chmod 755 {} \;
 find "/home/agent/export" -type f -exec chmod 644 {} \;
 
-su agent -c /home/agent/docker-start.sh
+/home/agent/agent-env.sh /home/agent/docker-start.sh
