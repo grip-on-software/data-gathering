@@ -9,12 +9,14 @@ import logging
 import os
 import re
 import tempfile
-from git import Git, Repo, Blob, Commit, InvalidGitRepositoryError, NoSuchPathError, NULL_TREE
+from git import Git, Repo, Blob, Commit, NULL_TREE, \
+    InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 from ordered_set import OrderedSet
 from .progress import Git_Progress
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
-from ..version_control.repo import Change_Type, Version_Control_Repository, FileNotFoundException
+from ..version_control.repo import Change_Type, Version_Control_Repository, \
+    RepositorySourceException, FileNotFoundException
 
 class Sparse_Checkout_Paths(object):
     """
@@ -186,7 +188,7 @@ class Git_Repository(Version_Control_Repository):
         repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
             if not repository.is_shared(shared=shared):
-                raise RuntimeError("Existing clone does is not shared as '{}'".format(shared))
+                raise RepositorySourceException("Clone was not shared as '{}'".format(shared))
 
             if not repository.is_empty():
                 if isinstance(checkout, list):
@@ -207,7 +209,11 @@ class Git_Repository(Version_Control_Repository):
     def is_up_to_date(cls, source, latest_version, update_tracker=None):
         git = Git()
         git.update_environment(**cls._create_environment(source, git))
-        remote_refs = git.ls_remote('--heads', source.url, 'master')
+        try:
+            remote_refs = git.ls_remote('--heads', source.url, 'master')
+        except GitCommandError as error:
+            raise RepositorySourceException(str(error))
+
         head_version = remote_refs.split('\t', 1)[0]
         if head_version == latest_version:
             return True
@@ -217,8 +223,12 @@ class Git_Repository(Version_Control_Repository):
     @property
     def repo(self):
         if self._repo is None:
-            # Use property setter for updating the environment credentials path
-            self.repo = Repo(self._repo_directory)
+            try:
+                # Use property setter so that the environment credentials path
+                # is also updated.
+                self.repo = Repo(self._repo_directory)
+            except (InvalidGitRepositoryError, NoSuchPathError) as error:
+                raise RepositorySourceException('Invalid or nonexistent path: {}'.format(error))
 
         return self._repo
 
@@ -294,7 +304,7 @@ class Git_Repository(Version_Control_Repository):
 
         try:
             return bool(self.repo)
-        except (InvalidGitRepositoryError, NoSuchPathError):
+        except RepositorySourceException:
             return False
 
     def is_empty(self):
@@ -341,21 +351,25 @@ class Git_Repository(Version_Control_Repository):
 
     def update(self, shallow=False, checkout=True):
         # Update the repository from the origin URL.
-        self._prev_head = self.repo.head.commit
-        if shallow:
-            self.repo.remotes.origin.fetch('master', depth=1,
-                                           progress=self._progress)
-            if checkout:
-                self.repo.head.reset('origin/master', hard=True)
+        try:
+            self._prev_head = self.repo.head.commit
+            if shallow:
+                self.repo.remotes.origin.fetch('master', depth=1,
+                                               progress=self._progress)
+                if checkout:
+                    self.repo.head.reset('origin/master', hard=True)
 
-            self.repo.git.reflog(['expire', '--expire=now', '--all'])
-            self.repo.git.gc(['--prune=now'])
-        elif checkout:
-            self.repo.remotes.origin.pull('master', progress=self._progress)
-        else:
-            # Update local branch but not the working tree
-            self.repo.remotes.origin.fetch('master:master', update_head_ok=True,
-                                           progress=self._progress)
+                self.repo.git.reflog(['expire', '--expire=now', '--all'])
+                self.repo.git.gc(['--prune=now'])
+            elif checkout:
+                self.repo.remotes.origin.pull('master', progress=self._progress)
+            else:
+                # Update local branch but not the working tree
+                self.repo.remotes.origin.fetch('master:master',
+                                               update_head_ok=True,
+                                               progress=self._progress)
+        except GitCommandError as error:
+            raise RepositorySourceException(str(error))
 
     def checkout(self, paths=None, shallow=False):
         self.clone(checkout=paths is None, shallow=shallow)
@@ -373,7 +387,10 @@ class Git_Repository(Version_Control_Repository):
             sparse.set(paths)
 
         # Now checkout the sparse directories.
-        self.repo.git.read_tree(['-m', '-u', 'HEAD'])
+        try:
+            self.repo.git.read_tree(['-m', '-u', 'HEAD'])
+        except GitCommandError as error:
+            raise RepositorySourceException(str(error))
 
         # Ensure repository is up to date.
         self.update(shallow=shallow)
@@ -395,6 +412,9 @@ class Git_Repository(Version_Control_Repository):
         this option does not alter any ownership behavior, is dependent on
         the user performing actions and the setgid permission on the (parent)
         directory that may alter the group used.
+
+        If the repository cannot be updated due to a source issue, then this
+        method may raise a `RepositorySourceException`.
         """
 
         kwargs = {
@@ -406,10 +426,14 @@ class Git_Repository(Version_Control_Repository):
             value = "true" if shared is True else shared
             kwargs["config"] = "core.sharedRepository={}".format(value)
 
-        self.repo = Repo.clone_from(self.source.url, self.repo_directory,
-                                    progress=self._progress,
-                                    env=self._create_environment(self.source),
-                                    **kwargs)
+        try:
+            environment = self._create_environment(self.source)
+            self.repo = Repo.clone_from(self.source.url, self.repo_directory,
+                                        progress=self._progress,
+                                        env=environment,
+                                        **kwargs)
+        except GitCommandError as error:
+            raise RepositorySourceException(str(error))
 
     def _query(self, refspec, paths='', descending=True):
         return self.repo.iter_commits(refspec, paths=paths,
