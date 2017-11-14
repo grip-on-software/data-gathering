@@ -19,7 +19,11 @@ RUN mkdir -p /home/agent/.ssh && \
 	chmod -R 755 /home/agent/export && \
 	chmod +x /home/agent/*.sh && \
 	touch /home/agent/env && \
-	chown agent:agent /home/agent/env
+	chown agent:agent /home/agent/config/env
+	mkdir /home/agent/config && \
+	touch /home/agent/config/env && \
+	chown -R agent:agent /home/agent/config && \
+	chmod -R 755 /home/agent/config && \
 
 VOLUME /home/agent/export
 VOLUME /home/agent/config

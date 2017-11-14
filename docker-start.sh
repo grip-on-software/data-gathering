@@ -2,6 +2,7 @@
 
 set -o allexport
 source /home/agent/env
+source /home/agent/config/env
 set +o allexport
 
 # Update configuration based on docker compose environment variables.
@@ -15,7 +16,9 @@ if [ ! -z "$SSH_HOST" ] && [ "$SSH_HOST" != "-" ]; then
 fi
 ./scan-hosts.sh
 
-python generate_key.py $JIRA_KEY --gitlab $SOURCE_HOST $DEFINITIONS_HOST --log INFO
+if [ ! -z "$JIRA_KEY" ] && [ "$JIRA_KEY" != "-" ]; then
+	python generate_key.py $JIRA_KEY --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab $SOURCE_HOST $DEFINITIONS_HOST --log INFO
+fi
 if [ ! -z "$JENKINS_URL" ]; then
 	./docker-scraper.sh
 else

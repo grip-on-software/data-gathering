@@ -47,6 +47,8 @@ def parse_args():
                         help='Do not distribute key to controller API host')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
+    parser.add_argument('--source', action='store_true', default=False,
+                        help='Distribute key to collected project sources')
     parser.add_argument('--gitlab', nargs='*',
                         help='GitLab host(s) to distribute key to')
     parser.add_argument('--no-gitlab', dest='gitlab', action='store_false',
@@ -183,7 +185,7 @@ def main():
         sources = []
         # If --gitlab is not provided or it has no remaining arguments, then
         # fall back to a project source and the project definitions source.
-        if not args.gitlab:
+        if not args.gitlab or (args.source and project.gitlab_source is not None):
             sources.append(project.gitlab_source)
             sources.append(project.project_definitions_source)
         else:

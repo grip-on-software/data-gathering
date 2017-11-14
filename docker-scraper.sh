@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 
 project=$1;
-if [ -z "$project" ]; then
+if [ -z "$project" ] || [ "$project" == "-" ]; then
 	echo "Project must be provided"
 	exit 1
 fi
@@ -26,6 +26,9 @@ for updateFile in $updateFiles; do
 	rm -f export/$project/$updateFile
 done
 
+if [ ! -e "${!DEFINITIONS_CREDENTIALS_ENV}" ]; then
+	python generate_key.py $project --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab --source --log INFO
+fi
 python preflight.py $project --log $logLevel
 python retrieve_metrics_repository.py $project --log $logLevel
 python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
