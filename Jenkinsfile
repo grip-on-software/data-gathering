@@ -28,11 +28,14 @@ pipeline {
                 checkout scm
                 updateGitlabCommitStatus name: env.JOB_NAME, state: 'running'
                 withCredentials([file(credentialsId: 'upload-server-certificate', variable: 'SERVER_CERTIFICATE')]) {
-                    sh 'rm -f certs/wwwgros.crt'
-                    sh 'cp $SERVER_CERTIFICATE certs/wwwgros.crt'
-                    sh 'chmod 444 certs/wwwgros.crt'
-                    sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = .([0-9.]+)./\\1/")-$BRANCH_NAME-$(git show-ref $BRANCH_NAME | cut -f1 -d\' \' | head -n 1) > VERSION'
-                    sh 'docker build -t $AGENT_IMAGE .'
+                    withCredentials([file(credentialsId: 'agent-environment', variable: 'AGENT_ENVIRONMENT')]) {
+                        sh 'rm -f certs/wwwgros.crt'
+                        sh 'cp $SERVER_CERTIFICATE certs/wwwgros.crt'
+                        sh 'cp $AGENT_ENVIRONMENT env'
+                        sh 'chmod 444 certs/wwwgros.crt'
+                        sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = .([0-9.]+)./\\1/")-$BRANCH_NAME-$(git show-ref $BRANCH_NAME | cut -f1 -d\' \' | head -n 1) > VERSION'
+                        sh 'docker build -t $AGENT_IMAGE .'
+                    }
                 }
             }
         }

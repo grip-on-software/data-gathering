@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o allexport
+source /home/agent/env
+set +o allexport
+
 # Update configuration based on docker compose environment variables.
 (find /home/agent -name '*.cfg.example' | while read file; do
 	envsubst < $file > /home/agent/config/$(basename ${file%.*})
