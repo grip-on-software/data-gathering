@@ -15,7 +15,8 @@ import svn.remote
 from .difference import Difference
 from ..table import Table, Key_Table
 from ..utils import format_date, parse_unicode, Iterator_Limiter
-from ..version_control.repo import Version_Control_Repository, FileNotFoundException
+from ..version_control.repo import Version_Control_Repository, \
+    RepositorySourceException, FileNotFoundException
 
 class Subversion_Repository(Version_Control_Repository):
     """
@@ -92,7 +93,10 @@ class Subversion_Repository(Version_Control_Repository):
         if not isinstance(self.repo, svn.local.LocalClient):
             raise TypeError('Repository has no local client, check out the repository first')
 
-        self.repo.update()
+        try:
+            self.repo.update()
+        except svn.exception.SvnException as error:
+            raise RepositorySourceException(str(error))
 
     def checkout(self, paths=None, shallow=False):
         if not isinstance(self.repo, svn.remote.RemoteClient):
@@ -103,7 +107,10 @@ class Subversion_Repository(Version_Control_Repository):
         if paths is not None:
             args.extend(['--depth', 'immediates'])
 
-        self.repo.run_command('checkout', args)
+        try:
+            self.repo.run_command('checkout', args)
+        except svn.exception.SvnException as error:
+            raise RepositorySourceException(str(error))
 
         # Invalidate so that we may continue woorking with a local client
         self._repo = None
@@ -120,7 +127,11 @@ class Subversion_Repository(Version_Control_Repository):
 
         for path in paths:
             full_path = '{0}/{1}'.format(self._repo_directory, path)
-            self.repo.run_command('update', ['--set-depth', depth, full_path])
+            try:
+                self.repo.run_command('update',
+                                      ['--set-depth', depth, full_path])
+            except svn.exception.SvnException as error:
+                raise RepositorySourceException(str(error))
 
     @staticmethod
     def parse_svn_revision(rev, default):

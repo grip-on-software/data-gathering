@@ -7,6 +7,14 @@ from builtins import object
 from enum import Enum, unique
 import logging
 
+class RepositorySourceException(RuntimeError):
+    """
+    Exception that indicates that a call that updates the local states of the
+    repository from its source has failed due to source problems.
+    """
+
+    pass
+
 class FileNotFoundException(RuntimeError):
     """
     Exception that indicates that a `Version_Control_Repository.get_contents`
@@ -71,6 +79,9 @@ class Version_Control_Repository(object):
 
         This class method may initialize the repository differently, for example
         by retrieving the latest versions or keeping the repository remotely.
+
+        If the repository cannot be obtained from the source, the method may
+        raise a `RepositorySourceException`.
         """
 
         raise NotImplementedError("Must be implemented by subclass")
@@ -88,6 +99,9 @@ class Version_Control_Repository(object):
         If it is impossible to determine up-to-dateness, or the entire
         repository does not need to be retrieved beforehand to check this
         during version collection, then this class method returns `False`.
+
+        If the source cannot be reached, then a `RepositorySourceException` may
+        be raised.
         """
 
         return False
@@ -96,6 +110,9 @@ class Version_Control_Repository(object):
     def repo(self):
         """
         Property that retrieves the back-end repository interface (lazy-loaded).
+
+        If the repository cannot be obtained, then a `RepositorySourceException`
+        may be raised.
         """
 
         raise NotImplementedError("Must be implemented by subclass")
@@ -105,7 +122,8 @@ class Version_Control_Repository(object):
         """
         Property that changes the back-end repository interface.
 
-        The subclass may enforce type restrictions on the back-end object.
+        The subclass may enforce type restrictions on the back-end object
+        and raise a `TypeError` if these are not met.
         """
 
         raise NotImplementedError("Must be implemented by subclass")
@@ -184,6 +202,9 @@ class Version_Control_Repository(object):
         If `checkout` is `True`, then make the current state explicitly
         available. If it is `False`, then the current state files need not be
         stored explicitly on the filesystem.
+
+        If the repository cannot be updated due to a source issue, then this
+        method may raise a `RepositorySourceException`.
         """
 
         raise NotImplementedError('Must be implemented by subclass')
@@ -201,6 +222,9 @@ class Version_Control_Repository(object):
 
         If `shallow` is `True`, then check out as few commits from the remote
         repository as possible.
+
+        If the repository cannot be updated due to a source issue, then this
+        method may raise a `RepositorySourceException`.
         """
 
         raise NotImplementedError('Must be implemented by subclass')
@@ -223,6 +247,9 @@ class Version_Control_Repository(object):
 
         If sparse checkouts are not supported, then this method simply updates
         the (entire) repository such that all paths are up to date.
+
+        If the repository cannot be updated due to a source issue, then this
+        method may raise a `RepositorySourceException`.
         """
 
         raise NotImplementedError('Must be implemented by subclass')

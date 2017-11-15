@@ -2,7 +2,9 @@
 
 # Update configuration based on docker compose environment variables.
 (find /home/agent -name '*.cfg.example' | while read file; do
-	envsubst < $file > ${file%.*}
+	if [ ! -e "/home/agent/config/$(basename ${file%.*})" ]; then
+		envsubst < $file > /home/agent/config/$(basename ${file%.*})
+	fi
 done)
 
 if [ ! -z "$SSH_HOST" ] && [ "$SSH_HOST" != "-" ]; then
@@ -11,7 +13,9 @@ if [ ! -z "$SSH_HOST" ] && [ "$SSH_HOST" != "-" ]; then
 fi
 ./scan-hosts.sh
 
-python generate_key.py $JIRA_KEY --gitlab $SOURCE_HOST $DEFINITIONS_HOST --log INFO
+if [ ! -z "$JIRA_KEY" ] && [ "$JIRA_KEY" != "-" ]; then
+	python generate_key.py $JIRA_KEY --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab $SOURCE_HOST $DEFINITIONS_HOST --log INFO
+fi
 if [ ! -z "$JENKINS_URL" ]; then
 	./docker-scraper.sh
 else

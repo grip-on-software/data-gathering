@@ -6,6 +6,7 @@ from builtins import object
 import json
 import logging
 import os.path
+from .repo import RepositorySourceException
 from ..table import Table
 from ..utils import Sprint_Data
 
@@ -71,11 +72,14 @@ class Repositories_Holder(object):
                 if source.name in data:
                     update_tracker = data[source.name]
 
-            if repo_class.is_up_to_date(source, latest_version,
-                                        update_tracker=update_tracker):
-                logging.info('Repository %s: Already up to date.',
-                             source.name)
-                return True
+            try:
+                if repo_class.is_up_to_date(source, latest_version,
+                                            update_tracker=update_tracker):
+                    logging.info('Repository %s: Already up to date.',
+                                 source.name)
+                    return True
+            except RepositorySourceException:
+                return False
 
         return False
 
@@ -100,8 +104,14 @@ class Repositories_Holder(object):
                 continue
 
             path = os.path.join(self._repo_directory, source.path_name)
-            repo = repo_class.from_source(source, path, project=self._project,
-                                          sprints=self._sprints)
+            try:
+                repo = repo_class.from_source(source, path,
+                                              project=self._project,
+                                              sprints=self._sprints)
+            except RepositorySourceException:
+                logging.exception('Cannot retrieve repository source for %s',
+                                  source.name)
+                continue
 
             self._check_update_trackers(repo, source.name)
 
