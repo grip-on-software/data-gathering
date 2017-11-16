@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Update configuration based on docker compose environment variables.
+cp /home/agent/VERSION /home/agent/config/VERSION
 (find /home/agent -name '*.cfg.example' | while read file; do
 	if [ ! -e "/home/agent/config/$(basename ${file%.*})" ]; then
 		envsubst < $file > /home/agent/config/$(basename ${file%.*})
