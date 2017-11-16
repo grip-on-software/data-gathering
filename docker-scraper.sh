@@ -17,13 +17,17 @@ if [ -z "$logLevel" ]; then
 fi
 
 # Declare update and export files
-scripts="preflight.py project_to_json.py project_sources.py git_to_json.py jenkins_to_json.py"
+scripts="project_to_json.py project_sources.py git_to_json.py jenkins_to_json.py"
+preflightFiles=$(./list-files.sh update preflight.py)
 updateFiles=$(./list-files.sh update $scripts)
 exportFiles=$(./list-files.sh export $scripts)
 
 # Remove old update files so that the remote update trackers are always used
 for updateFile in $updateFiles; do
 	rm -f export/$project/$updateFile
+done
+for preflightFile in $preflightFiles; do
+	rm -f export/$project/$preflightFile
 done
 
 if [ ! -e "${!DEFINITIONS_CREDENTIALS_ENV}" ]; then
@@ -37,7 +41,7 @@ python project_to_json.py $project --log $logLevel
 python environment_sources.py $project --log $logLevel
 python git_to_json.py $project --log $logLevel
 python jenkins_to_json.py $project --log $logLevel
-python export_files.py $project --update $updateFiles --export $exportFiles
+python export_files.py $project --update $preflightFiles $updateFiles --export $exportFiles
 
 if [ $cleanupRepos = "true" ]; then
 	rm -rf project-git-repos/$project

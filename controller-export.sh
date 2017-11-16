@@ -2,9 +2,10 @@
 
 AGENTS_DIRECTORY="/agents"
 CONTROLLER_DIRECTORY="/controller"
-# The scripts that docker-scrape.sh runs
+# The scripts that docker-scrape.sh runs which generate update files
 gathererScripts="preflight.py project_to_json.py project_sources.py environment_sources.py git_to_json.py jenkins_to_json.py"
 updateFiles=$(./list-files.sh update $gathererScripts)
+preflightFiles=$(./list-files.sh update preflight.py)
 
 perform_export() {
 	agent_directory=$1
@@ -43,6 +44,10 @@ perform_export() {
 				else
 					echo "Update file $updatePath could not be copied"
 				fi
+			done
+			# Do not push back preflight update file to agent
+			for preflightFile in $preflightFiles; do
+				rm -f $agent_directory/update/$project/$preflightFile
 			done
 			sudo chown agent-$project:controller -R $agent_directory/update/$project
 			sudo chmod 2700 $agent_directory/update/$project
