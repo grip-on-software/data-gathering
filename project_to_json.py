@@ -42,6 +42,7 @@ def main():
         'jira_key': project.jira_key,
         'github_team': project.github_team,
         'gitlab_group_name': project.gitlab_group_name,
+        'tfs_collection': project.tfs_collection,
         'quality_name': project.quality_metrics_name,
         'main_project': project.main_project,
         'is_support_team': project.is_support_team

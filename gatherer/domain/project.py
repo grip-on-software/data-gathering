@@ -14,6 +14,7 @@ from ..config import Configuration
 from .source import Source
 from .source.github import GitHub
 from .source.gitlab import GitLab
+from .source.tfs import TFS
 from .sources import Sources
 
 class Project_Meta(object):
@@ -297,6 +298,24 @@ class Project(Project_Meta):
         """
 
         return self.sources.find_source_type(GitLab)
+
+    @property
+    def tfs_collection(self):
+        """
+        Retrieve the path used for a TFS collection that contains all
+        repositories for this project on some TFS service.
+
+        If there are no sources with TFS backends for this project, then this
+        property returns `None`.
+        """
+
+        source = self.sources.find_source_type(TFS)
+        if source is None:
+            return None
+        if source.tfs_collections is not None:
+            return source.tfs_collections[0]
+
+        return self._project_key
 
     @property
     def quality_metrics_name(self):

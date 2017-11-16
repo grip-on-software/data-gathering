@@ -119,6 +119,19 @@ class TFS(Git):
         return self._tfs_api
 
     @property
+    def tfs_collections(self):
+        """
+        Retrieve the collection path and optionally project name for the source.
+        The value is either a tuple with one or two elements, or `None`.
+        The first element of the tuple is the collection path, joined with
+        slashes, and the second element if available is the project name,
+        which is left out if the collection already provides unique
+        identification for the TFS project.
+        """
+
+        return self._tfs_collections
+
+    @property
     def tfs_repo(self):
         """
         Retrieve the repository name from the TFS URL.
