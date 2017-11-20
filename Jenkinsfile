@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         AGENT_TAG = env.BRANCH_NAME.replaceFirst('^master$', 'latest')
-        AGENT_IMAGE = "${env.DOCKER_REGISTRY}/gros-data-gathering:${env.AGENT_TAG}"
+        AGENT_NAME = "${env.DOCKER_REGISTRY}/gros-data-gathering"
+        AGENT_IMAGE = "${env.AGENT_NAME}:${env.AGENT_TAG}"
     }
     options {
         gitLabConnection('gitlab')
@@ -33,7 +34,8 @@ pipeline {
                         sh 'cp $SERVER_CERTIFICATE certs/wwwgros.crt'
                         sh 'cp $AGENT_ENVIRONMENT env'
                         sh 'chmod 444 certs/wwwgros.crt'
-                        sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = .([0-9.]+)./\\1/")-$BRANCH_NAME-$(git show-ref $BRANCH_NAME | cut -f1 -d\' \' | head -n 1) > VERSION'
+                        sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = .([0-9.]+)./\\1/") > .version'
+                        sh 'echo $(cat .version)-$BRANCH_NAME-$(git show-ref $BRANCH_NAME | cut -f1 -d\' \' | head -n 1) > VERSION'
                         sh 'docker build -t $AGENT_IMAGE .'
                     }
                 }
@@ -55,6 +57,7 @@ pipeline {
         stage('Push') {
             steps {
                 sh 'docker push $AGENT_IMAGE'
+                sh 'if [ "$BRANCH_NAME" == "master" ]; then docker push "$AGENT_NAME:$(cat .version)"; fi'
             }
         }
     }
