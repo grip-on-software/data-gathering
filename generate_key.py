@@ -137,12 +137,16 @@ def update_gitlab_key(project, source, public_key, dry_run=False):
     user = api.current_user()
 
     title = 'GROS agent for the {} project'.format(project.key)
-    logging.info('Deleting old SSH keys of %s from GitLab instance %s...',
+    logging.info('Checking for old SSH keys of %s from GitLab instance %s...',
                  title, source.host)
 
-    if not dry_run:
-        for key in user.ssh_keys():
-            if key.title == title:
+    for key in user.ssh_keys():
+        if key.title == title:
+            if key.key == public_key:
+                logging.info('SSH key already exists on GitLab instance %s.',
+                             source.host)
+                return
+            elif not dry_run:
                 user.delete_ssh_key(key)
 
     logging.info('Adding new SSH key to GitLab instance %s...', source.host)
