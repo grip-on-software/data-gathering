@@ -96,6 +96,7 @@ def main():
     if args.ssh and not check_controller(args.ssh, args.cert, project):
         return 1
 
+    project.make_export_directory()
     date_filename = os.path.join(project.export_key, 'preflight_date.txt')
     with open(date_filename, 'w') as date_file:
         date_file.write(format_date(datetime.now()))
