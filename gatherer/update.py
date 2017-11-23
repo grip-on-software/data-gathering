@@ -144,12 +144,10 @@ class SSH_Tracker(Update_Tracker):
             # Cannot determine which files to retrieve.
             return
 
-        for filename in files:
-            subprocess.call([
-                'scp', '-i', self._key_path,
-                '{}/{}'.format(self.remote_path, filename),
-                '{}/{}'.format(self._project.export_key, filename)
-            ])
+        args = ['scp', '-i', self._key_path] + [
+            self.remote_path + '/\\{' + ','.join(files) + '\\}'
+        ] + [self._project.export_key]
+        subprocess.call(args)
 
     def retrieve_content(self, filename):
         try:
