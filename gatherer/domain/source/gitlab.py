@@ -230,8 +230,14 @@ class GitLab(Git):
                 continue
 
             repo_name = project_repo.name
-            if not project_repo.commits(limit=1):
-                logging.info('Ignoring empty GitLab repository %s', repo_name)
+            try:
+                if not project_repo.commits(limit=1):
+                    logging.info('Ignoring empty GitLab repository %s',
+                                 repo_name)
+                    continue
+            except GitLabException:
+                logging.warning('GitLab repository %s is not accessible',
+                                repo_name)
                 continue
 
             source = Source.from_type('gitlab', name=repo_name,
