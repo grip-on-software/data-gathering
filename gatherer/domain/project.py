@@ -326,7 +326,8 @@ class Project(Project_Meta):
         project, then this property returns `None`.
         """
 
-        if self._project_name is None or self._main_project is not None:
+        if self._project_name is None or self._project_name == '' or \
+            self._main_project is not None:
             return None
 
         return self._project_name
