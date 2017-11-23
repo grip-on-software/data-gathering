@@ -4,6 +4,9 @@ if [ ! -z "$CRON_PERIOD" ] && [ "$CRON_PERIOD" != "-" ]; then
 	# Enable a cron job for scraping regularly
 	cat >/etc/periodic/$CRON_PERIOD/scrape <<'SH'
 #!/bin/sh
+chown -R agent:agent /home/agent/export
+chown -R agent:agent /home/agent/config
+chown -R agent:agent /home/agent/.ssh
 /home/agent/agent-env.sh 'cd /home/agent && ./docker-scraper.sh ${JIRA_KEY}'
 SH
 
