@@ -287,7 +287,8 @@ the setting is not used in this environment.
     'pwd' (/etc/passwd), 'spwd' (/etc/shadow), and 'ldap' (LDAP server).
 - projects: A list of project JIRA keys and their long names in quality metrics 
   dashboard and repositories. You may add any number of projects here; the 
-  pipeline can obtain project definitions only if they exist here.
+  pipeline can obtain project definitions only if they have their project JIRA
+  key here, are not a subproject and have a non-empty long name.
   - `$JIRA_KEY`: JIRA key of the project that the Docker instance scrapes.
   - `$PROJECT_NAME`: Name of the scraped project in the quality dashboard.
 - subprojects: Subprojects and their main project.
