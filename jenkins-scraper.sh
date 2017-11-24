@@ -56,9 +56,6 @@ enable_line_debug
 
 # Declare configuration
 
-# Declare the current working directory
-ROOT=$PWD
-
 # Declare list of projects to scrape from, space-separated
 if [ -z "$listOfProjects" ]; then
 	listOfProjects="PROJ1 PROJ2 PROJN"
@@ -83,12 +80,17 @@ if [ -z "$IMPORTER_BASE" ]; then
 	IMPORTER_BASE="."
 fi
 
+if [ -z "$relPath" ]; then
+	relPath="export"
+fi
+
 log_info "Configuration:"
 log_info "listOfProjects=$listOfProjects"
 log_info "importerTasks=$importerTasks"
 log_info "gathererScripts=$gathererScripts"
 log_info "cleanupRepos=$cleanupRepos skipGather=$skipGather"
-log_info "logLevel=$logLevel ROOT=$ROOT IMPORTER_BASE=$IMPORTER_BASE"
+log_info "logLevel=$logLevel"
+log_info "IMPORTER_BASE=$IMPORTER_BASE relPath=$relPath"
 
 # The files that the importer uses
 files=""
@@ -108,14 +110,14 @@ function error_handler() {
 	if [ ! -z "$currentProject" ]; then
 		for restoreFile in $restoreFiles
 		do
-			rm -f "$ROOT/export/$currentProject/$restoreFile"
+			rm -f "$relPath/$currentProject/$restoreFile"
 		done
 	fi
 	if [ $cleanupRepos = "true" ]; then
 		for project in $listOfProjects
 		do
-			rm -rf "$ROOT/project-git-repos/$project"
-			rm -rf "$ROOT/quality-report-history/$project"
+			rm -rf "project-git-repos/$project"
+			rm -rf "quality-report-history/$project"
 		done
 	fi
 }
@@ -166,10 +168,10 @@ function export_handler() {
 		# reimported since we did not gather or override them.
 		log_info "Removing local export and update files of skipped script $script"
 		for export_file in $export_files; do
-			rm -f "export/$project/$export_file"
+			rm -f "$relPath/$project/$export_file"
 		done
 		for update_file in $update_files; do
-			rm -f "export/$project/$update_file"
+			rm -f "$relPath/$project/$update_file"
 		done
 		enable_line_debug
 		return
@@ -187,14 +189,14 @@ function export_handler() {
 		if [ ! -z "$update_files" ]; then
 			for update_file in $update_files; do
 				set +e
-				cmp -s "dropins/$project/$update_file" "export/$project/$update_file"
+				cmp -s "dropins/$project/$update_file" "$relPath/$project/$update_file"
 				local status=$?
 				set -e
 				if [ "$status" != "0" ]; then
 					if [ -e "dropins/$project/$update_file" ]; then
-						log_info "Copying $update_file dropin to export/$project"
-						cp "dropins/$project/$update_file" "export/$project/$update_file"
-					elif [ -e "export/$project/$update_file" ]; then
+						log_info "Copying $update_file dropin to $relPath/$project"
+						cp "dropins/$project/$update_file" "$relPath/$project/$update_file"
+					elif [ -e "$relPath/$project/$update_file" ]; then
 						log_info "We have an earlier run with $update_file"
 						skip_script=0
 					else
@@ -208,11 +210,11 @@ function export_handler() {
 		for export_file in $export_files; do
 			if [ -e "dropins/$project/$export_file" ]; then
 				if [ ! -z "$always_use_dropin" ] || [ "$skip_dropin" = "0" ]; then
-					log_info "Copying $export_file dropin to export/$project"
-					cp "dropins/$project/$export_file" "export/$project/$export_file"
+					log_info "Copying $export_file dropin to $relPath/$project"
+					cp "dropins/$project/$export_file" "$relPAth/$project/$export_file"
 				else
-					log_info "Empty JSON to export/$project/$export_file"
-					echo "[]" > export/$project/$export_file
+					log_info "Empty JSON to $relPath/$project/$export_file"
+					echo "[]" > $relPath/$project/$export_file
 				fi
 			else
 				log_info "No dropin file $export_file exists"
@@ -239,7 +241,7 @@ function import_handler() {
 	local project=$1
 	shift
 	local tasks=$*
-	status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" $importerProperties -jar "$IMPORTER_BASE/importerjson.jar" $project $tasks
+	status_handler java -Dimporter.log="$logLevel" -Dimporter.update="$restoreFiles" -Dimporter.relPath="$relPath" $importerProperties -jar "$IMPORTER_BASE/importerjson.jar" $project $tasks
 }
 
 # Setup
@@ -270,10 +272,13 @@ do
 	log_info "Gathering data for project $project"
 	currentProject=$project
 
-	mkdir -p export/$project
-	mkdir -p project-git-repos/$project
+	if [ ! -e "$relPath/$project" ]; then
+		mkdir -p "$relPath/$project"
+	fi
 
 	if [ $skipGather = "false" ]; then
+		mkdir -p "project-git-repos/$project"
+
 		# Retrieve quality metrics repository
 		status_handler python retrieve_metrics_repository.py $project --log $logLevel
 
