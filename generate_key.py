@@ -178,7 +178,7 @@ def main():
         logging.info('Using existing key pair from %s', private_key_filename)
 
     with open('{}.pub'.format(private_key_filename), 'r') as public_key_file:
-        public_key = public_key_file.read()
+        public_key = public_key_file.read().rstrip('\n')
 
     if args.ssh and Configuration.has_value(args.ssh):
         logging.info('Updating key via controller API at %s', args.ssh)

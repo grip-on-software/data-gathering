@@ -157,17 +157,28 @@ class Controller(object):
         return home_directory
 
     def update_public_key(self, project_key, public_key):
-        """Update authorized public key."""
+        """
+        Update authorized public key.
+
+        Returns whether the public key already exists with the same contents.
+        """
 
         ssh_directory = self.get_ssh_directory(project_key)
+        key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
+        if os.path.exists(key_filename):
+            with open(key_filename, 'r') as read_key_file:
+                if read_key_file.readline().rstrip('\n') == public_key:
+                    return True
+
         if os.path.exists(ssh_directory):
             subprocess.check_call(['sudo', 'rm', '-rf', ssh_directory])
 
         self._create_directory(project_key, ssh_directory)
 
-        key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
         with open(key_filename, 'w') as key_file:
             key_file.write(public_key)
+
+        return False
 
     def update_permissions(self, project_key):
         """

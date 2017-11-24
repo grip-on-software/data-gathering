@@ -43,9 +43,13 @@ class Permissions(object):
         self._controller.create_agent(self._project_key)
 
     def update_public_key(self, public_key):
-        """Update authorized public key."""
+        """
+        Update authorized public key.
+        
+        Returns whether the public key already exists with the same contents.
+        """
 
-        self._controller.update_public_key(self._project_key, public_key)
+        return self._controller.update_public_key(self._project_key, public_key)
 
     def update_permissions(self):
         """
@@ -156,9 +160,11 @@ def main():
         return
 
     permissions = Permissions(project_key)
-    permissions.update_user()
 
-    permissions.update_public_key(public_key)
+    if not permissions.update_public_key(public_key):
+        # If the public key is the same, then we do not need to replace the
+        # entire user home directory.
+        permissions.update_user()
 
     response = Response(project_key)
     response.get_update_trackers(permissions.get_home_directory())
@@ -167,7 +173,7 @@ def main():
 
     permissions.update_permissions()
 
-    print('Content-Type: text/json')
+    print('Content-Type: application/json')
     print()
     json.dump({
         'salts': {
