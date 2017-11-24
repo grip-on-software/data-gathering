@@ -52,7 +52,7 @@ def delete_repository(source, repo_path, paths=None):
         logging.warning('Local quality metrics repository %s did not exist',
                         repo_path)
 
-def retrieve_repository(source, repo_path, paths=None):
+def retrieve_repository(source, repo_path, paths=True):
     """
     Retrieve a project definition metrics repository.
     """

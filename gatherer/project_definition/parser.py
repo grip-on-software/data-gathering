@@ -341,19 +341,21 @@ class Sources_Parser(Project_Definition_Parser):
     def get_mock_modules(self):
         modules = super(Sources_Parser, self).get_mock_modules()
 
-        ictu = importlib.import_module('ictu')
-        ictu.person = mock.MagicMock()
-        ictu_convention = importlib.import_module('ictu.convention')
-        ictu_metric_source = mock.MagicMock()
-        modules.update(self.get_compatibility_modules('ictu', ictu))
-        modules.update(self.get_compatibility_modules('ictu.convention',
-                                                      ictu_convention))
-        modules.update(self.get_compatibility_modules('ictu.metric_source',
-                                                      ictu_metric_source))
-
         hqlib_metric_source = mock.MagicMock(**self.source_objects)
         modules.update(self.get_compatibility_modules(self.METRIC_SOURCE,
                                                       hqlib_metric_source))
+
+        with mock.patch.dict('sys.modules', modules):
+            ictu = importlib.import_module('ictu')
+            ictu.person = mock.MagicMock()
+            ictu_metric_source = importlib.import_module('ictu.metric_source')
+            ictu_convention = importlib.import_module('ictu.convention')
+            ictu.metric_source = ictu_metric_source
+            modules.update(self.get_compatibility_modules('ictu', ictu))
+            modules.update(self.get_compatibility_modules('ictu.convention',
+                                                          ictu_convention))
+            modules.update(self.get_compatibility_modules('ictu.metric_source',
+                                                          ictu_metric_source))
 
         return modules
 
