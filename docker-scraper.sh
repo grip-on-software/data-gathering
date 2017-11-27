@@ -30,7 +30,7 @@ for preflightFile in $preflightFiles; do
 	rm -f export/$project/$preflightFile
 done
 
-python generate_key.py $project --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab --source --log INFO
+python generate_key.py $project --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab --source --credentials --log INFO
 python preflight.py $project --log $logLevel
 python retrieve_metrics_repository.py $project --log $logLevel
 python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
