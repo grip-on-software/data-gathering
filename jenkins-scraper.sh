@@ -211,7 +211,7 @@ function export_handler() {
 			if [ -e "dropins/$project/$export_file" ]; then
 				if [ ! -z "$always_use_dropin" ] || [ "$skip_dropin" = "0" ]; then
 					log_info "Copying $export_file dropin to $relPath/$project"
-					cp "dropins/$project/$export_file" "$relPAth/$project/$export_file"
+					cp "dropins/$project/$export_file" "$relPath/$project/$export_file"
 				else
 					log_info "Empty JSON to $relPath/$project/$export_file"
 					echo "[]" > $relPath/$project/$export_file
