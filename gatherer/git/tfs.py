@@ -58,17 +58,29 @@ class TFS_Project(object):
         params['api-version'] = api_version
 
         if self._project is None:
-            parts = (self._url, '_apis', area, path)
+            candidates = [(self._url, '_apis', area, path)]
         elif project_collection:
-            parts = (self._url, self._project, '_apis', area, path)
+            candidates = [(self._url, self._project, '_apis', area, path)]
         else:
-            parts = (self._url, '_apis', area, self._project, path)
+            candidates = [
+                (self._url, '_apis', area, self._project, path), # TFS 2015
+                (self._url, self._project, '_apis', area, path) # TFS 2017
+            ]
 
-        url = '/'.join(parts)
-        request = self._session.get(url, params=params)
-        self._validate_request(request)
+        # Attempt all candidate URLs before giving up.
+        error = None
+        for parts in candidates:
+            url = '/'.join(parts)
+            try:
+                request = self._session.get(url, params=params)
+                self._validate_request(request)
 
-        return request.json()
+                return request.json()
+            except (RuntimeError, ValueError) as error:
+                pass
+
+        if error is not None:
+            raise error
 
     def _get_iterator(self, area, path, api_version='1.0', size=100, **kw):
         params = kw.copy()
