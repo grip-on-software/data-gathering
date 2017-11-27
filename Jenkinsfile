@@ -46,6 +46,7 @@ pipeline {
                 docker {
                     image '$AGENT_IMAGE'
                     args '-u root -v $PWD/.pylintrc:/home/agent/.pylintrc -v $PWD/.isort.cfg:/home/agent/.isort.cfg'
+                    reuseNode true
                 }
             }
             steps {
