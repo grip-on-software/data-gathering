@@ -13,6 +13,7 @@ from builtins import str
 import re
 import dateutil.tz
 from git import Commit
+from requests.exceptions import HTTPError
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..request import Session
@@ -76,7 +77,7 @@ class TFS_Project(object):
                 self._validate_request(request)
 
                 return request.json()
-            except (RuntimeError, ValueError) as error:
+            except (RuntimeError, ValueError, HTTPError) as error:
                 pass
 
         if error is not None:
