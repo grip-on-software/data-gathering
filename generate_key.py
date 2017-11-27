@@ -12,8 +12,13 @@ import argparse
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+try:
+    import urllib.parse
+except ImportError:
+    raise
 import inform
 try:
     from mock import MagicMock
@@ -52,6 +57,9 @@ def parse_args():
                         help='GitLab host(s) to distribute keys to')
     parser.add_argument('--no-gitlab', dest='gitlab', action='store_false',
                         help='Do not distribute keys to collected GitLab hosts')
+    parser.add_argument('--known-hosts', dest='known_hosts',
+                        default='~/.ssh/known_hosts',
+                        help='local path to store scanned SSH host keys in')
     parser.add_argument('--dry-run', dest='dry_run', action='store_true',
                         default=False, help='Only show what would happen')
 
@@ -77,9 +85,10 @@ class Identity(object):
     credentials to function.
     """
 
-    def __init__(self, project, key_path, dry_run=False):
+    def __init__(self, project, key_path, known_hosts, dry_run=False):
         self.project = project
         self.key_path = key_path
+        self.known_hosts = known_hosts
         self.dry_run = dry_run
 
         self._public_key = None
@@ -146,6 +155,22 @@ class Identity(object):
         with open('{}.pub'.format(self.key_path), 'r') as public_key_file:
             return public_key_file.read().rstrip('\n')
 
+    def _scan_host(self, url):
+        hostname = urllib.parse.urlsplit(url).hostname
+        try:
+            if os.path.exists(self.known_hosts):
+                subprocess.check_call([
+                    'ssh-keygen', '-R', hostname, '-f', self.known_hosts
+                ])
+
+            with open(os.devnull, 'w') as null_file:
+                lines = subprocess.check_output(['ssh-keyscan', hostname],
+                                                stderr=null_file)
+            with open(self.known_hosts, 'a') as known_hosts_file:
+                known_hosts_file.write(lines)
+        except subprocess.CalledProcessError:
+            logging.exception('Could not scan host %s', hostname)
+
     def update_source(self, source):
         """
         Register the SSH public key for this identity to the source, if this is
@@ -166,8 +191,11 @@ class Identity(object):
         except RuntimeError:
             logging.exception('Could not publish public key to %s source %s',
                               source.type, source.url)
+            return
 
-def add_ssh_key(project, identities, source, dry_run=False):
+        self._scan_host(source.url)
+
+def add_ssh_key(project, identities, source, known_hosts, dry_run=False):
     """
     Update the SSH key at the given source based on its credentials path.
     """
@@ -181,7 +209,7 @@ def add_ssh_key(project, identities, source, dry_run=False):
         return
 
     if key_path not in identities:
-        identities[key_path] = Identity(project, key_path,
+        identities[key_path] = Identity(project, key_path, known_hosts,
                                         dry_run=dry_run)
 
     identities[key_path].update_source(source)
@@ -216,10 +244,12 @@ def main():
         logging.info('Dry run: Logging output only describes what would happen')
 
     main_key = os.path.expanduser(args.path)
+    known_hosts = os.path.expanduser(args.known_hosts)
     identities = {}
 
     if Configuration.has_value(args.ssh):
-        identity = Identity(project, main_key, dry_run=args.dry_run)
+        identity = Identity(project, main_key, known_hosts,
+                            dry_run=args.dry_run)
         source = Source.from_type('controller',
                                   url='https://{}/auth/'.format(args.ssh),
                                   name='Controller',
@@ -233,21 +263,23 @@ def main():
         for domain in credentials.sections():
             source = make_source(domain)
             if source:
-                add_ssh_key(project, identities, source, dry_run=args.dry_run)
+                add_ssh_key(project, identities, source, known_hosts,
+                            dry_run=args.dry_run)
 
     if args.gitlab is not False:
         # If --gitlab is not provided or it has no remaining arguments, then
         # fall back to a project source and the project definitions source.
         if not args.gitlab or (args.source and project.gitlab_source is not None):
-            add_ssh_key(project, identities, project.gitlab_source,
+            add_ssh_key(project, identities, project.gitlab_source, known_hosts,
                         dry_run=args.dry_run)
             add_ssh_key(project, identities, project.project_definitions_source,
-                        dry_run=args.dry_run)
+                        known_hosts, dry_run=args.dry_run)
         else:
             for gitlab_host in args.gitlab:
                 url = 'http://{}'.format(gitlab_host)
                 source = Source.from_type('gitlab', url=url, name='GitLab')
-                add_ssh_key(project, identities, source)
+                add_ssh_key(project, identities, source, known_hosts,
+                            dry_run=args.dry_run)
 
 if __name__ == "__main__":
     main()
