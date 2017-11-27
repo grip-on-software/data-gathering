@@ -256,7 +256,7 @@ class GitLab(Git):
             # pylint: disable=no-member
             user = self.gitlab_api.current_user()
         except UnauthorizedRequest as error:
-            raise RuntimeError('GitLab source {} has unauthorized API keys'.format(self.host))
+            raise RuntimeError('GitLab source {} has unauthorized API keys: {}'.format(self.host, error))
 
         title = 'GROS agent for the {} project'.format(project.key)
         logging.info('Checking for old SSH keys of %s from GitLab instance %s...',

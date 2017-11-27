@@ -36,9 +36,14 @@ pipeline {
                         sh 'chmod 444 certs/wwwgros.crt'
                         sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = .([0-9.]+)./\\1/") > .version'
                         sh 'echo $(cat .version)-$BRANCH_NAME-$(git show-ref $BRANCH_NAME | cut -f1 -d\' \' | head -n 1) > VERSION'
-                        sh 'if [ "$BRANCH_NAME" == "master" ]; then docker build -t $AGENT_NAME:$(cat .version) .; else docker build -t $AGENT_IMAGE .; fi'
+                        sh 'docker build -t $AGENT_IMAGE .'
                     }
                 }
+            }
+        }
+        stage('Push') {
+            steps {
+                sh 'docker push $AGENT_IMAGE'
             }
         }
         stage('Test') {
@@ -55,10 +60,11 @@ pipeline {
                 sh 'pylint --disable=duplicate-code --reports=n $PWD/*.py $PWD/gatherer'
             }
         }
-        stage('Push') {
+        stage('Push versioned') {
+            when { branch 'master' }
             steps {
-                sh 'if [ "$BRANCH_NAME" == "master" ]; then docker push "$AGENT_NAME:$(cat .version)"; docker tag $AGENT_NAME:$(cat .version) $AGENT_IMAGE; fi'
-                sh 'docker push $AGENT_IMAGE'
+                sh 'docker tag $AGENT_IMAGE "$AGENT_NAME:$(cat .version)"'
+                sh 'docker push "$AGENT_NAME:$(cat .version)"'
             }
         }
     }
