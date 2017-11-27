@@ -69,7 +69,7 @@ class TFS_Project(object):
             ]
 
         # Attempt all candidate URLs before giving up.
-        error = None
+        error = Exception('No error')
         for parts in candidates:
             url = '/'.join(parts)
             try:
@@ -80,8 +80,7 @@ class TFS_Project(object):
             except (RuntimeError, ValueError, HTTPError) as error:
                 pass
 
-        if error is not None:
-            raise error
+        raise error
 
     def _get_iterator(self, area, path, api_version='1.0', size=100, **kw):
         params = kw.copy()
