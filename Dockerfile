@@ -13,7 +13,8 @@ COPY gatherer/ /home/agent/gatherer/
 
 RUN mkdir -p /home/agent/.ssh && \
 	chown -R agent:agent /home/agent/.ssh && \
-	chmod -R 700 /home/agent/.ssh && \
+	chmod -R 400 /home/agent/.ssh && \
+	chmod 700 /home/agent/.ssh && \
 	mkdir -p /home/agent/export && \
 	chown -R agent:agent /home/agent/export && \
 	chmod -R 755 /home/agent/export && \

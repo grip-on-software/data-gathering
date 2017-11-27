@@ -7,6 +7,8 @@ if [ ! -z "$CRON_PERIOD" ] && [ "$CRON_PERIOD" != "-" ]; then
 chown -R agent:agent /home/agent/export
 chown -R agent:agent /home/agent/config
 chown -R agent:agent /home/agent/.ssh
+chmod -R 400 /home/agent/.ssh
+chmod 700 /home/agent/.ssh
 /home/agent/agent-env.sh 'cd /home/agent && ./docker-scraper.sh ${JIRA_KEY}'
 SH
 

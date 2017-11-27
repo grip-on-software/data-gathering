@@ -152,7 +152,11 @@ class Identity(object):
             logging.info('Using existing key pair from %s', self.key_path)
 
     def _read_key(self):
-        with open('{}.pub'.format(self.key_path), 'r') as public_key_file:
+        public_key_path = '{}.pub'.format(self.key_path) 
+        if not os.path.exists(public_key_path):
+            return False
+
+        with open(public_key_path, 'r') as public_key_file:
             return public_key_file.read().rstrip('\n')
 
     def _scan_host(self, url):
@@ -176,6 +180,11 @@ class Identity(object):
         Register the SSH public key for this identity to the source, if this is
         possible and necessary for this source, environment, and source type.
         """
+
+        if self.public_key is False:
+            logging.warning('No public key part for key %s to upload to %s',
+                            self.key_path, source.url)
+            return
 
         if source.environment is not None:
             if source.environment in self._environments:
