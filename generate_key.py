@@ -152,7 +152,7 @@ class Identity(object):
             logging.info('Using existing key pair from %s', self.key_path)
 
     def _read_key(self):
-        public_key_path = '{}.pub'.format(self.key_path) 
+        public_key_path = '{}.pub'.format(self.key_path)
         if not os.path.exists(public_key_path):
             return False
 
