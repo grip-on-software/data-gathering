@@ -391,6 +391,9 @@ class TFS_Repository(Git_Repository, Review_System):
         response object to the merge request notes table.
         """
 
+        if 'isDeleted' in thread and thread['isDeleted']:
+            return
+
         properties = thread['properties']
         for comment in thread['comments']:
             if 'authorDisplayName' in comment:
@@ -400,7 +403,7 @@ class TFS_Repository(Git_Repository, Review_System):
 
             if self._is_container_account(comment['author'], display_name):
                 continue
-            if comment['isDeleted']:
+            if 'isDeleted' in comment and comment['isDeleted']:
                 continue
 
             created_date = self._parse_date(comment['publishedDate'])
@@ -408,7 +411,7 @@ class TFS_Repository(Git_Repository, Review_System):
             if not self._is_newer(updated_date):
                 continue
 
-            if 'authorDisplayName' in comment:
+            if 'authorDisplayName' in comment or 'uniqueName' not in comment['author']:
                 unique_name = display_name
             else:
                 unique_name = comment['author']['uniqueName']
