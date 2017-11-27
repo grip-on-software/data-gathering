@@ -166,7 +166,7 @@ class Identity(object):
             with open(os.devnull, 'w') as null_file:
                 lines = subprocess.check_output(['ssh-keyscan', hostname],
                                                 stderr=null_file)
-            with open(self.known_hosts, 'a') as known_hosts_file:
+            with open(self.known_hosts, 'ab') as known_hosts_file:
                 known_hosts_file.write(lines)
         except subprocess.CalledProcessError:
             logging.exception('Could not scan host %s', hostname)
