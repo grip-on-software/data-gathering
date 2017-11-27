@@ -82,7 +82,7 @@ class TFS_Project(object):
             except (RuntimeError, ValueError, HTTPError) as error:
                 pass
 
-        raise error
+        raise RuntimeError('Cannot find a suitable API URL: {}'.format(error))
 
     def _get_iterator(self, area, path, api_version='1.0', size=100, **kw):
         params = kw.copy()
