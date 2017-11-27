@@ -352,6 +352,27 @@ class Source(object):
 
         return [self]
 
+    def update_identity(self, project, public_key, dry_run=False):
+        """
+        Update the source to accept a public key as an identity for obtaining
+        access to information or perform actions on the source.
+
+        The `project` is a `Project` domain object providing details about the
+        project for which this key is being added. The `public_key` is a string
+        containing the contents of a public key that is part of a key pair used
+        for credentials.
+
+        The SSH key update removes any older keys for the identity, identified
+        by the project, and registers the new public key. If `dry_run` is set
+        to `True`, then no changes are actually made to the source, but logging
+        may indicate what would happen.
+
+        If the source does not support updating the SSH key or the update fails,
+        then a `RuntimeError` is raised.
+        """
+
+        raise NotImplementedError('Cannot update SSH key for this source type')
+
     def export(self):
         """
         Retrieve a dictionary that can be exported to JSON with data about

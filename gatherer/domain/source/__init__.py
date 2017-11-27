@@ -11,6 +11,7 @@ from .tfs import TFS
 from .history import History
 from .jenkins import Jenkins
 from .jira import Jira
+from .controller import Controller
 
 __all__ = [
     # Main classes
@@ -18,5 +19,5 @@ __all__ = [
     # Version control system classes
     "Subversion", "Git", "GitHub", "GitLab", "TFS",
     # Other sources
-    "History", "Jenkins", "Jira"
+    "History", "Jenkins", "Jira", "Controller"
 ]

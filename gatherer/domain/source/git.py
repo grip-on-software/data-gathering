@@ -52,3 +52,6 @@ class Git(Source):
             repo = repo[:-len('.git')]
 
         return repo
+
+    def update_identity(self, project, public_key, dry_run=False):
+        raise RuntimeError('Source does not support updating SSH key')

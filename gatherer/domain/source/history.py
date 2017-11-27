@@ -30,3 +30,6 @@ class History(Source):
         """
 
         return self._type == 'compact-history'
+
+    def update_identity(self, project, public_key, dry_run=False):
+        raise RuntimeError('Source does not support updating SSH key')

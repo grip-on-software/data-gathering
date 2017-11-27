@@ -23,3 +23,6 @@ class Subversion(Source):
         self._url = re.sub(r'/(trunk/?)$', '', self._url)
 
         return orig_parts, host
+
+    def update_identity(self, project, public_key, dry_run=False):
+        raise RuntimeError('Source does not support updating SSH key')

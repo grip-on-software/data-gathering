@@ -72,7 +72,8 @@ class TFS(Git):
         path = orig_parts.path.lstrip('/')
         path_parts = path.split('/_git/', 1)
         tfs_path = path_parts[0]
-        self._tfs_repo = path_parts[1].rstrip('/')
+        if len(path_parts) > 1:
+            self._tfs_repo = path_parts[1].rstrip('/')
 
         tfs_parts = tfs_path.split('/')
         num_parts = 2 if tfs_parts[0] == 'tfs' else 1

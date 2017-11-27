@@ -9,13 +9,11 @@ except ImportError:
     raise
 
 import argparse
-import json
 import logging
 import os
 import shutil
 import sys
 import tempfile
-import gitlab3
 import inform
 try:
     from mock import MagicMock
@@ -26,9 +24,8 @@ except ImportError:
 
 from gatherer.config import Configuration
 from gatherer.domain import Project
-from gatherer.domain.source import Source
+from gatherer.domain.source import Source, GitLab, GitHub, TFS
 from gatherer.log import Log_Setup
-from gatherer.request import Session
 
 def parse_args():
     """
@@ -37,24 +34,26 @@ def parse_args():
 
     config = Configuration.get_settings()
 
-    parser = argparse.ArgumentParser(description='Generate and distribute new public key')
-    parser.add_argument('project', help='project key to retrieve for')
+    parser = argparse.ArgumentParser(description='Generate and distribute new public keys')
+    parser.add_argument('project', help='project key to generate keys for')
     parser.add_argument('--path', default='~/.ssh/id_rsa',
-                        help='local path to store the private key at')
+                        help='local path to store the main private key at')
     parser.add_argument('--ssh', default=config.get('ssh', 'host'),
-                        help='Controller API host to distribute key to')
+                        help='Controller API host to distribute main key to')
     parser.add_argument('--no-ssh', action='store_false', dest='ssh',
                         help='Do not distribute key to controller API host')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
+    parser.add_argument('--credentials', action='store_true', default=False,
+                        help='Distribute keys to credential domains')
     parser.add_argument('--source', action='store_true', default=False,
-                        help='Distribute key to collected project sources')
+                        help='Distribute keys to collected project sources')
     parser.add_argument('--gitlab', nargs='*',
-                        help='GitLab host(s) to distribute key to')
+                        help='GitLab host(s) to distribute keys to')
     parser.add_argument('--no-gitlab', dest='gitlab', action='store_false',
-                        help='Do not distribute key to GitLab host(s)')
+                        help='Do not distribute keys to collected GitLab hosts')
     parser.add_argument('--dry-run', dest='dry_run', action='store_true',
-                        default=False, help='Only show what would be affected')
+                        default=False, help='Only show what would happen')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -72,86 +71,137 @@ def get_temp_filename():
 
     return filename
 
-def generate_key_pair(project):
+class Identity(object):
     """
-    Generate a public and private key pair for the project.
-    """
-
-    data = {
-        'purpose': 'agent for the {} project'.format(project.key),
-        'keygen-options': '',
-        'abraxas-account': False,
-        'servers': {},
-        'clients': {}
-    }
-    update = []
-    key_file = get_temp_filename()
-    key = Key(key_file, data, update, {}, False)
-    key.generate()
-    return key.keyname
-
-def export_secrets(secrets):
-    """
-    Write a JSON file with secrets according to a dictionary structure received
-    from the controller API.
+    Object indicating a key pair for one or more certain sources that require
+    credentials to function.
     """
 
-    with open('secrets.json', 'w') as secrets_file:
-        json.dump(secrets, secrets_file)
+    def __init__(self, project, key_path, dry_run=False):
+        self.project = project
+        self.key_path = key_path
+        self.dry_run = dry_run
 
-def update_controller_key(host, project, cert, public_key):
+        self._public_key = None
+        self._environments = set()
+
+    @property
+    def public_key(self):
+        """
+        Retrieve the public key part of the credentials for the purpose of
+        publishing it to different sources.
+
+        Newlines at the end of the public key are removed. If the key did not
+        yet exist, then it is generated.
+        """
+
+        if self._public_key is None:
+            self._store_key()
+            self._public_key = self._read_key()
+
+        return self._public_key
+
+    def _generate_key_pair(self):
+        """
+        Generate a public and private key pair for the project to be used as
+        credentials for the sources.
+
+        This returns a temporary filename path holding the key.
+        """
+
+        if self.dry_run:
+            return None
+
+        data = {
+            'purpose': 'agent for the {} project'.format(self.project.key),
+            'keygen-options': '',
+            'abraxas-account': False,
+            'servers': {},
+            'clients': {}
+        }
+        update = []
+        key_file = get_temp_filename()
+        key = Key(key_file, data, update, {}, False)
+        key.generate()
+        return key.keyname
+
+    def _store_key(self):
+        """
+        Check whether the public and private key pair already exists, and if not
+        generate the key and store it at the key path location.
+        """
+
+        if not os.path.exists(self.key_path):
+            logging.info('Generating new key pair to %s', self.key_path)
+            if not self.dry_run:
+                temp_key_name = self._generate_key_pair()
+                shutil.move(temp_key_name, self.key_path)
+                shutil.move('{}.pub'.format(temp_key_name),
+                            '{}.pub'.format(self.key_path))
+                os.chmod(self.key_path, 0o600)
+        else:
+            logging.info('Using existing key pair from %s', self.key_path)
+
+    def _read_key(self):
+        with open('{}.pub'.format(self.key_path), 'r') as public_key_file:
+            return public_key_file.read().rstrip('\n')
+
+    def update_source(self, source):
+        """
+        Register the SSH public key for this identity to the source, if this is
+        possible and necessary for this source, environment, and source type.
+        """
+
+        if source.environment is not None:
+            if source.environment in self._environments:
+                logging.info('SSH key for environment %r already added',
+                             source.environment)
+                return
+
+            self._environments.add(source.environment)
+
+        try:
+            source.update_identity(self.project, self.public_key,
+                                   dry_run=self.dry_run)
+        except RuntimeError:
+            logging.exception('Could not publish public key to %s source %s',
+                              source.type, source.url)
+
+def add_ssh_key(project, identities, source, dry_run=False):
     """
-    Update the public key in a controller API instance.
-    """
-
-    url = 'https://{}/auth/agent.py?project={}'.format(host, project.jira_key)
-    request = Session(verify=cert).post(url, data={'public_key': public_key})
-
-    if not Session.is_code(request, 'ok'):
-        raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
-
-    # In return for our public key, we may receive some secrets (salts).
-    # Export these to a file since the data is never received again.
-    try:
-        response = json.loads(request.text)
-    except ValueError:
-        logging.exception('Invalid JSON response from controller API: %s',
-                          request.text)
-        return
-
-    export_secrets(response)
-
-def update_gitlab_key(project, source, public_key, dry_run=False):
-    """
-    Update the public keys of a user in a GitLab instance.
+    Update the SSH key at the given source based on its credentials path.
     """
 
     if source is None:
-        raise RuntimeError('No GitLab source could be created')
+        return
 
-    if source.gitlab_token is None:
-        raise RuntimeError('GitLab instance {} has no API token'.format(source.host))
+    key_path = source.credentials_path
+    if key_path is None:
+        logging.info('Source %s has no SSH key credentials', source.url)
+        return
 
-    api = gitlab3.GitLab(source.host, source.gitlab_token)
-    # pylint: disable=no-member
-    user = api.current_user()
+    if key_path not in identities:
+        identities[key_path] = Identity(project, key_path,
+                                        dry_run=dry_run)
 
-    title = 'GROS agent for the {} project'.format(project.key)
-    logging.info('Checking for old SSH keys of %s from GitLab instance %s...',
-                 title, source.host)
+    identities[key_path].update_source(source)
 
-    for key in user.ssh_keys():
-        if key.title == title:
-            if key.key == public_key:
-                logging.info('SSH key already exists on GitLab instance %s.',
-                             source.host)
-                return
-            elif not dry_run:
-                user.delete_ssh_key(key)
+def make_source(domain):
+    """
+    Build a dummy source object based on a credentials domain.
+    """
 
-    logging.info('Adding new SSH key to GitLab instance %s...', source.host)
-    if not dry_run:
-        user.add_ssh_key(title, public_key)
+    if GitLab.is_gitlab_host(domain):
+        return Source.from_type('gitlab', url='http://{}/'.format(domain),
+                                name='dummy')
+    if GitHub.is_github_host(domain):
+        return Source.from_type('github', url='https://{}/'.format(domain),
+                                name='dummy')
+    if TFS.is_tfs_host(domain):
+        return Source.from_type('tfs', url='http://{}/tfs'.format(domain),
+                                name='dummy')
+
+    return None
 
 def main():
     """
@@ -165,44 +215,39 @@ def main():
     if args.dry_run:
         logging.info('Dry run: Logging output only describes what would happen')
 
-    private_key_filename = os.path.expanduser(args.path)
-    if not os.path.exists(private_key_filename):
-        logging.info('Generating new key pair to %s', private_key_filename)
-        if not args.dry_run:
-            key_filename = generate_key_pair(project)
-            shutil.move(key_filename, private_key_filename)
-            shutil.move('{}.pub'.format(key_filename),
-                        '{}.pub'.format(private_key_filename))
-            os.chmod(private_key_filename, 0o600)
-    else:
-        logging.info('Using existing key pair from %s', private_key_filename)
+    main_key = os.path.expanduser(args.path)
+    identities = {}
 
-    with open('{}.pub'.format(private_key_filename), 'r') as public_key_file:
-        public_key = public_key_file.read().rstrip('\n')
+    if Configuration.has_value(args.ssh):
+        identity = Identity(project, main_key, dry_run=args.dry_run)
+        source = Source.from_type('controller',
+                                  url='https://{}/auth/'.format(args.ssh),
+                                  name='Controller',
+                                  certificate=args.cert)
+        identity.update_source(source)
 
-    if args.ssh and Configuration.has_value(args.ssh):
-        logging.info('Updating key via controller API at %s', args.ssh)
-        if not args.dry_run:
-            update_controller_key(args.ssh, project, args.cert, public_key)
+        identities[main_key] = identity
+
+    if args.credentials:
+        credentials = Configuration.get_credentials()
+        for domain in credentials.sections():
+            source = make_source(domain)
+            if source:
+                add_ssh_key(project, identities, source, dry_run=args.dry_run)
 
     if args.gitlab is not False:
-        sources = []
         # If --gitlab is not provided or it has no remaining arguments, then
         # fall back to a project source and the project definitions source.
         if not args.gitlab or (args.source and project.gitlab_source is not None):
-            sources.append(project.gitlab_source)
-            sources.append(project.project_definitions_source)
+            add_ssh_key(project, identities, project.gitlab_source,
+                        dry_run=args.dry_run)
+            add_ssh_key(project, identities, project.project_definitions_source,
+                        dry_run=args.dry_run)
         else:
             for gitlab_host in args.gitlab:
                 url = 'http://{}'.format(gitlab_host)
                 source = Source.from_type('gitlab', url=url, name='GitLab')
-                sources.append(source)
-
-        for source in sources:
-            try:
-                update_gitlab_key(project, source, public_key, args.dry_run)
-            except RuntimeError:
-                logging.exception('Could not publish public key to GitLab')
+                add_ssh_key(project, identities, source)
 
 if __name__ == "__main__":
     main()

@@ -15,7 +15,7 @@ except ImportError:
     raise
 
 import gitlab3
-from gitlab3.exceptions import GitLabException, ResourceNotFound
+from gitlab3.exceptions import GitLabException, ResourceNotFound, UnauthorizedRequest
 from .types import Source, Source_Types
 from .git import Git
 from ...git.gitlab import GitLab_Repository
@@ -247,3 +247,30 @@ class GitLab(Git):
             sources.append(source)
 
         return sources
+
+    def update_identity(self, project, public_key, dry_run=False):
+        if self.gitlab_token is None:
+            raise RuntimeError('GitLab source {} has no API token'.format(self.host))
+
+        try:
+            # pylint: disable=no-member
+            user = self.gitlab_api.current_user()
+        except UnauthorizedRequest as error:
+            raise RuntimeError('GitLab source {} has unauthorized API keys'.format(self.host))
+
+        title = 'GROS agent for the {} project'.format(project.key)
+        logging.info('Checking for old SSH keys of %s from GitLab instance %s...',
+                     title, self.host)
+
+        for key in user.ssh_keys():
+            if key.title == title:
+                if key.key == public_key:
+                    logging.info('SSH key already exists on GitLab instance %s.',
+                                 self.host)
+                    return
+                elif not dry_run:
+                    user.delete_ssh_key(key)
+
+        logging.info('Adding new SSH key to GitLab instance %s...', self.host)
+        if not dry_run:
+            user.add_ssh_key(title, public_key)
