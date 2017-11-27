@@ -43,8 +43,9 @@ class TFS_Project(object):
             try:
                 data = request.json()
                 if 'value' in data and 'Message' in data['value']:
+                    text = data['value']['Message']
                     message = 'HTTP error {}: {}'.format(request.status_code,
-                                                         data['value']['Message'])
+                                                         text)
                 elif 'message' in data:
                     message = '{}: {}'.format(data['typeKey'], data['message'])
                 else:
@@ -54,7 +55,8 @@ class TFS_Project(object):
             except ValueError:
                 request.raise_for_status()
 
-    def _get(self, area, path, api_version='1.0', project_collection=False, **kw):
+    def _get(self, area, path, api_version='1.0', project_collection=False,
+             **kw):
         params = kw.copy()
         params['api-version'] = api_version
 
@@ -395,12 +397,13 @@ class TFS_Repository(Git_Repository, Review_System):
 
         properties = thread['properties']
         for comment in thread['comments']:
+            author = comment['author']
             if 'authorDisplayName' in comment:
                 display_name = comment['authorDisplayName']
             else:
-                display_name = comment['author']['displayName']
+                display_name = author['displayName']
 
-            if self._is_container_account(comment['author'], display_name):
+            if self._is_container_account(author, display_name):
                 continue
             if 'isDeleted' in comment and comment['isDeleted']:
                 continue
@@ -410,10 +413,10 @@ class TFS_Repository(Git_Repository, Review_System):
             if not self._is_newer(updated_date):
                 continue
 
-            if 'authorDisplayName' in comment or 'uniqueName' not in comment['author']:
+            if 'authorDisplayName' in comment or 'uniqueName' not in author:
                 unique_name = display_name
             else:
-                unique_name = comment['author']['uniqueName']
+                unique_name = author['uniqueName']
 
             parent_id = comment['parentId'] if 'parentId' in comment else 0
 
