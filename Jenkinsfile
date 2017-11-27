@@ -52,7 +52,7 @@ pipeline {
             steps {
                 sh 'apk --update add gcc musl-dev'
                 sh 'pip install pylint regex'
-                sh 'pylint --disable=duplicate-code --reports=n /home/agent/*.py $PWD'
+                sh 'pylint --disable=duplicate-code --reports=n $PWD/*.py $PWD/gatherer'
             }
         }
         stage('Push') {
