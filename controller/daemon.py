@@ -173,7 +173,7 @@ class Controller(object):
         if os.path.exists(ssh_directory):
             subprocess.check_call(['sudo', 'rm', '-rf', ssh_directory])
 
-        self._create_directory(project_key, ssh_directory)
+        self._create_directory(project_key, ssh_directory, user='controller')
 
         with open(key_filename, 'w') as key_file:
             key_file.write(public_key)
