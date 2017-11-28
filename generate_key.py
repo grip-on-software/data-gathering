@@ -161,17 +161,27 @@ class Identity(object):
 
     def _scan_host(self, url):
         hostname = urllib.parse.urlsplit(url).hostname
+        if hostname is None:
+            logging.warning('Cannot extract hostname from source URL %s', url)
+            return
+
         try:
             if os.path.exists(self.known_hosts):
-                subprocess.check_call([
-                    'ssh-keygen', '-R', hostname, '-f', self.known_hosts
-                ])
+                logging.info('Removing old host keys for %s from %s',
+                             hostname, self.known_hosts)
+                if not self.dry_run:
+                    subprocess.check_call([
+                        'ssh-keygen', '-R', hostname, '-f', self.known_hosts
+                    ])
 
-            with open(os.devnull, 'w') as null_file:
-                lines = subprocess.check_output(['ssh-keyscan', hostname],
-                                                stderr=null_file)
-            with open(self.known_hosts, 'ab') as known_hosts_file:
-                known_hosts_file.write(lines)
+            logging.info('Scanning SSH host %s for keys and appending to %s',
+                         hostname, self.known_hosts)
+            if not self.dry_run:
+                with open(os.devnull, 'w') as null_file:
+                    lines = subprocess.check_output(['ssh-keyscan', hostname],
+                                                    stderr=null_file)
+                with open(self.known_hosts, 'ab') as known_hosts_file:
+                    known_hosts_file.write(lines)
         except subprocess.CalledProcessError:
             logging.exception('Could not scan host %s', hostname)
 
@@ -183,7 +193,7 @@ class Identity(object):
 
         if self.public_key is False:
             logging.warning('No public key part for key %s to upload to %s',
-                            self.key_path, source.url)
+                            self.key_path, source.plain_url)
             return
 
         if source.environment is not None:
@@ -199,10 +209,10 @@ class Identity(object):
                                    dry_run=self.dry_run)
         except RuntimeError:
             logging.exception('Could not publish public key to %s source %s',
-                              source.type, source.url)
+                              source.type, source.plain_url)
             return
 
-        self._scan_host(source.url)
+        self._scan_host(source.plain_url)
 
 def add_ssh_key(project, identities, source, known_hosts, dry_run=False):
     """
@@ -214,7 +224,7 @@ def add_ssh_key(project, identities, source, known_hosts, dry_run=False):
 
     key_path = source.credentials_path
     if key_path is None:
-        logging.info('Source %s has no SSH key credentials', source.url)
+        logging.info('Source %s has no SSH key credentials', source.plain_url)
         return
 
     if key_path not in identities:
@@ -256,7 +266,7 @@ def main():
     known_hosts = os.path.expanduser(args.known_hosts)
     identities = {}
 
-    if Configuration.has_value(args.ssh):
+    if args.ssh and Configuration.has_value(args.ssh):
         identity = Identity(project, main_key, known_hosts,
                             dry_run=args.dry_run)
         source = Source.from_type('controller',
