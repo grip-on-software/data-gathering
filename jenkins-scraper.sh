@@ -76,13 +76,17 @@ if [ -z "$skipGather" ]; then
 	skipGather="false"
 fi
 
+# The path in which the importer lives and from which the relative path to the
+# exported data is defined.
 if [ -z "$IMPORTER_BASE" ]; then
 	IMPORTER_BASE="."
 fi
 
+# The relative path from the importer base to the exported data.
 if [ -z "$relPath" ]; then
 	relPath="export"
 fi
+basePath="$IMPORTER_BASE/$relPath"
 
 log_info "Configuration:"
 log_info "listOfProjects=$listOfProjects"
@@ -110,7 +114,7 @@ function error_handler() {
 	if [ ! -z "$currentProject" ]; then
 		for restoreFile in $restoreFiles
 		do
-			rm -f "$relPath/$currentProject/$restoreFile"
+			rm -f "$basePath/$currentProject/$restoreFile"
 		done
 	fi
 	if [ $cleanupRepos = "true" ]; then
@@ -168,10 +172,10 @@ function export_handler() {
 		# reimported since we did not gather or override them.
 		log_info "Removing local export and update files of skipped script $script"
 		for export_file in $export_files; do
-			rm -f "$relPath/$project/$export_file"
+			rm -f "$basePath/$project/$export_file"
 		done
 		for update_file in $update_files; do
-			rm -f "$relPath/$project/$update_file"
+			rm -f "$basePath/$project/$update_file"
 		done
 		enable_line_debug
 		return
@@ -189,14 +193,14 @@ function export_handler() {
 		if [ ! -z "$update_files" ]; then
 			for update_file in $update_files; do
 				set +e
-				cmp -s "dropins/$project/$update_file" "$relPath/$project/$update_file"
+				cmp -s "dropins/$project/$update_file" "$basePath/$project/$update_file"
 				local status=$?
 				set -e
 				if [ "$status" != "0" ]; then
 					if [ -e "dropins/$project/$update_file" ]; then
-						log_info "Copying $update_file dropin to $relPath/$project"
-						cp "dropins/$project/$update_file" "$relPath/$project/$update_file"
-					elif [ -e "$relPath/$project/$update_file" ]; then
+						log_info "Copying $update_file dropin to $basePath/$project"
+						cp "dropins/$project/$update_file" "$basePath/$project/$update_file"
+					elif [ -e "$basePath/$project/$update_file" ]; then
 						log_info "We have an earlier run with $update_file"
 						skip_script=0
 					else
@@ -210,11 +214,11 @@ function export_handler() {
 		for export_file in $export_files; do
 			if [ -e "dropins/$project/$export_file" ]; then
 				if [ ! -z "$always_use_dropin" ] || [ "$skip_dropin" = "0" ]; then
-					log_info "Copying $export_file dropin to $relPath/$project"
-					cp "dropins/$project/$export_file" "$relPath/$project/$export_file"
+					log_info "Copying $export_file dropin to $basePath/$project"
+					cp "dropins/$project/$export_file" "$basePath/$project/$export_file"
 				else
-					log_info "Empty JSON to $relPath/$project/$export_file"
-					echo "[]" > $relPath/$project/$export_file
+					log_info "Empty JSON to $basePath/$project/$export_file"
+					echo "[]" > $basePath/$project/$export_file
 				fi
 			else
 				log_info "No dropin file $export_file exists"
@@ -272,8 +276,8 @@ do
 	log_info "Gathering data for project $project"
 	currentProject=$project
 
-	if [ ! -e "$relPath/$project" ]; then
-		mkdir -p "$relPath/$project"
+	if [ ! -e "$basePath/$project" ]; then
+		mkdir -p "$basePath/$project"
 	fi
 
 	if [ $skipGather = "false" ]; then
