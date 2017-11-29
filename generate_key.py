@@ -191,26 +191,27 @@ class Identity(object):
         possible and necessary for this source, environment, and source type.
         """
 
-        if self.public_key is False:
-            logging.warning('No public key part for key %s to upload to %s',
-                            self.key_path, source.plain_url)
-            return
-
         if source.environment is not None:
             if source.environment in self._environments:
-                logging.info('SSH key for environment %r already added',
+                logging.info('SSH key for environment %r already checked',
                              source.environment)
                 return
 
             self._environments.add(source.environment)
 
-        try:
-            source.update_identity(self.project, self.public_key,
-                                   dry_run=self.dry_run)
-        except RuntimeError:
-            logging.exception('Could not publish public key to %s source %s',
-                              source.type, source.plain_url)
-            return
+        if self.public_key is False:
+            # We only have a private key part, e.g., a deploy key.
+            # Log this and still scan the source for host keys.
+            logging.warning('No public key part for key %s to upload to %s',
+                            self.key_path, source.plain_url)
+        else:
+            try:
+                source.update_identity(self.project, self.public_key,
+                                       dry_run=self.dry_run)
+            except RuntimeError:
+                logging.exception('Cannot publish public key to %s source %s',
+                                  source.type, source.plain_url)
+                return
 
         self._scan_host(source.plain_url)
 
