@@ -40,6 +40,14 @@ class Subversion_Repository(Version_Control_Repository):
         self._iterator_limiter = Iterator_Limiter()
 
     @classmethod
+    def _create_environment(cls, source):
+        env = {}
+        if source.get_option('unsafe_hosts'):
+            env['trust_cert'] = True
+
+        return env
+
+    @classmethod
     def from_source(cls, source, repo_directory, **kwargs):
         """
         Initialize a Subversion repository from its `Source` domain object.
@@ -48,15 +56,17 @@ class Subversion_Repository(Version_Control_Repository):
         communicates solely with the server.
         """
 
+        env = cls._create_environment(source)
         repository = cls(source, repo_directory, **kwargs)
-        repository.repo = svn.remote.RemoteClient(source.url)
+        repository.repo = svn.remote.RemoteClient(source.url, **env)
         return repository
 
     @property
     def repo(self):
         if self._repo is None:
             path = os.path.expanduser(self._repo_directory)
-            self._repo = svn.local.LocalClient(path)
+            env = self._create_environment(self.source)
+            self._repo = svn.local.LocalClient(path, **env)
 
         return self._repo
 
