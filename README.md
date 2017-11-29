@@ -351,6 +351,9 @@ access to the service completely.
 - `strip` (`$SOURCE_STRIP`): Strip an initial part of the path of any source
   repository hosted from this host when converting the source HTTP(s) URL to an 
   SSH URL. Useful for GitLab instaces hosted behind path-based proxies.
+- `unsafe_hosts` (`$SOURCE_UNSAFE`): Disable strict HTTPS certificate and SSH 
+  host key verification for the host. This works for Git SSH communication and 
+  Subversion HTTPS requests.
 
 Finally, for `topdesk_to_json.py`, the presence of a `topdesk.cfg` 
 configuration file is necessary. The projects section has option names 
