@@ -13,6 +13,7 @@ from builtins import str
 import json
 import logging
 import os
+from git import GitCommandError
 from .repo import Git_Repository
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, get_local_datetime, \
@@ -442,6 +443,41 @@ class GitLab_Repository(Git_Repository, Review_System):
             'created_date': created_date
         })
 
+    @staticmethod
+    def _parse_legacy_push_event(event, event_data):
+        event_data.update({
+            'kind': str(event.data['object_kind']),
+            'ref': str(event.data['ref']),
+            'email': parse_unicode(event.data['user_email'])
+        })
+        if event_data['kind'] == 'tag_push':
+            key = 'before' if event.action_name == 'deleted' else 'after'
+            return [event.data[key]]
+
+        return [commit['id'] for commit in event.data['commits']]
+
+    def _parse_push_event(self, event, event_data):
+        event_data.update({
+            'kind': str(event.push_data['ref_type']),
+            'ref': str(event.push_data['ref']),
+            'user': parse_unicode(event.author['name'])
+        })
+
+        if event_data['kind'] == 'tag':
+            key = 'commit_from' if event.action_name == 'removed' else 'commit_to'
+            return [event.push_data[key]]
+
+        if event.push_data['commit_count'] == 1:
+            return [event.push_data['commit_to']]
+
+        refspec = '{}..{}'.format(event.push_data['commit_from'],
+                                  event.push_data['commit_to'])
+        try:
+            query = self.repo.iter_commits(refspec)
+            return [commit.hexsha for commit in query]
+        except GitCommandError:
+            logging.exception('Cannot find commit range')
+
     def add_event(self, event):
         """
         Add an event from the GitLab API. Only relevant events are actually
@@ -452,28 +488,25 @@ class GitLab_Repository(Git_Repository, Review_System):
             if not self._is_newer(event.created_at):
                 return
 
-            created_date = format_date(event.created_at)
-            if event.data['object_kind'] == 'tag_push':
-                if event.action_name == 'deleted':
-                    commits = [event.data['before']]
-                else:
-                    commits = [event.data['after']]
-            else:
-                commits = [commit['id'] for commit in event.data['commits']]
-
             username = parse_unicode(event.author_username)
+            event_data = {
+                'repo_name': str(self._repo_name),
+                'action': str(event.action_name),
+                'user': username,
+                'username': username,
+                'date': format_date(event.created_at)
+            }
+            if hasattr(event, 'data'):
+                # Legacy event push data
+                commits = self._parse_legacy_push_event(event, event_data)
+            else:
+                # GitLab 9.5+ event push data
+                commits = self._parse_push_event(event, event_data)
+
             for commit_id in commits:
-                self._tables["vcs_event"].append({
-                    'repo_name': str(self._repo_name),
-                    'version_id': str(commit_id),
-                    'action': str(event.action_name),
-                    'kind': str(event.data['object_kind']),
-                    'ref': str(event.data['ref']),
-                    'user': username,
-                    'username': username,
-                    'email': str(event.data['user_email']),
-                    'date': created_date
-                })
+                commit_event = event_data.copy()
+                commit_event['version_id'] = str(commit_id)
+                self._tables["vcs_event"].append(commit_event)
 
     def _parse_version(self, commit, stats=True, **kwargs):
         data = super(GitLab_Repository, self)._parse_version(commit,
