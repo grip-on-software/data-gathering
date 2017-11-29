@@ -334,7 +334,10 @@ access to the service completely.
   interface with its authorization scheme.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
   is a Team Foundation Server and thus has auxliary data aside from the Git 
-  repository.
+  repository. If this is true, then any collections found based on the initial
+  source that we have are collected, otherwise the value must be a collection
+  name starting with `tfs/`. Any projects within or beneath the collection may
+  then be gathered.
 - `group` (`$SOURCE_GITLAB_GROUP`): The name of the custom GitLab group. Used 
   for group URL updates when the repositories are archived, and for API queries 
   for finding more repositories.

@@ -340,6 +340,21 @@ class Source(object):
         value = cls._credentials.get(host, option)
         return Configuration.has_value(value)
 
+    def check_credentials_environment(self):
+        """
+        Check whether this source's environment is within the restrictions of
+        the credential settings for the source domain. This can be used to check
+        if the source lives in a different environment than the one specified
+        initially and that retrieving more sources from this environment would
+        yield sources that we should not access for the current project.
+
+        By default, we accept retrieving any environment sources, but source
+        types can override this to use credential information to restrict this
+        before attempting collection from that source.
+        """
+
+        return True
+
     def get_sources(self):
         """
         Retrieve information about additional data sources from the source.

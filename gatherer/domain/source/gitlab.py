@@ -110,6 +110,8 @@ class GitLab(Git):
         repo_path_name = repo_path.split('/', 1)[1]
         path = '{0}/{1}-{2}'.format(self._gitlab_group, self._gitlab_namespace,
                                     repo_path_name)
+        # Track the new namespace and use the new URL.
+        self._gitlab_namespace = self._gitlab_group
         self._url = self._create_url(url_parts.scheme, url_parts.netloc, path,
                                      url_parts.query, url_parts.fragment)
         return path
@@ -200,6 +202,12 @@ class GitLab(Git):
                 raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
 
         return self._gitlab_api
+
+    def check_credentials_environment(self):
+        if self._gitlab_group is None:
+            return True
+
+        return self._gitlab_group == self._gitlab_namespace
 
     def get_sources(self):
         # pylint: disable=no-member

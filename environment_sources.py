@@ -4,6 +4,7 @@ order to import data from them later on.
 """
 
 import argparse
+import logging
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 
@@ -33,11 +34,15 @@ def retrieve_sources(project):
     """
 
     for environment_source in project.sources.get_environments():
-        sources = environment_source.get_sources()
-        for source in sources:
-            # Check if there is already another source with the same URL.
-            if not project.has_source(source):
-                project.sources.add(source)
+        if environment_source.check_credentials_environment():
+            sources = environment_source.get_sources()
+            for source in sources:
+                # Check if there is already another source with the same URL.
+                if not project.has_source(source):
+                    project.sources.add(source)
+        else:
+            logging.info('Skipping environment %r because it is out of scope',
+                         environment_source.environment)
 
 def main():
     """

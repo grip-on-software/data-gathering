@@ -145,6 +145,13 @@ class TFS(Git):
         return self._create_url(parts.scheme, self._host, parts.path,
                                 parts.query, parts.fragment)
 
+    def check_credentials_environment(self):
+        tfs_collection = self.get_option('tfs')
+        if tfs_collection is None or tfs_collection == 'true':
+            return True
+
+        return '/'.join(self._tfs_collections).startswith(tfs_collection)
+
     def get_sources(self):
         repositories = self.tfs_api.repositories()
         sources = []
