@@ -353,7 +353,7 @@ class Source(object):
         before attempting collection from that source.
         """
 
-        return True
+        return bool(self._host)
 
     def get_sources(self):
         """
