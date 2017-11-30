@@ -634,7 +634,13 @@ class Git_Repository(Version_Control_Repository):
             if diff.b_blob is None:
                 size = 0
             else:
-                size = diff.b_blob.size
+                try:
+                    size = diff.b_blob.size
+                except ValueError:
+                    # Missing blob or parent commit
+                    logging.info('File change %s in commit %s has no parent',
+                                 stat_file, commit.hexsha)
+                    continue
 
             change_data = {
                 'repo_name': str(self._repo_name),
