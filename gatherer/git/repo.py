@@ -131,10 +131,12 @@ class Git_Repository(Version_Control_Repository):
 
     def _get_refspec(self, from_revision=None, to_revision=None):
         # Determine special revision ranges from credentials settings.
-        # By default, we retrieve all revisions from master, but if the tag
-        # exists, then we use this tag as end point instead. Otherwise, the
-        # range can be limited by a starting date for migration compatibility.
-        default_to_revision = 'master'
+        # By default, we retrieve all revisions from the default branch, but if
+        # the tag defined in the credentials section exists, then we use this
+        # tag as end point instead. Otherwise, the range can be limited by
+        # a starting date defined in the credentials for compatibility with
+        # partial migrations.
+        default_to_revision = self.default_branch
         if self._tag is not None and self._tag in self.repo.tags:
             default_to_revision = self._tag
         elif from_revision is None and self._from_date is not None:
@@ -209,6 +211,7 @@ class Git_Repository(Version_Control_Repository):
     def is_up_to_date(cls, source, latest_version, update_tracker=None):
         git = Git()
         git.update_environment(**cls._create_environment(source, git))
+        # Check if the provided version is up to date compared to master.
         try:
             remote_refs = git.ls_remote('--heads', source.url, 'master')
         except GitCommandError as error:
@@ -279,6 +282,16 @@ class Git_Repository(Version_Control_Repository):
     @property
     def version_info(self):
         return self.repo.git.version_info
+
+    @property
+    def default_branch(self):
+        """
+        Retrieve the working branch from which to collect data and to update.
+
+        By default, this is the currently checked-out branch.
+        """
+
+        return self.repo.head.ref.name
 
     @property
     def prev_head(self):
@@ -354,18 +367,21 @@ class Git_Repository(Version_Control_Repository):
         try:
             self._prev_head = self.repo.head.commit
             if shallow:
-                self.repo.remotes.origin.fetch('master', depth=1,
+                self.repo.remotes.origin.fetch(self.default_branch, depth=1,
                                                progress=self._progress)
                 if checkout:
-                    self.repo.head.reset('origin/master', hard=True)
+                    refspec = 'origin/{}'.format(self.default_branch)
+                    self.repo.head.reset(refspec, hard=True)
 
                 self.repo.git.reflog(['expire', '--expire=now', '--all'])
                 self.repo.git.gc(['--prune=now'])
             elif checkout:
-                self.repo.remotes.origin.pull('master', progress=self._progress)
+                self.repo.remotes.origin.pull(self.default_branch,
+                                              progress=self._progress)
             else:
                 # Update local branch but not the working tree
-                self.repo.remotes.origin.fetch('master:master',
+                spec = '{}:{}'.format(self.default_branch, self.default_branch)
+                self.repo.remotes.origin.fetch(spec,
                                                update_head_ok=True,
                                                progress=self._progress)
         except GitCommandError as error:
@@ -454,7 +470,8 @@ class Git_Repository(Version_Control_Repository):
             'min_age': date_epoch,
             'max_age': date_epoch
         }
-        commits = list(self.repo.iter_commits('master', **rev_list_args))
+        commits = list(self.repo.iter_commits(self.default_branch,
+                                              **rev_list_args))
         if commits:
             return commits[0].hexsha
 
@@ -677,7 +694,7 @@ class Git_Repository(Version_Control_Repository):
             self._tables['tag'].append(tag_data)
 
     def get_latest_version(self):
-        return self.repo.rev_parse('master').hexsha
+        return self.repo.rev_parse(self.default_branch).hexsha
 
     def get_contents(self, filename, revision=None):
         if isinstance(revision, Commit):
