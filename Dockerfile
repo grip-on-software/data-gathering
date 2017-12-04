@@ -34,4 +34,6 @@ WORKDIR /home/agent
 ENV GATHERER_SETTINGS_FILE="/home/agent/config/settings.cfg" \
     GATHERER_CREDENTIALS_FILE="/home/agent/config/credentials.cfg"
 
+EXPOSE 7070
+
 CMD ["/bin/bash", "docker-init.sh"]
