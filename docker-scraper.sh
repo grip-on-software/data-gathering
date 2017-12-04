@@ -23,12 +23,11 @@ preflightFiles=$(./list-files.sh update preflight.py)
 updateFiles=$(./list-files.sh update $scripts)
 exportFiles=$(./list-files.sh export $scripts)
 
-# Remove old update files so that the remote update trackers are always used
+# Remove old update files so that the remote update trackers are always used.
+# This is not the case for preflight_date.txt which is only regenerated locally
+# if we can scrape according to the preflight checks.
 for updateFile in $updateFiles; do
 	rm -f export/$project/$updateFile
-done
-for preflightFile in $preflightFiles; do
-	rm -f export/$project/$preflightFile
 done
 
 python generate_key.py $project --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab --source --credentials --log INFO
