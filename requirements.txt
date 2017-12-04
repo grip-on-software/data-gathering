@@ -10,6 +10,7 @@ requests_ntlm
 # metric_options_to_json.py
 python-dateutil
 mock
+-e git+https://github.com/wekan/wekan-python-api-client.git#egg=wekanapi&subdirectory=src
 quality_report<=1.79.3; python_version < '3.0'
 quality_report>=1.80.0; python_version >= '3.0'
 -e git+https://github.com/dsoprea/PySvn.git@06de88419044f0241747f7259f440680992cfc22#egg=svn
