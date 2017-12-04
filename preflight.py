@@ -67,8 +67,19 @@ def check_controller(host, cert, project):
                           request.text)
         return False
 
+    if Session.is_code(request, 'service_unavailable') and 'total' in response:
+        problems = []
+        for key, value in list(response.keys()):
+            if key != 'total' and not value['ok']:
+                message = value['message'] if 'message' in value else 'Not OK'
+                problems.append("Status '{}': {}".format(key, message))
+
+        logging.warning('Controller status: %s: %s',
+                        response['total']['message'], ', '.join(problems))
+        return False
+
     if not Session.is_code(request, 'ok'):
-        logging.critical('HTTP error %d for controller status',
+        logging.critical('Unexpected HTTP error %d for controller status',
                          request.status_code, extra=response)
         return False
 

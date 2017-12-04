@@ -13,8 +13,8 @@ if [ ! -z "$JIRA_KEY" ] && [ "$JIRA_KEY" != "-" ]; then
 	python generate_key.py $JIRA_KEY --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab $SOURCE_HOST $DEFINITIONS_HOST --credentials --log INFO
 fi
 if [ ! -z "$JENKINS_URL" ]; then
-	./docker-scraper.sh
+	# Run the scrape immediatately on Jenkins
+	./docker-scraper.sh $JIRA_KEY
 else
-	# Run a dummy command to keep the container running until stopped
-	python -c 'import signal;signal.pause()'
+	exit 123
 fi

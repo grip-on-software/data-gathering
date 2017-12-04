@@ -5,6 +5,7 @@ if [ -z "$project" ] || [ "$project" == "-" ]; then
 	echo "Project must be provided"
 	exit 1
 fi
+preflightArgs=$2;
 
 # Declare repository cleanup
 if [ -z "$cleanupRepos" ]; then
@@ -31,7 +32,7 @@ for preflightFile in $preflightFiles; do
 done
 
 python generate_key.py $project --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab --source --credentials --log INFO
-python preflight.py $project --log $logLevel
+python preflight.py $project --log $logLevel $preflightArgs
 python retrieve_metrics_repository.py $project --log $logLevel
 python retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
 python project_sources.py $project --log $logLevel

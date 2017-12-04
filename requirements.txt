@@ -32,3 +32,5 @@ configparser
 ordered-set
 # Encryption
 bcrypt
+# scraper.py, deployer.py
+cherrypy
