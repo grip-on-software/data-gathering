@@ -5,6 +5,7 @@ to the server.
 
 import argparse
 import json
+import os
 import subprocess
 import time
 import cherrypy
@@ -34,9 +35,12 @@ class Scraper(object):
         else:
             raise cherrypy.HTTPError(503, 'Another scrape process is already running')
 
+        # Skip the controller status check at preflight: We want to run the
+        # scrape now as a test run, and not bother with schedules.
+        environment = os.environ.copy()
+        environment['PREFLIGHT_ARGS'] = '--no-ssh'
         process = subprocess.Popen(['/bin/bash', '/etc/periodic/daily/scrape'],
-                                   stdout=None, stderr=None,
-                                   env={'PREFLIGHT_ARGS': '--no-ssh'})
+                                   stdout=None, stderr=None, env=environment)
 
         # Poll once after freeing CPU to check if the process has started.
         time.sleep(0.1)
