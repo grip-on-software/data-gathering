@@ -74,7 +74,7 @@ class Scraper(object):
             raise cherrypy.HTTPError(503, 'Status code {}'.format(process.returncode))
 
         cherrypy.response.status = 201
-        return json.dumps({'ok': True})
+        return {'ok': True}
 
     @classmethod
     def json_error(cls, status, message, traceback, version):
