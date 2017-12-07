@@ -393,6 +393,13 @@ class Git_Repository(Version_Control_Repository):
         if paths is not None:
             self.checkout_sparse(paths, shallow=shallow)
 
+
+    def _checkout_index(self):
+        try:
+            self.repo.git.read_tree(['-m', '-u', 'HEAD'])
+        except GitCommandError as error:
+            raise RepositorySourceException(str(error))
+
     def checkout_sparse(self, paths, remove=False, shallow=False):
         self.repo.config_writer().set_value('core', 'sparseCheckout', True)
         sparse = Sparse_Checkout_Paths(self.repo)
@@ -402,11 +409,8 @@ class Git_Repository(Version_Control_Repository):
         else:
             sparse.set(paths)
 
-        # Now checkout the sparse directories.
-        try:
-            self.repo.git.read_tree(['-m', '-u', 'HEAD'])
-        except GitCommandError as error:
-            raise RepositorySourceException(str(error))
+        # Now checkout the sparse directories into the index.
+        self._checkout_index()
 
         # Ensure repository is up to date.
         self.update(shallow=shallow)

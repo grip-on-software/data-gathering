@@ -111,7 +111,7 @@ def main():
                 delete_repository(source, repo_path)
 
     if args.all or not paths:
-        paths = None
+        paths = True
 
     base = project.get_key_setting('definitions', 'base')
     base_path = project.get_key_setting('definitions', 'path', base,
