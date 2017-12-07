@@ -17,6 +17,35 @@ class Scraper(object):
     Scraper listener.
     """
 
+    @staticmethod
+    def _is_running():
+        try:
+            subprocess.check_call([
+                'pgrep', '-f', '/home/agent/docker-scraper.sh',
+            ], stdout=None, stderr=None)
+        except subprocess.CalledProcessError:
+            return False
+        else:
+            return True
+
+    @cherrypy.expose
+    def status(self):
+        """
+        Check the status of the scrape process.
+        """
+
+        if self._is_running():
+            return json.dumps({
+                'ok': True,
+                'message': 'Scrape process is running'
+            })
+
+        cherrypy.response.status = 503
+        return json.dumps({
+            'ok': False,
+            'message': 'No scrape process is running'
+        })
+
     @cherrypy.expose
     def scrape(self):
         """
@@ -26,13 +55,7 @@ class Scraper(object):
         if cherrypy.request.method != 'POST':
             raise cherrypy.HTTPError(400, 'Must be POSTed')
 
-        try:
-            subprocess.check_call([
-                'pgrep', '-f', '/home/agent/docker-scraper.sh',
-            ], stdout=None, stderr=None)
-        except subprocess.CalledProcessError:
-            pass
-        else:
+        if self._is_running():
             raise cherrypy.HTTPError(503, 'Another scrape process is already running')
 
         # Skip the controller status check at preflight: We want to run the
@@ -48,6 +71,7 @@ class Scraper(object):
         if process.returncode is not None and process.returncode != 0:
             raise cherrypy.HTTPError(503, 'Status code {}'.format(process.returncode))
 
+        cherrypy.response.status = 201
         return json.dumps({'ok': True})
 
     @classmethod
