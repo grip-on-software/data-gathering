@@ -98,6 +98,10 @@ def main():
     args = parse_args()
     project = Project(args.project)
 
+    if not Configuration.has_value(args.ssh):
+        logging.critical('No SSH export host defined, cannot export data.')
+        return 1
+
     auth = args.agent + '@' + args.ssh
     path = '{}:~/{}'.format(auth, project.export_key)
 
