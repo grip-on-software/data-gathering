@@ -29,25 +29,26 @@ class Scraper(object):
             return True
 
     @cherrypy.expose
+    @cherrypy.tools.json_out()
     def status(self):
         """
         Check the status of the scrape process.
         """
 
         if self._is_running():
-            return json.dumps({
+            return {
                 'ok': True,
                 'message': 'Scrape process is running'
-            })
+            }
 
         cherrypy.response.status = 503
-        cherrypy.response.headers['Content-Type'] = 'application/json'
-        return json.dumps({
+        return {
             'ok': False,
             'message': 'No scrape process is running'
-        })
+        }
 
     @cherrypy.expose
+    @cherrypy.tools.json_out()
     def scrape(self):
         """
         Handle scrape request.
@@ -73,7 +74,6 @@ class Scraper(object):
             raise cherrypy.HTTPError(503, 'Status code {}'.format(process.returncode))
 
         cherrypy.response.status = 201
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({'ok': True})
 
     @classmethod
