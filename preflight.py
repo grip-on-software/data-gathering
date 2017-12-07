@@ -31,6 +31,8 @@ def parse_args():
                         help='Do not check controller API host')
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
+    parser.add_argument('--skip', action='store_true', dest='skip',
+                        default=False, help='Skip the actual preflight checks')
     Log_Setup.add_argument(parser)
 
     args = parser.parse_args()
@@ -97,15 +99,16 @@ def main():
     # - Do we have a populated secrets file?
     # - Does the controller API indicate that all is OK?
 
-    if not os.path.exists(args.secrets):
-        logging.critical('Secrets file %s is not available', args.secrets)
-        return 1
+    if not args.skip:
+        if not os.path.exists(args.secrets):
+            logging.critical('Secrets file %s is not available', args.secrets)
+            return 1
 
-    if not check_secrets(args.secrets):
-        return 1
+        if not check_secrets(args.secrets):
+            return 1
 
-    if args.ssh and not check_controller(args.ssh, args.cert, project):
-        return 1
+        if args.ssh and not check_controller(args.ssh, args.cert, project):
+            return 1
 
     project.make_export_directory()
     date_filename = os.path.join(project.export_key, 'preflight_date.txt')

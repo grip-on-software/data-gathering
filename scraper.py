@@ -41,6 +41,7 @@ class Scraper(object):
             })
 
         cherrypy.response.status = 503
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({
             'ok': False,
             'message': 'No scrape process is running'
@@ -61,7 +62,7 @@ class Scraper(object):
         # Skip the controller status check at preflight: We want to run the
         # scrape now as a test run, and not bother with schedules.
         environment = os.environ.copy()
-        environment['PREFLIGHT_ARGS'] = '--no-ssh'
+        environment['PREFLIGHT_ARGS'] = '--skip'
         process = subprocess.Popen(['/bin/bash', '/etc/periodic/daily/scrape'],
                                    stdout=None, stderr=None, env=environment)
 
@@ -72,6 +73,7 @@ class Scraper(object):
             raise cherrypy.HTTPError(503, 'Status code {}'.format(process.returncode))
 
         cherrypy.response.status = 201
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({'ok': True})
 
     @classmethod
