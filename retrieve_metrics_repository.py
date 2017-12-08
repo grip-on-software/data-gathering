@@ -37,7 +37,7 @@ def delete_repository(source, repo_path, paths=None):
     Delete a local version of a project definition metrics repository.
     """
 
-    if paths is not None:
+    if isinstance(paths, list):
         # Remove repository from sparse checkout
         logging.info('Removing paths from sparse checkout of %s: %s',
                      repo_path, ', '.join(paths))
