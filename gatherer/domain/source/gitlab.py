@@ -216,10 +216,16 @@ class GitLab(Git):
         else:
             group_name = self.gitlab_namespace
 
-        group = self.gitlab_api.group(group_name)
+        try:
+            group = self.gitlab_api.group(group_name)
+        except ResourceNotFound:
+            logging.warning('GitLab group %s is not accessible', group_name)
+            return
+
         if not group:
             logging.warning("Could not find group '%s' on GitLab API",
                             group_name)
+            return
 
         # Fetch the group projects by requesting the group to the API again.
         group_repos = self.gitlab_api.group(str(group.id)).projects
