@@ -44,6 +44,8 @@ class Subversion_Repository(Version_Control_Repository):
         env = {}
         if source.get_option('unsafe_hosts'):
             env['trust_cert'] = True
+            env['username'] = source.get_option('username')
+            env['password'] = source.get_option('password')
 
         return env
 
@@ -58,7 +60,16 @@ class Subversion_Repository(Version_Control_Repository):
 
         env = cls._create_environment(source)
         repository = cls(source, repo_directory, **kwargs)
-        repository.repo = svn.remote.RemoteClient(source.url, **env)
+        if source.get_option('unsafe_hosts'):
+            # Do not pass username and password as authority part of an URL to
+            # an unsafe HTTPS host because it is also most likely misconfigured
+            # in handling the authorization. Instead use the username and
+            # password from the credentials environment.
+            url = source.plain_url
+        else:
+            url = source.url
+
+        repository.repo = svn.remote.RemoteClient(url, **env)
         return repository
 
     @property
@@ -113,7 +124,7 @@ class Subversion_Repository(Version_Control_Repository):
             raise TypeError('Repository is already local, update the repository instead')
 
         # Check out trunk directory
-        args = [self.source.url + '/trunk', self._repo_directory]
+        args = [self.repo.url + '/trunk', self._repo_directory]
         if paths is not None:
             args.extend(['--depth', 'immediates'])
 
