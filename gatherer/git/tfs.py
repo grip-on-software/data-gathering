@@ -237,9 +237,9 @@ class TFS_Repository(Git_Repository, Review_System):
         review_tables.update({
             "merge_request_review": Link_Table('merge_request_review',
                                                ('merge_request_id', 'reviewer'),
-                                               encrypted_fields=review_fields),
+                                               encrypt_fields=review_fields),
             "vcs_event": Table('vcs_event',
-                               encrypted_fields=('user', 'username', 'email'))
+                               encrypt_fields=('user', 'username', 'email'))
         })
         return review_tables
 

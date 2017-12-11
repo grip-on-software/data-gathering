@@ -96,11 +96,11 @@ class Review_System(Version_Control_Repository):
         assignee = self.build_user_fields('assignee')
         return {
             "merge_request": Key_Table('merge_request', 'id',
-                                       encrypted_fields=author + assignee),
+                                       encrypt_fields=author + assignee),
             "merge_request_note": Link_Table('merge_request_note',
                                              ('merge_request_id', 'note_id'),
-                                             encrypted_fields=author),
-            "commit_comment": Table('commit_comment', encrypted_fields=author)
+                                             encrypt_fields=author),
+            "commit_comment": Table('commit_comment', encrypt_fields=author)
         }
 
     @property

@@ -15,12 +15,11 @@ class Table(object):
     """
 
     def __init__(self, name, filename=None, merge_update=False,
-                 encrypt_fields=None, **kwargs):
+                 encrypt_fields=None):
         self._name = name
         self._data = []
         self._merge_update = merge_update
         self._encrypt_fields = encrypt_fields
-        self._options = kwargs
 
         if self._encrypt_fields is not None and os.path.exists("secrets.json"):
             with open("secrets.json") as secrets_file:

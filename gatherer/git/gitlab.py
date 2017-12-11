@@ -209,7 +209,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         review_tables.update({
             "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
             "vcs_event": Table('vcs_event',
-                               encrypted_fields=('user', 'username', 'email'))
+                               encrypt_fields=('user', 'username', 'email'))
         })
         return review_tables
 

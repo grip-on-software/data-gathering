@@ -48,12 +48,12 @@ class GitHub_Repository(Git_Repository, Review_System):
             "github_repo": Key_Table('github_repo', 'github_id'),
             "merge_request_review": Link_Table('merge_request_review',
                                                ('merge_request_id', 'reviewer'),
-                                               encrypted_fields=reviewer),
+                                               encrypt_fields=reviewer),
             "github_issue": Key_Table('github_issue', 'id',
-                                      encrypted_fields=author + assignee),
+                                      encrypt_fields=author + assignee),
             "github_issue_note": Link_Table('github_issue_note',
                                             ('issue_id', 'note_id'),
-                                            encrypted_fields=author)
+                                            encrypt_fields=author)
         })
         return review_tables
 
