@@ -1,3 +1,4 @@
+# Environment files, editors, OS-specific files, compiled files
 .DS_Store
 *~
 .idea
@@ -5,23 +6,54 @@
 *.swp
 env
 *.cfg
+!.isort.cfg
 *.log
+
+# Deployer
 deployment.json
 key-*
-secrets.json
-!.isort.cfg
+
+# Importer distribution
 importerjson.jar
 data_vcsdev_to_dev.json
 metric_base_names.json
 lib/
+
+# Agent distribution and generated files
 certs/*.crt
 dropins/*/
 export/
+secrets.json
+
+# filter-sourcecode.sh
 filter.txt
+
+# Repositories from gathering quality reporting data
 kwaliteitsmetingen/
 project-git-repos/
 quality-report-data/
 quality-report-definition/
 quality-report-history/
+
+# Pip installation
 src/*/
 src/pip-delete-this-directory.txt
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
