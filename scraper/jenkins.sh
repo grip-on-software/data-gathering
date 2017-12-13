@@ -146,8 +146,8 @@ function export_handler() {
 	shift
 	local args=$*
 
-	export_files=$(./list-files.sh export $script)
-	update_files=$(./list-files.sh update $script)
+	export_files=$(./scraper/list-files.sh export $script)
+	update_files=$(./scraper/list-files.sh update $script)
 
 	# Check whether the script should be run according to the environment or
 	# the importers that make use of their data.
@@ -233,10 +233,10 @@ function export_handler() {
 		fi
 		# Retrieve trackers for current database state
 		log_info "Running python retrieve_update_trackers.py $project for files $update_files"
-		status_handler python retrieve_update_trackers.py $project --files $update_files --log $logLevel $trackerParameters
+		status_handler python scraper/retrieve_update_trackers.py $project --files $update_files --log $logLevel $trackerParameters
 
 		log_info "Running python $script $project $args"
-		skip_dropin=$skip_dropin status_handler python $script $project $args
+		skip_dropin=$skip_dropin status_handler python scraper/$script $project $args
 	fi
 	enable_line_debug
 }
@@ -253,7 +253,7 @@ function import_handler() {
 # Retrieve Python scripts from a subdirectory
 if [ -d scripts ]; then
 	log_info "Copying scripts from subdirectory"
-	scripts/copy-files.sh scripts
+	scripts/scraper/copy-files.sh scripts
 fi
 
 # Install Python dependencies
@@ -284,10 +284,10 @@ do
 		mkdir -p "project-git-repos/$project"
 
 		# Retrieve quality metrics repository
-		status_handler python retrieve_metrics_repository.py $project --log $logLevel
+		status_handler python scraper/retrieve_metrics_repository.py $project --log $logLevel
 
 		# Retrieve archived project dropins
-		status_handler python retrieve_dropins.py $project --log $logLevel $dropinParameters
+		status_handler python scraper/retrieve_dropins.py $project --log $logLevel $dropinParameters
 
 		always_use_dropin=1 export_handler project_sources.py $project --log $logLevel
 		export_handler project_to_json.py $project --log $logLevel
@@ -311,7 +311,7 @@ do
 done
 
 if [ $skipGather = "false" ] && [ $cleanupRepos = "true" ]; then
-	python retrieve_metrics_repository.py $currentProject --delete --all --log $logLevel
+	python scraper/retrieve_metrics_repository.py $currentProject --delete --all --log $logLevel
 fi
 
 # Clean up retrieved dropins
@@ -320,4 +320,5 @@ rm -rf dropins
 # Clean up duplicated directories
 if [ -d scripts ]; then
 	rm -rf gatherer
+	rm -rf scraper
 fi
