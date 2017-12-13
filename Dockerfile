@@ -20,7 +20,7 @@ RUN mkdir -p /home/agent/.ssh && \
 	mkdir -p /home/agent/export && \
 	chown -R agent:agent /home/agent/export && \
 	chmod -R 755 /home/agent/export && \
-	chmod +x /home/agent/*.sh && \
+	chmod +x /home/agent/scraper/agent/*.sh && \
 	touch /home/agent/env && \
 	chown agent:agent /home/agent/env && \
 	mkdir /home/agent/config && \
