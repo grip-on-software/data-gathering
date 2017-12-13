@@ -1,36 +1,35 @@
 # Pip requirements file
-# jira_to_json.py
+# gatherer.utils
+python-dateutil
+# gatherer.jira
 jira
-# git_to_json.py
+# gatherer.git
 gitpython
 PyGithub
-# history_to_json.py
+-e git+http://github.com/lhelwerd/python-gitlab3.git@json-import#egg=gitlab3
+# gatherer.request
 requests
 requests_ntlm
-# metric_options_to_json.py
-python-dateutil
+ordered-set
+# gatherer.project_definition
 mock
 -e git+https://github.com/wekan/wekan-python-api-client.git#egg=wekanapi&subdirectory=src
 quality_report<=1.79.3; python_version < '3.0'
 quality_report>=1.80.0; python_version >= '3.0'
 -e git+https://github.com/dsoprea/PySvn.git@06de88419044f0241747f7259f440680992cfc22#egg=svn
 enum34; python_version < '3.4'
-# init_gitlab.py
--e git+http://github.com/lhelwerd/python-gitlab3.git@json-import#egg=gitlab3
+# gatherer.database
+pymonetdb
+# gatherer.files
+pyocclient
+# gatherer.salt
+bcrypt
+# Python compatibility
+future
+configparser
 # bigboat_to_json.py
 bigboat
 # generate_key.py
 sshdeploy
-# retrieve_update_trackers.py
-pymonetdb
-# retrieve_dropins.py
-pyocclient
-# Python compatibility
-future
-configparser
-# Data types
-ordered-set
-# Encryption
-bcrypt
 # scraper.py, deployer.py
 cherrypy
