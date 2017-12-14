@@ -21,7 +21,7 @@ class Scraper(object):
     def _is_running():
         try:
             subprocess.check_call([
-                'pgrep', '-f', '/home/agent/docker-scraper.sh',
+                'pgrep', '-f', '/home/agent/scraper/agent/run.sh',
             ], stdout=None, stderr=None)
         except subprocess.CalledProcessError:
             return False
