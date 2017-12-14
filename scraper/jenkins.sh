@@ -259,7 +259,7 @@ fi
 # Install Python dependencies
 if [ -z "$SKIP_REQUIREMENTS" ]; then
 	log_info "Installing Python dependencies"
-	pip install -r requirements.txt
+	python setup.py install
 fi
 
 # Retrieve Java importer
