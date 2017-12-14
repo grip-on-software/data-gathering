@@ -1,12 +1,11 @@
 FROM python:3.6-alpine
 
-COPY setup.py /tmp/setup.py
+COPY requirements.txt setup.py /tmp/
 COPY gatherer/ /tmp/gatherer/
-COPY requirements.txt /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev openssl-dev bash git subversion openssh-client gettext && \
-	cd /tmp/ && pip install -r requirements.txt && python setup.py install && \
+	cd /tmp/ && python setup.py install && \
 	apk del gcc musl-dev libffi-dev openssl-dev && rm -rf /var/cache/apk/* /tmp/
 
 COPY VERSION requirements.txt *.cfg.example jira_fields.json en[v] /home/agent/
