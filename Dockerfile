@@ -5,7 +5,7 @@ COPY gatherer/ /tmp/gatherer/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev openssl-dev bash git subversion openssh-client gettext && \
-	cd /tmp/ && python setup.py install && \
+	cd /tmp/ && pip install -r requirements.txt && python setup.py install && \
 	apk del gcc musl-dev libffi-dev openssl-dev && rm -rf /var/cache/apk/* /tmp/
 
 COPY VERSION requirements.txt *.cfg.example jira_fields.json en[v] /home/agent/
