@@ -12,8 +12,8 @@ gathererScripts=$*
 
 fileList=""
 for script in $gathererScripts; do
-	if [ -e "$script.$type" ]; then
-		read -r files < "$script.$type"
+	if [ -e "scraper/$script.$type" ]; then
+		read -r files < "scraper/$script.$type"
 		fileList="$fileList $files"
 	fi
 done

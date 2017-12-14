@@ -50,14 +50,14 @@ pipeline {
             agent {
                 docker {
                     image '$AGENT_IMAGE'
-                    args '-u root -v $PWD/.pylintrc:/home/agent/.pylintrc -v $PWD/.isort.cfg:/home/agent/.isort.cfg'
+                    args '-u root'
                     reuseNode true
                 }
             }
             steps {
                 sh 'apk --update add gcc musl-dev'
                 sh 'pip install pylint regex'
-                sh 'pylint --disable=duplicate-code --reports=n /home/agent/*.py /home/agent/gatherer'
+                sh 'pylint --disable=duplicate-code --reports=n $PWD/gatherer $PWD/scraper'
             }
         }
         stage('Push versioned') {

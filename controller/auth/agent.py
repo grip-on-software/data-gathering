@@ -45,7 +45,7 @@ class Permissions(object):
     def update_public_key(self, public_key):
         """
         Update authorized public key.
-        
+
         Returns whether the public key already exists with the same contents.
         """
 

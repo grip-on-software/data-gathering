@@ -11,9 +11,10 @@ importerjson.jar
 data_vcsdev_to_dev.json
 lib/
 controller/
-daemon.py
-exporter_daemon.py
-deployer.py
+*.py
+*.sh
+!scraper/*
+!setup.py
 dropins/*
 export/
 kwaliteitsmetingen/
