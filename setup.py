@@ -3,7 +3,10 @@
 Package setup script.
 """
 
-from builtins import str
+try:
+    from builtins import str
+except ImportError:
+    pass
 from pip.download import PipSession
 from pip.req import parse_requirements
 from setuptools import setup, find_packages
