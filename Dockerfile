@@ -10,7 +10,7 @@ RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 # Install gatherer
 COPY gatherer/ /tmp/gatherer/
 
-RUN python setup.py install && \
+RUN cd /tmp && python setup.py install && \
 	apk del gcc musl-dev libffi-dev openssl-dev && rm -rf /var/cache/apk/* /tmp /root/.cache
 
 # Configure agent environment
