@@ -257,7 +257,7 @@ class Link_Table(Table):
             return False
 
         self._links[link_values] = row
-        super(Link_Table, self).append(row)
+        return super(Link_Table, self).append(row)
 
     def extend(self, rows):
         for row in rows:

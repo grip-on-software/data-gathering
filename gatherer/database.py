@@ -40,15 +40,22 @@ class Database(object):
     def execute(self, query, parameters, update=False, one=False):
         """
         Perform a selection or update query.
+
+        If `update` is `True`, then the query is executed and `None` is
+        returned. Otherwise, if `one` is `True`, then one result row is
+        returned. Otherwise (`update` and `one` are both `False`, which is the
+        default), then a list of result rows is returned.
         """
 
         self._cursor.execute(query, parameters=parameters)
         if update:
             self._connection.commit()
-        elif one:
+            return None
+
+        if one:
             return self._cursor.fetchone()
-        else:
-            return self._cursor.fetchall()
+
+        return self._cursor.fetchall()
 
     def execute_many(self, query, parameter_sets):
         """

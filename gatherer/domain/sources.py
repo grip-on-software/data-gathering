@@ -133,7 +133,10 @@ class Sources(MutableSet):
         """
 
         for sources in list(self._source_environments.values()):
-            yield next(iter(sources))
+            try:
+                yield next(iter(sources))
+            except StopIteration:
+                return
 
     def find_source_type(self, source_type):
         """
