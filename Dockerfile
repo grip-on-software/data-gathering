@@ -1,14 +1,20 @@
 FROM python:3.6-alpine
 
+# Install dependencies
 COPY requirements.txt setup.py /tmp/
-COPY gatherer/ /tmp/gatherer/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev openssl-dev bash git subversion openssh-client gettext && \
-	cd /tmp/ && pip install -r requirements.txt && python setup.py install && \
+	cd /tmp/ && pip install -r requirements.txt
+
+# Install gatherer
+COPY gatherer/ /tmp/gatherer/
+
+RUN python setup.py install && \
 	apk del gcc musl-dev libffi-dev openssl-dev && rm -rf /var/cache/apk/* /tmp /root/.cache
 
-COPY VERSION requirements.txt *.cfg.example jira_fields.json en[v] /home/agent/
+# Configure agent environment
+COPY VERSION *.cfg.example jira_fields.json en[v] /home/agent/
 COPY certs/ /home/agent/certs/
 COPY scraper/ /home/agent/scraper/
 
@@ -36,6 +42,7 @@ WORKDIR /home/agent
 ENV GATHERER_SETTINGS_FILE="/home/agent/config/settings.cfg" \
     GATHERER_CREDENTIALS_FILE="/home/agent/config/credentials.cfg"
 
+# Set up server
 EXPOSE 7070
 
 CMD ["/bin/bash", "/home/agent/scraper/agent/init.sh"]
