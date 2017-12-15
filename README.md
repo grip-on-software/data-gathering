@@ -14,48 +14,64 @@ objects with properties.
 
 ## Installation
 
-The data gathering scripts require Python version 2.7.x or 3.6+. Certain 
-webservice daemons only work on Python 2.7.x due to dependencies.
+The data gathering scripts and modules require Python version 2.7.x or 3.6+. 
+Certain webservice daemons only work on Python 2.7.x due to dependencies.
 
-Run `pip install -r requirements.txt` to install the dependencies for the data 
-gathering scripts. Add `--user` if you do not have access to the system 
-libraries, or do not want to store the libraries in that path but in your home 
-directory. Additionally, if you want to gather Topdesk data, then run `pip 
-install [--user] regex` (which is not installed by default because it requires 
-compilation on Linux hosts).
+The scripts and modules are two separate concepts with regard to installation: 
+the data gathering module `gatherer` must be installed so that the scripts can 
+always locate the module. Additionally, the scripts and modules have 
+dependencies which must be installed. This can be done in separate steps or 
+together:
 
-For the webservice daemons, run `pip install -r requirements-daemon.txt`, which 
-also installs the normal dependencies.
+- Optional: run `pip install -r requirements.txt` to install the dependencies 
+  for the data gathering scripts. Add `--user` if you do not have access to the 
+  system libraries, or do not want to store the libraries in that path but in 
+  your home directory.
+- Required: run `python setup.py install` to install the module and any missing 
+  dependencies for the data gathering module. Add `--user` if you do not have 
+  access to the system libraries, or do not want to store the libraries in that 
+  path but in your home directory. Note that some versions of `setuptools`, 
+  which is used in this step, are unable to use wheels or eggs even if they are 
+  supported by the platform. Due to the additional compilation time required 
+  for some source packages, running both the `pip` and `setup.py` commands may 
+  therefore be faster than only `setup.py`
+- If you want to gather Topdesk data: run `pip install [--user] regex` (which 
+  is not installed by default because it requires long compilation on Linux 
+  hosts).
+- For the webservice daemons: run `pip install -r requirements-daemon.txt`, 
+  which also ensures that the normal dependencies are installed.
 
 ## Overview
 
 The usual pipeline setup runs the scripts in the following order:
 
-- `retrieve_importer.py`: Retrieve the Java-based importer application that is 
-  used to efficiently import the scraped data into the database.
-- `retrieve_metrics_repository.py`: Retrieve or update project definitions and 
-  other tools to parse the definitions from repositories.
-- `retrieve_update_trackers.py`: Retrieve update tracker files from a database 
-  that is already filled up to a certain period in time, such that the scraper 
-  can continue from the indicated checkpoints.
-- `retrieve_dropins.py`: Retrieve dropin files that may be provided for 
+- `scraper/retrieve_importer.py`: Retrieve the Java-based importer application 
+  that is used to efficiently import the scraped data into the database.
+- `scraper/retrieve_metrics_repository.py`: Retrieve or update project 
+  definitions and other tools to parse the definitions from repositories.
+- `scraper/retrieve_update_trackers.py`: Retrieve update tracker files from 
+  a database that is already filled up to a certain period in time, such that 
+  the scraper can continue from the indicated checkpoints.
+- `scraper/retrieve_dropins.py`: Retrieve dropin files that may be provided for 
   archived projects, containing already-scraped export data.
-- `project_sources.py`: Retrieve source data from project definitions, which is 
-  then used for later version control gathering purposes.
-- `jira_to_json.py`: Retrieve issue changes and metadata from a JIRA instance.
-- `environment_sources.py`: Retrieve additional source data from known version 
-  control systems, based on the group/namespace/collection in which the 
+- `scraper/project_sources.py`: Retrieve source data from project definitions, 
+  which is then used for later version control gathering purposes.
+- `scraper/jira_to_json.py`: Retrieve issue changes and metadata from a JIRA 
+  instance.
+- `scraper/environment_sources.py`: Retrieve additional source data from known 
+  version control systems, based on the group/namespace/collection in which the 
   repositories that were found earlier live.
-- `git_to_json.py`: Retrieve version information from Git or Subversion 
+- `scraper/git_to_json.py`: Retrieve version information from Git or Subversion 
   instances, possibly including additional information such as GitLab project 
   data (commit comments, merge requests).
-- `history_to_json.py`: Retrieve a history file containing measurement values 
-  for metrics during the project, or only output a reference to it.
-- `metric_options_to_json.py`: Retrieve changes to metric targets from 
+- `scraper/history_to_json.py`: Retrieve a history file containing measurement 
+  values for metrics during the project, or only output a reference to it.
+- `scraper/metric_options_to_json.py`: Retrieve changes to metric targets from 
   a Subversion repository holding the project definitions.
-- `jenkins_to_json.py`: Retrieve usage statistics from a Jenkins instance.
+- `scraper/jenkins_to_json.py`: Retrieve usage statistics from a Jenkins 
+  instance.
 
-These scripts are already streamlined in the `jenkins-scraper.sh` script 
+These scripts are already streamlined in the `scraper/jenkins.sh` script 
 suitable for a Jenkins job, as well as in a number of Docker scripts explained 
 in the [Docker](#docker) section.
 
@@ -76,15 +92,27 @@ All of these scripts and tools make use of the `gatherer` library, contained
 within this repository, which supplies abstracted and standardized access and 
 data storage OOP classes with various functionality.
 
-This repository also contains agent-only tools:
+This repository also contains agent-only tools, including Shell-based Docker 
+initialization scripts:
 
-- `bigboat_to_json.py`: Request the status of a BigBoat dashboard and publish 
-  this data to the controller server.
-- `generate_key.py`: Generate a public-private key pair and distribute the 
-  public part to supporting sources (GitLab) and the controller server, for 
+- `scraper/agent/init.sh`: Entry point which sets up periodic scraping, 
+  permissions and the server
+- `scraper/agent/start.sh`: Prepare the environment for running scripts
+- `scraper/agent/run.sh`: Start a custom pipeline which collects data from 
+  the version control systems, exporting it to the controller server.
+
+Aside from the normal data gathering pipeline, an agent additionally uses the 
+following scripts to retrieve data or publish status:
+
+- `scraper/bigboat_to_json.py`: Request the status of a BigBoat dashboard and 
+  publish this data to the controller server.
+- `scraper/generate_key.py`: Generate a public-private key pair and distribute 
+  the public part to supporting sources (GitLab) and the controller server, for 
   registration purposes.
-- `preflight.py`: Perform status checks, including integrity of secrets and the 
-  controller server, before collecting and exporting data.
+- `scraper/preflight.py`: Perform status checks, including integrity of secrets 
+  and the controller server, before collecting and exporting data.
+- `scraper/agent/scraper.py`: Web server providing scraper status information
+  and immediate job starts.
 
 Finally, the repository contains a controller API and its backend daemons, and 
 a deployment interface:
@@ -119,18 +147,17 @@ set [configuration](#configuration). By default the Docker instance
 periodically scrapes and it should be started in a daemonized form using the 
 option `-d`. You can put it in a 'Jenkins-style' run using the environment 
 variable `JENKINS_URL=value`. You can also enter the docker instance using 
-`docker exec data-gathering-agent su agent` and run any scripts there.
-
-With regard to the files in this repository, `docker-init.sh` is the entry 
-point which sets up the periodic scraping and permissions, `docker-start.sh` 
-substitutes the variables in the environment and sets up the SSH keys, while 
-`docker-scraper.sh` collects data from the version control systems, exporting 
-it to the controller server.
+`docker exec data-gathering-agent su agent` and run any scripts there, as
+described in the [overview](#overview).
 
 For more advanced setups with many variables that need configuration or 
 persistent volume mounts, it is advisable to create 
 a [docker-compose](https://docs.docker.com/compose/) file to manage the Docker 
-environment.
+environment. Any environment variables defined there are also passed into the 
+configuration. During the build, a file called `env` can be added to the build 
+context in order to set up environment variables that remain true in all 
+instances. For even more versatility, a separate configuration tool can alter 
+the configuration and environment files via shared volumes.
 
 ## Configuration
 
