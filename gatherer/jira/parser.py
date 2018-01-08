@@ -6,8 +6,21 @@ from past.builtins import basestring
 from builtins import str
 import logging
 import re
+import jira.resources as resources
 from .base import Table_Source
 from ..utils import parse_date, parse_unicode
+
+class StatusCategory(resources.Resource):
+    """
+    Specialized resource for status category field.
+    """
+
+    def __init__(self, options, session, raw=None):
+        super(StatusCategory, self).__init__('statuscategory/{0}', options, session)
+        if raw:
+            self._parse_raw(raw)
+
+resources.resource_class_map[r'statuscategory/[^/]+$'] = StatusCategory
 
 class Field_Parser(Table_Source):
     """
@@ -254,6 +267,42 @@ class Developer_Parser(Field_Parser):
     @property
     def table_key(self):
         return "name"
+
+class Status_Category_Parser(Field_Parser):
+    """
+    Parser for subfields containing the status category.
+    """
+
+    def __init__(self, jira):
+        super(Status_Category_Parser, self).__init__(jira)
+        self.jira.register_table({
+            "table": {
+                "id": "int",
+                "key": "str",
+                "name": "unicode",
+                "color": "unicode"
+            }
+        }, table_source=self)
+
+    def parse(self, value):
+        if value is not None:
+            self.jira.get_table("status_category").append({
+                "id": value.id,
+                "key": str(value.key),
+                "name": parse_unicode(value.name),
+                "color": parse_unicode(value.colorName)
+            })
+            return value.id
+
+        return None
+
+    @property
+    def table_name(self):
+        return "status_category"
+
+    @property
+    def table_key(self):
+        return "id"
 
 class ID_List_Parser(Field_Parser):
     """
