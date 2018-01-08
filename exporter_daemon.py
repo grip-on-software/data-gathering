@@ -32,10 +32,11 @@ class Exporter(object):
 
         directory = os.path.join(self.AGENT_DIRECTORY, project_key)
 
-        environment = {
+        environment = os.environ.copy()
+        environment.update({
             'USER': os.getenv('USER'),
             'CLEANUP_EXPORT': '1'
-        }
+        })
         subprocess.Popen(['/bin/bash', 'controller-export.sh', directory],
                          stdout=None, stderr=None, env=environment)
 
