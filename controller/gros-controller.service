@@ -4,7 +4,7 @@ After=network.target
 Requires=pyro-ns.service
 
 [Service]
-ExecStart=/bin/python /usr/local/bin/controller-daemon.py
+ExecStart=/usr/local/envs/controller/bin/python /usr/local/bin/controller-daemon.py
 Type=simple
 User=controller
 Group=controller

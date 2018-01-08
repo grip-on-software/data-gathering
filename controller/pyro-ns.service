@@ -3,7 +3,7 @@ Description=Pyro4 object nameserver daemon
 After=network.target
 
 [Service]
-ExecStart=/bin/pyro4-ns
+ExecStart=/usr/local/envs/controller/bin/pyro4-ns
 Type=simple
 User=pyro-ns
 Group=pyro-ns
