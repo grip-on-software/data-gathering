@@ -113,6 +113,32 @@ def get_jenkins_url(args):
 
     return build.base_url + 'artifact/' + args.artifact + '/*zip*/dist.zip'
 
+def copy_path(source_path):
+    """
+    Copy a distribution directory from a local path.
+    """
+
+    dist_path = 'dist/'
+    if os.path.exists(dist_path):
+        shutil.rmtree(dist_path)
+
+    shutil.copytree(os.path.join(os.path.expanduser(source_path), 'dist/'),
+                    dist_path)
+
+def download_zip(url):
+    """
+    Download a ZIP archive from an external URL.
+    """
+
+    request = Session().get(url)
+    with open('dist.zip', 'wb') as output_file:
+        for chunk in request.iter_content(chunk_size=128):
+            output_file.write(chunk)
+
+    with ZipFile('dist.zip', 'r') as dist_zip:
+        dist_zip.extractall()
+
+    os.remove('dist.zip')
 
 def main():
     """
@@ -121,8 +147,7 @@ def main():
 
     args = parse_args()
     if args.path is not None:
-        shutil.copytree(os.path.join(os.path.expanduser(args.path), 'dist/'),
-                        'dist/')
+        copy_path(args.path)
     else:
         # Use an URL to download a dist directory artifact archive
         if args.jenkins is None:
@@ -138,15 +163,7 @@ def main():
                 return
 
         logging.info('Downloading distribution from %s', url)
-        request = Session().get(url)
-        with open('dist.zip', 'wb') as output_file:
-            for chunk in request.iter_content(chunk_size=128):
-                output_file.write(chunk)
-
-        with ZipFile('dist.zip', 'r') as dist_zip:
-            dist_zip.extractall()
-
-        os.remove('dist.zip')
+        download_zip(url)
 
     # Check if 'dist' is the directory we want to place it in
     if os.path.realpath(args.base) == os.path.realpath('dist'):
