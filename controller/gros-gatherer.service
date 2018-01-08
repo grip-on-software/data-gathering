@@ -4,7 +4,7 @@ After=network.target
 Requires=pyro-ns.service
 
 [Service]
-ExecStart=/usr/local/envs/controller/bin/python /usr/local/bin/gatherer-daemon.py
+ExecStart=/usr/local/bin/virtualenv.sh /usr/local/envs/controller /usr/local/bin/gatherer-daemon.py
 WorkingDirectory=/srv/data-gathering
 Type=simple
 User=gatherer
