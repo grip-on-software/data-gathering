@@ -49,6 +49,8 @@ The usual pipeline setup runs the scripts in the following order:
   that is used to efficiently import the scraped data into the database.
 - `scraper/retrieve_metrics_repository.py`: Retrieve or update project 
   definitions and other tools to parse the definitions from repositories.
+- `scraper/retrieve_metrics_base_names.py`: Retrieve base name of live metrics
+  from quality report metadata.
 - `scraper/retrieve_update_trackers.py`: Retrieve update tracker files from 
   a database that is already filled up to a certain period in time, such that 
   the scraper can continue from the indicated checkpoints.
@@ -224,6 +226,10 @@ the setting is not used in this environment.
     repository containing the history file before a shallow fetch/clone.
     This option may need to be enabled for Git older than 1.9 which does not
     fully support shallow fetches due to which file updates are not available.
+- metrics (used by `retrieve_metrics_base_names.py`): Quality dashboard report
+  locations containing metadata for live metrics.
+  - `url` (`$METRICS_URL`): The HTTP(S) URL from which the metrics metadata can
+    be obtained.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.

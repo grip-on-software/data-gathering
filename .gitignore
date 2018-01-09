@@ -16,13 +16,13 @@ key-*
 # Importer distribution
 importerjson.jar
 data_vcsdev_to_dev.json
-metric_base_names.json
 lib/
 
 # Agent distribution and generated files
 certs/*.crt
 dropins/*/
 export/
+metric*_base_names.json
 secrets.json
 
 # filter-sourcecode.sh

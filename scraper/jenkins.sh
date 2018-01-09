@@ -285,6 +285,7 @@ do
 
 		# Retrieve quality metrics repository
 		status_handler python scraper/retrieve_metrics_repository.py $project --log $logLevel
+		status_handler python scraper/retrieve_metrics_base_name.py --log $logLevel
 
 		# Retrieve archived project dropins
 		status_handler python scraper/retrieve_dropins.py $project --log $logLevel $dropinParameters

@@ -16,6 +16,8 @@ path = $HISTORY_PATH
 compression = $HISTORY_COMPRESSION
 filename = $HISTORY_FILENAME
 delete = $HISTORY_DELETE
+[metrics]
+url = $METRICS_URL
 [gitlab]
 url = $GITLAB_URL
 token = $GITLAB_TOKEN
