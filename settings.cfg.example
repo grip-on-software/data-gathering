@@ -20,6 +20,7 @@ delete = $HISTORY_DELETE
 url = $METRICS_URL
 [gitlab]
 url = $GITLAB_URL
+repo = $GITLAB_REPO
 token = $GITLAB_TOKEN
 user = $GITLAB_USER
 level = $GITLAB_LEVEL

@@ -233,6 +233,7 @@ the setting is not used in this environment.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
+  - `repo` (`$GITLAB_REPO`): Repository path of this code base.
   - `token` (`$GITLAB_TOKEN`): API token to authenticate with. The user to 
     which this token is associated should have administrative repository 
     creation and user access management rights.
