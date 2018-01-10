@@ -5,7 +5,7 @@
 subdir=$1
 shift
 
-cp $subdir/*.py $subdir/*.json $subdir/requirements.txt .
+cp $subdir/*.py $subdir/*.json $subdir/requirements*.txt .
 rm -rf gatherer/
 rm -rf scraper/
 cp -r $subdir/gatherer/ gatherer/
