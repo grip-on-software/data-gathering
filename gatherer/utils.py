@@ -19,6 +19,7 @@ class Iterator_Limiter(object):
 
     def __init__(self, size=1000, maximum=10000000):
         self._skip = 0
+        self._page = 1
         self._size = size
         self._max = maximum
 
@@ -49,6 +50,7 @@ class Iterator_Limiter(object):
         """
 
         self._skip += self._size
+        self._page += 1
         if self.reached_limit():
             self._size = self._max - self._skip
 
@@ -59,6 +61,14 @@ class Iterator_Limiter(object):
         """
 
         return self._size
+
+    @property
+    def page(self):
+        """
+        Retrieve the 1-indexed page number which the iterator is to obtain next.
+        """
+
+        return self._page
 
     @property
     def skip(self):
