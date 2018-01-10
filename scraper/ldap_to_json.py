@@ -6,7 +6,10 @@ import argparse
 import json
 import logging
 import os.path
-import ldap
+try:
+    import ldap
+except ImportError:
+    ldap = None
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -99,6 +102,10 @@ def main():
         group = config.get('groups', project.key)
     else:
         logging.critical('No group specified for project %s', project.key)
+        return
+
+    if ldap is None:
+        logging.critical('Cannot import module "ldap"')
         return
 
     client = ldap.initialize(args.server)
