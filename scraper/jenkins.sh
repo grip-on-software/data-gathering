@@ -261,6 +261,7 @@ fi
 # Install Python dependencies
 if [ -z "$SKIP_REQUIREMENTS" ]; then
 	log_info "Installing Python dependencies"
+	pip install -r requirements-jenkins.txt
 	python setup.py install
 fi
 

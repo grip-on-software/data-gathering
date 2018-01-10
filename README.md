@@ -27,6 +27,11 @@ together:
   for the data gathering scripts. Add `--user` if you do not have access to the 
   system libraries, or do not want to store the libraries in that path but in 
   your home directory.
+  - If you want to gather Topdesk or LDAP data: run `pip install -r 
+    requirements-jenkins.txt`, which also ensures that the normal dependencies 
+    are installed.
+  - For the webservice daemons: run `pip install -r requirements-daemon.txt`, 
+    which also ensures that the normal dependencies are installed.
 - Required: run `python setup.py install` to install the module and any missing 
   dependencies for the data gathering module. Add `--user` if you do not have 
   access to the system libraries, or do not want to store the libraries in that 
@@ -35,11 +40,6 @@ together:
   supported by the platform. Due to the additional compilation time required 
   for some source packages, running both the `pip` and `setup.py` commands may 
   therefore be faster than only `setup.py`
-- If you want to gather Topdesk data: run `pip install [--user] regex` (which 
-  is not installed by default because it requires long compilation on Linux 
-  hosts).
-- For the webservice daemons: run `pip install -r requirements-daemon.txt`, 
-  which also ensures that the normal dependencies are installed.
 
 ## Overview
 
