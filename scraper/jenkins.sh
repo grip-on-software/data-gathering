@@ -232,8 +232,10 @@ function export_handler() {
 			restoreFiles="$restoreFiles $update_files"
 		fi
 		# Retrieve trackers for current database state
-		log_info "Running python retrieve_update_trackers.py $project for files $update_files"
-		status_handler python scraper/retrieve_update_trackers.py $project --files $update_files --log $logLevel $trackerParameters
+		if [ ! -z "$update_files" ]; then
+			log_info "Running python retrieve_update_trackers.py $project for files $update_files"
+			status_handler python scraper/retrieve_update_trackers.py $project --files $update_files --log $logLevel $trackerParameters
+		fi
 
 		log_info "Running python $script $project $args"
 		skip_dropin=$skip_dropin status_handler python scraper/$script $project $args
