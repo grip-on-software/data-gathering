@@ -3,11 +3,22 @@ Module for accessing Jenkins build information and starting jobs.
 """
 
 from builtins import object
+
+try:
+    from future import standard_library
+    standard_library.install_aliases()
+except ImportError:
+    raise
+
+from future.utils import with_metaclass
 from abc import ABCMeta
 from collections import Mapping, Sequence
 import json
 import os
-from future.utils import with_metaclass
+try:
+    import urllib.parse
+except ImportError:
+    raise
 from requests.auth import HTTPBasicAuth
 from requests.utils import quote
 from .config import Configuration
@@ -42,10 +53,20 @@ class Base(with_metaclass(ABCMeta, object)):
     def __init__(self, instance, base_url, exists=True):
         self._instance = instance
 
-        if not base_url.endswith('/'):
+        # Allow API query parameters such as 'tree' and 'depth' to be passed
+        # as a dict. The base URL should be in the parameter 'url', which is
+        # removed from the query. Subclasses may also provide a default base
+        # URL afterward.
+        query = {}
+        if isinstance(base_url, dict):
+            query = base_url.copy()
+            base_url = query.pop('url', None)
+
+        if base_url is not None and not base_url.endswith('/'):
             base_url += '/'
 
         self._base_url = base_url
+        self._query = query
         self._data = None
         self._has_data = False
         self._exists = exists
@@ -56,10 +77,15 @@ class Base(with_metaclass(ABCMeta, object)):
         Retrieve the base (HTML) URL of this Jenkins object.
         """
 
+        if self._base_url is None:
+            raise ValueError('API URL unknown for this Jenkins object')
+
         return self._base_url
 
     def _retrieve(self):
-        request = self.instance.session.get(self.base_url + 'api/json')
+        query = urllib.parse.urlencode(self._query)
+        url = '{}api/json?{}'.format(self.base_url, query)
+        request = self.instance.session.get(url)
         if Session.is_code(request, 'not_found'):
             self._exists = False
             self._data = NoneMapping()
@@ -222,18 +248,21 @@ class Jenkins(Base):
 
         return [View(self, **view) for view in self.data['views']]
 
-    def get_job(self, name):
+    def get_job(self, name, url=None):
         """
         Retrieve a job from the Jenkins instance by its name.
+
+        The optional parameter `url` may be used to provide a custom URL of
+        the HTML page of the job, or a dictionary of query parameters.
         """
 
         if '/' in name:
             # Support workflow 'full project' job names
             workflow_name, pipeline_name = name.split('/', 1)
             workflow_job = Job(self, name=workflow_name, exists=None)
-            return workflow_job.get_job(pipeline_name)
+            return workflow_job.get_job(pipeline_name, url=url)
 
-        return Job(self, name=name, exists=None)
+        return Job(self, name=name, url=url, exists=None)
 
     def get_view(self, name):
         """
@@ -328,10 +357,11 @@ class View(Base):
     def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
         if name is None:
             raise ValueError('Name must be provided')
-        if url is None:
-            url = '{}view/{}'.format(instance.base_url, quote(name))
 
         super(View, self).__init__(instance, url, exists=exists)
+        if self._base_url is None:
+            self._base_url = '{}view/{}'.format(instance.base_url, quote(name))
+
         self._name = name
         self._data = kwargs
 
@@ -365,14 +395,15 @@ class Job(Base):
     def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
         if name is None:
             raise ValueError('Name must be provided')
-        if url is None:
-            url = '{}job/{}/'.format(instance.base_url, quote(name))
 
         # Collect actual instance for multibranch workflow jobs
         if isinstance(instance, Job):
             instance = instance.instance
 
         super(Job, self).__init__(instance, url, exists=exists)
+        if self._base_url is None:
+            self._base_url = '{}job/{}/'.format(instance.base_url, quote(name))
+
         self._name = name
         self._data = kwargs
         self._last_builds = {}
@@ -410,12 +441,15 @@ class Job(Base):
 
         return [Job(self, **job) for job in self.data['jobs']]
 
-    def get_job(self, name):
+    def get_job(self, name, url=None):
         """
-        Retrieve a job of a multibtanch pipeline workflow by its pipeline name.
+        Retrieve a job of a multibranch pipeline workflow by its pipeline name.
+
+        The optional parameter `url` may be used to provide a custom URL of
+        the HTML page of the job, or a dictionary of query parameters.
         """
 
-        return Job(self, name=name, exists=None)
+        return Job(self, name=name, url=url, exists=None)
 
     def _make_last_build(self, name):
         if name not in self._last_builds:
@@ -580,9 +614,10 @@ class Build(Base):
     """
 
     def __init__(self, job, number=None, url=None, exists=True, **kwargs):
-        if url is None:
-            url = '{}{}/'.format(job.base_url, number)
         super(Build, self).__init__(job.instance, url, exists=exists)
+        if self._base_url is None:
+            self._base_url = '{}{}/'.format(job.base_url, number)
+
         self._job = job
         self._number = number
         self._data = kwargs
