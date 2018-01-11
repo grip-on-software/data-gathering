@@ -14,12 +14,21 @@ from gatherer import __version__
 
 def build_dependency_link(requirement):
     """
-    Create a dependency link of the form of a URL string containing only
-    the version control URL and the egg fragment.
+    Create a dependency link from a parsed requirement. The returned string has
+    the form of a URL string containing the base version control URL plus
+    optional branch/tag, the egg fragment and optionally the subdirectory.
     """
 
     link = requirement.link
-    return link.url_without_fragment + '#egg=' + link.egg_fragment
+    if link.subdirectory_fragment is not None:
+        subdirectory = '&subdirectory={}'.format(link.subdirectory_fragment)
+    else:
+        subdirectory = ''
+
+    # Ensure version number is newer than any other provider, so that this
+    # dependency is preferred over the others for this requirement.
+    return '{}#egg={}-999999{}'.format(link.url_without_fragment,
+                                       link.egg_fragment, subdirectory)
 
 def main():
     """

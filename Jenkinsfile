@@ -67,5 +67,22 @@ pipeline {
                 sh 'docker push "$AGENT_NAME:$(cat .version)"'
             }
         }
+        stage('Push pypi') {
+            when { branch 'master' }
+            agent {
+                docker {
+                    image '$AGENT_IMAGE'
+                    reuseNode true
+                }
+            }
+            steps {
+                sh 'python setup.py sdist'
+                sh 'python setup.py bdist_wheel --universal'
+                sh 'pip install --user twine'
+                withCredentials([usernamePassword(credentialsId: 'pypi-credentials', passwordVariable: 'TWINE_PASSWORD', usernameVariable: 'TWINE_USERNAME'), string(credentialsId: 'pypi-repository', variable: 'TWINE_REPOSITORY_URL')]) {
+                    sh '~/.local/bin/twine upload dist/*'
+                }
+            }
+        }
     }
 }

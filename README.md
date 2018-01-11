@@ -20,26 +20,30 @@ Certain webservice daemons only work on Python 2.7.x due to dependencies.
 The scripts and modules are two separate concepts with regard to installation: 
 the data gathering module `gatherer` must be installed so that the scripts can 
 always locate the module. Additionally, the scripts and modules have 
-dependencies which must be installed. This can be done in separate steps or 
-together:
+dependencies which must be installed. Each of these steps can be done 
+separately or in combination with one another:
 
-- Optional: run `pip install -r requirements.txt` to install the dependencies 
-  for the data gathering scripts. Add `--user` if you do not have access to the 
-  system libraries, or do not want to store the libraries in that path but in 
-  your home directory.
+- Run `pip install -r requirements.txt` to install the dependencies for the 
+  data gathering scripts. Add `--user` if you do not have access to the system 
+  libraries, or do not want to store the libraries in that path but in your 
+  home directory.
   - If you want to gather Topdesk or LDAP data: run `pip install -r 
     requirements-jenkins.txt`, which also ensures that the normal dependencies 
     are installed.
   - For the webservice daemons: run `pip install -r requirements-daemon.txt`, 
     which also ensures that the normal dependencies are installed.
-- Required: run `python setup.py install` to install the module and any missing 
+- Run `python setup.py install` to install the module and any missing 
   dependencies for the data gathering module. Add `--user` if you do not have 
   access to the system libraries, or do not want to store the libraries in that 
   path but in your home directory. Note that some versions of `setuptools`, 
   which is used in this step, are unable to use wheels or eggs even if they are 
   supported by the platform. Due to the additional compilation time required 
   for some source packages, running both the `pip` and `setup.py` commands may 
-  therefore be faster than only `setup.py`
+  therefore be faster than only `setup.py`.
+- Instead of running the `setup.py` script from this repository directly, you 
+  can also use `pip install gros-gatherer` to obtain the module. You may need 
+  to add additional parameters, such as `--extra-index-url` for a private 
+  repository and `--process-dependency-links` to obtain Git dependencies.
 
 ## Overview
 
