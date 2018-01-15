@@ -4,8 +4,8 @@ AGENTS_DIRECTORY="/agents"
 CONTROLLER_DIRECTORY="/controller"
 # The scripts that docker-scrape.sh runs which generate update files
 gathererScripts="preflight.py project_to_json.py project_sources.py environment_sources.py git_to_json.py jenkins_to_json.py"
-updateFiles=$(./list-files.sh update $gathererScripts)
-preflightFiles=$(./list-files.sh update preflight.py)
+updateFiles=$(./scraper/list-files.sh update $gathererScripts)
+preflightFiles=$(./scraper/list-files.sh update preflight.py)
 
 perform_export() {
 	agent_directory=$1
@@ -30,7 +30,7 @@ perform_export() {
 		while pgrep -u $USER -f "jenkins-scraper\.sh" > /dev/null; do
 			sleep 1
 		done
-		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,environment,jenkins,update,developerlink,repo_sources" logLevel="INFO" skipGather="true" restoreFiles="$updateFiles" IMPORTER_BASE="$CONTROLLER_DIRECTORY" relPath="$project/export" SKIP_REQUIREMENTS="true" ./jenkins-scraper.sh | tee $controller_directory/export.log
+		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,environment,jenkins,update,developerlink,repo_sources" logLevel="INFO" skipGather="true" restoreFiles="$updateFiles" IMPORTER_BASE="$CONTROLLER_DIRECTORY" relPath="$project/export" SKIP_REQUIREMENTS="true" ./scraper/jenkins-scraper.sh 2>&1 | tee $controller_directory/export.log
 		local status=$?
 
 		if [ $status -eq 0 ]; then
