@@ -397,12 +397,13 @@ class Job(Base):
             raise ValueError('Name must be provided')
 
         # Collect actual instance for multibranch workflow jobs
+        base = instance
         if isinstance(instance, Job):
             instance = instance.instance
 
         super(Job, self).__init__(instance, url, exists=exists)
         if self._base_url is None:
-            self._base_url = '{}job/{}/'.format(instance.base_url, quote(name))
+            self._base_url = '{}job/{}/'.format(base.base_url, quote(name))
 
         self._name = name
         self._data = kwargs
