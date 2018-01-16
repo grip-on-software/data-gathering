@@ -53,7 +53,7 @@ class Exporter(object):
         scripts = [
             "project_sources.py", "project_to_json.py",
             "jira_to_json.py", "history_to_json.py",
-            "metric_options_to_json.py", "ldap_to_json"
+            "metric_options_to_json.py", "ldap_to_json.py"
         ]
         tasks = ["all", "developerlink", "-vcs", "-jenkins"]
         parameters = [
