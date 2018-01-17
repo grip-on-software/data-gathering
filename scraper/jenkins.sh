@@ -268,7 +268,7 @@ fi
 # Retrieve Java importer
 rm -f data_vcsdev_to_dev.json
 log_info "Retrieving importer"
-python retrieve_importer.py --jenkins --base $IMPORTER_BASE --log $logLevel
+python scraper/retrieve_importer.py --jenkins --base $IMPORTER_BASE --log $logLevel
 if [ -z "$gathererScripts" ] && [ "$importerTasks" != "skip" ]; then
 	files=$(import_handler --files $importerTasks)
 fi
