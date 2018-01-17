@@ -18,7 +18,7 @@ fi
 
 if [ ! -z "$JENKINS_URL" ]; then
 	# Run the scrape immediatately on Jenkins
-	/home/agent/scraper/agent/run.sh $JIRA_KEY | tee /home/agent/export/scrape.log
+	/home/agent/scraper/agent/run.sh $JIRA_KEY 2>&1 | tee /home/agent/export/scrape.log
 else
 	exit 123
 fi
