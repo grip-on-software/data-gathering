@@ -13,7 +13,7 @@ chown -R agent:agent /home/agent/config
 chown -R agent:agent /home/agent/.ssh
 chmod -R 600 /home/agent/.ssh
 chmod 700 /home/agent/.ssh
-/home/agent/scraper/agent/env.sh 'cd /home/agent && /home/agent/scraper/agent/run.sh ${JIRA_KEY} "${PREFLIGHT_ARGS} 2>&1 | tee /home/agent/export/scrape.log"'
+/home/agent/scraper/agent/env.sh 'cd /home/agent && /home/agent/scraper/agent/run.sh ${JIRA_KEY} "${PREFLIGHT_ARGS}" 2>&1 | tee /home/agent/export/scrape.log'
 SH
 
 	chmod +x /etc/periodic/$CRON_PERIOD/scrape
