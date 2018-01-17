@@ -516,5 +516,6 @@ class TFS_Repository(Git_Repository, Review_System):
                 'ref': ref_name,
                 'user': parse_unicode(event['pushedBy']['displayName']),
                 'username': parse_unicode(event['pushedBy']['uniqueName']),
+                'email': str(0),
                 'date': format_date(event_date)
             })
