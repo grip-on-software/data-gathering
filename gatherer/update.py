@@ -145,7 +145,7 @@ class SSH_Tracker(Update_Tracker):
             return
 
         args = ['scp', '-i', self._key_path] + [
-            self.remote_path + '/\\{' + ','.join(files) + '\\}'
+            '{}/{}'.format(self.remote_path, filename) for filename in files
         ] + [self._project.export_key]
         subprocess.call(args)
 
