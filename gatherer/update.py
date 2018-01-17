@@ -141,11 +141,11 @@ class SSH_Tracker(Update_Tracker):
         self._project.make_export_directory()
 
         if not files:
-            # Cannot determine which files to retrieve.
+            logging.warning('Cannot determine which files to retrieve')
             return
 
         args = ['scp', '-i', self._key_path] + [
-            '{}/{}'.format(self.remote_path, filename) for filename in files
+            self.remote_path + '/\\{' + ','.join(files) + '\\}'
         ] + [self._project.export_key]
         subprocess.call(args)
 
