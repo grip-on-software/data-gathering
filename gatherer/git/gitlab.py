@@ -494,6 +494,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 'action': str(event.action_name),
                 'user': username,
                 'username': username,
+                'email': str(0),
                 'date': format_date(event.created_at)
             }
             if hasattr(event, 'data'):
