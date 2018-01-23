@@ -46,6 +46,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--base', default='.',
                         help='directory to place the importer and libraries in')
+    parser.add_argument('--force', action='store_true', default=False,
+                        help='override existing data files even if they differ')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--path', default=None,
                        help='local path to retrieve the dist directory from')
@@ -186,7 +188,7 @@ def main():
         data_file = 'data_vcsdev_to_dev.json'
         data_path = os.path.join(args.base, data_file)
         store.get_file('import/{}'.format(data_file), path)
-        if not os.path.exists(data_path) or filecmp.cmp(data_path, path):
+        if args.force or not os.path.exists(data_path) or filecmp.cmp(data_path, path):
             shutil.move(path, data_path)
         else:
             raise RuntimeError('Not overwriting potentially updated file {}'.format(data_file))

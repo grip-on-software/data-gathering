@@ -266,9 +266,8 @@ if [ -z "$SKIP_REQUIREMENTS" ]; then
 fi
 
 # Retrieve Java importer
-rm -f data_vcsdev_to_dev.json
 log_info "Retrieving importer"
-python scraper/retrieve_importer.py --jenkins --base $IMPORTER_BASE --log $logLevel
+python scraper/retrieve_importer.py --jenkins --base $IMPORTER_BASE --force --log $logLevel
 if [ -z "$gathererScripts" ] && [ "$importerTasks" != "skip" ]; then
 	files=$(import_handler --files $importerTasks)
 fi
