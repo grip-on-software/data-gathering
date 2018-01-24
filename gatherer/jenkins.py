@@ -82,6 +82,24 @@ class Base(with_metaclass(ABCMeta, object)):
 
         return self._base_url
 
+    @property
+    def query(self):
+        """
+        Retrieve the query used to retrieve data for this Jenkins object.
+
+        Returns a dictionary of query parameters which can be updated.
+        """
+
+        return self._query
+
+    @query.setter
+    def query(self, query):
+        """
+        Replace the query used to retrieve data for this Jenkins object.
+        """
+
+        self._query = query
+
     def _retrieve(self):
         query = urllib.parse.urlencode(self._query)
         url = '{}api/json?{}'.format(self.base_url, query)
@@ -454,7 +472,7 @@ class Job(Base):
 
     def _make_last_build(self, name):
         if name not in self._last_builds:
-            if self.has_data:
+            if self.has_data and name in self.data:
                 if self.data[name] is None:
                     self._last_builds[name] = Build(self, exists=False)
                 else:
