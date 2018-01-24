@@ -12,7 +12,7 @@ KillMode=process
 TimeoutStopSec=5
 PIDFile=/var/log/statusboard/statusboard.pid
 User=statusboard
-Group=statusboard
+Group=controller
 Restart=always
 RestartSec=30s
 
