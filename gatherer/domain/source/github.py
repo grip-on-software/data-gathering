@@ -50,8 +50,8 @@ class GitHub(Git):
         if url is None:
             return False
 
-        parts = urllib.parse.urlsplit(url)
-        return cls.is_github_host(parts.netloc)
+        parts = urllib.parse.urlsplit(cls._alter_git_url(url))
+        return cls.is_github_host(cls._format_host_section(parts))
 
     @classmethod
     def is_github_host(cls, host):
@@ -74,7 +74,9 @@ class GitHub(Git):
         path = orig_parts.path.lstrip('/')
         path_parts = path.split('/', 1)
         self._github_owner = path_parts[0]
-        self._github_url = self._create_url(orig_parts.scheme, host, '', '', '')
+        scheme = self._get_web_protocol(host, orig_parts.scheme,
+                                        default_scheme='https')
+        self._github_url = self._create_url(scheme, host, '', '', '')
 
         if self._has_github_token(host):
             self._github_token = self._credentials.get(host, 'github_token')
@@ -94,6 +96,11 @@ class GitHub(Git):
     @property
     def environment_url(self):
         return self._github_url + '/' + self.github_owner
+
+    @property
+    def web_url(self):
+        return '{}/{}/{}'.format(self._github_url, self.github_owner,
+                                 self.path_name)
 
     @property
     def github_token(self):

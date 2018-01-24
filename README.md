@@ -369,6 +369,23 @@ access to the service completely.
   in to the version control system. For GitLab with SSH, this is 'git'.
 - `password` (`$SOURCE_PASSWORD` and `$DEFINITIONS_PASSWORD`): Password to log 
   in to the version control system. Ignored if `env` is not a falsy value.
+- `port` (`$SOURCE_PORT`): Override the port used by the source. This can be 
+  used to redirect HTTP(s) or SSH to an alternative port, which may be useful 
+  if the source information is stale or if there is a proxy or firewall 
+  enforcing the use of a different port. In all normal uses this option is not 
+  needed.
+- `protocol` (`$SOURCE_PROTOCOL`): Web protocol to use for APIs of custom
+  sources like GitLab, GitHub and TFS. This must be either 'http' or 'https' if 
+  it is provided. This is only necessary if it differs from the protocol used 
+  by the source URLs, such as when you start out with SSH URLs, and even then 
+  it is only necessary if the source does not select the appropriate web 
+  protocol by default ('http' for GitLab, 'https' for GitHub) and the host is 
+  not correctly configured to redirect to the protocol in use.
+- `web_port` (`$SOURCE_WEB_PORT`): Web port to use for APIs and human-readable 
+  sites of TFS. This is only required if the port is not known from the source 
+  URL, such as when you start out with SSH URLs, and the web port is not the 
+  default port for the protocol (80 for HTTP and 443 for HTTPS), such as 8080.
+  It only works for TFS and is ignored by other source types.
 - `github_api_url` (`$SOURCE_GITHUB_API`): URL to the GitHub API. This can 
   usually be set to a falsy value, which falls back to the default GitHub API. 
   You need to set this for GitHub Enterprise when hosted on a custom domain.

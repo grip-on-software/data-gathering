@@ -79,6 +79,9 @@ class Source(object):
     Interface for source information about various types of data sources.
     """
 
+    HTTP_PROTOCOLS = ('http', 'https')
+    SSH_PROTOCOL = 'ssh'
+
     _credentials = None
 
     def __init__(self, source_type, name=None, url=None, follow_host_change=True):
@@ -118,10 +121,9 @@ class Source(object):
 
         return host
 
-    def _get_host_parts(self, parts):
+    def _get_host_parts(self, host, parts):
         # Retrieve the changed host in the credentials configuration
         # Split the host into hostname and port if necessary.
-        host = parts.netloc
         if self._follow_host_change and self.has_option(host, 'host'):
             host = self._credentials.get(host, 'host')
             split_host = host.split(':', 1)
@@ -140,50 +142,77 @@ class Source(object):
         if self.has_option(host, 'port'):
             port = int(self._credentials.get(host, 'port'))
 
-        return host, hostname, port
+        return hostname, port
 
     @staticmethod
     def _create_url(*parts):
         # Cast to string to ensure that all parts have the same type.
         return urllib.parse.urlunsplit(tuple(str(part) for part in parts))
 
+    def _get_web_protocol(self, host, scheme, default_scheme='http'):
+        # Retrieve the protocol to use to send requests to the source.
+        # This must be either HTTP or HTTPS.
+        if self.has_option(host, 'protocol'):
+            scheme = self._credentials.get(host, 'protocol')
+        if scheme not in self.HTTP_PROTOCOLS:
+            scheme = default_scheme
+
+        return scheme
+
+    def _format_ssh_url(self, hostname, auth, port, path):
+        if hostname.startswith('-'):
+            raise ValueError('Long SSH host may not begin with dash')
+
+        return '{0}://{1}:{2}{3}'.format(self.SSH_PROTOCOL, auth, port, path)
+
+    @classmethod
+    def _format_host_section(cls, parts):
+        if parts.port is None:
+            return parts.hostname
+
+        return '{0}:{1}'.format(parts.hostname, parts.port)
+
     def _update_credentials(self):
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
         self._url = self._plain_url
         orig_parts = urllib.parse.urlsplit(self._plain_url)
-        host = orig_parts.netloc
+        host = self._format_host_section(orig_parts)
 
         if self._credentials.has_section(host):
             # Parse the host parts and potentially follow host changes.
-            host, hostname, port = self._get_host_parts(orig_parts)
+            hostname, port = self._get_host_parts(host, orig_parts)
 
-            username = self._credentials.get(host, 'username')
-            if self.has_option(host, 'env'):
-                # Use SSH URL, either short (user@host:path) or long version
-                # (ssh://user@host:port/path) based on port requirement.
+            username = orig_parts.username
+            if self.has_option(host, 'username'):
+                username = self._credentials.get(host, 'username')
+            if username is None:
+                raise ValueError('Cannot deduce username for credentials host {0}'.format(host))
+
+            # Additional authentication options depending on protocol to use
+            is_web_protocol = orig_parts.scheme in self.HTTP_PROTOCOLS
+            if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
+                # Use SSH (ssh://user@host:port/path).
+                # If 'env' is given, set a credentials path to an identity key.
                 # If 'strip' exists, then this value is stripped from the
-                # beginning of the path.
-                credentials_env = self._credentials.get(host, 'env')
-                self._credentials_path = os.getenv(credentials_env)
+                # beginning of the path if the original protocol is HTTP/HTTPS.
+                if self.has_option(host, 'env'):
+                    credentials_env = self._credentials.get(host, 'env')
+                    self._credentials_path = os.getenv(credentials_env)
+
                 auth = username + '@' + hostname
                 path = orig_parts.path
-                if self.has_option(host, 'strip'):
+                if is_web_protocol and self.has_option(host, 'strip'):
                     strip = self._credentials.get(host, 'strip')
                     if path.startswith(strip):
                         path = path[len(strip):]
                     elif path.startswith('/' + strip):
                         path = path[len(strip)+1:]
 
-                if self.has_option(host, 'port'):
-                    if hostname.startswith('-'):
-                        raise ValueError('Long SSH host may not begin with dash')
-
-                    self._url = 'ssh://{0}:{1}{2}'.format(auth, port, path)
-                else:
-                    self._url = '{0}:{1}'.format(auth, path)
-            elif self.has_option(host, 'password'):
-                # Use HTTP(s) URL (http://username:password@host:port/path)
+                self._url = self._format_ssh_url(hostname, auth, port, path)
+            elif is_web_protocol and self.has_option(host, 'password'):
+                # Use HTTP(s) (http://username:password@host:port/path).
+                # Add a password to the URL for basic authentication.
                 password = urllib.parse.quote(self._credentials.get(host,
                                                                     'password'))
 
@@ -207,6 +236,17 @@ class Source(object):
         """
 
         return self._plain_url
+
+    @property
+    def web_url(self):
+        """
+        Retrieve the URL for the source containing a human-readable site
+        describing this specific source.
+
+        If no such site is available, then `None` is returned.
+        """
+
+        return None
 
     @property
     def type(self):

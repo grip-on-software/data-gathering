@@ -2,6 +2,7 @@
 Git source domain object.
 """
 
+import re
 from .types import Source, Source_Types
 from ...git import Git_Repository
 
@@ -10,6 +11,29 @@ class Git(Source):
     """
     Git source repository.
     """
+
+    GIT_URL_REGEX = re.compile(r'(?P<netloc>[^@]+@[^:]+):/?(?P<path>.+)')
+
+    @classmethod
+    def _alter_git_url(cls, url):
+        # Convert short SCP-like URLs to full SSH protocol URLs so that the
+        # parsing done by the superclass can completely understand the URL.
+        match = cls.GIT_URL_REGEX.match(url)
+        if match:
+            return 'ssh://{netloc}/{path}'.format(**match.groupdict())
+
+        return url
+
+    def _update_credentials(self):
+        self._plain_url = self._alter_git_url(self._plain_url)
+        return super(Git, self)._update_credentials()
+
+    def _format_ssh_url(self, hostname, auth, port, path):
+        # Use either short SCP-like URL or long SSH URL
+        if port is not None:
+            return super(Git, self)._format_ssh_url(hostname, auth, port, path)
+
+        return '{0}:{1}'.format(auth, path)
 
     @property
     def repository_class(self):
