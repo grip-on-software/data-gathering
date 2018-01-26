@@ -210,7 +210,7 @@ class LDAP(Authentication):
                                        search_attrs)
 
             return True
-        except ldap.INVALID_CREDENTIALS:
+        except (ldap.INVALID_CREDENTIALS, ldap.UNWILLING_TO_PERFORM):
             return False
         finally:
             client.unbind()
