@@ -280,6 +280,44 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         return False
 
+    @classmethod
+    def _get_repo_project(cls, source):
+        try:
+            repo_project = source.gitlab_api.project(source.gitlab_path)
+        except AttributeError:
+            raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
+
+        return repo_project
+
+    @classmethod
+    def get_compare_url(cls, source, first_version, second_version=None):
+        if second_version is None:
+            try:
+                repo_project = cls._get_repo_project(source)
+            except RuntimeError:
+                # Cannot connect to API to retrieve web URL
+                return None
+
+            second_version = repo_project.default_branch
+
+        return '{}/compare/{}...{}'.format(source.web_url, first_version,
+                                           second_version)
+
+    @classmethod
+    def get_tree_url(cls, source, version=None, path=None, line=None):
+        if version is None:
+            try:
+                repo_project = cls._get_repo_project(source)
+            except RuntimeError:
+                # Cannot connect to API to retrieve web URL
+                return None
+
+            version = repo_project.default_branch
+
+        return '{}/tree/{}/{}{}'.format(source.web_url, version,
+                                        path if path is not None else '',
+                                        '#L{}'.format(line) if line is not None else '')
+
     @property
     def api(self):
         """
@@ -293,13 +331,13 @@ class GitLab_Repository(Git_Repository, Review_System):
     def repo_project(self):
         """
         Retrieve the project object of this repository from the GitLab API.
+
+        Raises a `RuntimeError` if the GitLab API cannot be accessed due to
+        insufficient credentials.
         """
 
         if self._repo_project is None:
-            try:
-                self._repo_project = self.api.project(self._source.gitlab_path)
-            except AttributeError:
-                raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
+            self._repo_project = self._get_repo_project(self._source)
 
         return self._repo_project
 
