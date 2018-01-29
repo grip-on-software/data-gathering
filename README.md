@@ -147,23 +147,31 @@ image. You may wish to use a registry URL in place of `ictu` and push the image
 there for distributed deployments.
 
 Next, start the Docker instance based on the container. Use `docker run --name 
-data-gathering-agent -e VAR1=value1 -e VAR2=value2 [options]... 
-ictu/gros-data-gathering` to start the instance using environment variables to 
-set [configuration](#configuration). By default the Docker instance 
-periodically scrapes and it should be started in a daemonized form using the 
-option `-d`. You can put it in a 'Jenkins-style' run using the environment 
-variable `JENKINS_URL=value`. You can also enter the docker instance using 
-`docker exec data-gathering-agent su agent` and run any scripts there, as
-described in the [overview](#overview).
+data-gathering-agent -v env:/home/agent/env [options]... 
+ictu/gros-data-gathering` to start the instance using environment variables 
+from a file called `env` to set [configuration](#configuration). By default the 
+Docker instance periodically checks if it should scrape data, and it should be 
+started in a daemonized form using the option `-d`. You can put it in 
+a 'Jenkins-style' run using the environment variable `JENKINS_URL=value`, which 
+performs one scrape job if possible. For Jenkins-style runs, you can also pass 
+environment variables using `-e` and other Docker parameters. In Daemon runs 
+only the variables described in the configuration section can be passed via 
+`-e`; others must be placed on their own line in `env`. Skip some of the 
+pre-flight checks using `PREFLIGHT_ARGS="--no-secrets --no-ssh"` or other 
+options from `scraper/preflight.py`. Finally, you can enter a running docker 
+instance using `docker exec data-gathering-agent 
+/home/agent/scraper/agent/env.sh` and run any scripts there, as described in 
+the [overview](#overview).
 
 For more advanced setups with many variables that need configuration or 
 persistent volume mounts, it is advisable to create 
 a [docker-compose](https://docs.docker.com/compose/) file to manage the Docker 
-environment. Any environment variables defined there are also passed into the 
-configuration. During the build, a file called `env` can be added to the build 
-context in order to set up environment variables that remain true in all 
-instances. For even more versatility, a separate configuration tool can alter 
-the configuration and environment files via shared volumes.
+environment and resulting scraper configuration. Any environment variables 
+defined for the container are passed into the configuration. During the build, 
+a file called `env` can be added to the build context in order to set up 
+environment variables that remain true in all instances. For even more 
+versatility, a separate configuration tool can alter the configuration and 
+environment files via shared volumes.
 
 ## Configuration
 

@@ -25,6 +25,8 @@ def parse_args():
     parser.add_argument('project', help='project key to check for')
     parser.add_argument('--secrets', default='secrets.json',
                         help='Path to the secrets file')
+    parser.add_argument('--no-secrets', action='store_false', dest='secrets',
+                        help='Do not require a secrets file')
     parser.add_argument('--ssh', default=config.get('ssh', 'host'),
                         help='Controller API host to check')
     parser.add_argument('--no-ssh', action='store_false', dest='ssh',
@@ -71,7 +73,7 @@ def check_controller(host, cert, project):
 
     if Session.is_code(request, 'service_unavailable') and 'total' in response:
         problems = []
-        for key, value in list(response.keys()):
+        for key, value in list(response.items()):
             if key != 'total' and not value['ok']:
                 message = value['message'] if 'message' in value else 'Not OK'
                 problems.append("Status '{}': {}".format(key, message))
@@ -100,12 +102,14 @@ def main():
     # - Does the controller API indicate that all is OK?
 
     if not args.skip:
-        if not os.path.exists(args.secrets):
-            logging.critical('Secrets file %s is not available', args.secrets)
-            return 1
+        if args.secrets:
+            if not os.path.exists(args.secrets):
+                logging.critical('Secrets file %s is not available',
+                                 args.secrets)
+                return 1
 
-        if not check_secrets(args.secrets):
-            return 1
+            if not check_secrets(args.secrets):
+                return 1
 
         if args.ssh and not check_controller(args.ssh, args.cert, project):
             return 1
