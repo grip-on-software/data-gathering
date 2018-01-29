@@ -310,8 +310,8 @@ the setting is not used in this environment.
   preflight checks to let the agents check whether they should collect data.
   - `days` (`$SCHEDULE_DAYS`): Integer determining the interval in days between
      each collection run by each agent.
-- ldap (used by `deployer.py`): Connection, authentication and query parameters 
-  for an LDAP server.
+- ldap (used by `deployer.py` and `status.py`): Connection, authentication and 
+  query parameters for an LDAP server.
   - `server` (`$LDAP_SERVER`): URL of the LDAP server, including protocol, host 
     and port.
   - `root_dn` (`$LDAP_ROOT_DN`): The base DN to use for all queries.
@@ -327,8 +327,9 @@ the setting is not used in this environment.
     member login names.
   - `display_name` (`$LDAP_DISPLAY_NAME`): Attribute of the user that holds 
     their displayable name (instead of the login name).
-- deploy (used by `deployer.py`): The deployment application.
-  - `auth` (`$DEPLOYER_AUTH`): Authentication scheme to use for the deployment. 
+- deploy (used by `deployer.py` and `status.py`): Bootstrapping for the 
+  deployment application and status dashboard.
+  - `auth` (`$DEPLOYER_AUTH`): Authentication scheme to use for the service. 
     Accepted values are 'open' (all logins allowed, only in debug environment), 
     'pwd' (/etc/passwd), 'spwd' (/etc/shadow), and 'ldap' (LDAP server).
 - projects: A list of project JIRA keys and their long names in quality metrics 
