@@ -27,7 +27,7 @@ perform_export() {
 		echo "Skipping import of $project because export directory is empty"
 	else
 		echo "Preparing to import $project when no other tasks are running"
-		while pgrep -u $USER -f "jenkins-scraper\.sh" > /dev/null; do
+		while pgrep -u $USER -f "jenkins\.sh" > /dev/null; do
 			sleep 1
 		done
 		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,environment,jenkins,update,developerlink,repo_sources" logLevel="INFO" skipGather="true" restoreFiles="$updateFiles" IMPORTER_BASE="$CONTROLLER_DIRECTORY" relPath="$project/export" SKIP_REQUIREMENTS="true" ./scraper/jenkins.sh 2>&1 | tee $controller_directory/export.log
