@@ -34,6 +34,40 @@ class Review_System(Version_Control_Repository):
         self._tracker_date = None
         self._latest_date = None
 
+    @classmethod
+    def get_compare_url(cls, source, first_version, second_version=None):
+        # pylint: disable=unused-argument
+        """
+        Create a URL to compare two versions at the remote repository located
+        at `source`. The `first_version` is the version to start comparing at
+        and the `second_version` is the version to stop comparing, or `None`
+        to compare against the latest main branch version.
+
+        This method returns a URL based on source information and the version
+        control system type. If no such URL can be provided for the source,
+        then this method returns `None`.
+        """
+
+        return None
+
+    @classmethod
+    def get_tree_url(cls, source, version=None, path=None, line=None):
+        # pylint: disable=unused-argument
+        """
+        Create a URL to show the state of the repository at `source`.
+        The `version` is the version to show the state of, or `None` to show
+        the latest main branch version. If `path` is provided, then the
+        state of the file or directory at this version is shown. Additionally,
+        if `line` is provided, then the URL will display the given line number
+        of the file if possible.
+
+        This method returns a URL based on source information and the version
+        control system type. If no such URL can be provided for the source,
+        then this method returns `None`.
+        """
+
+        return None
+
     def set_update_tracker(self, file_name, value):
         super(Review_System, self).set_update_tracker(file_name, value)
         self._tracker_date = None

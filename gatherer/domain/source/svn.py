@@ -12,6 +12,8 @@ class Subversion(Source):
     Subversion source repository.
     """
 
+    SSH_PROTOCOL = 'svn+ssh'
+
     @property
     def repository_class(self):
         return Subversion_Repository

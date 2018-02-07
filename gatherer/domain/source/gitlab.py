@@ -50,8 +50,8 @@ class GitLab(Git):
         if url is None:
             return False
 
-        parts = urllib.parse.urlsplit(url)
-        return cls.is_gitlab_host(parts.netloc,
+        parts = urllib.parse.urlsplit(cls._alter_git_url(url))
+        return cls.is_gitlab_host(cls._format_host_section(parts),
                                   follow_host_change=follow_host_change)
 
     @classmethod
@@ -94,8 +94,15 @@ class GitLab(Git):
         if self._has_gitlab_token(host):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
-        self._gitlab_host = self._create_url(orig_parts.scheme, host, '', '', '')
-        self._gitlab_path = urllib.parse.quote_plus(self.remove_git_suffix(path))
+        scheme = self._get_web_protocol(host, orig_parts.scheme)
+        if self.has_option(host, 'strip'):
+            # Add the stripped path to the web URL.
+            host_path = self._credentials.get(host, 'strip')
+        else:
+            host_path = ''
+
+        self._gitlab_host = self._create_url(scheme, host, host_path, '', '')
+        self._gitlab_path = self.remove_git_suffix(path)
 
         return orig_parts, host
 
@@ -130,6 +137,10 @@ class GitLab(Git):
             return self._gitlab_host + '/' + self._gitlab_group
 
         return self._gitlab_host + '/' + self._gitlab_namespace
+
+    @property
+    def web_url(self):
+        return self._gitlab_host + '/' + self._gitlab_path
 
     @property
     def host(self):
@@ -179,13 +190,14 @@ class GitLab(Git):
         """
         Retrieve the path used in the GitLab API. This is the final path after
         following group URL updates. The path includes the namespace, usually
-        the same as the group, and the repository name.
+        the same as the group, and the repository name. The path is URL-encoded
+        for use in parameters.
 
         The path can be used in API project calls to retrieve the project by its
         unique path identifier.
         """
 
-        return self._gitlab_path
+        return urllib.parse.quote_plus(self._gitlab_path)
 
     @property
     def gitlab_api(self):

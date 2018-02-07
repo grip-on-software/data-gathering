@@ -66,7 +66,17 @@ class TFS(Git):
     def _update_credentials(self):
         orig_parts, host = super(TFS, self)._update_credentials()
 
-        self._tfs_host = self._create_url(orig_parts.scheme, host, '', '', '')
+        # Ensure we have a URL to the web host for API purposes.
+        # This includes altering the web port to the one that TFS listens to.
+        scheme = self._get_web_protocol(host, orig_parts.scheme)
+        if self.has_option(host, 'web_port'):
+            hostname = self._get_host_parts(host, orig_parts)[0]
+            web_host = '{}:{}'.format(hostname,
+                                      self._credentials.get(host, 'web_port'))
+        else:
+            web_host = host
+
+        self._tfs_host = self._create_url(scheme, web_host, '', '', '')
 
         # Retrieve the TFS collection
         path = orig_parts.path.lstrip('/')
@@ -103,6 +113,10 @@ class TFS(Git):
     @property
     def environment_url(self):
         return self._tfs_host + '/' + '/'.join(self._tfs_collections)
+
+    @property
+    def web_url(self):
+        return self.environment_url + '/' + self._tfs_repo
 
     @property
     def tfs_api(self):
