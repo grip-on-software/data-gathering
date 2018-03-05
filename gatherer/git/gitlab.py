@@ -515,6 +515,7 @@ class GitLab_Repository(Git_Repository, Review_System):
             return [commit.hexsha for commit in query]
         except GitCommandError:
             logging.exception('Cannot find commit range')
+            return []
 
     def add_event(self, event):
         """
