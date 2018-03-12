@@ -5,6 +5,7 @@ pipeline {
         AGENT_TAG = env.BRANCH_NAME.replaceFirst('^master$', 'latest')
         AGENT_NAME = "${env.DOCKER_REGISTRY}/gros-data-gathering"
         AGENT_IMAGE = "${env.AGENT_NAME}:${env.AGENT_TAG}"
+        SCANNER_HOME = tool name: 'SonarQube Scanner 3', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
     options {
         gitLabConnection('gitlab')
@@ -46,18 +47,11 @@ pipeline {
                 sh 'docker push $AGENT_IMAGE'
             }
         }
-        stage('Test') {
-            agent {
-                docker {
-                    image '$AGENT_IMAGE'
-                    args '-u root'
-                    reuseNode true
-                }
-            }
+        stage('SonarQube Analysis') {
             steps {
-                sh 'apk --update add gcc musl-dev'
-                sh 'pip install pylint regex'
-                sh 'pylint --disable=duplicate-code --reports=n $PWD/gatherer $PWD/scraper'
+                withSonarQubeEnv('SonarQube') {
+                    sh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch=$BRANCH_NAME'
+                }
             }
         }
         stage('Push versioned') {
