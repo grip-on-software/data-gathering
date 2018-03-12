@@ -294,7 +294,7 @@ do
 
 		always_use_dropin=1 export_handler project_sources.py $project --log $logLevel
 		export_handler project_to_json.py $project --log $logLevel
-		export_handler jira_to_json.py $project --log $logLevel
+		export_handler jira_to_json.py $project --log $logLevel $jiraParameters
 		export_handler environment_sources.py $project --log $logLevel
 		export_handler git_to_json.py $project --log $logLevel
 		export_handler history_to_json.py $project --export-path --export-url --log $logLevel
