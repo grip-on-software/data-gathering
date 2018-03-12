@@ -42,6 +42,7 @@ def parse_args():
                         help="JIRA password")
     parser.add_argument("--server", default=config.get("jira", "server"),
                         help="JIRA server URL")
+    parser.add_argument("--query", default=None, help="Additional query")
     parser.add_argument("--updated-since", default=None, dest="updated_since",
                         type=validate_date,
                         help="Only fetch issues changed since the timestamp (YYYY-MM-DD HH:MM)")
@@ -65,7 +66,8 @@ def main():
         "server": args.server
     }
     jira = Jira(project, updated_since)
-    latest_update = jira.process(args.username, args.password, options)
+    latest_update = jira.process(args.username, args.password, options,
+                                 query=args.query)
 
     tracker.save_updated_since(latest_update)
 

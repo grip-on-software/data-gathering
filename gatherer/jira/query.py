@@ -2,6 +2,7 @@
 Module that handles the JIRA API query.
 """
 
+import logging
 from builtins import str, object
 from datetime import datetime
 from jira import JIRA
@@ -13,15 +14,21 @@ class Query(object):
     """
 
     DATE_FORMAT = '%Y-%m-%d %H:%M'
+    QUERY = 'project={0} AND updated > "{1}"'
 
-    def __init__(self, jira, username, password, options):
+
+    def __init__(self, jira, auth, options, query=None):
         self._jira = jira
-        self._api = JIRA(options, basic_auth=(username, password))
+        self._api = JIRA(options, basic_auth=auth)
 
-        query = 'project={} AND updated > "{}"'
         updated_since = format_date(self._jira.updated_since.date,
                                     date_format=self.DATE_FORMAT)
+        if query is not None:
+            query = "{0} AND ({1})".format(self.QUERY, query)
+        else:
+            query = self.QUERY
         self._query = query.format(self._jira.project_key, updated_since)
+        logging.info('Using query %s', self._query)
 
         self._search_fields = self._jira.search_fields
         self._latest_update = str(0)

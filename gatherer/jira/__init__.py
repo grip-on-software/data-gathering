@@ -316,17 +316,17 @@ class Jira(object):
         for table in self._tables.values():
             table.write(self._project.export_key)
 
-    def process(self, username, password, options):
+    def process(self, username, password, options, query=None):
         """
         Perform all steps to export the issues, fields and additional data
         gathered from a JIRA search. Return the update time of the query.
         """
 
-        query = Query(self, username, password, options)
+        api = Query(self, (username, password), options, query)
         for prefetcher in self._search_options['prefetchers']:
-            prefetcher(query)
+            prefetcher(api)
 
-        self.search_issues(query)
+        self.search_issues(api)
         self.write_tables()
 
-        return query.latest_update
+        return api.latest_update

@@ -59,8 +59,7 @@ class Changelog(object):
 
             for field in self._changelog_primary_fields.values():
                 value = field.parse_changelog(changes, diffs, issue)
-                if value is not None:
-                    diffs[field.name] = value
+                diffs[field.name] = value
 
             # Updated date is required for changelog sorting, as well as
             # issuelinks special field parser
@@ -74,8 +73,7 @@ class Changelog(object):
                 if changelog_name in self._changelog_fields:
                     field = self._changelog_fields[changelog_name]
                     value = field.parse_changelog(item, diffs, issue)
-                    if value is not None:
-                        diffs[field.name] = value
+                    diffs[field.name] = value
 
             updated = diffs["updated"]
             if updated in issue_diffs:
@@ -102,7 +100,9 @@ class Changelog(object):
             diffs.pop("attachment")
 
         result.update(diffs)
-        return result
+        return dict(
+            (key, value) for key, value in result.items() if value is not None
+        )
 
     @classmethod
     def _update_field(cls, new_data, old_data, field):
