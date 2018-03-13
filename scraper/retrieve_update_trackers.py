@@ -9,6 +9,8 @@ except ImportError:
     raise
 
 import argparse
+import logging
+import os
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -39,6 +41,8 @@ def parse_args():
                         help='host name of the ssh source')
     parser.add_argument('--files', nargs='+',
                         help='update tracker files to consider for updates')
+    parser.add_argument('--skip', action='store_true', default=False,
+                        help='Do not retrieve trackers but remove local files')
 
     Log_Setup.add_argument(parser)
     Log_Setup.add_upload_arguments(parser)
@@ -76,8 +80,16 @@ def main():
     else:
         files = set(args.files)
 
-    tracker = tracker_class(project, **options)
-    tracker.retrieve(files=files)
+    if args.skip:
+        logging.warning('Skipping update trackers for project %s', args.project)
+        if files is not None:
+            for filename in files:
+                path = os.path.join(project.export_key, filename)
+                if os.path.exists(path):
+                    os.remove(path)
+    else:
+        tracker = tracker_class(project, **options)
+        tracker.retrieve(files=files)
 
 if __name__ == '__main__':
     main()
