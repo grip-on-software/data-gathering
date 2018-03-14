@@ -50,6 +50,8 @@ class Base(with_metaclass(ABCMeta, object)):
     Base Jenkins object.
     """
 
+    DELETE_URL = None
+
     def __init__(self, instance, base_url, exists=True):
         self._instance = instance
 
@@ -163,6 +165,20 @@ class Base(with_metaclass(ABCMeta, object)):
             self._retrieve()
 
         return self._exists
+
+    def delete(self):
+        """
+        Delete the object from the Jenkins instance if possible.
+
+        If the object cannot be deleted, then a `TypeError` or the appropriate
+        request status is raised.
+        """
+
+        if self.DELETE_URL is None:
+            raise TypeError("This object does not support deletion")
+
+        request = self.instance.session.post(self.base_url + self.DELETE_URL)
+        request.raise_for_status()
 
     def __eq__(self, other):
         if isinstance(other, Base):
@@ -372,6 +388,8 @@ class View(Base):
     View on a Jenkins instance.
     """
 
+    DELETE_URL = 'doDelete'
+
     def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
         if name is None:
             raise ValueError('Name must be provided')
@@ -409,6 +427,8 @@ class Job(Base):
     """
     Job on a Jenkins instance.
     """
+
+    DELETE_URL = 'doDelete'
 
     def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
         if name is None:
@@ -631,6 +651,8 @@ class Build(Base):
     """
     Build information of a certain job on a Jenkins instance.
     """
+
+    DELETE_URL = 'doDelete'
 
     def __init__(self, job, number=None, url=None, exists=True, **kwargs):
         super(Build, self).__init__(job.instance, url, exists=exists)
