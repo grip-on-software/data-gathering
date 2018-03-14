@@ -15,7 +15,8 @@ objects with properties.
 ## Installation
 
 The data gathering scripts and modules require Python version 2.7.x or 3.6+. 
-Certain webservice daemons only work on Python 2.7.x due to dependencies.
+Certain webservice daemons only work on Python 2.7.x due to dependencies, while 
+some gathering scripts only work on Python 3 for similar reasons.
 
 The scripts and modules are two separate concepts with regard to installation: 
 the data gathering module `gatherer` must be installed so that the scripts can 
@@ -82,7 +83,9 @@ suitable for a Jenkins job, as well as in a number of Docker scripts explained
 in the [Docker](#docker) section.
 
 Additionally `topdesk_to_json.py` can be manually run to retrieve reservation 
-data related to projects from a CSV dump.
+data related to projects from a CSV dump, and `sonar_to_json.py` can be 
+manually run to retrieve historical code metrics directly from a Sonar instance 
+rather than a quality dashboard history file.
 
 There are also a few tools for inspecting data or setting up sources:
 
