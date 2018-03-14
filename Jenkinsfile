@@ -73,7 +73,7 @@ pipeline {
                 sh 'python setup.py sdist'
                 sh 'python setup.py bdist_wheel --universal'
                 sh 'mkdir build/wheel'
-                sh 'pip wheel -w build/wheel --no-deps -r requirements.txt'
+                sh 'grep "#egg=" requirements.txt | xargs pip wheel -w build/wheel --no-deps'
                 sh 'pip install --user twine'
                 withCredentials([usernamePassword(credentialsId: 'pypi-credentials', passwordVariable: 'TWINE_PASSWORD', usernameVariable: 'TWINE_USERNAME'), string(credentialsId: 'pypi-repository', variable: 'TWINE_REPOSITORY_URL')]) {
                     sh '~/.local/bin/twine upload dist/* build/wheel/*'
