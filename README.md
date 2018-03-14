@@ -15,7 +15,8 @@ objects with properties.
 ## Installation
 
 The data gathering scripts and modules require Python version 2.7.x or 3.6+. 
-Certain webservice daemons only work on Python 2.7.x due to dependencies.
+Certain webservice daemons only work on Python 2.7.x due to dependencies, while 
+some gathering scripts only work on Python 3 for similar reasons.
 
 The scripts and modules are two separate concepts with regard to installation: 
 the data gathering module `gatherer` must be installed so that the scripts can 
@@ -82,7 +83,9 @@ suitable for a Jenkins job, as well as in a number of Docker scripts explained
 in the [Docker](#docker) section.
 
 Additionally `topdesk_to_json.py` can be manually run to retrieve reservation 
-data related to projects from a CSV dump.
+data related to projects from a CSV dump, and `sonar_to_json.py` can be 
+manually run to retrieve historical code metrics directly from a Sonar instance 
+rather than a quality dashboard history file.
 
 There are also a few tools for inspecting data or setting up sources:
 
@@ -306,6 +309,13 @@ the setting is not used in this environment.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
     the Jenkins instance has authorization security. This token must be 
     configured in the build job itself.
+- sonar (used by `sonar_to_json.py`): SonarQube instance where we can retrieve
+  metrics without the use of a quality dashboard definition.
+  - `host` (`$SONAR_HOST`): Base URL of the SonarQube instance.
+  - `username` (`$SONAR_USERNAME`): Username or access token to log in to the
+     SonarQube instance. Use a falsy value to not authenticate to SonarQube.
+  - `password` (`$SONAR_PASSWORD`): Password of the user to log in to the
+    SonarQube instance. Use a falsy value to not authenticate to SonarQube.
 - schedule (used by `daemon.py`): Schedule imposed by the controller API status
   preflight checks to let the agents check whether they should collect data.
   - `days` (`$SCHEDULE_DAYS`): Integer determining the interval in days between

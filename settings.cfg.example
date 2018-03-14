@@ -53,6 +53,10 @@ password = $JENKINS_PASSWORD
 verify = $JENKINS_VERIFY
 scrape = $JENKINS_JOB
 token = $JENKINS_TOKEN
+[sonar]
+host = $SONAR_HOST
+username = $SONAR_USERNAME
+password = $SONAR_PASSWORD
 [schedule]
 days = $SCHEDULE_DAYS
 [ldap]

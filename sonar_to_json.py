@@ -13,6 +13,8 @@ try:
 except ImportError:
     raise ImportError('Cannot import CompactHistory: quality_reporting 2.3.0+ required')
 from hqlib.requirement import CodeQuality
+from hqlib.metric_source.url_opener import UrlOpener
+from gatherer.config import Configuration
 from gatherer.log import Log_Setup
 from gatherer.utils import get_datetime, Iterator_Limiter
 
@@ -80,7 +82,7 @@ def reprovide(*methods):
 
     return reprovided
 
-@reprovide("has_project", "get_json")
+@reprovide("has_project", "get_json", "add_branch_param_to_url")
 class Sonar_Time_Machine(Sonar):
     """
     Sonar instance with time machine history search support.
@@ -149,8 +151,8 @@ class Sonar_Time_Machine(Sonar):
         return -1
 
     @override(Sonar)
-    def __metric(self, product, metric_name):
-        if not self.__has_project(product):
+    def __metric(self, product, metric_name, branch):
+        if not self.__has_project(product, branch):
             return -1
 
         metric_url = self.__sonar_url + 'api/timemachine/index?' + \
@@ -158,9 +160,11 @@ class Sonar_Time_Machine(Sonar):
         measures_url = self.__sonar_url + 'api/measures/search_history?' + \
             'component={component}&metrics={metric}'
         api_options = [
-            (measures_url, lambda json: json['measures'][0]['history'],
+            (self.__add_branch_param_to_url(measures_url, branch),
+             lambda json: json['measures'][0]['history'],
              ('date', 'value')),
-            (metric_url, lambda json: json[0]['cells'], ('d', 'v'))
+            (self.__add_branch_param_to_url(metric_url, branch),
+             lambda json: json[0]['cells'], ('d', 'v'))
         ]
         for api_url, data_getter, keys in api_options:
             url = api_url.format(component=product, metric=metric_name)
@@ -168,7 +172,7 @@ class Sonar_Time_Machine(Sonar):
                 try:
                     json = self.__get_json(url)
                     return self.__parse_measures(data_getter(json), keys)
-                except self.url_open_exceptions:
+                except UrlOpener.url_open_exceptions:
                     self.__failed_urls.add(url)
 
         logging.warning("Can't get %s value for %s from any of URLs",
@@ -202,39 +206,45 @@ class Sonar_Time_Machine(Sonar):
                             count += 1
 
                 iterator_limiter.update()
-            except self.url_open_exceptions:
+            except UrlOpener.url_open_exceptions:
                 logging.exception("Can't get value from %s", url)
                 return default
 
         return count
 
     @override(Sonar)
-    def __rule_violation(self, product, rule_name):
-        if not self.__has_project(product):
+    def __rule_violation(self, product, rule_name, default=0, branch=None):
+        if not self.__has_project(product, branch):
             return -1
 
         rule_violation_url = self.__sonar_url + 'api/issues/search?' + \
             'componentRoots={component}&rules={rule}&p={p}&ps={ps}'
+        rule_violation_url = self.__add_branch_param_to_url(rule_violation_url,
+                                                            branch)
         return self.__count_issues(rule_violation_url, closed=False,
-                                   component=product, rule=rule_name)
+                                   component=product, rule=rule_name,
+                                   default=default)
 
     @override(Sonar)
-    def __false_positives(self, product, default=0):
-        if not self.__has_project(product):
+    def __false_positives(self, product, default=0, branch=None):
+        if not self.__has_project(product, branch):
             return -1
 
         false_positives_url = self.__sonar_url + 'api/issues/search?' + \
-            'componentRoots={component}&resolutions=FALSE-POSITIVE&p={p}&ps={ps}'
+            'componentRoots={component}&' + \
+            'resolutions=FALSE-POSITIVE&p={p}&ps={ps}'
+        false_positives_url = self.__add_branch_param_to_url(false_positives_url,
+                                                             branch)
         return self.__count_issues(false_positives_url, closed=True,
                                    default=default, component=product)
 
-def retrieve(url, name, products):
+def retrieve(url, name, products, username="", password=""):
     """
     Retrieve Sonar metrics from the instance at `url`, of the project `name`,
     and for the component names in the list `products`.
     """
 
-    sonar = Sonar_Time_Machine(url)
+    sonar = Sonar_Time_Machine(url, username=username, password=password)
     project = domain.Project(name=name, metric_sources={Sonar: sonar})
     history = CompactHistory('history-{}.json'.format(name))
     for product in products:
@@ -270,9 +280,15 @@ def parse_args():
     Parse command line arguments.
     """
 
+    config = Configuration.get_settings()
     description = "Obtain sonar history and output JSON"
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--url', help='Sonar URL')
+    parser.add_argument('--url', help='Sonar URL',
+                        default=config.get('sonar', 'host'))
+    parser.add_argument('--username', help='Sonar username',
+                        default=config.get('sonar', 'username'))
+    parser.add_argument('--password', help='Sonar password',
+                        default=config.get('sonar', 'password'))
     parser.add_argument('--name', help='Project name')
     parser.add_argument('--products', nargs='+', help='Sonar products')
 
@@ -287,7 +303,17 @@ def main():
     """
 
     args = parse_args()
-    retrieve(args.url, args.name, args.products)
+    if Configuration.has_value(args.username):
+        username = args.username
+    else:
+        username = ""
+
+    if Configuration.has_value(args.password):
+        password = args.password
+    else:
+        password = ""
+    retrieve(args.url, args.name, args.products,
+             username=username, password=password)
 
 if __name__ == '__main__':
     main()
