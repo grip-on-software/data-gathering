@@ -14,6 +14,7 @@ except ImportError:
     raise ImportError('Cannot import CompactHistory: quality_reporting 2.3.0+ required')
 from hqlib.requirement import CodeQuality
 from hqlib.metric_source.url_opener import UrlOpener
+from gatherer.config import Configuration
 from gatherer.log import Log_Setup
 from gatherer.utils import get_datetime, Iterator_Limiter
 
@@ -237,13 +238,13 @@ class Sonar_Time_Machine(Sonar):
         return self.__count_issues(false_positives_url, closed=True,
                                    default=default, component=product)
 
-def retrieve(url, name, products):
+def retrieve(url, name, products, username="", password=""):
     """
     Retrieve Sonar metrics from the instance at `url`, of the project `name`,
     and for the component names in the list `products`.
     """
 
-    sonar = Sonar_Time_Machine(url)
+    sonar = Sonar_Time_Machine(url, username=username, password=password)
     project = domain.Project(name=name, metric_sources={Sonar: sonar})
     history = CompactHistory('history-{}.json'.format(name))
     for product in products:
@@ -279,9 +280,15 @@ def parse_args():
     Parse command line arguments.
     """
 
+    config = Configuration.get_settings()
     description = "Obtain sonar history and output JSON"
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--url', help='Sonar URL')
+    parser.add_argument('--url', help='Sonar URL',
+                        default=config.get('sonar', 'host'))
+    parser.add_argument('--username', help='Sonar username',
+                        default=config.get('sonar', 'username'))
+    parser.add_argument('--password', help='Sonar password',
+                        default=config.get('sonar', 'password'))
     parser.add_argument('--name', help='Project name')
     parser.add_argument('--products', nargs='+', help='Sonar products')
 
@@ -296,7 +303,17 @@ def main():
     """
 
     args = parse_args()
-    retrieve(args.url, args.name, args.products)
+    if Configuration.has_value(args.username):
+        username = args.username
+    else:
+        username = ""
+
+    if Configuration.has_value(args.password):
+        password = args.password
+    else:
+        password = ""
+    retrieve(args.url, args.name, args.products,
+             username=username, password=password)
 
 if __name__ == '__main__':
     main()

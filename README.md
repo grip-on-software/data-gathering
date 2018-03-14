@@ -309,6 +309,13 @@ the setting is not used in this environment.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
     the Jenkins instance has authorization security. This token must be 
     configured in the build job itself.
+- sonar (used by `sonar_to_json.py`): SonarQube instance where we can retrieve
+  metrics without the use of a quality dashboard definition.
+  - `host` (`$SONAR_HOST`): Base URL of the SonarQube instance.
+  - `username` (`$SONAR_USERNAME`): Username or access token to log in to the
+     SonarQube instance. Use a falsy value to not authenticate to SonarQube.
+  - `password` (`$SONAR_PASSWORD`): Password of the user to log in to the
+    SonarQube instance. Use a falsy value to not authenticate to SonarQube.
 - schedule (used by `daemon.py`): Schedule imposed by the controller API status
   preflight checks to let the agents check whether they should collect data.
   - `days` (`$SCHEDULE_DAYS`): Integer determining the interval in days between
