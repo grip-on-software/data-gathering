@@ -112,7 +112,7 @@ class Changelog(object):
         if field in old_data:
             new_data[field] = old_data[field]
         elif field in new_data:
-            del new_data[field]
+            new_data[field] = None
 
     @classmethod
     def _alter_change_metadata(cls, data, diffs, sprints):

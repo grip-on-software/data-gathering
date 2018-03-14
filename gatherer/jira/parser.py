@@ -79,7 +79,7 @@ class Int_Parser(String_Parser):
 
     def parse(self, value):
         if value is None:
-            return str(0)
+            return None
 
         if isinstance(value, basestring) and '.' in value:
             logging.info('Decimal point in integer value: %s', value)
