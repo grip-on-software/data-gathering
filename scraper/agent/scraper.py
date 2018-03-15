@@ -110,7 +110,7 @@ def parse_args():
     parser.add_argument('--debug', action='store_true', default=False,
                         help='Output traces on web')
     parser.add_argument('--listen', default=None,
-                        help='Bind address (default: 0.0.0.0, 127.0.0.1 in debug')
+                        help='Bind address (default: universal, local in debug')
     parser.add_argument('--port', default=7070, type=int,
                         help='Port to listen to (default: 7070')
     return parser.parse_args()
