@@ -48,9 +48,9 @@ def check_secrets(filename):
 
     with open(filename) as secrets_file:
         secrets = json.load(secrets_file)
-        if 'salts' in secrets:
-            if 'salt' in secrets['salts'] and 'pepper' in secrets['salts']:
-                return True
+        if 'salts' in secrets and \
+            'salt' in secrets['salts'] and 'pepper' in secrets['salts']:
+            return True
 
         logging.critical('Secrets file %s does not contain salt and pepper',
                          filename)
