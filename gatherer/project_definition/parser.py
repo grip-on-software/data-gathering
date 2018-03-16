@@ -311,11 +311,11 @@ class Sources_Parser(Project_Definition_Parser):
     """
 
     METRIC_SOURCE = 'hqlib.metric_source'
-    DOMAIN_OBJECTS = (
+    DOMAIN_CLASSES = (
         domain.Application, domain.Component, domain.Environment,
         domain.Product, domain.Project
     )
-    SOURCE_OBJECTS = {
+    SOURCE_CLASSES = {
         'History': metric_source.History,
         'CompactHistory': COMPACT_HISTORY,
         'Jenkins': metric_source.Jenkins,
@@ -330,8 +330,8 @@ class Sources_Parser(Project_Definition_Parser):
         self.sys_path = path
         self.source_objects = self.get_mock_domain_objects(metric_source,
                                                            self.METRIC_SOURCE)
-        self.source_objects.update(self.SOURCE_OBJECTS)
-        self.source_classes = tuple(self.SOURCE_OBJECTS.values())
+        self.source_objects.update(self.SOURCE_CLASSES)
+        self.source_classes = tuple(self.SOURCE_CLASSES.values())
 
     def get_hqlib_submodules(self):
         return {
@@ -364,7 +364,7 @@ class Sources_Parser(Project_Definition_Parser):
             super(Sources_Parser, self).load_definition(filename, contents)
 
     def filter_domain_object(self, mock_object):
-        return isinstance(mock_object, self.DOMAIN_OBJECTS)
+        return isinstance(mock_object, self.DOMAIN_CLASSES)
 
     def parse_domain_call(self, args, keywords):
         if "name" in keywords:

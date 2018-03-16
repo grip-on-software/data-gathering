@@ -355,14 +355,16 @@ class Node(Base):
     Computer node linked to a Jenkins instance.
     """
 
-    def __init__(self, instance, displayName=None, **kwargs):
-        if displayName is None:
+    def __init__(self, instance, **kwargs):
+        try:
+            display_name = kwargs.pop('displayName')
+        except KeyError:
             raise ValueError('Display name must be provided')
 
-        if displayName == "master":
-            name = "({})".format(displayName)
+        if display_name == "master":
+            name = "({})".format(display_name)
         else:
-            name = displayName
+            name = display_name
 
         url = '{}computer/{}'.format(instance.base_url, quote(name))
         super(Node, self).__init__(instance, url, exists=True)

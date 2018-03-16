@@ -14,7 +14,7 @@ class Query(object):
     """
 
     DATE_FORMAT = '%Y-%m-%d %H:%M'
-    QUERY = 'project={0} AND updated > "{1}"'
+    QUERY_FORMAT = 'project={0} AND updated > "{1}"'
 
 
     def __init__(self, jira, auth, options, query=None):
@@ -24,9 +24,9 @@ class Query(object):
         updated_since = format_date(self._jira.updated_since.date,
                                     date_format=self.DATE_FORMAT)
         if query is not None:
-            query = "{0} AND ({1})".format(self.QUERY, query)
+            query = "{0} AND ({1})".format(self.QUERY_FORMAT, query)
         else:
-            query = self.QUERY
+            query = self.QUERY_FORMAT
         self._query = query.format(self._jira.project_key, updated_since)
         logging.info('Using query %s', self._query)
 
