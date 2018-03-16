@@ -50,7 +50,11 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch=$BRANCH_NAME'
+                    withPythonEnv('System-CPython-3') {
+                        pysh 'python -m pip install -r requirements-jenkins.txt'
+                        pysh 'sed -i "1s|.*|#!/usr/bin/env python|" `which pylint`'
+                        pysh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch=$BRANCH_NAME -Dsonar.python.pylint=`which pylint`'
+                    }
                 }
             }
         }
