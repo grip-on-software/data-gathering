@@ -267,7 +267,7 @@ fi
 
 # Retrieve Java importer
 log_info "Retrieving importer"
-python scraper/retrieve_importer.py --jenkins --base $IMPORTER_BASE --force --log $logLevel
+python scraper/retrieve_importer.py --jenkins --base $IMPORTER_BASE --force --log $logLevel $importerBuild
 if [ -z "$gathererScripts" ] && [ "$importerTasks" != "skip" ]; then
 	files=$(import_handler --files $importerTasks)
 fi
