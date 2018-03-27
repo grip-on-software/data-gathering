@@ -48,6 +48,7 @@ class Exporter(object):
         jenkins = Jenkins.from_config(self._config)
         job_name = self._config.get('jenkins', 'scrape')
         token = self._config.get('jenkins', 'token')
+        jira_url = self._config.get('jira', 'server')
         job = jenkins.get_job(job_name)
 
         scripts = [
@@ -61,7 +62,8 @@ class Exporter(object):
             {"name": "importerTasks", "value": ",".join(tasks)},
             {"name": "logLevel", "value": "INFO"},
             {"name": "cleanupRepos", "value": "true"},
-            {"name": "gathererScripts", "value": " ".join(scripts)}
+            {"name": "gathererScripts", "value": " ".join(scripts)},
+            {"name": "jiraParameters", "value": "--server {}".format(jira_url)}
         ]
         job.build(parameters=parameters, token=token)
 
