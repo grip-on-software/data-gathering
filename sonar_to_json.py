@@ -5,7 +5,9 @@ of the quality reporting dashboard history.
 
 import argparse
 import datetime
+import os
 import logging
+import ssl
 from hqlib import domain
 from hqlib.metric_source import Sonar
 try:
@@ -281,6 +283,12 @@ def parse_args():
     """
 
     config = Configuration.get_settings()
+    verify = config.get('sonar', 'verify')
+    if not Configuration.has_value(verify):
+        verify = False
+    elif not os.path.exists(verify):
+        verify = True
+
     description = "Obtain sonar history and output JSON"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--url', help='Sonar URL',
@@ -289,6 +297,10 @@ def parse_args():
                         default=config.get('sonar', 'username'))
     parser.add_argument('--password', help='Sonar password',
                         default=config.get('sonar', 'password'))
+    parser.add_argument('--verify', nargs='?', const=True, default=verify,
+                        help='Enable SSL certificate verification')
+    parser.add_argument('--no-verify', action='store_false', dest='verify',
+                        help='Disable SSL certificate verification')
     parser.add_argument('--name', help='Project name')
     parser.add_argument('--products', nargs='+', help='Sonar products')
 
@@ -312,6 +324,13 @@ def main():
         password = args.password
     else:
         password = ""
+
+    if args.verify is False:
+        logging.critical('SSL certificate verification cannot be disabled for Sonar export')
+    elif args.verify is not True:
+        cafile_env = ssl.get_default_verify_paths().openssl_cafile_env
+        os.environ[cafile_env] = args.verify
+
     retrieve(args.url, args.name, args.products,
              username=username, password=password)
 
