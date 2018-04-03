@@ -5,6 +5,7 @@ pipeline {
         AGENT_TAG = env.BRANCH_NAME.replaceFirst('^master$', 'latest')
         AGENT_NAME = "${env.DOCKER_REGISTRY}/gros-data-gathering"
         AGENT_IMAGE = "${env.AGENT_NAME}:${env.AGENT_TAG}"
+        GITLAB_TOKEN = credentials('data-gathering-gitlab-token')
         SCANNER_HOME = tool name: 'SonarQube Scanner 3', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
     options {
@@ -12,7 +13,7 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
     triggers {
-        gitlab(triggerOnPush: true, triggerOnMergeRequest: true, branchFilterType: 'All')
+        gitlab(triggerOnPush: true, triggerOnMergeRequest: true, branchFilterType: 'All', secretToken: env.GITLAB_TOKEN)
     }
 
     post {
@@ -75,12 +76,12 @@ pipeline {
             }
             steps {
                 sh 'python setup.py sdist'
-                sh 'python setup.py bdist_wheel --universal'
-                sh 'mkdir build/wheel'
+                sh 'python setup.py bdist_wheel'
+                sh 'mkdir -p build/wheel'
                 sh 'grep "#egg=" requirements.txt | xargs pip wheel -w build/wheel --no-deps'
-                sh 'pip install --user twine'
-                withCredentials([usernamePassword(credentialsId: 'pypi-credentials', passwordVariable: 'TWINE_PASSWORD', usernameVariable: 'TWINE_USERNAME'), string(credentialsId: 'pypi-repository', variable: 'TWINE_REPOSITORY_URL')]) {
-                    sh '~/.local/bin/twine upload dist/* build/wheel/*'
+                sh 'su pip install twine'
+                withCredentials([usernamePassword(credentialsId: 'pypi-credentials', passwordVariable: 'TWINE_PASSWORD', usernameVariable: 'TWINE_USERNAME'), string(credentialsId: 'pypi-repository', variable: 'TWINE_REPOSITORY_URL'), file(credentialsId: 'pypi-certificate', variable: 'TWINE_CERT')]) {
+                    sh 'twine upload dist/* build/wheel/*'
                 }
             }
         }
