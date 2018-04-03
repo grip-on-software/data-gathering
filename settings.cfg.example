@@ -57,6 +57,7 @@ token = $JENKINS_TOKEN
 host = $SONAR_HOST
 username = $SONAR_USERNAME
 password = $SONAR_PASSWORD
+verify = $SONAR_VERIFY
 [schedule]
 days = $SCHEDULE_DAYS
 [ldap]

@@ -207,9 +207,12 @@ class GitLab(Git):
         """
 
         if self._gitlab_api is None:
+            unsafe = self.get_option('unsafe_hosts')
             try:
                 logging.info('Setting up API for %s', self.host)
-                self._gitlab_api = gitlab3.GitLab(self.host, self.gitlab_token)
+                self._gitlab_api = gitlab3.GitLab(self.host,
+                                                  token=self.gitlab_token,
+                                                  ssl_verify=unsafe is None)
             except (AttributeError, GitLabException):
                 raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
 

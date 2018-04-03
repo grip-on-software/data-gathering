@@ -316,6 +316,11 @@ the setting is not used in this environment.
      SonarQube instance. Use a falsy value to not authenticate to SonarQube.
   - `password` (`$SONAR_PASSWORD`): Password of the user to log in to the
     SonarQube instance. Use a falsy value to not authenticate to SonarQube.
+  - `verify` (`$SONAR_VERIFY`): SSL certificate verification for the SonarQube 
+    instance. This option has no effect if the SonarQube `host` URL does not 
+    use HTTPS. Use a falsy value to disable verification (currently not 
+    honored), a path name to specify a specific (self-signed) certificate to 
+    match against, or any other value to enable secure verification.
 - schedule (used by `daemon.py`): Schedule imposed by the controller API status
   preflight checks to let the agents check whether they should collect data.
   - `days` (`$SCHEDULE_DAYS`): Integer determining the interval in days between
