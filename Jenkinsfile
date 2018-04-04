@@ -66,8 +66,7 @@ pipeline {
                 sh 'docker push "$AGENT_NAME:$(cat .version)"'
             }
         }
-        stage('Push pypi') {
-            when { branch 'master' }
+        stage('Build pypi') {
             agent {
                 docker {
                     image '$AGENT_IMAGE'
@@ -79,9 +78,16 @@ pipeline {
                 sh 'python setup.py bdist_wheel'
                 sh 'mkdir -p build/wheel'
                 sh 'grep "#egg=" requirements.txt | xargs pip wheel -w build/wheel --no-deps'
-                sh 'su pip install twine'
-                withCredentials([usernamePassword(credentialsId: 'pypi-credentials', passwordVariable: 'TWINE_PASSWORD', usernameVariable: 'TWINE_USERNAME'), string(credentialsId: 'pypi-repository', variable: 'TWINE_REPOSITORY_URL'), file(credentialsId: 'pypi-certificate', variable: 'TWINE_CERT')]) {
-                    sh 'twine upload dist/* build/wheel/*'
+            }
+        }
+        stage('Push pypi') {
+            when { branch 'master' }
+            steps {
+                withPythonEnv('System-CPython-3') {
+                    pysh 'python -m pip install twine'
+                    withCredentials([usernamePassword(credentialsId: 'pypi-credentials', passwordVariable: 'TWINE_PASSWORD', usernameVariable: 'TWINE_USERNAME'), string(credentialsId: 'pypi-repository', variable: 'TWINE_REPOSITORY_URL'), file(credentialsId: 'pypi-certificate', variable: 'TWINE_CERT')]) {
+                        pysh 'python -m twine upload dist/* build/wheel/*'
+                    }
                 }
             }
         }
