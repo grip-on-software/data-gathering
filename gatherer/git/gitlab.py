@@ -495,6 +495,9 @@ class GitLab_Repository(Git_Repository, Review_System):
         if event_data['kind'] == 'tag_push':
             key = 'before' if event.action_name == 'deleted' else 'after'
             return [event.data[key]]
+        if 'after' in event.data and event.data['after'] == '00000000':
+            event_data['action'] = 'deleted'
+            return [event.data['before']]
 
         return [commit['id'] for commit in event.data['commits']]
 
