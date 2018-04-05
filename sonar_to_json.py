@@ -191,7 +191,7 @@ class Sonar_Time_Machine(Sonar):
                              **url_params)
             try:
                 json = self.__get_json(url)
-                has_content = json['total'] > iterator_limiter.skip + json['ps']
+                has_content = json['paging']['total'] > iterator_limiter.skip + json['paging']['pageSize']
                 for issue in json['issues']:
                     creation_date = self.__make_datetime(issue['creationDate'])
                     if creation_date > self.__current_datetime:
