@@ -35,6 +35,7 @@ class Change_Type(Enum):
     ADDED = 'A'
     DELETED = 'D'
     REPLACED = 'R'
+    TYPE_CHANGED = 'T'
 
     @classmethod
     def from_label(cls, label):

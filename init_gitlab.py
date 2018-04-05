@@ -309,9 +309,9 @@ def main():
         api = None
 
     for repo in project_repos:
-        logging.info('Processing repository %s', repo)
-        repo_name = repo.replace('/', '-')
-        repo_path = os.path.join(repo_directory, repo)
+        logging.info('Processing repository %s', repo.repo_name)
+        repo_name = repo.repo_name.lower().replace('/', '-')
+        repo_path = os.path.join(repo_directory, repo_name)
         git_url = '{0}{1}/{2}.git'.format(args.url, project.gitlab_group_name,
                                           repo_name)
         source = Source.from_type('git', name=repo_name, url=git_url)
