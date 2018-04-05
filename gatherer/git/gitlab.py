@@ -484,10 +484,14 @@ class GitLab_Repository(Git_Repository, Review_System):
     @staticmethod
     def _parse_legacy_push_event(event, event_data):
         event_data.update({
-            'kind': str(event.data['object_kind']),
-            'ref': str(event.data['ref']),
-            'email': parse_unicode(event.data['user_email'])
+            'kind': str(event.data['object_kind']) if 'object_kind' in event.data else 'push',
+            'ref': str(event.data['ref'])
         })
+
+        if 'user_email' in event.data:
+            event_data['email'] = parse_unicode(event.data['user_email'])
+        if 'user_name' in event.data:
+            event_data['user'] = parse_unicode(event.data['user_name'])
         if event_data['kind'] == 'tag_push':
             key = 'before' if event.action_name == 'deleted' else 'after'
             return [event.data[key]]
