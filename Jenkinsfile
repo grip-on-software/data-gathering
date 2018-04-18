@@ -14,22 +14,32 @@ pipeline {
     }
     triggers {
         gitlab(triggerOnPush: true, triggerOnMergeRequest: true, branchFilterType: 'All', secretToken: env.GITLAB_TOKEN)
+        cron('H H * * 5')
     }
 
     post {
-        success {
-            updateGitlabCommitStatus name: env.JOB_NAME, state: 'success'
-        }
         failure {
             updateGitlabCommitStatus name: env.JOB_NAME, state: 'failed'
+        }
+        aborted {
+            updateGitlabCommitStatus name: env.JOB_NAME, state: 'canceled'
         }
     }
 
     stages {
+        stage('Start') {
+            when {
+                expression {
+                    currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) == null
+                }
+            }
+            steps {
+                updateGitlabCommitStatus name: env.JOB_NAME, state: 'running'
+            }
+        }
         stage('Build') {
             steps {
                 checkout scm
-                updateGitlabCommitStatus name: env.JOB_NAME, state: 'running'
                 withCredentials([file(credentialsId: 'upload-server-certificate', variable: 'SERVER_CERTIFICATE')]) {
                     withCredentials([file(credentialsId: 'agent-environment', variable: 'AGENT_ENVIRONMENT')]) {
                         sh 'rm -f certs/wwwgros.crt'
@@ -52,6 +62,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     withPythonEnv('System-CPython-3') {
+                        pysh 'python -m pip install pylint'
                         pysh 'python -m pip install -r requirements-jenkins.txt'
                         pysh 'sed -i "1s|.*|#!/usr/bin/env python|" `which pylint`'
                         pysh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch=$BRANCH_NAME -Dsonar.python.pylint=`which pylint`'
@@ -89,6 +100,16 @@ pipeline {
                         pysh 'python -m twine upload dist/* build/wheel/*'
                     }
                 }
+            }
+        }
+        stage('Status') {
+            when {
+                expression {
+                    currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) == null
+                }
+            }
+            steps {
+                updateGitlabCommitStatus name: env.JOB_NAME, state: 'success'
             }
         }
     }
