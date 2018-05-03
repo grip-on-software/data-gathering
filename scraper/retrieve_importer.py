@@ -142,12 +142,11 @@ def download_zip(url):
 
     os.remove('dist.zip')
 
-def main():
+def retrieve_files(args):
     """
-    Main entry point.
+    Retrieve the distribution files and store then within the dist directory.
     """
 
-    args = parse_args()
     if args.path is not None:
         copy_path(args.path)
     else:
@@ -166,6 +165,14 @@ def main():
 
         logging.info('Downloading distribution from %s', url)
         download_zip(url)
+
+def main():
+    """
+    Main entry point.
+    """
+
+    args = parse_args()
+    retrieve_files(args)
 
     # Check if 'dist' is the directory we want to place it in
     if os.path.realpath(args.base) == os.path.realpath('dist'):

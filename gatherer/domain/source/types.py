@@ -172,6 +172,50 @@ class Source(object):
 
         return '{0}:{1}'.format(parts.hostname, parts.port)
 
+    def _update_ssh_credentials(self, host, orig_parts, username):
+        # Use SSH (ssh://user@host:port/path).
+
+        # Parse the host parts and potentially follow host changes.
+        hostname, port = self._get_host_parts(host, orig_parts)
+
+        # If 'env' is given, set a credentials path to an identity key.
+        if self.has_option(host, 'env'):
+            credentials_env = self._credentials.get(host, 'env')
+            self._credentials_path = os.getenv(credentials_env)
+
+        auth = username + '@' + hostname
+        path = orig_parts.path
+
+        # If 'strip' exists, then this value is stripped from the
+        # beginning of the path if the original protocol is HTTP/HTTPS.
+        if orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'strip'):
+            strip = self._credentials.get(host, 'strip')
+            if path.startswith(strip):
+                path = path[len(strip):]
+            elif path.startswith('/' + strip):
+                path = path[len(strip)+1:]
+
+        self._url = self._format_ssh_url(hostname, auth, port, path)
+
+    def _update_http_credentials(self, host, orig_parts, username):
+        # Use HTTP(s) (http://username:password@host:port/path).
+
+        # Parse the host parts and potentially follow host changes.
+        hostname, port = self._get_host_parts(host, orig_parts)
+
+        # Add a password to the URL for basic authentication.
+        password = urllib.parse.quote(self._credentials.get(host,
+                                                            'password'))
+
+        auth = '{0}:{1}'.format(username, password)
+        full_host = auth + '@' + hostname
+        if port is not None:
+            full_host += ':{0}'.format(port)
+
+        self._url = self._create_url(orig_parts.scheme, full_host,
+                                     orig_parts.path, orig_parts.query,
+                                     orig_parts.fragment)
+
     def _update_credentials(self):
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
@@ -180,9 +224,6 @@ class Source(object):
         host = self._format_host_section(orig_parts)
 
         if self._credentials.has_section(host):
-            # Parse the host parts and potentially follow host changes.
-            hostname, port = self._get_host_parts(host, orig_parts)
-
             username = orig_parts.username
             if self.has_option(host, 'username'):
                 username = self._credentials.get(host, 'username')
@@ -190,40 +231,10 @@ class Source(object):
                 raise ValueError('Cannot deduce username for credentials host {0}'.format(host))
 
             # Additional authentication options depending on protocol to use
-            is_web_protocol = orig_parts.scheme in self.HTTP_PROTOCOLS
             if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
-                # Use SSH (ssh://user@host:port/path).
-                # If 'env' is given, set a credentials path to an identity key.
-                # If 'strip' exists, then this value is stripped from the
-                # beginning of the path if the original protocol is HTTP/HTTPS.
-                if self.has_option(host, 'env'):
-                    credentials_env = self._credentials.get(host, 'env')
-                    self._credentials_path = os.getenv(credentials_env)
-
-                auth = username + '@' + hostname
-                path = orig_parts.path
-                if is_web_protocol and self.has_option(host, 'strip'):
-                    strip = self._credentials.get(host, 'strip')
-                    if path.startswith(strip):
-                        path = path[len(strip):]
-                    elif path.startswith('/' + strip):
-                        path = path[len(strip)+1:]
-
-                self._url = self._format_ssh_url(hostname, auth, port, path)
-            elif is_web_protocol and self.has_option(host, 'password'):
-                # Use HTTP(s) (http://username:password@host:port/path).
-                # Add a password to the URL for basic authentication.
-                password = urllib.parse.quote(self._credentials.get(host,
-                                                                    'password'))
-
-                auth = '{0}:{1}'.format(username, password)
-                full_host = auth + '@' + hostname
-                if port is not None:
-                    full_host += ':{0}'.format(port)
-
-                self._url = self._create_url(orig_parts.scheme, full_host,
-                                             orig_parts.path, orig_parts.query,
-                                             orig_parts.fragment)
+                self._update_ssh_credentials(host, orig_parts, username)
+            elif orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'password'):
+                self._update_http_credentials(host, orig_parts, username)
 
         return orig_parts, host
 

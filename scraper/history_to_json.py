@@ -145,7 +145,7 @@ def check_sparse_base(export_path):
 
     return '/' not in export_path.rstrip('/')
 
-def check_gitlab_url(project, args, export_url):
+def get_gitlab_url(project, args):
     """
     Check whether the provided export URL and if so, whether the repository
     would be cloned to a sparse base directory. Return a URL that can be
@@ -153,16 +153,22 @@ def check_gitlab_url(project, args, export_url):
     in a subpath in the repository.
     """
 
-    if GitLab.is_gitlab_url(export_url):
-        export_url = export_url + "/raw/master"
+    export_url = get_setting(args.export_url, 'url', project)
+    if not Configuration.has_value(export_url):
+        return None
 
-        repo_path = get_setting(args.export_path, 'path', project)
-        if Configuration.has_value(repo_path) and check_sparse_base(repo_path):
-            return export_url + "/" + project.quality_metrics_name
+    if not GitLab.is_gitlab_url(export_url):
+        return export_url
+
+    export_url = export_url + "/raw/master"
+
+    repo_path = get_setting(args.export_path, 'path', project)
+    if Configuration.has_value(repo_path) and check_sparse_base(repo_path):
+        return export_url + "/" + project.quality_metrics_name
 
     return export_url
 
-def check_gitlab_path(project, args, export_path):
+def get_gitlab_path(project, args):
     """
     Check if the arguments or settings have a GitLab URL. If so, clone the
     repository containing the metrics history from there.
@@ -171,37 +177,43 @@ def check_gitlab_path(project, args, export_path):
     provided `export_path` if no GitLab repository was found.
     """
 
+    export_path = get_setting(args.export_path, 'path', project)
+    if not Configuration.has_value(export_path):
+        return None
+
     gitlab_url = get_setting(args.url, 'url', project)
-    if Configuration.has_value(gitlab_url) and GitLab.is_gitlab_url(gitlab_url):
-        delete = get_setting(args.delete, 'delete', project, boolean=True)
-        if delete and os.path.exists(export_path):
-            logging.info('Removing old history clone %s', export_path)
+    if not Configuration.has_value(gitlab_url):
+        return export_path
+    if not GitLab.is_gitlab_url(gitlab_url):
+        return export_path
+
+    delete = get_setting(args.delete, 'delete', project, boolean=True)
+    if delete and os.path.exists(export_path):
+        logging.info('Removing old history clone %s', export_path)
+        shutil.rmtree(export_path)
+
+    if check_sparse_base(export_path):
+        paths = [project.quality_metrics_name]
+        clone_path = os.path.join(export_path, project.quality_metrics_name)
+        git_path = os.path.join(export_path, '.git')
+        if os.path.exists(export_path) and not os.path.exists(git_path):
+            # The sparse clone has not yet been created (no .git directory)
+            # but it must be placed in the root directory of the clones.
+            # The other clones must be removed before the clone operation.
+            logging.info('Making way to clone into %s', export_path)
             shutil.rmtree(export_path)
+    else:
+        paths = None
+        clone_path = export_path
 
-        if check_sparse_base(export_path):
-            paths = [project.quality_metrics_name]
-            clone_path = os.path.join(export_path, project.quality_metrics_name)
-            git_path = os.path.join(export_path, '.git')
-            if os.path.exists(export_path) and not os.path.exists(git_path):
-                # The sparse clone has not yet been created (no .git directory)
-                # but it must be placed in the root directory of the clones.
-                # The other clones must be removed before the clone operation.
-                logging.info('Making way to clone into %s', export_path)
-                shutil.rmtree(export_path)
-        else:
-            paths = None
-            clone_path = export_path
-
-        logging.info('Pulling quality metrics history repository to %s',
-                     export_path)
-        source = Source.from_type('gitlab', name='quality-report-history',
-                                  url=gitlab_url)
-        repo_class = source.repository_class
-        repo_class.from_source(source, export_path, checkout=paths,
-                               shallow=True, progress=True)
-        return clone_path
-
-    return export_path
+    logging.info('Pulling quality metrics history repository to %s',
+                 export_path)
+    source = Source.from_type('gitlab', name='quality-report-history',
+                              url=gitlab_url)
+    repo_class = source.repository_class
+    repo_class.from_source(source, export_path, checkout=paths,
+                           shallow=True, progress=True)
+    return clone_path
 
 class Data_Source(object):
     """
@@ -314,14 +326,12 @@ def get_data_source(project, args):
         # The local directory contains history.json.gz or the GitLab repository
         # contains it in its root or possibly in a subdirectory matching the
         # quality dashboard name.
-        export_path = get_setting(args.export_path, 'path', project)
-        if Configuration.has_value(export_path):
-            export_path = check_gitlab_path(project, args, export_path)
-            if os.path.exists(export_path):
-                logging.info('Found metrics history path: %s', export_path)
-                yield Data_Source(source, make_path(export_path, filename),
-                                  local=True)
-                return
+        export_path = get_gitlab_path(project, args)
+        if export_path is not None and os.path.exists(export_path):
+            logging.info('Found metrics history path: %s', export_path)
+            yield Data_Source(source, make_path(export_path, filename),
+                              local=True)
+            return
     elif args.path is not None:
         # Path to a directory with a local file that can be opened.
         path = make_path(args.path, filename)
@@ -333,12 +343,12 @@ def get_data_source(project, args):
     if args.export_url is not None:
         # URL or a GitLab repository that can be accessed in an unauthenticated
         # manner by the importer.
-        export_url = get_setting(args.export_url, 'url', project)
-        if Configuration.has_value(export_url):
-            export_url = check_gitlab_url(project, args, export_url)
+        export_url = get_gitlab_url(project, args)
+        if export_url is not None:
             logging.info('Found metrics history URL: %s', export_url)
             yield Data_Source(source, make_path(export_url, filename),
                               local=False)
+            return
     elif args.url is not None:
         # URL prefix to a specific download location.
         url_prefix = get_setting(args.url, 'url', project)
@@ -352,8 +362,9 @@ def get_data_source(project, args):
             open_file = stream
 
         yield Data_Source(source, url, local=False, open_file=open_file)
-    else:
-        raise RuntimeError('No metrics history source defined')
+        return
+
+    raise RuntimeError('No valid metrics history source defined')
 
 def get_tracker_start(args):
     """

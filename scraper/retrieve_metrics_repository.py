@@ -70,6 +70,20 @@ def retrieve_repository(source, repo_path, paths=True):
         repository = repo_class.from_source(source, repo_path)
         repository.checkout(paths=paths)
 
+def cleanup_repository(source, repo_path):
+    """
+    Make sure that the repository path is clean such that we can pull or clone
+    in it.
+    """
+
+    git_directory = os.path.join(repo_path, '.git')
+    if os.path.exists(repo_path) and not os.path.exists(git_directory):
+        # The sparse clone has not yet been created (no .git directory)
+        # but it must be placed in the root directory of the clones.
+        # The other clones must be removed before the clone operation.
+        logging.info('Making way to clone into %s', repo_path)
+        delete_repository(source, repo_path)
+
 def main():
     """
     Main entry point.
@@ -102,13 +116,9 @@ def main():
         paths.append(project.quality_metrics_name)
 
         if not args.delete:
-            git_directory = os.path.join(repo_path, '.git')
-            if os.path.exists(repo_path) and not os.path.exists(git_directory):
-                # The sparse clone has not yet been created (no .git directory)
-                # but it must be placed in the root directory of the clones.
-                # The other clones must be removed before the clone operation.
-                logging.info('Making way to clone into %s', repo_path)
-                delete_repository(source, repo_path)
+            # In order to retrieve the Git repository, we need to check if
+            # we can actually clone/pull in the directory
+            cleanup_repository(source, repo_path)
 
     if args.all or not paths:
         paths = True

@@ -118,6 +118,19 @@ class Topdesk_Parser(object):
 
         return reservations
 
+    def _check_whitelist(self, fields):
+        whitelisted = False
+        for project_key, whitelist in self._whitelist:
+            if whitelist.search(fields['description']):
+                logging.debug('Whitelisted as %s: %s', project_key,
+                              fields['description'])
+                whitelisted = True
+                if project_key != self.PROJECT_ALL.upper():
+                    fields['project'] = project_key
+                    break
+
+        return whitelisted
+
     def _parse_reservation(self, line, whitelist_only):
         fields = dict([(key, line[name]) for key, name in self._names])
         if self._blacklist.search(fields['description']):
@@ -130,15 +143,7 @@ class Topdesk_Parser(object):
         if self._project_pass == fields['project_pass']:
             fields['project'] = self._project_key
 
-        whitelisted = False
-        for project_key, whitelist in self._whitelist:
-            if whitelist.search(fields['description']):
-                logging.debug('Whitelisted as %s: %s', project_key, fields['description'])
-                whitelisted = True
-                if project_key != self.PROJECT_ALL.upper():
-                    fields['project'] = project_key
-                    break
-
+        whitelisted = self._check_whitelist(fields)
         if not whitelisted:
             if whitelist_only:
                 logging.debug('Not whitelisted: %s', fields['description'])

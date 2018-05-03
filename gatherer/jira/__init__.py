@@ -189,37 +189,39 @@ class Jira(object):
         by multiple fields, and the table source could be some generic object.
         """
 
-        if "table" in data:
-            table_name = None
-            key = None
-            if "type" in data:
-                datatype = data["type"]
-                table_name = self._type_casts[datatype].table_name
-                key = self._type_casts[datatype].table_key
+        if "table" not in data:
+            return
 
-            if table_source is not None:
-                if table_name is None:
-                    table_name = table_source.table_name
-                if key is None:
-                    key = table_source.table_key
+        table_name = None
+        key = None
+        if "type" in data:
+            datatype = data["type"]
+            table_name = self._type_casts[datatype].table_name
+            key = self._type_casts[datatype].table_key
 
-            if not isinstance(data["table"], dict):
-                table_name = data["table"]
-            if "table_key" in data:
-                key = data["table_key"]
-
-            table_options = {}
-            if "table_options" in data:
-                table_options = data["table_options"]
-
+        if table_source is not None:
+            if table_name is None:
+                table_name = table_source.table_name
             if key is None:
-                self._tables[table_name] = Table(table_name, **table_options)
-            elif isinstance(key, tuple):
-                self._tables[table_name] = Link_Table(table_name, key,
-                                                      **table_options)
-            else:
-                self._tables[table_name] = Key_Table(table_name, key,
-                                                     **table_options)
+                key = table_source.table_key
+
+        if not isinstance(data["table"], dict):
+            table_name = data["table"]
+        if "table_key" in data:
+            key = data["table_key"]
+
+        table_options = {}
+        if "table_options" in data:
+            table_options = data["table_options"]
+
+        if key is None:
+            self._tables[table_name] = Table(table_name, **table_options)
+        elif isinstance(key, tuple):
+            self._tables[table_name] = Link_Table(table_name, key,
+                                                  **table_options)
+        else:
+            self._tables[table_name] = Key_Table(table_name, key,
+                                                 **table_options)
 
     def register_prefetcher(self, method):
         """
