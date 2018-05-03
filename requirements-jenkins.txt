@@ -1,5 +1,8 @@
 # Install normal dependencies
 -r requirements.txt
+# seats_to_json.py
+pyyaml
+xlrd
 # topdesk_to_json.py
 regex
 # ldap_to_json.py
