@@ -94,6 +94,18 @@ class GitHub_Repository(Git_Repository, Review_System):
                                                            **kwargs)
 
         self.fill_repo_table(self._source.github_repo)
+        self._get_pull_requests()
+
+        for commit_comment in self._source.github_repo.get_comments():
+            self.add_commit_comment(commit_comment)
+
+        self._get_issues()
+
+        self.set_latest_date()
+
+        return versions
+
+    def _get_pull_requests(self):
         for pull_request in self._source.github_repo.get_pulls(state='all'):
             newer, reviews = self.add_pull_request(pull_request)
             if newer:
@@ -104,6 +116,7 @@ class GitHub_Repository(Git_Repository, Review_System):
                 for review in reviews:
                     self.add_review(review, pull_request.number)
 
+    def _get_issues(self):
         since = convert_utc_datetime(self.tracker_date)
         for issue in self._source.github_repo.get_issues(state='all',
                                                          since=since):
@@ -111,13 +124,6 @@ class GitHub_Repository(Git_Repository, Review_System):
             if newer:
                 for issue_comment in issue.get_comments(since=since):
                     self.add_issue_comment(issue_comment, issue.number)
-
-        for commit_comment in self._source.github_repo.get_comments():
-            self.add_commit_comment(commit_comment)
-
-        self.set_latest_date()
-
-        return versions
 
     def fill_repo_table(self, repo):
         """

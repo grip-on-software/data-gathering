@@ -357,8 +357,8 @@ class TFS_Repository(Git_Repository, Review_System):
             self.add_review(request_id, reviewer)
 
         comments = self.api.pull_request_comments(self.project_id, request_id)
-        for comment in comments:
-            self.add_comment(request_id, comment)
+        for thread in comments:
+            self.add_thread_comments(request_id, thread)
 
     @staticmethod
     def _is_container_account(author, display_name):
@@ -387,58 +387,66 @@ class TFS_Repository(Git_Repository, Review_System):
                 'vote': str(reviewer['vote'])
             })
 
-    def add_comment(self, request_id, thread):
+    def add_thread_comments(self, request_id, thread):
         """
-        Add a pull request code review comment described by its TFS API
-        response object to the merge request notes table.
+        Add comments from a pull request code review comment thread described
+        by its TFS API response object to the merge request notes or commit
+        comments table.
         """
 
         if 'isDeleted' in thread and thread['isDeleted']:
             return
 
-        properties = thread['properties']
         for comment in thread['comments']:
-            author = comment['author']
-            if 'authorDisplayName' in comment:
-                display_name = comment['authorDisplayName']
-            else:
-                display_name = author['displayName']
+            self.add_thread_comment(comment, request_id, thread)
 
-            if self._is_container_account(author, display_name):
-                continue
-            if 'isDeleted' in comment and comment['isDeleted']:
-                continue
+    def add_thread_comment(self, comment, request_id, thread):
+        """
+        Add a pull request code review comment described by its TFS API
+        response object to the merge request notes or commit comments table.
+        """
 
-            created_date = self._parse_date(comment['publishedDate'])
-            updated_date = self._parse_date(comment['lastUpdatedDate'])
-            if not self._is_newer(updated_date):
-                continue
+        author = comment['author']
+        if 'authorDisplayName' in comment:
+            display_name = comment['authorDisplayName']
+        else:
+            display_name = author['displayName']
 
-            if 'authorDisplayName' in comment or 'uniqueName' not in author:
-                unique_name = display_name
-            else:
-                unique_name = author['uniqueName']
+        if self._is_container_account(author, display_name):
+            return
+        if 'isDeleted' in comment and comment['isDeleted']:
+            return
 
-            parent_id = comment['parentId'] if 'parentId' in comment else 0
+        created_date = self._parse_date(comment['publishedDate'])
+        updated_date = self._parse_date(comment['lastUpdatedDate'])
+        if not self._is_newer(updated_date):
+            return
 
-            note = {
-                'repo_name': str(self._repo_name),
-                'merge_request_id': request_id,
-                'thread_id': str(thread['id']),
-                'note_id': str(comment['id']),
-                'parent_id': str(parent_id),
-                'author': parse_unicode(display_name),
-                'author_username': parse_unicode(unique_name),
-                'comment': parse_unicode(comment['content']),
-                'created_at': format_date(created_date),
-                'updated_at': format_date(updated_date)
-            }
+        if 'authorDisplayName' in comment or 'uniqueName' not in author:
+            unique_name = display_name
+        else:
+            unique_name = author['uniqueName']
 
-            # Determine whether to add as commit comment or request note
-            if self.PROPERTY + '.ItemPath' in properties:
-                self.add_commit_comment(note, properties)
-            else:
-                self._tables["merge_request_note"].append(note)
+        parent_id = comment['parentId'] if 'parentId' in comment else 0
+
+        note = {
+            'repo_name': str(self._repo_name),
+            'merge_request_id': request_id,
+            'thread_id': str(thread['id']),
+            'note_id': str(comment['id']),
+            'parent_id': str(parent_id),
+            'author': parse_unicode(display_name),
+            'author_username': parse_unicode(unique_name),
+            'comment': parse_unicode(comment['content']),
+            'created_at': format_date(created_date),
+            'updated_at': format_date(updated_date)
+        }
+
+        # Determine whether to add as commit comment or request note
+        if self.PROPERTY + '.ItemPath' in thread['properties']:
+            self.add_commit_comment(note, thread['properties'])
+        else:
+            self._tables["merge_request_note"].append(note)
 
     def add_commit_comment(self, note, properties):
         """

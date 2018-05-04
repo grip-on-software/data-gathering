@@ -281,10 +281,8 @@ def main():
     if args.credentials:
         credentials = Configuration.get_credentials()
         for domain in credentials.sections():
-            source = make_source(domain)
-            if source:
-                add_ssh_key(project, identities, source, known_hosts,
-                            dry_run=args.dry_run)
+            add_ssh_key(project, identities, make_source(domain), known_hosts,
+                        dry_run=args.dry_run)
 
     if args.gitlab is not False:
         # If --gitlab is not provided or it has no remaining arguments, then

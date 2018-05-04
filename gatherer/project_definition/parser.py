@@ -331,7 +331,7 @@ class Sources_Parser(Project_Definition_Parser):
         self.source_objects = self.get_mock_domain_objects(metric_source,
                                                            self.METRIC_SOURCE)
         self.source_objects.update(self.SOURCE_CLASSES)
-        self.source_classes = tuple(self.SOURCE_CLASSES.values())
+        self.source_types = tuple(self.SOURCE_CLASSES.values())
 
     def get_hqlib_submodules(self):
         return {
@@ -390,27 +390,35 @@ class Sources_Parser(Project_Definition_Parser):
 
         sources = {}
         for key, value in list(keywords[keyword].items()):
-            if from_key and isinstance(key, self.source_classes):
-                class_name = self.get_class_name(type(key))
-                source_url = key.url()
-                if source_url is None or value.startswith(source_url):
-                    source_url = value
+            class_name, source_value = self._parse_source_value(key, value,
+                                                                from_key)
 
-                sources[class_name] = source_url
-            elif not from_key and isinstance(value, self.source_classes):
-                class_name = self.get_class_name(value)
-                logging.debug('Class name: %s', class_name)
-                if isinstance(value, mock.MagicMock):
-                    source_value = value.call_args_list[0][0][0]
-                else:
-                    source_value = value.url()
-
-                if source_value is not None:
-                    logging.debug('Source value: %s', source_value)
-                    sources[class_name] = source_value
+            if class_name is not None:
+                sources[class_name] = source_value
 
         if sources:
             self.data[name] = sources
+
+    def _parse_source_value(self, key, value, from_key):
+        if from_key and isinstance(key, self.source_types):
+            class_name = self.get_class_name(type(key))
+            source_url = key.url()
+            if source_url is None or value.startswith(source_url):
+                source_url = value
+
+            return class_name, source_url
+        elif not from_key and isinstance(value, self.source_types):
+            class_name = self.get_class_name(value)
+            logging.debug('Class name: %s', class_name)
+            if isinstance(value, mock.MagicMock):
+                source_value = value.call_args_list[0][0][0]
+            else:
+                source_value = value.url()
+
+            if source_value is not None:
+                return class_name, source_value
+
+        return None, None
 
 class Metric_Options_Parser(Project_Definition_Parser):
     """

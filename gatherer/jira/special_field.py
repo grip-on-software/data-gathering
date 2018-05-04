@@ -76,29 +76,34 @@ class Comment_Field(Special_Field):
     """
 
     def collect(self, issue, field):
-        if hasattr(field, 'comments'):
-            for comment in field.comments:
-                row = {}
-                is_newer = False
-                for subfield, datatype in self.info["table"].items():
-                    if subfield in self.info["fields"]:
-                        fieldname = self.info["fields"][subfield]
-                    else:
-                        fieldname = subfield
+        if not hasattr(field, 'comments'):
+            return
 
-                    if hasattr(comment, fieldname):
-                        prop = getattr(comment, fieldname)
-                        parser = self.jira.get_type_cast(datatype)
-                        row[subfield] = parser.parse(prop)
-                    else:
-                        row[subfield] = str(0)
+        for comment in field.comments:
+            self._collect_comment(issue, comment)
 
-                    if datatype == 'date' and self.jira.updated_since.is_newer(row[subfield]):
-                        is_newer = True
+    def _collect_comment(self, issue, comment):
+        row = {}
+        is_newer = False
+        for subfield, datatype in self.info["table"].items():
+            if subfield in self.info["fields"]:
+                fieldname = self.info["fields"][subfield]
+            else:
+                fieldname = subfield
 
-                row["issue_id"] = str(issue.id)
-                if is_newer:
-                    self.jira.get_table("comments").append(row)
+            if hasattr(comment, fieldname):
+                prop = getattr(comment, fieldname)
+                parser = self.jira.get_type_cast(datatype)
+                row[subfield] = parser.parse(prop)
+            else:
+                row[subfield] = str(0)
+
+            if datatype == 'date' and self.jira.updated_since.is_newer(row[subfield]):
+                is_newer = True
+
+        row["issue_id"] = str(issue.id)
+        if is_newer:
+            self.jira.get_table("comments").append(row)
 
     @property
     def table_name(self):

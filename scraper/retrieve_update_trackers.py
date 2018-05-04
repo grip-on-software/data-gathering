@@ -51,13 +51,11 @@ def parse_args():
 
     return args
 
-def main():
+def build_tracker(args, project):
     """
-    Main entry point.
+    Build an update tracker source object based on the arguments.
     """
 
-    args = parse_args()
-    project = Project(args.project)
     if args.agent and args.server:
         tracker_class = SSH_Tracker
         options = {
@@ -74,6 +72,27 @@ def main():
             'database': args.database
         }
 
+    return tracker_class(project, **options)
+
+def remove_files(files, project):
+    """
+    Remove stale update tracker files that are not used during the scrape.
+    """
+
+    if files is not None:
+        for filename in files:
+            path = os.path.join(project.export_key, filename)
+            if os.path.exists(path):
+                os.remove(path)
+
+def main():
+    """
+    Main entry point.
+    """
+
+    args = parse_args()
+    project = Project(args.project)
+
     # Convert to set for easier file name comparisons in some tracker sources
     if args.files is None:
         files = None
@@ -82,13 +101,9 @@ def main():
 
     if args.skip:
         logging.warning('Skipping update trackers for project %s', args.project)
-        if files is not None:
-            for filename in files:
-                path = os.path.join(project.export_key, filename)
-                if os.path.exists(path):
-                    os.remove(path)
+        remove_files(files, project)
     else:
-        tracker = tracker_class(project, **options)
+        tracker = build_tracker(args, project)
         tracker.retrieve(files=files)
 
 if __name__ == '__main__':

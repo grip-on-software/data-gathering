@@ -130,33 +130,36 @@ class Repositories_Holder(object):
         versions = Table('vcs_versions', encrypt_fields=encrypt_fields)
         tables = {}
         for repo in self.get_repositories():
-            # Retrieve all tables from the repositories so that we know the
-            # names and overwrite old export files when there are no updates.
-            for table_name, table_data in repo.tables.items():
-                if table_name not in tables:
-                    tables[table_name] = []
-
-            repo_name = repo.repo_name
-            logging.info('Processing repository %s', repo_name)
-            if repo.repo_name in self._latest_versions:
-                latest_version = self._latest_versions[repo.repo_name]
-            else:
-                latest_version = None
-
-            # Retrieve the versions and auxliary tables.
-            versions.extend(repo.get_data(from_revision=latest_version))
-            self._latest_versions[repo.repo_name] = repo.get_latest_version()
-            for table_name, table_data in repo.tables.items():
-                tables[table_name].extend(table_data.get())
-
-            # Keep the new values of the auxiliary update trackers.
-            for file_name, value in repo.update_trackers.items():
-                if file_name not in self._update_trackers:
-                    self._load_update_tracker(file_name)
-
-                self._update_trackers[file_name][repo.repo_name] = value
+            self._process_repo(repo, versions, tables)
 
         self._export(versions, tables)
+
+    def _process_repo(self, repo, versions, tables):
+        # Retrieve all tables from the repositories so that we know the
+        # names and overwrite old export files when there are no updates.
+        for table_name, table_data in repo.tables.items():
+            if table_name not in tables:
+                tables[table_name] = []
+
+        repo_name = repo.repo_name
+        logging.info('Processing repository %s', repo_name)
+        if repo.repo_name in self._latest_versions:
+            latest_version = self._latest_versions[repo.repo_name]
+        else:
+            latest_version = None
+
+        # Retrieve the versions and auxliary tables.
+        versions.extend(repo.get_data(from_revision=latest_version))
+        self._latest_versions[repo.repo_name] = repo.get_latest_version()
+        for table_name, table_data in repo.tables.items():
+            tables[table_name].extend(table_data.get())
+
+        # Keep the new values of the auxiliary update trackers.
+        for file_name, value in repo.update_trackers.items():
+            if file_name not in self._update_trackers:
+                self._load_update_tracker(file_name)
+
+            self._update_trackers[file_name][repo.repo_name] = value
 
     def _export(self, versions, tables):
         """
