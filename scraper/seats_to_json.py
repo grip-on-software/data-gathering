@@ -5,6 +5,7 @@ a JSON file containing sheet counts per project, per month.
 
 import argparse
 import datetime
+import glob
 import json
 import logging
 import os.path
@@ -156,8 +157,8 @@ def parse_args():
     description = "Obtain seat counts from Excel and output JSON"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('project', help='JIRA project key')
-    parser.add_argument('--filename', help='Excel file name(s)', nargs='+',
-                        default='Seats.xls')
+    parser.add_argument('--filename', help='Excel file name(s) or pattern(s)',
+                        nargs='+', default='Seats.xls')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -184,18 +185,20 @@ def main():
         config = yaml.load(config_file)
 
     teams = {}
-    for filename in args.filename:
-        logging.info('Parsing file %s', filename)
+    for pattern in args.filename:
+        logging.info('Expanding pattern %s', pattern)
+        for filename in glob.glob(pattern):
+            logging.info('Parsing file %s', filename)
 
-        forecast_date = parse_filename(filename, config)
-        logging.info('Forecast date: %r', forecast_date)
+            forecast_date = parse_filename(filename, config)
+            logging.info('Forecast date: %r', forecast_date)
 
-        workbook = xlrd.open_workbook(filename)
-        worksheet = workbook.sheet_by_name(config.get('sheet'))
+            workbook = xlrd.open_workbook(filename)
+            worksheet = workbook.sheet_by_name(config.get('sheet'))
 
-        months = gather_months(workbook, worksheet, forecast_date)
+            months = gather_months(workbook, worksheet, forecast_date)
 
-        teams = fill_teams(worksheet, months, config, teams)
+            teams = fill_teams(worksheet, months, config, teams)
 
     output = format_seats(config, teams, project)
     output.write(project.export_key)

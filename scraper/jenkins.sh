@@ -305,7 +305,7 @@ do
 			export_handler topdesk_to_json.py $project --file $TOPDESK_FILE --log $logLevel
 		fi
 		if [ ! -z "$SEATS_FILES" ]; then
-			export_handler seats_to_json.py $project --filename $SEATS_FILES --log $logLevel
+			export_handler seats_to_json.py $project --filename "$SEATS_FILES" --log $logLevel
 		fi
 	fi
 	if [ $importerTasks != "skip" ]; then
