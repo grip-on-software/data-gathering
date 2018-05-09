@@ -83,12 +83,16 @@ class Repositories_Holder(object):
 
         return False
 
-    def get_repositories(self):
+    def get_repositories(self, force=False):
         """
         Retrieve repository objects for all involved version control systems.
 
         Repositories that are up to date (if it can be determined beforehand)
-        and repositories that are empty are not retrieved.
+        and repositories that are empty are not retrieved. Repositories that
+        cannot be updated or retrieved are skipped unless `force` is given and
+        the repository can be retrieved in full instead of updating from the
+        working directory. The `force` option removes working directories that
+        encounter problems to achieve this.
 
         Returns a generator that can be iterated over.
         """
@@ -107,7 +111,8 @@ class Repositories_Holder(object):
             try:
                 repo = repo_class.from_source(source, path,
                                               project=self._project,
-                                              sprints=self._sprints)
+                                              sprints=self._sprints,
+                                              remove=force)
             except RepositorySourceException:
                 logging.exception('Cannot retrieve repository source for %s',
                                   source.name)
@@ -118,10 +123,12 @@ class Repositories_Holder(object):
             if not repo.is_empty():
                 yield repo
 
-    def process(self):
+    def process(self, force=False):
         """
-        Perform all actions required for retrieving the commit data of all
-        the repositories and exporting it to JSON.
+        Perform all actions required for retrieving updated commit data of all
+        the repositories and exporting it to JSON. If `force` is set to `True`,
+        then repositories that cannot be updated can be deleted locally and
+        retrieved.
         """
 
         self._load_latest_versions()
@@ -129,8 +136,12 @@ class Repositories_Holder(object):
         encrypt_fields = ('developer', 'developer_username', 'developer_email')
         versions = Table('vcs_versions', encrypt_fields=encrypt_fields)
         tables = {}
-        for repo in self.get_repositories():
-            self._process_repo(repo, versions, tables)
+        for repo in self.get_repositories(force=force):
+            try:
+                self._process_repo(repo, versions, tables)
+            except (RepositorySourceException, RepositoryDataException):
+                logging.exception('Cannot retrieve repository data for %s',
+                                  repo.repo_name)
 
         self._export(versions, tables)
 

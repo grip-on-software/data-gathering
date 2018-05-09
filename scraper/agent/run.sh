@@ -32,12 +32,12 @@ done
 
 python scraper/generate_key.py $project --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab --source --credentials --log INFO
 python scraper/preflight.py $project --log $logLevel $preflightArgs
-python scraper/retrieve_metrics_repository.py $project --log $logLevel
+python scraper/retrieve_metrics_repository.py $project --log $logLevel --force
 python scraper/retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
 python scraper/project_sources.py $project --log $logLevel
 python scraper/project_to_json.py $project --log $logLevel
 python scraper/environment_sources.py $project --log $logLevel
-python scraper/git_to_json.py $project --log $logLevel
+python scraper/git_to_json.py $project --log $logLevel --force
 python scraper/jenkins_to_json.py $project --log $logLevel
 python scraper/export_files.py $project --update $preflightFiles $updateFiles --export $exportFiles
 

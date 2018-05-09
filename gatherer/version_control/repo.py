@@ -7,6 +7,15 @@ from builtins import object
 from enum import Enum, unique
 import logging
 
+class RepositoryDataException(RuntimeError):
+    """
+    Exception that indicates that a call that collecting data from the
+    repository in its local or remote store has failed due to problems related
+    to the input of unexpected parameters.
+    """
+
+    pass
+
 class RepositorySourceException(RuntimeError):
     """
     Exception that indicates that a call that updates the local states of the
@@ -258,7 +267,8 @@ class Version_Control_Repository(object):
     def get_latest_version(self):
         """
         Retrieve the identifier of the latest version within the version
-        control repository.
+        control repository. If the latest version cannot be found, then
+        this method raises a `RepositoryDataException`.
         """
 
         raise NotImplementedError("Must be implemented by subclass")
@@ -303,6 +313,9 @@ class Version_Control_Repository(object):
         Retrieve the contents of a file with path `filename` at the given
         version `revision`, or the current version if not given.
 
+        If the revision cannot be obtained, then this method raises
+        a `RepositoryDataException`.
+
         If the contents cannot be retrieved due to a missing or invalid file,
         then this method raises a `FileNotFoundException`.
         """
@@ -322,6 +335,9 @@ class Version_Control_Repository(object):
         An additional argument may be `stats`, which determines whether to
         retrieve file difference statistics from the repository. This argument
         and other VCS-specific arguments are up to the called method to adhere.
+
+        If this method fails to retrieve certain data from its revisions,
+        then a `RepositoryDataException` is raised.
         """
 
         raise NotImplementedError("Must be implemented by subclass")
@@ -329,6 +345,9 @@ class Version_Control_Repository(object):
     def get_data(self, from_revision=None, to_revision=None, **kwargs):
         """
         Retrieve version and auxiliary data from the repository.
+
+        If this method fails to retrieve certain data from its revisions,
+        then a `RepositoryDataException` is raised.
         """
 
         return self.get_versions(from_revision=from_revision,
