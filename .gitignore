@@ -5,6 +5,7 @@
 *.pyc
 *.swp
 env
+env.*
 *.cfg
 !.isort.cfg
 *.yml

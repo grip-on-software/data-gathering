@@ -34,7 +34,6 @@ quality-report-history/
 src/*/
 src/pip-delete-this-directory.txt
 .Python
-env/
 build/
 develop-eggs/
 dist/
