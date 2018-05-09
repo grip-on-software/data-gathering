@@ -10,6 +10,7 @@ except ImportError:
     raise
 
 from builtins import str
+import logging
 import re
 import dateutil.tz
 from git import Commit
@@ -289,7 +290,13 @@ class TFS_Repository(Git_Repository, Review_System):
         versions = super(TFS_Repository, self).get_data(from_revision,
                                                         to_revision, **kwargs)
 
-        repository_id = self.api.get_repository_id(self._source.tfs_repo)
+        try:
+            repository_id = self.api.get_repository_id(self._source.tfs_repo)
+        except (RuntimeError, ValueError):
+            logging.exception('Could not retrieve repository ID for %s',
+                              self._source.tfs_repo)
+            return versions
+
         events = self.api.pushes(repository_id, refs=True,
                                  from_date=self._update_trackers['tfs_update'])
         for event in events:
