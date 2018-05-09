@@ -120,7 +120,7 @@ class TFS_Project(object):
 
         repositories = self.repositories()
         for repository_data in repositories:
-            if repository_data['name'] == repository:
+            if repository_data['name'].lower() == repository.lower():
                 return repository_data['project']['id']
 
         raise ValueError("Repository '{}' cannot be found".format(repository))
@@ -132,7 +132,7 @@ class TFS_Project(object):
 
         repositories = self.repositories()
         for repository_data in repositories:
-            if repository_data['name'] == repository:
+            if repository_data['name'].lower() == repository.lower():
                 return repository_data['id']
 
         raise ValueError("Repository '{}' cannot be found".format(repository))

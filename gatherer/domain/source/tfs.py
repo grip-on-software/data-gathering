@@ -98,7 +98,8 @@ class TFS(Git):
 
         # Remove trailing slashes since they are optional and the TFS API
         # returns remote URLs without slashes.
-        self._url = self._url.rstrip('/')
+        # Also lowercase the URL to match insensitively (as TFS does).
+        self._url = self._url.rstrip('/').lower()
 
         return orig_parts, host
 
@@ -108,7 +109,7 @@ class TFS(Git):
 
     @property
     def environment(self):
-        return (self._tfs_host,) + self._tfs_collections
+        return (self._tfs_host,) + tuple(collection.lower() for collection in self._tfs_collections)
 
     @property
     def environment_url(self):
@@ -164,7 +165,7 @@ class TFS(Git):
         if tfs_collection is None or tfs_collection == 'true':
             return True
 
-        return '/'.join(self._tfs_collections).startswith(tfs_collection)
+        return '/'.join(self._tfs_collections).lower().startswith(tfs_collection.lower())
 
     def get_sources(self):
         repositories = self.tfs_api.repositories()
