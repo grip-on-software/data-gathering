@@ -25,6 +25,8 @@ def parse_args():
                         help='Delete local repository instead of retrieving it')
     parser.add_argument('--all', action='store_true', default=False,
                         help='Retrieve or delete all repositories, not a sparse subset')
+    parser.add_argument('--force', action='store_true', default=False,
+                        help='Delete and clone repository if pull fails')
 
     Log_Setup.add_argument(parser)
     Log_Setup.add_upload_arguments(parser)
@@ -52,15 +54,18 @@ def delete_repository(source, repo_path, paths=None):
         logging.warning('Local quality metrics repository %s did not exist',
                         repo_path)
 
-def retrieve_repository(source, repo_path, paths=True):
+def retrieve_repository(source, repo_path, paths=True, force=False):
     """
-    Retrieve a project definition metrics repository.
+    Retrieve a project definition metrics repository from the `source` and
+    make it available in `repo_path`. If `paths` is not `True`, then a subset
+    of paths are checked out into the working tree.
     """
 
     repo_class = source.repository_class
     if isinstance(source, Git):
         logging.info('Pulling quality metrics repository %s', repo_path)
-        repository = repo_class.from_source(source, repo_path, checkout=paths)
+        repository = repo_class.from_source(source, repo_path, checkout=paths,
+                                            force=force)
     elif os.path.exists(repo_path):
         logging.info('Updating quality metrics repository %s', repo_path)
         repository = repo_class(source, repo_path)
@@ -138,8 +143,8 @@ def main():
 
         return
 
-    retrieve_repository(source, repo_path, paths=paths)
-    retrieve_repository(base_source, base_path)
+    retrieve_repository(source, repo_path, paths=paths, force=args.force)
+    retrieve_repository(base_source, base_path, force=args.force)
 
 if __name__ == '__main__':
     main()

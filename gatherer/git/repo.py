@@ -8,6 +8,7 @@ from io import BytesIO
 import logging
 import os
 import re
+import shutil
 import tempfile
 from git import Git, Repo, Blob, Commit, NULL_TREE, \
     InvalidGitRepositoryError, NoSuchPathError, GitCommandError
@@ -16,7 +17,7 @@ from .progress import Git_Progress
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
 from ..version_control.repo import Change_Type, Version_Control_Repository, \
-    RepositorySourceException, FileNotFoundException
+    RepositoryDataException, RepositorySourceException, FileNotFoundException
 
 class Sparse_Checkout_Paths(object):
     """
@@ -182,22 +183,37 @@ class Git_Repository(Version_Control_Repository):
         a different value for "core.sharedRepository" or "core.sharedrepository"
         cause a `RuntimeError`, and so does a combination of `shared` and
         `checkout` when the latter is a list of paths.
+
+        If `force` is enabled, when a pull into an existing repository fails,
+        then the local repository is deleted and a clone is attempted.
+        This method raises a `RepositorySourceException` if a clone fails, or
+        if a pull fails and `force` is not enabled.
         """
 
         checkout = kwargs.pop('checkout', False)
         shallow = kwargs.pop('shallow', False)
         shared = kwargs.pop('shared', False)
+        force = kwargs.pop('force', False)
+
         repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
-            if not repository.is_shared(shared=shared):
-                raise RepositorySourceException("Clone was not shared as '{}'".format(shared))
+            try:
+                repository.pull(shallow=shallow, shared=shared,
+                                checkout=checkout)
+                return repository
+            except RepositorySourceException as exception:
+                logging.exception('Could not pull into existing repository %s',
+                                  repo_directory)
+                if not force:
+                    raise exception
 
-            if not repository.is_empty():
-                if isinstance(checkout, list):
-                    repository.checkout_sparse(checkout, shallow=shallow)
-                else:
-                    repository.update(shallow=shallow, checkout=checkout)
-        elif isinstance(checkout, bool):
+                logging.warning('Deleting to make way for clone in %s', repo_directory)
+                try:
+                    shutil.rmtree(repo_directory)
+                except OSError as error:
+                    raise RepositorySourceException(str(error))
+
+        if isinstance(checkout, bool):
             repository.clone(checkout=checkout, shallow=shallow, shared=shared)
         elif shared is not False:
             # Checkout is a list of paths to checkout, so sparse
@@ -206,6 +222,28 @@ class Git_Repository(Version_Control_Repository):
             repository.checkout(paths=checkout, shallow=shallow)
 
         return repository
+
+    def pull(self, shallow=False, shared=False, checkout=True):
+        """
+        Pull the latest changes into the existing local repository.
+
+        If `shallow` is set to `True`, then the local repository will only
+        pull in the default branch's head commit. If `shared` is given, then
+        the repository's permissions are set to global or group permissions.
+        `checkout` may be set to `False` to disable a local repository checkout
+        of the latest commits, or to a list of paths to check out.
+        """
+
+        if not self.is_shared(shared=shared):
+            raise RepositorySourceException("Clone was not shared as '{}'".format(shared))
+
+        if self.is_empty():
+            return
+
+        if isinstance(checkout, list):
+            self.checkout_sparse(checkout, shallow=shallow)
+        else:
+            self.update(shallow=shallow, checkout=checkout)
 
     @classmethod
     def is_up_to_date(cls, source, latest_version, update_tracker=None):
@@ -393,7 +431,6 @@ class Git_Repository(Version_Control_Repository):
         if paths is not None:
             self.checkout_sparse(paths, shallow=shallow)
 
-
     def _checkout_index(self):
         try:
             self.repo.git.read_tree(['-m', '-u', 'HEAD'])
@@ -456,10 +493,13 @@ class Git_Repository(Version_Control_Repository):
             raise RepositorySourceException(str(error))
 
     def _query(self, refspec, paths='', descending=True):
-        return self.repo.iter_commits(refspec, paths=paths,
-                                      max_count=self._iterator_limiter.size,
-                                      skip=self._iterator_limiter.skip,
-                                      reverse=not descending)
+        try:
+            return self.repo.iter_commits(refspec, paths=paths,
+                                          max_count=self._iterator_limiter.size,
+                                          skip=self._iterator_limiter.skip,
+                                          reverse=not descending)
+        except GitCommandError as error:
+            raise RepositoryDataException(str(error))
 
     def find_commit(self, committed_date):
         """
@@ -474,8 +514,12 @@ class Git_Repository(Version_Control_Repository):
             'min_age': date_epoch,
             'max_age': date_epoch
         }
-        commits = list(self.repo.iter_commits(self.default_branch,
-                                              **rev_list_args))
+        try:
+            commits = list(self.repo.iter_commits(self.default_branch,
+                                                  **rev_list_args))
+        except GitCommandError as error:
+            raise RepositoryDataException(str(error))
+
         if commits:
             return commits[0].hexsha
 
@@ -570,9 +614,14 @@ class Git_Repository(Version_Control_Repository):
         }
 
     def _get_original_branch(self, commit):
-        commits = self.repo.iter_commits('{}..HEAD'.format(commit.hexsha),
-                                         ancestry_path=True, merges=True,
-                                         reverse=True)
+        try:
+            commits = self.repo.iter_commits('{}..HEAD'.format(commit.hexsha),
+                                             ancestry_path=True, merges=True,
+                                             reverse=True)
+        except GitCommandError:
+            logging.exception('Cannot find original branch for %s in repo %s',
+                              commit.hexsha, self.repo_name)
+            return str(0)
 
         try:
             merge_commit = next(commits)
@@ -698,15 +747,21 @@ class Git_Repository(Version_Control_Repository):
             self._tables['tag'].append(tag_data)
 
     def get_latest_version(self):
-        return self.repo.rev_parse(self.default_branch).hexsha
+        try:
+            return self.repo.rev_parse(self.default_branch).hexsha
+        except GitCommandError as error:
+            raise RepositoryDataException(str(error))
 
     def get_contents(self, filename, revision=None):
-        if isinstance(revision, Commit):
-            commit = revision
-        elif revision is not None:
-            commit = self.repo.commit(revision)
-        else:
-            commit = self.repo.commit('HEAD')
+        try:
+            if isinstance(revision, Commit):
+                commit = revision
+            elif revision is not None:
+                commit = self.repo.commit(revision)
+            else:
+                commit = self.repo.commit('HEAD')
+        except GitCommandError as error:
+            raise RepositoryDataException(str(error))
 
         try:
             blob = commit.tree.join(filename)
