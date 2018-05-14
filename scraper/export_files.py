@@ -9,6 +9,7 @@ except ImportError:
     raise
 
 import argparse
+import json
 import logging
 import socket
 import subprocess
@@ -104,14 +105,16 @@ class Exporter(object):
             return
 
         session = Session(verify=cert)
-        request = session.post(url, json={
-            "export": export,
-            "update": update,
-            "other": other,
-            "agent": {
+        request = session.post(url, data={
+            "files": json.dumps({
+                "export": export,
+                "update": update,
+                "other": other,
+            }),
+            "agent": json.dumps({
                 "hostname": socket.gethostname(),
                 "version": session.headers['User-Agent']
-            }
+            })
         })
 
         if not Session.is_code(request, 'accepted'):
