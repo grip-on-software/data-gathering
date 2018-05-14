@@ -10,6 +10,7 @@ except ImportError:
 
 import argparse
 import logging
+import socket
 import subprocess
 import sys
 from gatherer.config import Configuration
@@ -38,6 +39,8 @@ def parse_args():
                         help='update tracker files to consider')
     parser.add_argument('--export', nargs='+', default=[],
                         help='data files to consider for export')
+    parser.add_argument('--other', nargs='+', default=[],
+                        help='paths to other files to consider for export')
     parser.add_argument('--dry-run', dest='dry_run', action='store_true',
                         default=False, help='Log actions rather than executing')
 
@@ -47,48 +50,72 @@ def parse_args():
 
     return args
 
-def export_files(project, key_path, filenames, export_path, dry_run=False):
+class Exporter(object):
     """
-    Upload the export data files `filenames` for the project `project` from
-    the export directory for the `project` to a remote SCP directory indicated
-    by the `export_path`, using the identity file in `key_path` for SSH public
-    key authentication.
-
-    If `dry_run` is `True`, then only log what command would be executed rather
-    than performing this action.
+    Export data collected for one project to the controller.
     """
 
-    args = ['scp', '-i', key_path] + [
-        '{}/{}'.format(project.export_key, filename) for filename in filenames
-    ] + [export_path + '/']
-    if dry_run:
-        logging.info('Dry run: Would execute %s', ' '.join(args))
-    else:
-        subprocess.call(args)
+    def __init__(self, project, host, agent, dry_run=False):
+        self.project = project
+        self.host = host
+        self.agent = agent
+        self.dry_run = dry_run
 
-def update_controller(host, project, cert, dry_run=False):
-    """
-    Indicate to the controller API at domain `host` that we are done with
-    exporting the current state of the gatherer for the project `project`.
+    def export_files(self, key_path, filenames, paths):
+        """
+        Upload the export data files `filenames` for the project from the
+        export directory for the project to a remote SCP directory indicated
+        by the `export_path`, using the identity file in `key_path` for SSH
+        public key authentication.
 
-    Use the certificate `cert` to verify the controller API.
+        If `dry_run` is `True`, then only log what command would be executed
+        rather than performing this action.
+        """
 
-    If `dry_run` is `True`, then only log what URL would be requested rather
-    than performing this action.
+        auth = self.agent + '@' + self.host
+        export_path = '{}:~/{}/'.format(auth, self.project.export_key)
 
-    If the requested URL returns a different status code than '202 Accepted',
-    then a `RuntimeError` is raised.
-    """
+        args = ['scp', '-i', key_path] + [
+            '{}/{}'.format(self.project.export_key, filename) for filename in filenames
+        ] + paths + [export_path]
+        if self.dry_run:
+            logging.info('Dry run: Would execute %s', ' '.join(args))
+        else:
+            subprocess.call(args)
 
-    url = 'https://{}/auth/export.py?project={}'.format(host, project.jira_key)
-    if dry_run:
-        logging.info('Dry run: Would send a POST request to %s', url)
-        return
+    def update_controller(self, cert, export=None, update=None, other=None):
+        """
+        Indicate to the controller API that we are done with exporting
+        the current state of the gatherer for the project.
 
-    request = Session(verify=cert).post(url)
+        Use `cert` to validate the HTTPS connection to the controller.
 
-    if not Session.is_code(request, 'accepted'):
-        raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
+        If `dry_run` is `True`, then only log what URL would be requested
+        rather than performing this action.
+
+        If the requested URL returns a different status code than
+        '202 Accepted', then a `RuntimeError` is raised.
+        """
+
+        url = 'https://{}/auth/export.py?project={}'.format(self.host,
+                                                            self.project.jira_key)
+        if self.dry_run:
+            logging.info('Dry run: Would send a POST request to %s', url)
+            return
+
+        session = Session(verify=cert)
+        request = session.post(url, json={
+            "export": export,
+            "update": update,
+            "other": other,
+            "agent": {
+                "hostname": socket.gethostname(),
+                "version": session.headers['User-Agent']
+            }
+        })
+
+        if not Session.is_code(request, 'accepted'):
+            raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
 
 def main():
     """
@@ -102,17 +129,19 @@ def main():
         logging.critical('No SSH export host defined, cannot export data.')
         return 1
 
-    auth = args.agent + '@' + args.ssh
-    path = '{}:~/{}'.format(auth, project.export_key)
+    exporter = Exporter(project, args.ssh, args.agent, dry_run=args.dry_run)
 
-    export_files(project, args.path, args.export + args.update, path,
-                 dry_run=args.dry_run)
+    exporter.export_files(args.path, args.export + args.update, args.other)
 
-    try:
-        update_controller(args.ssh, project, args.cert, dry_run=args.dry_run)
-    except RuntimeError:
-        logging.exception('Could not notify the export controller')
-        return 1
+    if args.export or args.update:
+        try:
+            exporter.update_controller(args.cert,
+                                       export=args.export,
+                                       update=args.update,
+                                       other=args.other)
+        except RuntimeError:
+            logging.exception('Could not notify the export controller')
+            return 1
 
     return 0
 
