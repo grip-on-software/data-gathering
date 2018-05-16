@@ -19,11 +19,13 @@ SH
 
 	chmod +x /etc/periodic/$CRON_PERIOD/scrape
 
-	cat >/etc/periodic/15min/bigboat <<'SH'
+	if [ ! -z "$BIGBOAT_PERIOD" ] && [ "$BIGBOAT_PERIOD" != "-" ]; then
+		cat >/etc/periodic/$BIGBOAT_PERIOD/bigboat <<'SH'
 #!/bin/sh
 /home/agent/scraper/agent/env.sh 'cd /home/agent && python scraper/bigboat_to_json.py ${JIRA_KEY}'
 SH
-	chmod +x /etc/periodic/15min/bigboat
+		chmod +x /etc/periodic/$BIGBOAT_PERIOD/bigboat
+	fi
 
 	crond -b -L /dev/stderr
 fi

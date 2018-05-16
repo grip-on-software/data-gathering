@@ -120,8 +120,8 @@ following scripts to retrieve data or publish status:
   registration purposes.
 - `scraper/preflight.py`: Perform status checks, including integrity of secrets 
   and the controller server, before collecting and exporting data.
-- `scraper/agent/scraper.py`: Web server providing scraper status information
-  and immediate job starts.
+- `scraper/agent/scraper.py`: Web API server providing scraper status 
+  information and immediate job starts.
 
 Finally, the repository contains a controller API and its backend daemons, and 
 a deployment interface:
@@ -152,19 +152,23 @@ there for distributed deployments.
 Next, start the Docker instance based on the container. Use `docker run --name 
 data-gathering-agent -v env:/home/agent/env [options]... 
 ictu/gros-data-gathering` to start the instance using environment variables 
-from a file called `env` to set [configuration](#configuration). By default the 
-Docker instance periodically checks if it should scrape data, and it should be 
-started in a daemonized form using the option `-d`. You can put it in 
-a 'Jenkins-style' run using the environment variable `JENKINS_URL=value`, which 
-performs one scrape job if possible. For Jenkins-style runs, you can also pass 
-environment variables using `-e` and other Docker parameters. In Daemon runs 
-only the variables described in the configuration section can be passed via 
-`-e`; others must be placed on their own line in `env`. Skip some of the 
-pre-flight checks using `PREFLIGHT_ARGS="--no-secrets --no-ssh"` or other 
-options from `scraper/preflight.py`. Finally, you can enter a running docker 
-instance using `docker exec data-gathering-agent 
-/home/agent/scraper/agent/env.sh` and run any scripts there, as described in 
-the [overview](#overview).
+from a file called `env` to set [configuration](#configuration). 
+
+Depending on this configuration, the Docker instance can run in 'Daemon' mode 
+or in 'Jenkins' mode. In 'Daemon' mode, the instance periodically checks if it 
+should scrape data. Therefore, it should be started in a daemonized form using 
+the option `-d`. Set `CRON_PERIOD` and `BIGBOAT_PERIOD` to appropriate values 
+for this purpose. You run in a 'Jenkins-style' run using the environment 
+variable `JENKINS_URL=value`, which performs one scrape job if possible.
+
+For Jenkins-style runs, you can also pass environment variables using `-e` and 
+other Docker parameters. In Daemon runs only the variables described in the 
+configuration section can be passed via `-e`; others must be placed on their 
+own line in `env`. Skip some of the pre-flight checks using 
+`PREFLIGHT_ARGS="--no-secrets --no-ssh"` or other options from 
+`scraper/preflight.py`. Finally, you can enter a running docker instance using 
+`docker exec data-gathering-agent /home/agent/scraper/agent/env.sh` and run any 
+scripts there, as described in the [overview](#overview).
 
 For more advanced setups with many variables that need configuration or 
 persistent volume mounts, it is advisable to create 
@@ -175,6 +179,40 @@ a file called `env` can be added to the build context in order to set up
 environment variables that remain true in all instances. For even more 
 versatility, a separate configuration tool can alter the configuration and 
 environment files via shared volumes.
+
+More details regarding the specific configuration of the environment within the 
+Docker instance can be found in the [environment](#environment) section.
+
+## Scraper web API
+
+In the 'Daemon' mode of the [Docker instance](#docker) of the agent, one can 
+make use of a web API to collect status information about the agent and 
+immediately start a scrape operation. By default, the web API server runs on 
+port 7070. The API uses JSON as an output format. The following endpoints are 
+provided:
+
+- `/status`: Check the status of the scrape process. Returns a body containing 
+  a JSON object with keys `ok` and `message`. If a scrape is in operation, then 
+  a `200` status code is returned and `ok` is set to `true`. Otherwise, a `503` 
+  status code is returned and `ok` is set to `false`. `message` provides 
+  a human-readable description of the status.
+- `/scrape`: Request a scrape operation. This request must be POSTed, otherwise
+  a `400` error is returned. If a scrape is in operation, then a `503` error is 
+  returned. If the scrape cannot be started, then a `500` error is returned. If 
+  the scrape can be started but immediately provides an error code, then 
+  a `503` error is returned. Otherwise, a `201` status code is returned with 
+  a body containing a JSON object with key `ok` and value `true`.
+
+When any error is returned, then a JSON body is provided with a JSON object 
+containing details regarding the error. The object has a key `ok` with the 
+value `false`, a key `version` with a JSON object containing names of 
+components and libraries as keys and version strings as values, and a key 
+`error` with a JSON object containing the following keys and values:
+
+- `status`: The error status code.
+- `message`: The message provided with the error.
+- `traceback`: If display of tracebacks is enabled, then the error traceback is 
+  provided as a string. Otherwise, the value is `null`.
 
 ## Configuration
 
@@ -193,6 +231,8 @@ pipeline scripts as shown in their `--help` output.
 Some options may have their value set to a falsy value ('false', 'no', 'off', 
 '-', '0' or the empty string) to disable a certain feature or to indicate that 
 the setting is not used in this environment.
+
+### Settings
 
 - jira (used by `jira_to_json.py`): JIRA access settings.
   - `server` (`$JIRA_SERVER`): Base URL of the JIRA server used by the 
@@ -362,13 +402,15 @@ the setting is not used in this environment.
   considered to be a support team.
   - `$SUPPORT_TEAM`: Whether the project is considered to be a support team.
 
-The credentials file follows a similar section-option-value, but 
-`credentials.cfg.example` contains two sections: the first, whose name is 
-`$SOURCE_HOST`, is to be replaced by the hostname of a version control system 
-that contains the project repositories. The second section with the placeholder 
-name `$DEFINITIONS_HOST`, is the hostname containing project definitions, 
-matching the URLs in the `definitions` section of the settings. The two 
-sections by default use separate credentials.
+### Credentials
+
+The credentials file follows a similar section-option-value scheme as the 
+settings, but `credentials.cfg.example` contains two sections: the first, whose 
+name is `$SOURCE_HOST`, is to be replaced by the hostname of a version control 
+system that contains the project repositories. The second section with the 
+placeholder name `$DEFINITIONS_HOST`, is the hostname containing project 
+definitions, matching the URLs in the `definitions` section of the settings. 
+The two sections by default use separate credentials.
 
 These sections may be edited and additional sections may be added if the 
 project(s) have different setups, such as more VCS hosts. All options may be 
@@ -437,14 +479,83 @@ access to the service completely.
   host key verification for the host. This works for Git SSH communication and 
   Subversion HTTPS requests.
 
-Finally, for `topdesk_to_json.py`, the presence of a `topdesk.cfg` 
-configuration file is necessary. The projects section has option names 
-corresponding to JIRA keys and values corresponding to the project 
-representation pass number in the CSV dump. The names section have internal 
-identifiers for the columns in the CSV dump as options, and their associated 
-values are the actual names in the CSV dump. The whitelist section contains 
-a global whitelist, which is a regular expression that matches descriptions of 
-items that are relevant events. The project-specific whitelist(s) instead match 
-event descriptions that are specifically relevant to the project. The blacklist 
-section can only have a global blacklist that filters irrelevant events based 
-on their description.
+### Environment
+
+When running the scraper agent using [Docker](#docker), as mentioned in that 
+section, all settings and credentials may be set through environment variables, 
+originating from either Docker parameters (Jenkins-style runs only) or `env` 
+files.
+
+The `env` files may exist in the `/home/agent` directory as added during 
+a build of the Docker image, as well as in the `/home/agent/config` volume; 
+both files are read during startup as well as when starting any scrape 
+operation. This writes the variables into the configuration files on the 
+`/home/agent/config` volume (only if they do not yet exist) at startup, and 
+makes other environment variables available during the scrape.
+
+The following environment variables alter the Docker instance behavior, aside 
+from writing them into the configuration files (if at all):
+
+- `$CRON_PERIOD`: The frequency of which the scrape should be attempted, i.e.,
+  how often to perform the preflight checks and obtain data from sources if all
+  checks pass. The period may be `15min`, `hourly`, `daily`, `weekly` and 
+  `monthly`. This enables the 'Daemon' mode of the scraper and is also 
+  necessary for the operation of the scraper web API.
+- `$BIGBOAT_PERIOD`: The frequency of which the status information from the
+  BigBoat dashboard should be retrieved. This can hold the same values as 
+  `$CRON_PERIOD` and only takes effect if 'Daemon' mode is enabled.
+- `$JENKINS_URL`: Set to any value (preferably the base URL of the Jenkins
+  instance on which the agent runs) to enable the 'Jenkins-style' mode of the
+  scraper.
+- `$PREFLIGHT_ARGS`: Arguments to pass to the script that performs the 
+  preflight checks. This can be used to skip the checks completely. The scraper 
+  web API uses this to force a scrape run upon request, but it is otherwise
+  honored for both 'Daemon' and 'Jenkins-style' modes.
+- `$AGENT_LOGGING`: If provided, then this indicates to the logging mechanism
+  that additional arguments and functionality should be provided to upload 
+  logging to a logger server on the controller host. Aside from this 
+  functionality, the 'Daemon' mode of the agent always uploads the entire log 
+  to the controller at the end of the scrape.
+- `$JIRA_KEY`: The JIRA key to use for the entire scrape operation. This is
+  required to generate and spread keys to the VCS sources and controller, as
+  well as to actually perform the collection. It may be provided at a later 
+  moment than the initial startup.
+- `$DEFINITIONS_CREDENTIALS_ENV`: Used during key generation to determine the
+  environment variable holding the path to store/obtain the main private key.
+- `$SOURCE_HOST` and `$DEFINITIONS_HOST`: Used during key generation to spread
+  the public key to, assuming they are GitLab hosts, when the sources have not 
+  been located yet.
+
+### Seats
+
+For `seats_to_json.py`, the presence of a `seats.yml` specification file is 
+necessary. The YAML file contains keys and values, which may contain sub-arrays 
+and lists. The following keys are necessary:
+
+- `sheet`: The name of the worksheet within the XLS/XLSX workbook that contains
+  the seat counts.
+- `filename`: Format that valid workbook file names must adhere to. The format 
+  must contain `strptime` format codes in order to deduce the time at which the 
+  file was created.
+- `projects`: An array of project names and project keys. The project name 
+  should appear in the first worksheet column (excluding the `prefixes`).
+  The project keys may be a single JIRA key to map the project name to, or 
+  a list of JIRA keys to distribute the seat counts evenly over.
+- `prefixes`: A list of strings that should be removed from names in the first 
+  worksheet column before using them as a project name.
+- `ignore`: A list of strings that indicate that no further projects can be 
+  found in the remaining rows when a name in the first worksheet column starts 
+  with one of the ignore strings.
+
+### Topdesk
+
+For `topdesk_to_json.py`, the presence of a `topdesk.cfg` configuration file is 
+necessary. The projects section has option names corresponding to JIRA keys and 
+values corresponding to the project representation pass number in the CSV dump. 
+The names section have internal identifiers for the columns in the CSV dump as 
+options, and their associated values are the actual names in the CSV dump. The 
+whitelist section contains a global whitelist, which is a regular expression 
+that matches descriptions of items that are relevant events. The 
+project-specific whitelist(s) instead match event descriptions that are 
+specifically relevant to the project. The blacklist section can only have 
+a global blacklist that filters irrelevant events based on their description.
