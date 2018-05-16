@@ -390,6 +390,8 @@ class Sources_Parser(Project_Definition_Parser):
 
         sources = {}
         for key, value in list(keywords[keyword].items()):
+            if isinstance(value, (list, tuple)) and len(value) > 0:
+                value = value[0]
             class_name, source_value = self._parse_source_value(key, value,
                                                                 from_key)
 
