@@ -185,11 +185,11 @@ Docker instance can be found in the [environment](#environment) section.
 
 ## Scraper web API
 
-In the 'Daemon' mode of the [Docker instance](#docker) of the agent, one can 
-make use of a web API to collect status information about the agent and 
-immediately start a scrape operation. By default, the web API server runs on 
-port 7070. The API uses JSON as an output format. The following endpoints are 
-provided:
+In the [Docker instance](#docker) of the agent when not running the 
+'Jenkins-style' mode, one can make use of a web API to collect status 
+information about the agent and immediately start a scrape operation. By 
+default, the web API server runs on port 7070. The API uses JSON as an output 
+format. The following endpoints are provided:
 
 - `/status`: Check the status of the scrape process. Returns a body containing 
   a JSON object with keys `ok` and `message`. If a scrape is in operation, then 
@@ -499,8 +499,7 @@ from writing them into the configuration files (if at all):
 - `$CRON_PERIOD`: The frequency of which the scrape should be attempted, i.e.,
   how often to perform the preflight checks and obtain data from sources if all
   checks pass. The period may be `15min`, `hourly`, `daily`, `weekly` and 
-  `monthly`. This enables the 'Daemon' mode of the scraper and is also 
-  necessary for the operation of the scraper web API.
+  `monthly`. This enables the 'Daemon' mode of the scraper.
 - `$BIGBOAT_PERIOD`: The frequency of which the status information from the
   BigBoat dashboard should be retrieved. This can hold the same values as 
   `$CRON_PERIOD` and only takes effect if 'Daemon' mode is enabled.

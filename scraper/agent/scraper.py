@@ -60,19 +60,15 @@ class Scraper(object):
         if self._is_running():
             raise cherrypy.HTTPError(503, 'Another scrape process is already running')
 
-        environment = os.environ.copy()
-
-        # Check if we are able to run the scrape process.
-        if 'CRON_PERIOD' not in environment or environment['CRON_PERIOD'] == '-':
-            raise cherrypy.HTTPError(500, 'Scrape processes are disabled')
-
-        path = '/etc/periodic/{}/scrape'.format(environment['CRON_PERIOD'])
+        path = '/home/agent/scraper/agent/scrape.sh'
         if not os.path.exists(path):
             raise cherrypy.HTTPError(500, 'Cannot find scraper {}'.format(path))
 
         # Skip the controller status check at preflight: We want to run the
         # scrape now as a test run, and not bother with schedules.
+        environment = os.environ.copy()
         environment['PREFLIGHT_ARGS'] = '--skip'
+
         process = subprocess.Popen(['/bin/bash', path],
                                    stdout=None, stderr=None, env=environment)
 

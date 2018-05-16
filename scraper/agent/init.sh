@@ -8,13 +8,7 @@ if [ ! -z "$CRON_PERIOD" ] && [ "$CRON_PERIOD" != "-" ]; then
 	# Enable a cron job for scraping regularly
 	cat >/etc/periodic/$CRON_PERIOD/scrape <<'SH'
 #!/bin/sh
-chown -R agent:agent /home/agent/export
-chown -R agent:agent /home/agent/config
-chown -R agent:agent /home/agent/.ssh
-chmod -R 600 /home/agent/.ssh
-chmod 700 /home/agent/.ssh
-/home/agent/scraper/agent/env.sh 'cd /home/agent && /home/agent/scraper/agent/run.sh ${JIRA_KEY} "${PREFLIGHT_ARGS}" 2>&1 | tee /home/agent/export/scrape.log'
-/home/agent/scraper/agent/env.sh 'cd /home/agent && python /home/agent/scraper/export_files.py --other /home/agent/export/scrape.log --log INFO'
+/home/agent/scraper/agent/scrape.sh
 SH
 
 	chmod +x /etc/periodic/$CRON_PERIOD/scrape
