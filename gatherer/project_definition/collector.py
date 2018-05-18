@@ -172,10 +172,9 @@ class Sources_Collector(Collector):
     def build_parser(self, version):
         return Sources_Parser(self._repo_path, **self._options)
 
-    def _build_metric_source(self, name, metric_source, metric_type, source_type):
+    def _build_metric_source(self, name, url, source_type):
         try:
-            source = Source.from_type(source_type, name=name,
-                                      url=metric_source[metric_type])
+            source = Source.from_type(source_type, name=name, url=url)
 
             if not self._project.has_source(source):
                 self._project.sources.add(source)
@@ -188,8 +187,8 @@ class Sources_Collector(Collector):
                 # Loop over all known metric source class names and convert
                 # them to our own Source objects.
                 if metric_type in metric_source:
-                    self._build_metric_source(name, metric_source,
-                                              metric_type, source_type)
+                    for url in metric_source[metric_type]:
+                        self._build_metric_source(name, url, source_type)
 
 class Metric_Options_Collector(Collector):
     """

@@ -389,14 +389,17 @@ class Sources_Parser(Project_Definition_Parser):
             return
 
         sources = {}
-        for key, value in list(keywords[keyword].items()):
-            if isinstance(value, (list, tuple)) and len(value) > 0:
-                value = value[0]
-            class_name, source_value = self._parse_source_value(key, value,
-                                                                from_key)
+        for key, items in list(keywords[keyword].items()):
+            if not isinstance(items, (list, tuple)):
+                items = [items]
 
-            if class_name is not None:
-                sources[class_name] = source_value
+            for value in items:
+                class_name, source_value = self._parse_source_value(key, value,
+                                                                    from_key)
+
+                if class_name is not None:
+                    sources.setdefault(class_name, set())
+                    sources[class_name].add(source_value)
 
         if sources:
             self.data[name] = sources
