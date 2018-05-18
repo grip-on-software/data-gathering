@@ -4,6 +4,8 @@
 # This sets up the environment and jobs to run.
 # This script is run as the root user.
 
+# Load environment variables
+source /home/agent/scraper/agent/profile.sh
 if [ ! -z "$CRON_PERIOD" ] && [ "$CRON_PERIOD" != "-" ]; then
 	# Enable a cron job for scraping regularly
 	cat >/etc/periodic/$CRON_PERIOD/scrape <<'SH'

@@ -6,4 +6,4 @@ else
 	command="$*"
 fi
 
-su agent -c "set +e -o allexport; source /home/agent/env; source /home/agent/config/env; set -e +o allexport; $command; exit \$?"
+su agent -c "source /home/agent/scraper/agent/profile.sh; $command; exit \$?"

@@ -45,4 +45,4 @@ ENV GATHERER_SETTINGS_FILE="/home/agent/config/settings.cfg" \
 # Set up server
 EXPOSE 7070
 
-CMD ["/bin/bash", "/home/agent/scraper/agent/env.sh", "/home/agent/scraper/agent/init.sh"]
+CMD ["/bin/bash", "/home/agent/scraper/agent/init.sh"]
