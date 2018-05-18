@@ -6,6 +6,7 @@
 
 # Load environment variables
 source /home/agent/scraper/agent/profile.sh
+set +e
 if [ ! -z "$CRON_PERIOD" ] && [ "$CRON_PERIOD" != "-" ]; then
 	# Enable a cron job for scraping regularly
 	cat >/etc/periodic/$CRON_PERIOD/scrape <<'SH'
