@@ -108,13 +108,6 @@ def read_project_file(data_file, start_from=0):
     logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
 
-def make_path(prefix, filename):
-    """
-    Create a path or URL to the metrics history file.
-    """
-
-    return prefix + "/" + filename
-
 def get_setting(arg, key, project, boolean=False):
     """
     Retrieve a configuration setting from the history section using the `key`
@@ -131,9 +124,12 @@ def get_setting(arg, key, project, boolean=False):
         raise RuntimeError('No metrics history file URL available')
 
     if arg is None or arg is True:
-        arg = project.get_key_setting('history', key, project_name)
+        setting = project.get_key_setting('history', key, project_name)
+        has_value = Configuration.has_value(setting)
         if boolean:
-            return Configuration.has_value(arg)
+            return has_value
+        if has_value:
+            return setting
 
     return arg
 
@@ -215,26 +211,14 @@ def get_gitlab_path(project, args):
                            shallow=True, progress=True)
     return clone_path
 
-class Data_Source(object):
+class Location(object):
     """
-    Object holding properties, path or URL, and possibly open file descriptor
-    for a history data source.
+    Location of a history file.
     """
 
-    def __init__(self, source, location, local=True, open_file=None):
-        self._source = source
-        self._location = location
-        self._local = local
-        self._file = open_file
-
-    @property
-    def source(self):
-        """
-        Retrieve the `History` source object which was involved in locating
-        the history file, or `None` if there is no such source object.
-        """
-
-        return self._source
+    def __init__(self, prefix, filename, compression=False):
+        self._location = prefix + "/" + filename
+        self._compression = compression
 
     @property
     def location(self):
@@ -251,7 +235,65 @@ class Data_Source(object):
         `False`, the location is instead a networked URL.
         """
 
-        return self._local
+        raise NotImplementedError('Must be implemented by subclass')
+
+    @property
+    def compression(self):
+        """
+        Retrieve the compression used of the file or a falsy value if the file
+        has no compression.
+        """
+
+        return self._compression
+
+    def __str__(self):
+        return self._location
+
+class Path(Location):
+    """
+    Local filesystem path to a history file.
+    """
+
+    @property
+    def local(self):
+        return True
+
+class Url(Location):
+    """
+    Remote, accessible URL to a history file.
+    """
+
+    @property
+    def local(self):
+        return False
+
+class Data_Source(object):
+    """
+    Object holding properties, path or URL, and possibly open file descriptor
+    for a history data source.
+    """
+
+    def __init__(self, source, location, open_file=None):
+        self._source = source
+        self._location = location
+        self._file = open_file
+
+    @property
+    def source(self):
+        """
+        Retrieve the `History` source object which was involved in locating
+        the history file, or `None` if there is no such source object.
+        """
+
+        return self._source
+
+    @property
+    def location(self):
+        """
+        Retrieve the `Location` object that describes the history file.
+        """
+
+        return self._location
 
     @property
     def file(self):
@@ -329,15 +371,14 @@ def get_data_source(project, args):
         export_path = get_gitlab_path(project, args)
         if export_path is not None and os.path.exists(export_path):
             logging.info('Found metrics history path: %s', export_path)
-            yield Data_Source(source, make_path(export_path, filename),
-                              local=True)
+            path = Path(export_path, filename, compression)
+            yield Data_Source(source, path)
             return
     elif args.path is not None:
         # Path to a directory with a local file that can be opened.
-        path = make_path(args.path, filename)
+        path = Path(args.path, filename, compression)
         opener = get_file_opener(compression)
-
-        yield Data_Source(source, path, local=True, open_file=opener(path, 'r'))
+        yield Data_Source(source, path, open_file=opener(path, 'r'))
         return
 
     if args.export_url is not None:
@@ -346,13 +387,12 @@ def get_data_source(project, args):
         export_url = get_gitlab_url(project, args)
         if export_url is not None:
             logging.info('Found metrics history URL: %s', export_url)
-            yield Data_Source(source, make_path(export_url, filename),
-                              local=False)
+            yield Data_Source(source, Url(export_url, filename, compression))
             return
     elif args.url is not None:
         # URL prefix to a specific download location.
         url_prefix = get_setting(args.url, 'url', project)
-        url = make_path(url_prefix, filename)
+        url = Url(url_prefix, filename, compression)
         request = Session().get(url)
         stream = io.BytesIO(request.content)
         if compression:
@@ -361,7 +401,7 @@ def get_data_source(project, args):
         else:
             open_file = stream
 
-        yield Data_Source(source, url, local=False, open_file=open_file)
+        yield Data_Source(source, url, open_file=open_file)
         return
 
     raise RuntimeError('No valid metrics history source defined')
@@ -409,12 +449,17 @@ def main():
 
             if data.file is None:
                 flags = [str(start_from)]
-                if data.local:
+                if data.location.local:
                     flags.append('local')
                 if is_compact:
                     flags.append('compact')
 
-                metric_data = '{0}#{1}'.format(data.location, '|'.join(flags))
+                if data.location.compression:
+                    flags.append('compression={}'.format(data.location.compression))
+                else:
+                    flags.append('compression=')
+
+                metric_data = '{0}#{1}'.format(str(data.location), '|'.join(flags))
             elif is_compact:
                 raise RuntimeError('Cannot read compact history during gather')
             else:
