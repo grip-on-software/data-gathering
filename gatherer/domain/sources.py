@@ -60,7 +60,7 @@ class Sources(MutableSet):
         """
 
         self._sources.add(source)
-        self._source_urls.add(source.url)
+        self._source_urls[source.url] = source
 
         environment = source.environment
         if environment is None:
@@ -82,11 +82,26 @@ class Sources(MutableSet):
         """
 
         self._sources.remove(source)
-        self._source_urls.remove(source.url)
+        del self._source_urls[source.url]
 
         environment = source.environment
         if environment in self._source_environments:
             self._source_environments[environment].remove(source)
+
+    def replace(self, source):
+        """
+        Replace an existing source with one that has the exact same URL as
+        the one being replaced.
+
+        This method raises a `KeyError` if the existing source cannot be found.
+
+        The replacement only becomes persistent if the sources are exported
+        later on using `export`.
+        """
+
+        existing_source = self._source_urls[source.url]
+        self.remove(existing_source)
+        self.add(source)
 
     def has_url(self, url):
         """
@@ -119,7 +134,7 @@ class Sources(MutableSet):
 
     def clear(self):
         self._sources = set()
-        self._source_urls = set()
+        self._source_urls = {}
         self._source_environments = {}
 
     def get_environments(self):
