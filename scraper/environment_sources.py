@@ -38,7 +38,9 @@ def retrieve_sources(project):
             sources = environment_source.get_sources()
             for source in sources:
                 # Check if there is already another source with the same URL.
-                if not project.has_source(source):
+                if project.has_source(source):
+                    project.sources.replace(source)
+                else:
                     project.sources.add(source)
         else:
             logging.info('Skipping environment %r because it is out of scope',
