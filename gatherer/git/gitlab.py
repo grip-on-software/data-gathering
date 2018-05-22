@@ -508,6 +508,18 @@ class GitLab_Repository(Git_Repository, Review_System):
             'user': parse_unicode(event.author['name'])
         })
 
+        ranges = {
+            'commit_from': 'commit_to',
+            'commit_to': 'commit_from'
+        }
+
+        for range_one, range_two in ranges.items():
+            if event.push_data[range_one] is None:
+                if event.push_data[range_two] is not None:
+                    return [event.push_data[range_two]]
+
+                return []
+
         if event_data['kind'] == 'tag':
             key = 'commit_from' if event.action_name == 'removed' else 'commit_to'
             return [event.push_data[key]]
@@ -520,8 +532,8 @@ class GitLab_Repository(Git_Repository, Review_System):
         try:
             query = self.repo.iter_commits(refspec)
             return [commit.hexsha for commit in query]
-        except GitCommandError:
-            logging.exception('Cannot find commit range')
+        except GitCommandError as error:
+            logging.warning('Cannot find commit range %s: %s', refspec, error)
             return []
 
     def add_event(self, event):
