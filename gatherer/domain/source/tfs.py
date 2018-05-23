@@ -97,11 +97,17 @@ class TFS(Git):
         self._tfs_user = self._credentials.get(host, 'username')
         self._tfs_password = self._credentials.get(host, 'password')
 
+        url_parts = urllib.parse.urlsplit(self._url)
+        if url_parts.scheme == self.SSH_PROTOCOL:
+            # Do not use a port specifier.
+            netloc = url_parts.username + '@' + url_parts.hostname
+        else:
+            netloc = url_parts.netloc
+
         # Remove trailing slashes since they are optional and the TFS API
         # returns remote URLs without slashes.
         # Also lowercase the path to match insensitively (as TFS does).
-        url_parts = urllib.parse.urlsplit(self._url)
-        self._url = self._create_url(url_parts.scheme, url_parts.netloc,
+        self._url = self._create_url(url_parts.scheme, netloc,
                                      url_parts.path.rstrip('/').lower(), '', '')
 
         return orig_parts, host
