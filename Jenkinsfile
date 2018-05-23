@@ -14,7 +14,7 @@ pipeline {
     }
     triggers {
         gitlab(triggerOnPush: true, triggerOnMergeRequest: true, branchFilterType: 'All', secretToken: env.GITLAB_TOKEN)
-        cron('H H * * 5')
+        cron('H H * * H/3')
     }
 
     post {
@@ -59,6 +59,12 @@ pipeline {
             }
         }
         stage('SonarQube Analysis') {
+            when {
+                anyOf {
+                    currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) != null
+                    not { branch 'master' }
+                }
+            }
             steps {
                 withSonarQubeEnv('SonarQube') {
                     withPythonEnv('System-CPython-3') {
