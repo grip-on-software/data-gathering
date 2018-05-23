@@ -23,6 +23,10 @@ perform_export() {
 	cp -r $agent_directory/export $controller_directory
 	sudo rm -rf $agent_directory/export/$project/*
 
+	if [ -e "$controller_directory/export/$project/scrape.log" ]; then
+		mv "$controller_directory/export/$project/scrape.log" "$controller_directory/scrape.log"
+	fi
+
 	if [ -z "$(ls -A $controller_directory/export/$project)" ]; then
 		echo "Skipping import of $project because export directory is empty"
 	else
