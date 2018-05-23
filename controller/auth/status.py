@@ -9,6 +9,7 @@ try:
 except ImportError:
     raise
 
+from builtins import str
 import cgi
 import cgitb
 import ipaddress
@@ -146,7 +147,7 @@ class Network_Status(Status):
             }
 
         try:
-            address = ipaddress.ip_address(self._address)
+            address = ipaddress.ip_address(str(self._address))
         except ValueError as error:
             return {
                 'ok': False,
