@@ -80,7 +80,10 @@ class Update_Tracker(object):
         if the next update has changes.
         """
 
-        if end_revision is not None:
+        if end_revision is None:
+            # Mark as up to date to this time.
+            os.utime(self._filename, None)
+        else:
             self._read()
 
             if not self._sources.has_url(self._source.url):
