@@ -32,6 +32,7 @@ done
 
 python scraper/generate_key.py $project --path ${!DEFINITIONS_CREDENTIALS_ENV} --gitlab --source --credentials --log INFO
 python scraper/preflight.py $project --log $logLevel $preflightArgs
+source /home/agent/scraper/agent/profile.sh export/$project/preflight_env
 python scraper/retrieve_metrics_repository.py $project --log $logLevel --force
 python scraper/retrieve_update_trackers.py $project --files $updateFiles --log $logLevel
 python scraper/project_sources.py $project --log $logLevel
