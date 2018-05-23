@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument('--cert', default=config.get('ssh', 'cert'),
                         help='HTTPS certificate of controller API host')
     parser.add_argument('--skip', action='store_true', dest='skip',
-                        default=False, help='Skip the actual preflight checks')
+                        default=False, help='Ignore the preflight checks')
     Log_Setup.add_argument(parser)
 
     args = parser.parse_args()
@@ -69,10 +69,10 @@ def check_controller(host, cert, project):
     except ValueError:
         logging.exception('Invalid JSON response from controller API: %s',
                           request.text)
-        return False
+        return ['controller-format']
 
     if Session.is_code(request, 'service_unavailable') and 'total' in response:
-        problems = []
+        problems = ['controller-service-unavailable']
         for key, value in list(response.items()):
             if key != 'total' and not value['ok']:
                 message = value['message'] if 'message' in value else 'Not OK'
@@ -80,14 +80,44 @@ def check_controller(host, cert, project):
 
         logging.warning('Controller status: %s: %s',
                         response['total']['message'], ', '.join(problems))
-        return False
+        return problems
 
     if not Session.is_code(request, 'ok'):
         logging.critical('Unexpected HTTP error %d for controller status',
                          request.status_code, extra=response)
-        return False
+        return ['controller-http']
 
-    return True
+    if 'configuration' in response and 'contents' in response['configuration']:
+        env_filename = os.path.join(project.export_key, 'preflight_env')
+        with open(env_filename, 'w') as env_file:
+            env_file.write(response['configuration']['contents'])
+
+    return []
+
+def perform_checks(args, project):
+    """
+    Perform pre-flight checks for the agent.
+
+    - Does the controller API indicate that all is OK?
+    - Do we have a populated secrets file?
+
+    Returns a list of checks that were not satisfied.
+    """
+
+    errors = []
+    if args.secrets:
+        if not os.path.exists(args.secrets):
+            logging.critical('Secrets file %s is not available',
+                             args.secrets)
+            errors.append('secrets-missing')
+
+        if not check_secrets(args.secrets):
+            errors.append('secrets-format')
+
+    if args.ssh:
+        errors.extend(check_controller(args.ssh, args.cert, project))
+
+    return errors
 
 def main():
     """
@@ -97,22 +127,10 @@ def main():
     args = parse_args()
     project = Project(args.project)
 
-    # Perform pre-flight checks for Docker agent:
-    # - Do we have a populated secrets file?
-    # - Does the controller API indicate that all is OK?
-
-    if not args.skip:
-        if args.secrets:
-            if not os.path.exists(args.secrets):
-                logging.critical('Secrets file %s is not available',
-                                 args.secrets)
-                return 1
-
-            if not check_secrets(args.secrets):
-                return 1
-
-        if args.ssh and not check_controller(args.ssh, args.cert, project):
-            return 1
+    errors = perform_checks(args, project)
+    logging.info('Failed checks: %s', ', '.join(errors))
+    if errors and not args.skip:
+        return 1
 
     project.make_export_directory()
     date_filename = os.path.join(project.export_key, 'preflight_date.txt')
