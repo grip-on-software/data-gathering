@@ -54,8 +54,14 @@ class Database_Status(Status):
         return 'database'
 
     def generate(self):
-        gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
-        return gatherer.get_database_status(self._project_key)
+        try:
+            gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
+            return gatherer.get_database_status(self._project_key)
+        except Pyro4.errors.NamingError as error:
+            return {
+                'ok': False,
+                'message': str(error)
+            }
 
 class Tracker_Status(Status):
     """
@@ -71,8 +77,14 @@ class Tracker_Status(Status):
         return 'tracker'
 
     def generate(self):
-        gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
-        return gatherer.get_tracker_status(self._project_key)
+        try:
+            gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
+            return gatherer.get_tracker_status(self._project_key)
+        except Pyro4.errors.NamingError as error:
+            return {
+                'ok': False,
+                'message': str(error)
+            }
 
 class Daemon_Status(Status):
     """
@@ -106,6 +118,40 @@ class Daemon_Status(Status):
             'ok': True,
             'message': 'All daemons are located'
         }
+
+class Configuration_Status(Status):
+    """
+    Status provider that checks if local agent configuration is sane and
+    provides the configuration to the client.
+    """
+
+    def __init__(self, status):
+        super(Configuration_Status, self).__init__()
+        self._status = status
+
+    @property
+    def key(self):
+        return 'configuration'
+
+    def generate(self):
+        env_filename = os.getenv('CONTROLLER_ENV_FILE', 'env')
+        if not os.path.exists(env_filename):
+            return {
+                'ok': False,
+                'message': 'Agent environment configuration is missing'
+            }
+
+        if any([not part.get('ok') for part in self._status.values()]):
+            return {
+                'ok': False,
+                'message': 'Cannot look up environment due to other problems'
+            }
+
+        with open(env_filename) as env_file:
+            return {
+                'ok': True,
+                'contents': env_file.read()
+            }
 
 class Total_Status(Status):
     """
@@ -224,7 +270,8 @@ def display_status(project_key):
         Database_Status(project_key),
         Tracker_Status(project_key),
         Daemon_Status(),
-        Total_Status(status)
+        Configuration_Status(status),
+        Total_Status(status),
     ]
     for generator in generators:
         status[generator.key] = generator.generate()
