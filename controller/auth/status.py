@@ -11,10 +11,13 @@ except ImportError:
 
 import cgi
 import cgitb
+import ipaddress
 import json
 import os
 from http.server import BaseHTTPRequestHandler
 import Pyro4
+
+from gatherer.config import Configuration
 
 class Status(object):
     """
@@ -117,6 +120,56 @@ class Daemon_Status(Status):
         return {
             'ok': True,
             'message': 'All daemons are located'
+        }
+
+class Network_Status(Status):
+    """
+    Status provider that checks if the remote address is within an acceptable
+    list of addresses for the project.
+    """
+
+    def __init__(self, project_key, address):
+        super(Network_Status, self).__init__()
+        self._project_key = project_key
+        self._address = address
+
+    @property
+    def key(self):
+        return 'network'
+
+    def generate(self):
+        config = Configuration.get_settings()
+        if not config.has_option('network', self._project_key):
+            return {
+                'ok': True,
+                'message': 'No network defined for project'
+            }
+
+        try:
+            address = ipaddress.ip_address(self._address)
+        except ValueError as error:
+            return {
+                'ok': False,
+                'message': 'Remote address is malformed: {}'.format(error)
+            }
+
+        try:
+            nets = config.get('network', self._project_key).split(',')
+            networks = set(ipaddress.ip_network(net.strip()) for net in nets)
+        except ValueError as error:
+            return {
+                'ok': False,
+                'message': 'Project has malformed networks defined: {}'.format(error)
+            }
+
+        if not any(address in network for network in networks):
+            return {
+                'ok': False,
+                'message': 'Remote address {} is not in defined networks'.format(self._address)
+            }
+
+        return {
+            'ok': True
         }
 
 class Configuration_Status(Status):
@@ -270,6 +323,7 @@ def display_status(project_key):
         Database_Status(project_key),
         Tracker_Status(project_key),
         Daemon_Status(),
+        Network_Status(project_key, os.getenv('REMOTE_ADDR')),
         Configuration_Status(status),
         Total_Status(status),
     ]

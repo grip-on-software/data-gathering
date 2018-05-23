@@ -401,6 +401,12 @@ the setting is not used in this environment.
 - support: JIRA key of a project and an indication of whether they are 
   considered to be a support team.
   - `$SUPPORT_TEAM`: Whether the project is considered to be a support team.
+- network (used by `controller/auth/status.py`): The networks that are allowed
+  to contain agents.
+  - `$CONTROLLER_NETWORK`: A comma-separated list of IP networks (a single IP
+    address, a CIDR/netmask/hostmask range consisting of an IP address with 
+    zeroes for the host bits followed by a slash and the masking operation)
+    which are allowed to perform scrape operations for the project.
 
 ### Credentials
 
