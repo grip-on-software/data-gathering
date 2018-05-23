@@ -9,6 +9,7 @@ except ImportError:
     raise
 
 from builtins import object
+import logging
 import os
 try:
     import urllib.parse
@@ -228,7 +229,9 @@ class Source(object):
             if self.has_option(host, 'username'):
                 username = self._credentials.get(host, 'username')
             if username is None:
-                raise ValueError('Cannot deduce username for credentials host {0}'.format(host))
+                logging.warning('Cannot find username for credentials host %s',
+                                host)
+                return orig_parts, host
 
             # Additional authentication options depending on protocol to use
             if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):

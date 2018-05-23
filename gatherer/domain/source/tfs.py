@@ -66,7 +66,7 @@ class TFS(Git):
     def _update_credentials(self):
         orig_parts, host = super(TFS, self)._update_credentials()
 
-        # Ensure we have a URL to the web host for API purposes.
+        # Ensure we have a HTTP/HTTPS URL to the web host for API purposes.
         # This includes altering the web port to the one that TFS listens to.
         scheme = self._get_web_protocol(host, orig_parts.scheme)
         if self.has_option(host, 'web_port'):
@@ -93,13 +93,16 @@ class TFS(Git):
         else:
             self._tfs_collections = (tfs_path,)
 
+        # Store credentials separately to provide to the API.
         self._tfs_user = self._credentials.get(host, 'username')
         self._tfs_password = self._credentials.get(host, 'password')
 
         # Remove trailing slashes since they are optional and the TFS API
         # returns remote URLs without slashes.
-        # Also lowercase the URL to match insensitively (as TFS does).
-        self._url = self._url.rstrip('/').lower()
+        # Also lowercase the path to match insensitively (as TFS does).
+        url_parts = urllib.parse.urlsplit(self._url)
+        self._url = self._create_url(url_parts.scheme, url_parts.netloc,
+                                     url_parts.path.rstrip('/').lower(), '', '')
 
         return orig_parts, host
 
