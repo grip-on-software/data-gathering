@@ -9,7 +9,6 @@ except ImportError:
     raise
 
 from builtins import object
-import logging
 import os
 try:
     import urllib.parse
@@ -229,8 +228,7 @@ class Source(object):
             if self.has_option(host, 'username'):
                 username = self._credentials.get(host, 'username')
             if username is None:
-                logging.warning('Cannot find username for credentials host %s',
-                                host)
+                # No username found for credentials host
                 return orig_parts, host
 
             # Additional authentication options depending on protocol to use
