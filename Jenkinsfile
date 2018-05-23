@@ -61,7 +61,9 @@ pipeline {
         stage('SonarQube Analysis') {
             when {
                 anyOf {
-                    currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) != null
+                    expression {
+                        currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) != null
+                    }
                     not { branch 'master' }
                 }
             }
