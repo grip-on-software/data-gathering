@@ -7,6 +7,7 @@ from builtins import object
 import logging
 from logging.handlers import HTTPHandler
 import os
+import re
 import ssl
 from .config import Configuration
 
@@ -14,6 +15,25 @@ class Log_Setup(object):
     """
     Utility class that initializes and registers logging options.
     """
+
+    # False-positive warning messages that do not indicate any problem in the
+    # agent configuration.
+    IGNORE_MESSAGES = [
+        re.compile(r'^Could not load sprint data, no sprint matching possible'),
+        re.compile(r'^Controller status: Some parts are not OK: .*' + \
+            r'Status \'tracker\': Next scheduled gather moment is in'),
+        re.compile(r'Cannot retrieve repository source for dummy repository on')
+    ]
+
+    @classmethod
+    def is_ignored(cls, message):
+        """
+        Check whether the given log message is ignored with regard to the
+        overall status of the action log.
+        """
+
+        return any(ignore.match(message) for ignore in cls.IGNORE_MESSAGES)
+
 
     @staticmethod
     def add_argument(parser, default='WARNING'):

@@ -12,6 +12,7 @@ except ImportError:
 import cgi
 import cgitb
 import Pyro4
+from gatherer.log import Log_Setup
 
 def setup_log():
     """
@@ -51,6 +52,11 @@ def main():
         print('Content-Type: text/plain')
         print()
         print(str(error))
+        return
+
+    if 'message' in packet and Log_Setup.is_ignored(packet['message']):
+        print('Status: 204 No Content')
+        print()
         return
 
     controller = Pyro4.Proxy("PYRONAME:gros.controller")
