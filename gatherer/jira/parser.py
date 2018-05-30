@@ -203,6 +203,7 @@ class Sprint_Parser(Field_Parser):
                 "name": str(sprint_data["name"]),
                 "start_date": parse_date(sprint_data["startDate"]),
                 "end_date": parse_date(sprint_data["endDate"]),
+                "board_id": int(sprint_data["rapidViewId"])
             }
             if sprint_data["completeDate"] != "<null>":
                 row["complete_date"] = parse_date(sprint_data["completeDate"])
