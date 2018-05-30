@@ -7,7 +7,6 @@ import logging
 
 from .base import Base_Changelog_Field
 from .field import Changelog_Primary_Field, Changelog_Field
-from ..utils import Sprint_Data
 
 class Changelog(object):
     """
@@ -115,7 +114,7 @@ class Changelog(object):
             new_data[field] = None
 
     @classmethod
-    def _alter_change_metadata(cls, data, diffs, sprints):
+    def _alter_change_metadata(cls, data, diffs):
         # Data is either a full changelog entry or a difference entry that is
         # applied to it after this call. Diffs is a difference entry with data
         # that may be partially for this change, but after this call it only
@@ -128,27 +127,12 @@ class Changelog(object):
         cls._update_field(data, diffs, "rank_change")
 
         if "sprint" in data and isinstance(data["sprint"], list):
-            # Add the sprint list to the diff for the earlier change unless it
-            # had a changelog entry, so that we keep on searching for the
-            # correct sprint ID.
-            if "sprint" not in diffs:
-                diffs["sprint"] = data["sprint"]
+            # Always take one of the sprints, even if they cannot be
+            # matched to a sprint (due to start/end mismatch).
+            # Prefer the latest sprint added.
+            data["sprint"] = str(data["sprint"][-1])
 
-            # Get updated datetime object of the current entry.
-            if "updated" in data:
-                updated = data["updated"]
-            else:
-                updated = data["created"]
-
-            sprint_id = sprints.find_sprint(updated, sprint_ids=data["sprint"])
-            if sprint_id is None:
-                # Always take one of the sprints, even if they cannot be
-                # matched to a sprint (due to start/end mismatch)
-                data["sprint"] = str(data["sprint"][0])
-            else:
-                data["sprint"] = str(sprint_id)
-
-    def _create_first_version(self, issue, prev_data, prev_diffs, sprints):
+    def _create_first_version(self, issue, prev_data, prev_diffs):
         self._update_field(prev_diffs, prev_data, "updated")
         self._update_field(prev_diffs, prev_data, "sprint")
         parser = self._jira.get_type_cast("developer")
@@ -156,7 +140,7 @@ class Changelog(object):
             "updated_by": parser.parse(issue.fields.creator)
         }
 
-        self._alter_change_metadata(prev_diffs, first_data, sprints)
+        self._alter_change_metadata(prev_diffs, first_data)
         new_data = self._create_change_transition(prev_data, prev_diffs)
         new_data["changelog_id"] = str(0)
         return new_data
@@ -168,8 +152,6 @@ class Changelog(object):
         """
 
         issue_diffs = self.fetch_changelog(issue)
-        sprints = Sprint_Data(self._jira.project,
-                              sprints=self._jira.get_table("sprint").get())
 
         changelog_count = len(issue_diffs)
         prev_diffs = {}
@@ -186,14 +168,15 @@ class Changelog(object):
             if not prev_diffs:
                 # Prepare difference between latest version and earlier one
                 data["changelog_id"] = str(changelog_count)
-                self._alter_change_metadata(data, diffs, sprints)
+                self._alter_change_metadata(data, diffs)
                 versions.append(data)
                 prev_diffs = diffs
                 changelog_count -= 1
             else:
                 prev_diffs["updated"] = updated
-                self._alter_change_metadata(prev_diffs, diffs, sprints)
-                old_data = self._create_change_transition(prev_data, prev_diffs)
+                self._alter_change_metadata(prev_diffs, diffs)
+                old_data = self._create_change_transition(prev_data,
+                                                          prev_diffs)
                 old_data["changelog_id"] = str(changelog_count)
                 versions.append(old_data)
                 prev_data = old_data
@@ -203,7 +186,7 @@ class Changelog(object):
         if self._updated_since.is_newer(data["created"]):
             prev_data["created"] = data["created"]
             first_data = self._create_first_version(issue, prev_data,
-                                                    prev_diffs, sprints)
+                                                    prev_diffs)
             versions.append(first_data)
 
         return versions
