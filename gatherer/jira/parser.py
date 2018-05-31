@@ -187,6 +187,10 @@ class Sprint_Parser(Field_Parser):
 
         return self._parse(value)
 
+    @staticmethod
+    def _has(sprint_data, key):
+        return key in sprint_data and sprint_data[key] != "<null>"
+
     def _parse(self, sprint):
         # Parse an individual sprint, add its data to the table and return the
         # sprint ID as an integer, or `None` if it is not an acceptable
@@ -197,19 +201,23 @@ class Sprint_Parser(Field_Parser):
 
         sprint_id = int(sprint_data["id"])
 
-        if sprint_data["endDate"] != "<null>" and sprint_data["startDate"] != "<null>":
+        if self._has(sprint_data, "endDate") and \
+            self._has(sprint_data, "startDate"):
             row = {
                 "id": str(sprint_id),
                 "name": str(sprint_data["name"]),
                 "start_date": parse_date(sprint_data["startDate"]),
-                "end_date": parse_date(sprint_data["endDate"]),
-                "board_id": int(sprint_data["rapidViewId"])
+                "end_date": parse_date(sprint_data["endDate"])
             }
-            if sprint_data["completeDate"] != "<null>":
+
+            if self._has(sprint_data, "completeDate"):
                 row["complete_date"] = parse_date(sprint_data["completeDate"])
 
-            if "goal" in sprint_data and sprint_data["goal"] != "<null>":
+            if self._has(sprint_data, "goal"):
                 row["goal"] = parse_unicode(sprint_data["goal"])
+
+            if self._has(sprint_data, "rapidViewId"):
+                row["board_id"] = int(sprint_data["rapidViewId"])
 
             self.jira.get_table("sprint").append(row)
 
