@@ -6,7 +6,7 @@ from builtins import object
 import json
 import logging
 import os.path
-from .repo import RepositorySourceException
+from .repo import RepositorySourceException, RepositoryDataException
 from ..table import Table
 from ..utils import Sprint_Data
 
@@ -112,7 +112,7 @@ class Repositories_Holder(object):
                 repo = repo_class.from_source(source, path,
                                               project=self._project,
                                               sprints=self._sprints,
-                                              remove=force)
+                                              force=force)
             except RepositorySourceException:
                 logging.exception('Cannot retrieve repository source for %s',
                                   source.name)
