@@ -17,7 +17,7 @@ import traceback
 # Non-standard imports
 import mock
 from hqlib import domain, metric, metric_source
-from .compatibility import Compatibility, COMPACT_HISTORY
+from .compatibility import Compatibility, COMPACT_HISTORY, JIRA_FILTER
 from ..utils import get_datetime, parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
@@ -300,6 +300,7 @@ class Sources_Parser(Project_Definition_Parser):
         'CompactHistory': COMPACT_HISTORY,
         'Jenkins': metric_source.Jenkins,
         'Jira': metric_source.Jira,
+        'JiraFilter': JIRA_FILTER,
         'Git': metric_source.Git,
         'Subversion': metric_source.Subversion
     }
@@ -384,10 +385,17 @@ class Sources_Parser(Project_Definition_Parser):
         if sources:
             self.data[name] = sources
 
+    @staticmethod
+    def _get_source_url(source):
+        if isinstance(source, mock.MagicMock):
+            return source.call_args_list[0][0][0]
+
+        return source.url()
+
     def _parse_source_value(self, key, value, from_key):
         if from_key and isinstance(key, self.source_types):
             class_name = self.get_class_name(type(key))
-            source_url = key.url()
+            source_url = self._get_source_url(key)
             if source_url is None or value.startswith(source_url):
                 source_url = value
 
@@ -395,11 +403,8 @@ class Sources_Parser(Project_Definition_Parser):
         elif not from_key and isinstance(value, self.source_types):
             class_name = self.get_class_name(value)
             logging.debug('Class name: %s', class_name)
-            if isinstance(value, mock.MagicMock):
-                source_value = value.call_args_list[0][0][0]
-            else:
-                source_value = value.url()
 
+            source_value = self._get_source_url(value)
             if source_value is not None:
                 return class_name, source_value
 

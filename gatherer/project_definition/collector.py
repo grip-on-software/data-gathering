@@ -155,7 +155,8 @@ class Sources_Collector(Collector):
         'History': 'history',
         'CompactHistory': 'compact-history',
         'Jenkins': 'jenkins',
-        'Jira': 'jira'
+        'Jira': 'jira',
+        'JiraFilter': 'jira'
     }
 
     def __init__(self, project, **kwargs):

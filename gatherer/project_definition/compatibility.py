@@ -5,7 +5,7 @@ augmenting the hqlib module with replacement domain objects.
 
 from builtins import object
 import mock
-from hqlib import domain
+from hqlib import domain, metric_source
 
 # Define some classes that are backward compatible with earlier versions of
 # hqlib (quality_report, qualitylib). This suppresses argument exceptions.
@@ -90,3 +90,7 @@ def produce_mock(name):
     return type(name, (object,), {"__new__": __new__})
 
 COMPACT_HISTORY = produce_mock('CompactHistory')
+try:
+    JIRA_FILTER = metric_source.JiraFilter
+except AttributeError:
+    JIRA_FILTER = produce_mock('JiraFilter')

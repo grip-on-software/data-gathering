@@ -4,7 +4,9 @@ Package for classes and utilities related to extracting data from the JIRA API.
 
 from builtins import object
 import json
+import logging
 import os
+import re
 from copy import copy
 
 from .base import Base_Jira_Field
@@ -19,6 +21,7 @@ from .query import Query
 from .special_field import Special_Field
 from .update import Updated_Time, Update_Tracker
 from ..table import Table, Key_Table, Link_Table
+from ..domain.source import Source, Jira
 
 __all__ = ["Jira"]
 
@@ -324,11 +327,26 @@ class Jira(object):
         gathered from a JIRA search. Return the update time of the query.
         """
 
-        api = Query(self, (username, password), options, query)
+        query = Query(self, (username, password), options, query)
         for prefetcher in self._search_options['prefetchers']:
-            prefetcher(api)
+            prefetcher(query)
 
-        self.search_issues(api)
+        self.search_issues(query)
+
+        if not self.project.sources.find_source_type(Jira):
+            self._add_source(query.api)
+
         self.write_tables()
+        return query.latest_update
 
-        return api.latest_update
+    def _add_source(self, api):
+        myself = api.myself()
+        regex = api.JIRA_BASE_URL.replace('{', '(?P<').replace('}', '>.*?)')
+        match = re.match(regex, myself['self'])
+        if match:
+            source = Source.from_type('jira', name=self._project.key,
+                                      url=match.group('server'))
+            self.project.sources.add(source)
+            self.project.export_sources()
+        else:
+            logging.warning('Could not extract JIRA base URL from API')
