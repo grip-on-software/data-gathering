@@ -14,7 +14,8 @@ import json
 import logging
 import os
 from git import GitCommandError
-from .repo import Git_Repository
+from gitlab3.exceptions import GitLabException
+from .repo import Git_Repository, RepositorySourceException
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, get_local_datetime, \
     parse_date, parse_unicode
@@ -284,7 +285,7 @@ class GitLab_Repository(Git_Repository, Review_System):
     def _get_repo_project(cls, source):
         try:
             repo_project = source.gitlab_api.project(source.gitlab_path)
-        except AttributeError:
+        except (AttributeError, GitLabException):
             raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
 
         return repo_project
@@ -337,7 +338,10 @@ class GitLab_Repository(Git_Repository, Review_System):
         """
 
         if self._repo_project is None:
-            self._repo_project = self._get_repo_project(self._source)
+            try:
+                self._repo_project = self._get_repo_project(self._source)
+            except RuntimeError:
+                raise RepositorySourceException('Cannot obtain project from API')
 
         return self._repo_project
 
