@@ -72,3 +72,21 @@ class DynamicTechnicalDebtTarget(domain.DynamicTechnicalDebtTarget):
         parent = super(DynamicTechnicalDebtTarget, self)
         parent.__init__(initial_target_value, initial_datetime,
                         end_target_value, end_datetime, explanation)
+
+def produce_mock(name):
+    """
+    Method which produces a dynamic class, which in turn produces a magic
+    mock object upon instantiation. The dynamic class is given the name.
+
+    This can be used to pass isinstance checks against this class.
+    """
+
+    def __new__(cls, *args, **kwargs):
+        obj = mock.MagicMock(spec=cls)
+        obj.name = cls.__name__
+        obj(*args, **kwargs)
+        return obj
+
+    return type(name, (object,), {"__new__": __new__})
+
+COMPACT_HISTORY = produce_mock('CompactHistory')

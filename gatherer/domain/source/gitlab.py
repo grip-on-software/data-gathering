@@ -80,7 +80,7 @@ class GitLab(Git):
             self._gitlab_group = self._credentials.get(orig_host, 'group')
 
         # Retrieve the actual namespace of the source.
-        path = orig_parts.path.lstrip('/')
+        path = orig_parts.path.strip('/')
         path_parts = path.split('/', 1)
         self._gitlab_namespace = path_parts[0]
 
@@ -103,6 +103,8 @@ class GitLab(Git):
 
         self._gitlab_host = self._create_url(scheme, host, host_path, '', '')
         self._gitlab_path = self.remove_git_suffix(path)
+
+        self._url = self._url.rstrip('/')
 
         return orig_parts, host
 

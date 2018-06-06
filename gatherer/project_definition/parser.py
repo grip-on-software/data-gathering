@@ -17,28 +17,8 @@ import traceback
 # Non-standard imports
 import mock
 from hqlib import domain, metric, metric_source
-from .compatibility import Compatibility
+from .compatibility import Compatibility, COMPACT_HISTORY
 from ..utils import get_datetime, parse_unicode
-try:
-    COMPACT_HISTORY = metric_source.CompactHistory
-except AttributeError:
-    def produce_mock(name):
-        """
-        Method which produces a dynamic class, which in turn produces a magic
-        mock object upon instantiation. The dynamic class is given the name.
-
-        This can be used to pass isinstance checks against this class.
-        """
-
-        def __new__(cls, *args, **kwargs):
-            obj = mock.MagicMock(spec=cls)
-            obj.name = cls.__name__
-            obj(*args, **kwargs)
-            return obj
-
-        return type(name, (object,), {"__new__": __new__})
-
-    COMPACT_HISTORY = produce_mock('CompactHistory')
 
 __all__ = ["Project_Definition_Parser"]
 

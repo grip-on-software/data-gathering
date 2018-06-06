@@ -16,6 +16,10 @@ class Git(Source):
 
     @classmethod
     def _alter_git_url(cls, url):
+        # Normalize git suffix
+        if url.endswith('.git/'):
+            url = url.rstrip('/')
+
         # Convert short SCP-like URLs to full SSH protocol URLs so that the
         # parsing done by the superclass can completely understand the URL.
         match = cls.GIT_URL_REGEX.match(url)
