@@ -163,7 +163,9 @@ class Source(object):
         if hostname.startswith('-'):
             raise ValueError('Long SSH host may not begin with dash')
 
-        return '{0}://{1}:{2}{3}'.format(self.SSH_PROTOCOL, auth, port, path)
+        netloc = '{0}{1}'.format(auth,
+                                 ':{0}'.format(port) if port is not None else '')
+        return '{0}://{1}{2}'.format(self.SSH_PROTOCOL, netloc, path)
 
     @classmethod
     def _format_host_section(cls, parts):
@@ -304,6 +306,19 @@ class Source(object):
         """
 
         return None
+
+    @property
+    def environment_type(self):
+        """
+        Retrieve a type name for the environment of the source.
+
+        The type should match up with one of the registered type names of
+        the sources in the environment. It can be used to normalize the type
+        names of multiple sources in the same environment such that the
+        environment can ideally describe all of them.
+        """
+
+        return self.type
 
     @property
     def environment_url(self):

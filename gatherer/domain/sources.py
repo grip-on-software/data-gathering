@@ -87,6 +87,8 @@ class Sources(MutableSet):
         environment = source.environment
         if environment in self._source_environments:
             self._source_environments[environment].remove(source)
+            if not self._source_environments[environment]:
+                del self._source_environments[environment]
 
     def replace(self, source):
         """
@@ -192,7 +194,7 @@ class Sources(MutableSet):
         for environment, sources in list(self._source_environments.items()):
             source = next(iter(sources))
             environment_data.append({
-                "type": source.type,
+                "type": source.environment_type,
                 "url": source.environment_url,
                 "environment": environment
             })

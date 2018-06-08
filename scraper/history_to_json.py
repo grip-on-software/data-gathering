@@ -10,6 +10,7 @@ except ImportError:
     raise
 
 from builtins import str
+from past.builtins import basestring
 import argparse
 from contextlib import contextmanager
 import ast
@@ -154,15 +155,15 @@ def get_gitlab_url(project, args):
         return None
 
     if not GitLab.is_gitlab_url(export_url):
-        return export_url
+        return (export_url,)
 
-    export_url = export_url + "/raw/master"
+    parts = [export_url, "raw/master"]
 
     repo_path = get_setting(args.export_path, 'path', project)
     if Configuration.has_value(repo_path) and check_sparse_base(repo_path):
-        return export_url + "/" + project.quality_metrics_name
+        parts.append(project.quality_metrics_name)
 
-    return export_url
+    return parts
 
 def get_gitlab_path(project, args):
     """
@@ -216,9 +217,24 @@ class Location(object):
     Location of a history file.
     """
 
-    def __init__(self, prefix, filename, compression=False):
-        self._location = prefix + "/" + filename
+    def __init__(self, parts, filename=None, compression=False):
+        if isinstance(parts, basestring):
+            parts = (parts,)
+
+        if filename is not None:
+            parts = tuple(parts) + (filename,)
+        self._parts = tuple(parts)
+        self._location = "/".join(parts)
         self._compression = compression
+
+    @property
+    def parts(self):
+        """
+        Retrieve the parts of the path or URL that were used to find the
+        location of the history file.
+        """
+
+        return self._parts
 
     @property
     def location(self):
@@ -370,8 +386,8 @@ def get_data_source(project, args):
         # quality dashboard name.
         export_path = get_gitlab_path(project, args)
         if export_path is not None and os.path.exists(export_path):
-            logging.info('Found metrics history path: %s', export_path)
             path = Path(export_path, filename, compression)
+            logging.info('Found metrics history path: %s', path)
             yield Data_Source(source, path)
             return
     elif args.path is not None:
@@ -384,10 +400,11 @@ def get_data_source(project, args):
     if args.export_url is not None:
         # URL or a GitLab repository that can be accessed in an unauthenticated
         # manner by the importer.
-        export_url = get_gitlab_url(project, args)
-        if export_url is not None:
-            logging.info('Found metrics history URL: %s', export_url)
-            yield Data_Source(source, Url(export_url, filename, compression))
+        parts = get_gitlab_url(project, args)
+        if parts is not None:
+            url = Url(parts, filename, compression)
+            logging.info('Found metrics history URL: %s', url)
+            yield Data_Source(source, url)
             return
     elif args.url is not None:
         # URL prefix to a specific download location.
@@ -425,6 +442,21 @@ def get_tracker_start(args):
 
     return start_from
 
+def update_source(project, data):
+    """
+    Replace the `History` source domain object in the project sources with
+    another source which uses the full URL of the data source location, if
+    possible.
+    """
+
+    if not data.location.local:
+        source = Source.from_type('metric_history',
+                                  name=data.source.name,
+                                  url=data.location.parts[0])
+        project.sources.remove(data.source)
+        project.sources.add(source)
+        project.export_sources()
+
 def main():
     """
     Main entry point.
@@ -440,6 +472,8 @@ def main():
 
     try:
         with get_data_source(project, args) as data:
+            update_source(project, data)
+
             if args.compact is not None:
                 is_compact = args.compact
             elif data.source is not None and data.source.is_compact:

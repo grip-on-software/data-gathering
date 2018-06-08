@@ -9,6 +9,7 @@ from .github import GitHub
 from .gitlab import GitLab
 from .tfs import TFS
 from .history import History
+from .metric_options import Metric_Options
 from .jenkins import Jenkins
 from .jira import Jira
 from .controller import Controller
@@ -18,6 +19,8 @@ __all__ = [
     "Source",
     # Version control system classes
     "Subversion", "Git", "GitHub", "GitLab", "TFS",
+    # Quality metrics
+    "History", "Metric_Options",
     # Other sources
-    "History", "Jenkins", "Jira", "Controller"
+    "Jenkins", "Jira", "Controller"
 ]
