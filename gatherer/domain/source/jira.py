@@ -12,11 +12,11 @@ class Jira(Source):
 
     @property
     def environment(self):
-        return self.url
+        return self.url.rstrip('/')
 
     @property
     def environment_url(self):
-        return self.url
+        return self.url.rstrip('/')
 
     def update_identity(self, project, public_key, dry_run=False):
         raise RuntimeError('Source does not support updating SSH key')
