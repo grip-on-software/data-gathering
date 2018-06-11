@@ -130,7 +130,8 @@ class Controller(object):
 
         Create the home directory of the user if it did not yet exist, alter
         the permissions and ownerships such that the controller can write to
-        it temporarily, and return the path to the home directory.
+        it temporarily, and return the path to the home directory. The permisssions
+        must be corrected using `update_permissions` afterward.
         """
 
         home_directory = self.get_home_directory(project_key)
@@ -161,16 +162,23 @@ class Controller(object):
         Update authorized public key.
 
         Returns whether the public key already exists with the same contents.
+        If this is not the case, then the authorized keys are replaced with the
+        provided public key. In any case the permissions must be corrected using
+        `update_permissions` afterward, otherwise the agent may not be able to
+        log in on platforms with strict permissions checks for authorized keys.
         """
 
         ssh_directory = self.get_ssh_directory(project_key)
         key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
-        if os.path.exists(key_filename):
-            with open(key_filename, 'r') as read_key_file:
-                if read_key_file.readline().rstrip('\n') == public_key:
-                    return True
-
         if os.path.exists(ssh_directory):
+            subprocess.check_call(['sudo', 'chmod', '2770', ssh_directory])
+            subprocess.check_call(['sudo', 'chmod', '2660', key_filename])
+
+            if os.path.exists(key_filename):
+                with open(key_filename, 'r') as read_key_file:
+                    if read_key_file.readline().rstrip('\n') == public_key:
+                        return True
+
             subprocess.check_call(['sudo', 'rm', '-rf', ssh_directory])
 
         self._create_directory(project_key, ssh_directory, user='controller')

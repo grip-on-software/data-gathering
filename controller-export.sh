@@ -23,6 +23,7 @@ perform_export() {
 	cp -r $agent_directory/export $controller_directory
 	sudo rm -rf $agent_directory/export/$project/*
 
+	touch "$controller_directory/log.json"
 	if [ -e "$controller_directory/export/$project/scrape.log" ]; then
 		mv "$controller_directory/export/$project/scrape.log" "$controller_directory/scrape.log"
 	fi
