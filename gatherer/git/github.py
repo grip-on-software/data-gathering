@@ -88,9 +88,10 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return self._source.github_api
 
-    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         versions = super(GitHub_Repository, self).get_data(from_revision,
                                                            to_revision,
+                                                           force=force,
                                                            **kwargs)
 
         self.fill_repo_table(self._source.github_repo)

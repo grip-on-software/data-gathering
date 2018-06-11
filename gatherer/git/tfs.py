@@ -286,9 +286,11 @@ class TFS_Repository(Git_Repository, Review_System):
         return parsed_date.replace(microsecond=microsecond,
                                    tzinfo=dateutil.tz.tzutc())
 
-    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         versions = super(TFS_Repository, self).get_data(from_revision,
-                                                        to_revision, **kwargs)
+                                                        to_revision,
+                                                        force=force,
+                                                        **kwargs)
 
         try:
             repository_id = self.api.get_repository_id(self._source.tfs_repo)

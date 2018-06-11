@@ -181,9 +181,10 @@ class Subversion_Repository(Version_Control_Repository):
                                      revision_to=to_revision,
                                      limit=self._iterator_limiter.size)
 
-    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         versions = super(Subversion_Repository, self).get_data(from_revision,
                                                                to_revision,
+                                                               force=force,
                                                                **kwargs)
 
         self._parse_tags()

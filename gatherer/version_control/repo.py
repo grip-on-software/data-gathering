@@ -264,6 +264,15 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError('Must be implemented by subclass')
 
+    def _cleanup(self):
+        """
+        Clean up the local state of the repository. The repository may be removed
+        as a whole in order to start from a clean slate next time the repository
+        is processed.
+        """
+
+        pass
+
     def get_latest_version(self):
         """
         Retrieve the identifier of the latest version within the version
@@ -342,7 +351,7 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError("Must be implemented by subclass")
 
-    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         """
         Retrieve version and auxiliary data from the repository.
 
@@ -350,8 +359,14 @@ class Version_Control_Repository(object):
         then a `RepositoryDataException` is raised.
         """
 
-        return self.get_versions(from_revision=from_revision,
-                                 to_revision=to_revision, **kwargs)
+        try:
+            return self.get_versions(from_revision=from_revision,
+                                     to_revision=to_revision, **kwargs)
+        except (RepositoryDataException, RepositorySourceException):
+            if force:
+                self._cleanup()
+
+            raise
 
     def _parse_version(self, commit, stats=True, **kwargs):
         """

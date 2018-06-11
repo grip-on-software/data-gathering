@@ -138,14 +138,14 @@ class Repositories_Holder(object):
         tables = {}
         for repo in self.get_repositories(force=force):
             try:
-                self._process_repo(repo, versions, tables)
+                self._process_repo(repo, versions, tables, force=force)
             except (RepositorySourceException, RepositoryDataException):
                 logging.exception('Cannot retrieve repository data for %s',
                                   repo.repo_name)
 
         self._export(versions, tables)
 
-    def _process_repo(self, repo, versions, tables):
+    def _process_repo(self, repo, versions, tables, force=False):
         # Retrieve all tables from the repositories so that we know the
         # names and overwrite old export files when there are no updates.
         for table_name, table_data in repo.tables.items():
@@ -160,7 +160,7 @@ class Repositories_Holder(object):
             latest_version = None
 
         # Retrieve the versions and auxliary tables.
-        versions.extend(repo.get_data(from_revision=latest_version))
+        versions.extend(repo.get_data(from_revision=latest_version, force=force))
         self._latest_versions[repo.repo_name] = repo.get_latest_version()
         for table_name, table_data in repo.tables.items():
             tables[table_name].extend(table_data.get())
