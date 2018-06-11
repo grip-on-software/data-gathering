@@ -202,16 +202,13 @@ class Git_Repository(Version_Control_Repository):
                                 checkout=checkout)
                 return repository
             except RepositorySourceException as exception:
-                logging.exception('Could not pull into existing repository %s',
-                                  repo_directory)
                 if not force:
                     raise exception
 
-                logging.warning('Deleting to make way for clone in %s', repo_directory)
-                try:
-                    shutil.rmtree(repo_directory)
-                except OSError as error:
-                    raise RepositorySourceException(str(error))
+                logging.exception('Could not pull into existing repository %s',
+                                  repo_directory)
+                if not repository.cleanup():
+                    raise exception
 
         if isinstance(checkout, bool):
             repository.clone(checkout=checkout, shallow=shallow, shared=shared)
@@ -222,6 +219,13 @@ class Git_Repository(Version_Control_Repository):
             repository.checkout(paths=checkout, shallow=shallow)
 
         return repository
+
+    def _cleanup(self):
+        logging.warning('Deleting clone to make way in %s', self.repo_directory)
+        try:
+            shutil.rmtree(self.repo_directory)
+        except OSError as error:
+            raise RepositorySourceException(str(error))
 
     def pull(self, shallow=False, shared=False, checkout=True):
         """
@@ -530,9 +534,11 @@ class Git_Repository(Version_Control_Repository):
         refspec = self._get_refspec(from_revision, to_revision)
         return self._parse(refspec, paths=filename, descending=descending, **kwargs)
 
-    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         versions = super(Git_Repository, self).get_data(from_revision,
-                                                        to_revision, **kwargs)
+                                                        to_revision,
+                                                        force=force,
+                                                        **kwargs)
 
         self._parse_tags()
 
@@ -548,13 +554,16 @@ class Git_Repository(Version_Control_Repository):
         while self._iterator_limiter.check(had_commits):
             had_commits = False
 
-            for commit in commits:
-                had_commits = True
-                count += 1
-                version_data.append(self._parse_version(commit, **kwargs))
+            try:
+                for commit in commits:
+                    had_commits = True
+                    count += 1
+                    version_data.append(self._parse_version(commit, **kwargs))
 
-                if count % self.LOG_SIZE == 0:
-                    logging.info('Analysed commits up to %d', count)
+                    if count % self.LOG_SIZE == 0:
+                        logging.info('Analysed commits up to %d', count)
+            except GitCommandError as error:
+                raise RepositoryDataException(str(error))
 
             logging.info('Analysed batch of commits, now at %d', count)
 

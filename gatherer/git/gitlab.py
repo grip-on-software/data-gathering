@@ -342,13 +342,14 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         return self._repo_project
 
-    def get_data(self, from_revision=None, to_revision=None, **kwargs):
+    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         # Check if we can retrieve the data from legacy dropin files.
         has_dropins = self._check_dropin_files(self.project)
 
         versions = super(GitLab_Repository, self).get_data(from_revision,
                                                            to_revision,
                                                            comments=has_dropins,
+                                                           force=force,
                                                            **kwargs)
 
         self.fill_repo_table(self.repo_project)
