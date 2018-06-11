@@ -174,8 +174,31 @@ class Source(object):
 
         return '{0}:{1}'.format(parts.hostname, parts.port)
 
-    def _update_ssh_credentials(self, host, orig_parts, username):
+    def _get_username(self, protocol, host, orig_parts):
+        # Order of preference:
+        # - Protocol-specific username configured in credentials for the host
+        # - Username configured in credentials for the host
+        # - Username as provided in the original URL
+        # If the username was configured in the credentials (the key exists in
+        # the configuration), but it has a falsy value, then the original
+        # username is used.
+        key = 'username.{}'.format(protocol)
+        username = None
+        if self._credentials.has_option(host, key):
+            username = self._credentials.get(host, key)
+        elif self._credentials.has_option(host, 'username'):
+            username = self._credentials.get(host, 'username')
+
+        if not Configuration.has_value(username):
+            username = orig_parts.username
+
+        return username
+
+    def _update_ssh_credentials(self, host, orig_parts):
         # Use SSH (ssh://user@host:port/path).
+        username = self._get_username('ssh', host, orig_parts)
+        if username is None:
+            return
 
         # Parse the host parts and potentially follow host changes.
         hostname, port = self._get_host_parts(host, orig_parts)
@@ -199,8 +222,11 @@ class Source(object):
 
         self._url = self._format_ssh_url(hostname, auth, port, path)
 
-    def _update_http_credentials(self, host, orig_parts, username):
+    def _update_http_credentials(self, host, orig_parts):
         # Use HTTP(s) (http://username:password@host:port/path).
+        username = self._get_username('http', host, orig_parts)
+        if username is None:
+            return
 
         # Parse the host parts and potentially follow host changes.
         hostname, port = self._get_host_parts(host, orig_parts)
@@ -226,18 +252,11 @@ class Source(object):
         host = self._format_host_section(orig_parts)
 
         if self._credentials.has_section(host):
-            username = orig_parts.username
-            if self.has_option(host, 'username'):
-                username = self._credentials.get(host, 'username')
-            if username is None:
-                # No username found for credentials host
-                return orig_parts, host
-
             # Additional authentication options depending on protocol to use
             if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
-                self._update_ssh_credentials(host, orig_parts, username)
+                self._update_ssh_credentials(host, orig_parts)
             elif orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'password'):
-                self._update_http_credentials(host, orig_parts, username)
+                self._update_http_credentials(host, orig_parts)
 
         return orig_parts, host
 

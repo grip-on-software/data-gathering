@@ -429,9 +429,13 @@ access to the service completely.
   a valid path to actually succeed in using SSH access. The path may be 
   symbolic, e.g., `~/.ssh/id_rsa`.
 - `username` (`$SOURCE_USERNAME` and `$DEFINITIONS_USERNAME`): Username to log 
-  in to the version control system. For GitLab with SSH, this is 'git'.
+  in to the version control system. This may differ by protocol used, and as 
+  such one may additionally define `username.ssh` and `username.http` which 
+  override the default key. For example, with GitLab/GitHub with SSH, this is 
+  'git' but it is the username when accessing via HTTP(S).
 - `password` (`$SOURCE_PASSWORD` and `$DEFINITIONS_PASSWORD`): Password to log 
-  in to the version control system. Ignored if `env` is not a falsy value.
+  in to the version control system. Ignored if we connect to the version 
+  control system using SSH. This happens when `env` is not a falsy value.
 - `port` (`$SOURCE_PORT`): Override the port used by the source. This can be 
   used to redirect HTTP(s) or SSH to an alternative port, which may be useful 
   if the source information is stale or if there is a proxy or firewall 
