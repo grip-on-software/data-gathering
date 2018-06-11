@@ -221,4 +221,12 @@ class Metric_Options_Collector(Collector):
         if data is None:
             data = self._diff.previous_metric_targets
 
+        definitions_source = self._project.project_definitions_source
+        source = Source.from_type('metric_options',
+                                  name=definitions_source.name,
+                                  url=definitions_source.plain_url)
+        if not self._project.sources.has_url(source.plain_url):
+            self._project.sources.add(source)
+            self._project.export_sources()
+
         super(Metric_Options_Collector, self).finish(end_revision, data=data)
