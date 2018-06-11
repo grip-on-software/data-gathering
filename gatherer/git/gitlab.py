@@ -262,12 +262,9 @@ class GitLab_Repository(Git_Repository, Review_System):
     @classmethod
     def is_up_to_date(cls, source, latest_version, update_tracker=None):
         try:
-            api = source.gitlab_api
+            project = cls._get_repo_project(source)
         except RuntimeError:
             return False
-
-        # pylint: disable=no-member
-        project = api.project(source.gitlab_path)
 
         # Check if the API indicates that there are updates
         if update_tracker is not None:
