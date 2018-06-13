@@ -157,6 +157,17 @@ class Controller(object):
 
         return home_directory
 
+    def clean_home_subdirectories(self, project_key, paths):
+        """
+        Clean certain subdirectories related to the user of the agent.
+        """
+
+        for path in paths:
+            directory = os.path.join(self.get_home_directory(project_key), path)
+            subprocess.check_call(['sudo', 'rm', '-rf', directory])
+            for subdirectory in self.get_home_subdirectories(project_key, path):
+                self._create_directory(project_key, subdirectory)
+
     def update_public_key(self, project_key, public_key):
         """
         Update authorized public key.

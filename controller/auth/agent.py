@@ -37,10 +37,14 @@ class Permissions(object):
 
         return self._controller.get_home_directory(self._project_key)
 
-    def update_user(self):
+    def update_user(self, full=True):
         """Update agent home directory."""
 
-        self._controller.create_agent(self._project_key)
+        if full:
+            self._controller.create_agent(self._project_key)
+        else:
+            self._controller.clean_home_subdirectories(self._project_key,
+                                                       ('update',))
 
     def update_public_key(self, public_key):
         """
@@ -161,10 +165,10 @@ def main():
 
     permissions = Permissions(project_key)
 
-    if not permissions.update_public_key(public_key):
-        # If the public key is the same, then we do not need to replace the
-        # entire user home directory.
-        permissions.update_user()
+    same_key = permissions.update_public_key(public_key):
+    # If the public key is the same, then we do not need to replace the
+    # entire user home directory.
+    permissions.update_user(full=not same_key)
 
     response = Response(project_key)
     response.get_update_trackers(permissions.get_home_directory())
