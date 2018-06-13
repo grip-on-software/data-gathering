@@ -450,10 +450,12 @@ def update_source(project, data):
     """
 
     if not data.location.local:
+        name = data.source.name if data.source is not None else project.key
         source = Source.from_type('metric_history',
-                                  name=data.source.name,
+                                  name=name,
                                   url=data.location.parts[0])
-        project.sources.remove(data.source)
+        if data.source is not None:
+            project.sources.remove(data.source)
         project.sources.add(source)
         project.export_sources()
 
