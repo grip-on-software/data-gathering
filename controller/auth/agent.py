@@ -165,7 +165,7 @@ def main():
 
     permissions = Permissions(project_key)
 
-    same_key = permissions.update_public_key(public_key):
+    same_key = permissions.update_public_key(public_key)
     # If the public key is the same, then we do not need to replace the
     # entire user home directory.
     permissions.update_user(full=not same_key)
