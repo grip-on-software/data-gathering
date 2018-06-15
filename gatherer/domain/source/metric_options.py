@@ -21,7 +21,7 @@ class Metric_Options(Source):
 
     @property
     def environment_url(self):
-        return '/'.join(self.url.split('/')[:-1])
+        return self.url
 
     @property
     def file_name(self):
