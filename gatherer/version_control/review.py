@@ -20,6 +20,8 @@ class Review_System(Version_Control_Repository):
     version control system.
     """
 
+    TABLES = {"merge_request", "merge_request_note", "commit_comment"}
+
     @abstractmethod
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(Review_System, self).__init__(source, repo_directory,

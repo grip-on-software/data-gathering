@@ -28,6 +28,11 @@ class GitHub_Repository(Git_Repository, Review_System):
 
     UPDATE_TRACKER_NAME = 'github_update'
 
+    TABLES = Git_Repository.TABLES | Review_System.TABLES | {
+        "github_repo", "merge_request_review",
+        "github_issue", "github_issue_note"
+    }
+
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(GitHub_Repository, self).__init__(source, repo_directory,
                                                 project=project, **kwargs)

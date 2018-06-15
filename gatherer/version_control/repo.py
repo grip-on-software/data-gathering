@@ -67,6 +67,11 @@ class Version_Control_Repository(object):
     # of auxiliary data provided by this repository.
     UPDATE_TRACKER_NAME = None
 
+    # Set of table names that this repository type may export in addition to
+    # the version control system version commits. This set must be as inclusive
+    # as possible.
+    TABLES = set()
+
     def __init__(self, source, repo_directory, sprints=None, project=None,
                  **kwargs):
         if kwargs:

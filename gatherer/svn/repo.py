@@ -24,6 +24,8 @@ class Subversion_Repository(Version_Control_Repository):
     histories (contents, logs) can be read.
     """
 
+    TABLES = ('change_path', 'tag')
+
     def __init__(self, source, repo_directory, **kwargs):
         super(Subversion_Repository, self).__init__(source, repo_directory, **kwargs)
         self._repo = None

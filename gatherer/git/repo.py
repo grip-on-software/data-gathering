@@ -101,6 +101,8 @@ class Git_Repository(Version_Control_Repository):
         r"(?:Merge )?([^\s]+) >\s?master"
     ))
 
+    TABLES = {'change_path', 'tag'}
+
     def __init__(self, source, repo_directory, progress=None, **kwargs):
         super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
         self._repo = None

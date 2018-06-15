@@ -83,7 +83,13 @@ class Repositories_Holder(object):
 
         return False
 
-    def get_repositories(self, force=False):
+    @staticmethod
+    def _init_tables(repo_class, tables):
+        for table_name in repo_class.TABLES:
+            if table_name not in tables:
+                tables[table_name] = []
+
+    def get_repositories(self, tables, force=False):
         """
         Retrieve repository objects for all involved version control systems.
 
@@ -103,6 +109,8 @@ class Repositories_Holder(object):
             # Check if the source has version control repository functionality.
             if repo_class is None:
                 continue
+
+            self._init_tables(repo_class, tables)
 
             if self._check_up_to_date(source, repo_class):
                 continue
@@ -136,7 +144,7 @@ class Repositories_Holder(object):
         encrypt_fields = ('developer', 'developer_username', 'developer_email')
         versions = Table('vcs_versions', encrypt_fields=encrypt_fields)
         tables = {}
-        for repo in self.get_repositories(force=force):
+        for repo in self.get_repositories(tables, force=force):
             try:
                 self._process_repo(repo, versions, tables, force=force)
             except (RepositorySourceException, RepositoryDataException):
