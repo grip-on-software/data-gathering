@@ -16,6 +16,7 @@ import ipaddress
 import json
 import os
 from http.server import BaseHTTPRequestHandler
+import psutil
 import Pyro4
 
 from gatherer.config import Configuration
@@ -89,6 +90,26 @@ class Tracker_Status(Status):
                 'ok': False,
                 'message': str(error)
             }
+
+class Importer_Status(Status):
+    """
+    Status provider for the export processes.
+    """
+
+    @property
+    def key(self):
+        return 'importer'
+
+    def generate(self):
+        for proc in psutil.process_iter(attrs=['name', 'username']):
+            if proc.info['username'] == 'exporter' and 'jenkins.sh' in proc.info['name']:
+                return {
+                    'ok': False,
+                    'message': 'An import process is currently running'
+                }
+
+        return {'ok': True}
+
 
 class Daemon_Status(Status):
     """
@@ -323,6 +344,7 @@ def display_status(project_key):
     generators = [
         Database_Status(project_key),
         Tracker_Status(project_key),
+        Importer_Status(),
         Daemon_Status(),
         Network_Status(project_key, os.getenv('REMOTE_ADDR')),
         Configuration_Status(status),

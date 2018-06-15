@@ -3,6 +3,7 @@
 # Controller daemons and web interfaces
 Pyro4
 flup
+psutil
 python-ldap
 pyyaml
 py2-ipaddress; python_version < '3.3' 
