@@ -162,8 +162,10 @@ class Controller(object):
         Clean certain subdirectories related to the user of the agent.
         """
 
+        home_directory = self.get_home_directory(project_key)
+        subprocess.check_call(['sudo', 'chmod', '2770', home_directory])
         for path in paths:
-            directory = os.path.join(self.get_home_directory(project_key), path)
+            directory = os.path.join(home_directory, path)
             subprocess.check_call(['sudo', 'rm', '-rf', directory])
             for subdirectory in self.get_home_subdirectories(project_key, path):
                 self._create_directory(project_key, subdirectory)

@@ -55,12 +55,12 @@ perform_export() {
 				rm -f $agent_directory/update/$project/$preflightFile
 			done
 			sudo chown agent-$project:controller -R $agent_directory/update/$project
-			sudo chmod 2700 $agent_directory/update/$project
-			sudo chmod 2700 $agent_directory/update
+			sudo chmod 2770 $agent_directory/update/$project
+			sudo chmod 2770 $agent_directory/update
 		fi
 	fi
 
-	sudo chmod 2700 $agent_directory
+	sudo chmod 2770 $agent_directory
 
 	if [ ! -z "$CLEANUP_EXPORT" ]; then
 		rm -rf $controller_directory/export
