@@ -242,6 +242,39 @@ class Controller(object):
             json.dump(statuses, data_file, indent=None)
             data_file.write('\n')
 
+    @staticmethod
+    def _check_permissions(path, permissions=02770):
+        try:
+            mode = os.stat(path).st_mode
+        except OSError:
+            return False
+
+        if mode & 07777 != permissions:
+            return False
+
+        return True
+
+    def get_permissions_status(self, project_key):
+        """
+        Check whether permissions are correct for certain paths.
+        """
+
+        if not self._check_permissions(self.get_ssh_directory(project_key),
+                                       permissions=02700):
+            return {
+                'ok': False,
+                'message': 'SSH identity was not properly stored'
+            }
+
+        for path in self.get_home_subdirectories(project_key):
+            if not self._check_permissions(path):
+                return {
+                    'ok': False,
+                    'message': 'Agent directory was not properly stored'
+                }
+
+        return {'ok': True}
+
 def main():
     """
     Main setup and event loop.

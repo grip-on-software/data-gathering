@@ -91,6 +91,29 @@ class Tracker_Status(Status):
                 'message': str(error)
             }
 
+class Permissions_Status(Status):
+    """
+    Status provider for the controller/agent file permissions.
+    """
+
+    def __init__(self, project_key):
+        super(Permissions_Status, self).__init__()
+        self._project_key = project_key
+
+    @property
+    def key(self):
+        return 'permissions'
+
+    def generate(self):
+        try:
+            controller = Pyro4.Proxy("PYRONAME:gros.controller")
+            return controller.get_permissions_status(self._project_key)
+        except Pyro4.errors.NamingError as error:
+            return {
+                'ok': False,
+                'message': str(error)
+            }
+
 class Importer_Status(Status):
     """
     Status provider for the export processes.
@@ -344,6 +367,7 @@ def display_status(project_key):
     generators = [
         Database_Status(project_key),
         Tracker_Status(project_key),
+        Permissions_Status(project_key),
         Importer_Status(),
         Daemon_Status(),
         Network_Status(project_key, os.getenv('REMOTE_ADDR')),
