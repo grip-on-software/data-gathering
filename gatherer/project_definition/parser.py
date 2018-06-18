@@ -369,7 +369,7 @@ class Sources_Parser(Project_Definition_Parser):
             logging.debug('keyword %s does not hold a dict', keyword)
             return
 
-        sources = {}
+        self.data.setdefault(name, {})
         for key, items in list(keywords[keyword].items()):
             if not isinstance(items, (list, tuple)):
                 items = [items]
@@ -379,11 +379,8 @@ class Sources_Parser(Project_Definition_Parser):
                                                                     from_key)
 
                 if class_name is not None:
-                    sources.setdefault(class_name, set())
-                    sources[class_name].add(source_value)
-
-        if sources:
-            self.data[name] = sources
+                    self.data[name].setdefault(class_name, set())
+                    self.data[name][class_name].add(source_value)
 
     @staticmethod
     def _get_source_url(source):

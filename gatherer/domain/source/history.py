@@ -43,7 +43,13 @@ class History(Source):
         Retrieve whether the history is in a compact format.
         """
 
-        return self._type == 'compact-history'
+        if self._type == 'compact-history':
+            return True
+
+        if self.file_name.startswith('compact_history.json'):
+            return True
+
+        return False
 
     def update_identity(self, project, public_key, dry_run=False):
         raise RuntimeError('Source does not support updating SSH key')
