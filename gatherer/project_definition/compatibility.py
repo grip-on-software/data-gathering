@@ -90,7 +90,4 @@ def produce_mock(name):
     return type(name, (object,), {"__new__": __new__})
 
 COMPACT_HISTORY = produce_mock('CompactHistory')
-try:
-    JIRA_FILTER = metric_source.JiraFilter
-except AttributeError:
-    JIRA_FILTER = produce_mock('JiraFilter')
+JIRA_FILTER = produce_mock('JiraFilter')
