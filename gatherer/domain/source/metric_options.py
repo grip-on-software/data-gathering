@@ -17,7 +17,7 @@ class Metric_Options(Source):
 
     @property
     def environment(self):
-        return '/'.join(self.url.split('/')[:-1])
+        return ('metric_options', '/'.join(self.url.split('/')[:-1]))
 
     @property
     def environment_url(self):

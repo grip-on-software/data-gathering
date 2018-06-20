@@ -19,7 +19,7 @@ class History(Source):
 
     @property
     def environment(self):
-        return '/'.join(self.url.split('/')[:-1])
+        return ('metric_history', '/'.join(self.url.split('/')[:-1]))
 
     @property
     def environment_type(self):

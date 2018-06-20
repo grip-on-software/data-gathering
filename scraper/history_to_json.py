@@ -170,19 +170,22 @@ def get_gitlab_path(project, args):
     Check if the arguments or settings have a GitLab URL. If so, clone the
     repository containing the metrics history from there.
 
-    Returns the most directly known path to the cloned history file, or the
-    provided `export_path` if no GitLab repository was found.
+    Returns a tuple, consisting of the most directly known path to the cloned
+    history file and the GitLab URL it is cloned from. If no GitLab repository
+    was found, then the provided `export_path` argument or setting and `None`
+    is returned. If the argument or setting is not provided, then two `None`
+    values are returned.
     """
 
     export_path = get_setting(args.export_path, 'path', project)
     if not Configuration.has_value(export_path):
-        return None
+        return None, None
 
     gitlab_url = get_setting(args.url, 'url', project)
     if not Configuration.has_value(gitlab_url):
-        return export_path
+        return export_path, None
     if not GitLab.is_gitlab_url(gitlab_url):
-        return export_path
+        return export_path, None
 
     delete = get_setting(args.delete, 'delete', project, boolean=True)
     if delete and os.path.exists(export_path):
@@ -210,7 +213,7 @@ def get_gitlab_path(project, args):
     repo_class = source.repository_class
     repo_class.from_source(source, export_path, checkout=paths,
                            shallow=True, progress=True)
-    return clone_path
+    return clone_path, gitlab_url
 
 class Location(object):
     """
@@ -285,13 +288,19 @@ class Url(Location):
 
 class Data_Source(object):
     """
-    Object holding properties, path or URL, and possibly open file descriptor
+    Object holding properties, path/URL, and possibly open file descriptor
     for a history data source.
     """
 
-    def __init__(self, source, location, open_file=None):
+    def __init__(self, source, locations, open_file=None):
         self._source = source
-        self._location = location
+        if isinstance(locations, Location):
+            self._locations = (locations,)
+        elif len(locations) < 1:
+            raise ValueError('At least one location is required')
+        else:
+            self._locations = tuple(locations)
+
         self._file = open_file
 
     @property
@@ -304,12 +313,22 @@ class Data_Source(object):
         return self._source
 
     @property
-    def location(self):
+    def locations(self):
         """
-        Retrieve the `Location` object that describes the history file.
+        Retrieve a sequence of `Location` objects that provide some sort of
+        access to the history file.
         """
 
-        return self._location
+        return self._locations
+
+    @property
+    def location(self):
+        """
+        Retrieve the primary `Location` object from which the history file
+        can be accessed.
+        """
+
+        return self._locations[0]
 
     @property
     def file(self):
@@ -384,11 +403,13 @@ def get_data_source(project, args):
         # The local directory contains history.json.gz or the GitLab repository
         # contains it in its root or possibly in a subdirectory matching the
         # quality dashboard name.
-        export_path = get_gitlab_path(project, args)
+        export_path, gitlab_url = get_gitlab_path(project, args)
         if export_path is not None and os.path.exists(export_path):
-            path = Path(export_path, filename, compression)
-            logging.info('Found metrics history path: %s', path)
-            yield Data_Source(source, path)
+            locations = [Path(export_path, filename, compression)]
+            if gitlab_url is not None:
+                locations.append(Url(gitlab_url, compression=compression))
+            logging.info('Found metrics history path: %s', locations[0])
+            yield Data_Source(source, locations)
             return
     elif args.path is not None:
         # Path to a directory with a local file that can be opened.
@@ -410,8 +431,7 @@ def get_data_source(project, args):
         # URL prefix to a specific download location.
         url_prefix = get_setting(args.url, 'url', project)
         url = Url(url_prefix, filename, compression)
-        request = Session().get(url)
-        stream = io.BytesIO(request.content)
+        stream = io.BytesIO(Session().get(url).content)
         if compression:
             opener = get_file_opener(compression)
             open_file = opener(mode='r', fileobj=stream)
@@ -449,15 +469,18 @@ def update_source(project, data):
     possible.
     """
 
-    if not data.location.local:
-        name = data.source.name if data.source is not None else project.key
-        source = Source.from_type('metric_history',
-                                  name=name,
-                                  url=data.location.parts[0])
-        if data.source is not None:
-            project.sources.remove(data.source)
-        project.sources.add(source)
-        project.export_sources()
+    for location in data.locations:
+        if not location.local:
+            name = data.source.name if data.source is not None else project.key
+            source = Source.from_type('metric_history',
+                                      name=name,
+                                      url=location.parts[0])
+            if data.source is not None:
+                project.sources.remove(data.source)
+            project.sources.add(source)
+            project.export_sources()
+
+            break
 
 def main():
     """
