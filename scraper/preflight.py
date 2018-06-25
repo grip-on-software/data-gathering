@@ -41,6 +41,16 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
+def write_configuration(project, response):
+    """
+    Write an environment file based on the response from the controller.
+    """
+
+    if 'configuration' in response and 'contents' in response['configuration']:
+        env_filename = os.path.join(project.export_key, 'preflight_env')
+        with open(env_filename, 'w') as env_file:
+            env_file.write(response['configuration']['contents'])
+
 def check_secrets(filename):
     """
     Check whether the secrets file contains all required options.
@@ -87,10 +97,7 @@ def check_controller(host, cert, project):
                          request.status_code, extra=response)
         return ['controller-http']
 
-    if 'configuration' in response and 'contents' in response['configuration']:
-        env_filename = os.path.join(project.export_key, 'preflight_env')
-        with open(env_filename, 'w') as env_file:
-            env_file.write(response['configuration']['contents'])
+    write_configuration(project, response)
 
     return []
 

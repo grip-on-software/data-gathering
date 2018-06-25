@@ -362,6 +362,20 @@ def get_filename(project, source, args):
 
     return project.get_key_setting('history', 'filename')
 
+def get_filename_compression(project, source, args):
+    """
+    Retrieve the file name of the history file and the compression to be used
+    to read the file. The file name is adjusted to contain the compression
+    extension.
+    """
+
+    filename = get_filename(project, source, args)
+    compression = get_setting(args.compression, 'compression', project)
+    if compression and os.path.splitext(filename)[1] != compression:
+        filename += "." + compression
+
+    return filename, compression
+
 def get_file_opener(compression):
     """
     Retrieve a method or class that, when called, returns an open file object
@@ -393,10 +407,7 @@ def get_data_source(project, args):
     # filename to contain the compression extension if it did not have one;
     # note that we do not remove extensions if compression is disabled.
     source = project.sources.find_source_type(History)
-    filename = get_filename(project, source, args)
-    compression = get_setting(args.compression, 'compression', project)
-    if compression and os.path.splitext(filename)[1] != compression:
-        filename += "." + compression
+    filename, compression = get_filename_compression(project, source, args)
 
     if args.export_path is not None:
         # Path to a local directory or a repository target for a GitLab URL.

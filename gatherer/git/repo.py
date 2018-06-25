@@ -101,7 +101,7 @@ class Git_Repository(Version_Control_Repository):
         r"(?:Merge )?([^\s]+) >\s?master"
     ))
 
-    TABLES = {'change_path', 'tag'}
+    AUXILIARY_TABLES = {'change_path', 'tag'}
 
     def __init__(self, source, repo_directory, progress=None, **kwargs):
         super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
@@ -201,16 +201,11 @@ class Git_Repository(Version_Control_Repository):
         if os.path.exists(repo_directory):
             try:
                 repository.pull(shallow=shallow, shared=shared,
-                                checkout=checkout)
+                                checkout=checkout, force=force)
                 return repository
-            except RepositorySourceException as exception:
+            except RepositorySourceException:
                 if not force:
-                    raise exception
-
-                logging.exception('Could not pull into existing repository %s',
-                                  repo_directory)
-                if not repository.cleanup():
-                    raise exception
+                    raise
 
         if isinstance(checkout, bool):
             repository.clone(checkout=checkout, shallow=shallow, shared=shared)
@@ -229,7 +224,7 @@ class Git_Repository(Version_Control_Repository):
         except OSError as error:
             raise RepositorySourceException(str(error))
 
-    def pull(self, shallow=False, shared=False, checkout=True):
+    def pull(self, shallow=False, shared=False, checkout=True, force=False):
         """
         Pull the latest changes into the existing local repository.
 
@@ -240,16 +235,25 @@ class Git_Repository(Version_Control_Repository):
         of the latest commits, or to a list of paths to check out.
         """
 
-        if not self.is_shared(shared=shared):
-            raise RepositorySourceException("Clone was not shared as '{}'".format(shared))
+        try:
+            if not self.is_shared(shared=shared):
+                raise RepositorySourceException("Clone was not shared as '{}'".format(shared))
 
-        if self.is_empty():
-            return
+            if self.is_empty():
+                return
 
-        if isinstance(checkout, list):
-            self.checkout_sparse(checkout, shallow=shallow)
-        else:
-            self.update(shallow=shallow, checkout=checkout)
+            if isinstance(checkout, list):
+                self.checkout_sparse(checkout, shallow=shallow)
+            else:
+                self.update(shallow=shallow, checkout=checkout)
+        except RepositorySourceException as exception:
+            if not force:
+                raise exception
+
+            logging.exception('Could not pull into existing repository %s',
+                              self.repo_directory)
+            if not self._cleanup():
+                raise exception
 
     @classmethod
     def is_up_to_date(cls, source, latest_version, update_tracker=None):

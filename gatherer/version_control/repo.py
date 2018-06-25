@@ -70,7 +70,7 @@ class Version_Control_Repository(object):
     # Set of table names that this repository type may export in addition to
     # the version control system version commits. This set must be as inclusive
     # as possible.
-    TABLES = set()
+    AUXILIARY_TABLES = set()
 
     def __init__(self, source, repo_directory, sprints=None, project=None,
                  **kwargs):

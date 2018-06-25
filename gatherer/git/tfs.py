@@ -225,8 +225,8 @@ class TFS_Repository(Git_Repository, Review_System):
 
     UPDATE_TRACKER_NAME = 'tfs_update'
 
-    TABLES = Git_Repository.TABLES | Review_System.TABLES | \
-        {"merge_request_review", "vcs_event"}
+    AUXILIARY_TABLES = Git_Repository.AUXILIARY_TABLES | \
+        Review_System.AUXILIARY_TABLES | {"merge_request_review", "vcs_event"}
 
     def __init__(self, source, repo_directory, project=None, **kwargs):
         super(TFS_Repository, self).__init__(source, repo_directory,

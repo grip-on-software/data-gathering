@@ -85,7 +85,7 @@ class Repositories_Holder(object):
 
     @staticmethod
     def _init_tables(repo_class, tables):
-        for table_name in repo_class.TABLES:
+        for table_name in repo_class.AUXILIARY_TABLES:
             if table_name not in tables:
                 tables[table_name] = []
 
