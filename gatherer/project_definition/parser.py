@@ -182,7 +182,10 @@ class Project_Definition_Parser(object):
                 # since all relevant modules and context has been patched.
                 # pylint: disable=exec-used
                 try:
-                    env = {'__file__': filename, 'open': open_mock}
+                    env = {
+                        '__{}__'.format('file'): filename,
+                        'open': open_mock
+                    }
                     exec(contents, env, env)
                 except SyntaxError as exception:
                     # Most syntax errors have correct line marker information
