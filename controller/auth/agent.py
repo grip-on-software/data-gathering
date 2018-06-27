@@ -19,6 +19,7 @@ try:
     import urllib.parse
 except ImportError:
     raise
+import etcd3
 import Pyro4
 
 class Permissions(object):
@@ -163,6 +164,18 @@ def main():
         print(str(error))
         return
 
+    try:
+        client = etcd3.client(timeout=2)
+        lock = client.lock('/agent/{}'.format(project_key), ttl=3600)
+        if not lock.acquire(timeout=5):
+            raise RuntimeError('Another process has acquired the lock')
+    except (etcd3.exceptions.Etcd3Exception, RuntimeError) as error:
+        print('Status: 503 Service Unavailable')
+        print('Content-Type: text/plain')
+        print()
+        print('Could not lock the agent for updating: {!r}'.format(error))
+        return
+
     permissions = Permissions(project_key)
 
     same_key = permissions.update_public_key(public_key)
@@ -176,6 +189,8 @@ def main():
     usernames = response.get_usernames()
 
     permissions.update_permissions()
+
+    lock.release()
 
     print('Content-Type: application/json')
     print()

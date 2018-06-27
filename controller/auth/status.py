@@ -17,6 +17,7 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler
 import psutil
+import etcd3
 import Pyro4
 
 from gatherer.config import Configuration
@@ -113,6 +114,38 @@ class Permissions_Status(Status):
                 'ok': False,
                 'message': str(error)
             }
+
+class Lock_Status(Status):
+    """
+    Status provider for the agent lock.
+    """
+
+    def __init__(self, project_key):
+        super(Lock_Status, self).__init__()
+        self._project_key = project_key
+
+    @property
+    def key(self):
+        return 'lock'
+
+    def generate(self):
+        try:
+            client = etcd3.client(timeout=2)
+            lock = client.lock('/agent/{}'.format(self._project_key))
+            if lock.is_acquired():
+                return {
+                    'ok': False,
+                    'message': 'Another process has acquired the agent lock'
+                }
+        except etcd3.exceptions.Etcd3Exception as error:
+            return {
+                'ok': False,
+                'message': repr(error)
+            }
+
+        return {
+            'ok': True
+        }
 
 class Importer_Status(Status):
     """
@@ -368,6 +401,7 @@ def display_status(project_key):
         Database_Status(project_key),
         Tracker_Status(project_key),
         Permissions_Status(project_key),
+        Lock_Status(project_key),
         Importer_Status(),
         Daemon_Status(),
         Network_Status(project_key, os.getenv('REMOTE_ADDR')),

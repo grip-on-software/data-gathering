@@ -4,6 +4,7 @@
 Pyro4
 flup
 psutil
+etcd3
 python-ldap
 pyyaml
 py2-ipaddress; python_version < '3.3' 
