@@ -3,6 +3,7 @@ Module that handles access to a GitLab-based repository, augmenting the usual
 repository version information with merge requests and commit comments.
 """
 
+from __future__ import absolute_import
 try:
     from future import standard_library
     standard_library.install_aliases()
@@ -14,10 +15,10 @@ import json
 import logging
 import os
 from git import GitCommandError
-from gitlab3.exceptions import GitLabException
+from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
 from .repo import Git_Repository, RepositorySourceException
 from ..table import Table, Key_Table
-from ..utils import convert_local_datetime, format_date, get_local_datetime, \
+from ..utils import format_date, get_datetime, get_local_datetime, \
     parse_date, parse_unicode
 from ..version_control.review import Review_System
 
@@ -97,91 +98,6 @@ class GitLab_Table_Dropins_Parser(GitLab_Dropins_Parser):
 
         return True
 
-class GitLab_Combined_Dropins_Parser(GitLab_Dropins_Parser):
-    """
-    Parser for dropins that contain a JSON object of repository keys and
-    legacy data values from the GitLab API.
-    """
-
-    def _parse(self, data):
-        # Attempt to use the original path name
-        path_name = self.repo.source.get_path_name(self.repo.source.plain_url)
-        if path_name is None:
-            logging.warning('Could not infer path name for repository: %s',
-                            self.repo.repo_name)
-            return False
-
-        if path_name not in data:
-            logging.warning('Repository %s not in GitLab data', path_name)
-            return False
-
-        # Retrieve the GitLab API dictionaries from the JSON data.
-        repo_data = data[path_name]
-        # Load the GitLab API in the gitlab3 module by creating the API object
-        # from the repository object. This ensures that the API also loads the
-        # sub-API's, such as Project.
-        # Pass along the API and the repository data to the parser.
-        self._parse_legacy_data(self.repo.api, repo_data)
-
-        logging.info('Read data from dropin file for repository %s',
-                     self.repo.repo_name)
-
-        return True
-
-    def _parse_legacy_data(self, api, repo_data):
-        raise NotImplementedError("Must be implemented by subclasses")
-
-class GitLab_Main_Dropins_Parser(GitLab_Combined_Dropins_Parser):
-    """
-    Parser for dropin files that contain repository information as well as
-    commit comments, merge requests and merge request notes from GitLab API.
-    """
-
-    def _parse_legacy_data(self, api, repo_data):
-        if not hasattr(api, 'Project'):
-            raise RuntimeError('Could not load project GitLab API definition')
-
-        project_class = getattr(api, 'Project')
-
-        repo_project = project_class(api, json_data=repo_data['info'])
-
-        self.repo.fill_repo_table(repo_project)
-
-        for merge_request in repo_data['merge_requests']:
-            request = repo_project.MergeRequest(repo_project,
-                                                json_data=merge_request['info'])
-            self.repo.add_merge_request(request)
-            for note in merge_request['notes']:
-                self.repo.add_note(request.Note(request, json_data=note),
-                                   request.id)
-
-        for commit_id, comments in repo_data['commit_comments'].items():
-            commit = repo_project.Commit(repo_project,
-                                         json_data=comments['commit_info'])
-            commit_datetime = convert_local_datetime(commit.committed_date)
-            updated_commit_id = self.repo.find_commit(commit_datetime)
-            if updated_commit_id is None:
-                logging.warning('Could not find updated commit ID for %s at %s',
-                                commit_id, commit.committed_date.isoformat())
-                updated_commit_id = commit_id
-
-            for comment in comments['notes']:
-                self.repo.add_commit_comment(comment, updated_commit_id)
-
-class GitLab_Events_Dropins_Parser(GitLab_Combined_Dropins_Parser):
-    """
-    Parser for dropin files that contain events for repositories as extracted
-    from the GitLab API.
-    """
-
-    def _parse_legacy_data(self, api, repo_data):
-        if not hasattr(api, 'Project'):
-            raise RuntimeError('Could not load project GitLab API definition')
-
-        for event_data in repo_data['events']:
-            event = api.Project.Event(api, json_data=event_data)
-            self.repo.add_event(event)
-
 class GitLab_Repository(Git_Repository, Review_System):
     """
     Git repository hosted by a GitLab instance.
@@ -222,21 +138,6 @@ class GitLab_Repository(Git_Repository, Review_System):
             return False
 
         has_dropins = False
-
-        filename = os.path.join(project.dropins_key, 'data_gitlabevents.json')
-        self._check_dropin_file(GitLab_Events_Dropins_Parser, filename)
-
-        filename = os.path.join(project.dropins_key, 'data_gitlab.json')
-        if self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
-            has_dropins = True
-
-        namespace = self._source.gitlab_namespace
-        filename = os.path.join(project.dropins_key,
-                                'data_gitlab_{}.json'.format(namespace))
-        if not has_dropins and \
-            self._check_dropin_file(GitLab_Main_Dropins_Parser, filename):
-            has_dropins = True
-
         has_table_dropins = False
         for table_dropin_file in self._table_dropin_files:
             filename = os.path.join(project.dropins_key, table_dropin_file)
@@ -284,8 +185,8 @@ class GitLab_Repository(Git_Repository, Review_System):
     @classmethod
     def _get_repo_project(cls, source):
         try:
-            repo_project = source.gitlab_api.project(source.gitlab_path)
-        except (AttributeError, GitLabException):
+            repo_project = source.gitlab_api.projects.get(source.gitlab_path)
+        except (AttributeError, GitlabAuthenticationError, GitlabGetError):
             raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
 
         return repo_project
@@ -357,14 +258,14 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         self.fill_repo_table(self.repo_project)
         if not has_dropins:
-            for event in self.repo_project.events():
+            for event in self.repo_project.events.list(as_list=False):
                 self.add_event(event)
 
-            for merge_request in self.repo_project.merge_requests():
-                newer = self.add_merge_request(merge_request)
+            for request in self.repo_project.mergerequests.list(as_list=False):
+                newer = self.add_merge_request(request)
                 if newer:
-                    for note in merge_request.notes():
-                        self.add_note(note, merge_request.id)
+                    for note in request.notes.list(as_list=False):
+                        self.add_note(note, request.id)
 
         self.set_latest_date()
 
@@ -391,53 +292,49 @@ class GitLab_Repository(Git_Repository, Review_System):
         else:
             archived = str(0)
 
-        if hasattr(repo_project, 'star_count'):
-            star_count = str(repo_project.star_count)
-        else:
-            star_count = str(0)
-
         self._tables["gitlab_repo"].append({
             'repo_name': str(self._repo_name),
             'gitlab_id': str(repo_project.id),
             'description': description,
-            'create_time': format_date(repo_project.created_at),
+            'create_time': parse_date(repo_project.created_at),
             'archived': archived,
             'has_avatar': has_avatar,
-            'star_count': star_count
+            'star_count': str(repo_project.star_count)
         })
 
-    def add_merge_request(self, merge_request):
+    def add_merge_request(self, request):
         """
         Add a merge request described by its GitLab API response object to
         the merge requests table.
         """
 
-        if not self._is_newer(merge_request.updated_at):
+        updated_date = get_datetime(request.updated_at, '%Y-%m-%dT%H:%M:%S.%fZ')
+        if not self._is_newer(updated_date):
             return False
 
-        if merge_request.assignee is not None:
-            assignee = parse_unicode(merge_request.assignee['name'])
-            assignee_username = parse_unicode(merge_request.assignee['username'])
+        if request.assignee is not None:
+            assignee = parse_unicode(request.assignee['name'])
+            assignee_username = parse_unicode(request.assignee['username'])
         else:
             assignee = str(0)
             assignee_username = str(0)
 
         self._tables["merge_request"].append({
             'repo_name': str(self._repo_name),
-            'id': str(merge_request.id),
-            'title': parse_unicode(merge_request.title),
-            'description': parse_unicode(merge_request.description),
-            'status': merge_request.state,
-            'source_branch': merge_request.source_branch,
-            'target_branch': merge_request.target_branch,
-            'author': parse_unicode(merge_request.author['name']),
-            'author_username': parse_unicode(merge_request.author['username']),
+            'id': str(request.id),
+            'title': parse_unicode(request.title),
+            'description': parse_unicode(request.description),
+            'status': request.state,
+            'source_branch': request.source_branch,
+            'target_branch': request.target_branch,
+            'author': parse_unicode(request.author['name']),
+            'author_username': parse_unicode(request.author['username']),
             'assignee': assignee,
             'assignee_username': assignee_username,
-            'upvotes': str(merge_request.upvotes),
-            'downvotes': str(merge_request.downvotes),
-            'created_at': format_date(merge_request.created_at),
-            'updated_at': format_date(merge_request.updated_at)
+            'upvotes': str(request.upvotes),
+            'downvotes': str(request.downvotes),
+            'created_at': parse_date(request.created_at),
+            'updated_at': format_date(updated_date)
         })
 
         return True
@@ -457,7 +354,7 @@ class GitLab_Repository(Git_Repository, Review_System):
             'author': parse_unicode(note.author['name']),
             'author_username': parse_unicode(note.author['username']),
             'comment': parse_unicode(note.body),
-            'created_at': format_date(note.created_at)
+            'created_at': parse_date(note.created_at)
         })
 
     def add_commit_comment(self, note, commit_id):
@@ -465,10 +362,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         Add a commit comment note dictionary to the commit comments table.
         """
 
-        if 'created_at' in note and note['created_at'] is not None:
-            created_date = parse_date(note['created_at'])
-        else:
-            created_date = str(0)
+        created_date = parse_date(note['created_at'])
 
         self._tables["commit_comment"].append({
             'repo_name': str(self._repo_name),
@@ -477,12 +371,12 @@ class GitLab_Repository(Git_Repository, Review_System):
             'thread_id': str(0),
             'note_id': str(0),
             'parent_id': str(0),
-            'author': parse_unicode(note['author']['name']),
-            'author_username': parse_unicode(note['author']['username']),
-            'comment': parse_unicode(note['note']),
-            'file': note['path'] if note['path'] is not None else str(0),
-            'line': str(note['line']) if note['line'] is not None else str(0),
-            'line_type': note['line_type'] if note['line_type'] is not None else str(0),
+            'author': parse_unicode(note.author['name']),
+            'author_username': parse_unicode(note.author['username']),
+            'comment': parse_unicode(note.note),
+            'file': note.path if note.path is not None else str(0),
+            'line': str(note.line) if note.line is not None else str(0),
+            'line_type': note.line_type if note.line_type is not None else str(0),
             'created_date': created_date
         })
 
@@ -500,7 +394,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         if event_data['kind'] == 'tag_push':
             key = 'before' if event.action_name == 'deleted' else 'after'
             return [event.data[key]]
-        if 'after' in event.data and event.data['after'] == '00000000':
+        if 'after' in event.data and event.data['after'][:8] == '00000000':
             event_data['action'] = 'deleted'
             return [event.data['before']]
 
@@ -548,7 +442,9 @@ class GitLab_Repository(Git_Repository, Review_System):
         """
 
         if event.action_name in ('pushed to', 'pushed new', 'deleted'):
-            if not self._is_newer(event.created_at):
+            created_date = get_datetime(event.created_at,
+                                        '%Y-%m-%dT%H:%M:%S.%fZ')
+            if not self._is_newer(created_date):
                 return
 
             username = parse_unicode(event.author_username)
@@ -558,13 +454,13 @@ class GitLab_Repository(Git_Repository, Review_System):
                 'user': username,
                 'username': username,
                 'email': str(0),
-                'date': format_date(event.created_at)
+                'date': format_date(created_date)
             }
-            if hasattr(event, 'data'):
+            if event.data is not None:
                 # Legacy event push data
                 commits = self._parse_legacy_push_event(event, event_data)
             else:
-                # GitLab 9.5+ event push data
+                # GitLab 9.5+ event push data (in v4 API since 9.6)
                 commits = self._parse_push_event(event, event_data)
 
             for commit_id in commits:
@@ -578,8 +474,8 @@ class GitLab_Repository(Git_Repository, Review_System):
                                                              **kwargs)
 
         if self._has_commit_comments and 'comments' in kwargs and kwargs['comments']:
-            commit_comments = self.repo_project.get_comments(commit.hexsha)
-            for comment in commit_comments:
+            project_commit = self.repo_project.commit(commit.hexsha, lazy=True)
+            for comment in project_commit.comments.list(as_list=False):
                 self.add_commit_comment(comment, commit.hexsha)
 
         return data

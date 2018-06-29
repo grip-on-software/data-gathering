@@ -13,7 +13,8 @@ import argparse
 import logging
 import os
 import subprocess
-import gitlab3
+import gitlab
+from gitlab.exceptions import GitlabError
 from gatherer.config import Configuration
 from gatherer.domain import Project, Source
 from gatherer.git import Git_Repository
@@ -33,19 +34,19 @@ def parse_args():
     parser.add_argument("--repos", default=None, nargs='*',
                         help="custom list of repository names to process")
 
-    gitlab = parser.add_argument_group('gitlab', 'GitLab upload')
-    gitlab.add_argument("--url", default=config.get('gitlab', 'url'),
-                        help="GitLab instance URL to upload to")
-    gitlab.add_argument("--token", default=config.get('gitlab', 'token'),
-                        help="GitLab token of group owner or admin")
+    repo = parser.add_argument_group('gitlab', 'GitLab upload')
+    repo.add_argument("--url", default=config.get('gitlab', 'url'),
+                      help="GitLab instance URL to upload to")
+    repo.add_argument("--token", default=config.get('gitlab', 'token'),
+                      help="GitLab token of group owner or admin")
 
-    gitlab.add_argument("--user", default=config.get('gitlab', 'user'),
-                        help="user to add to the GitLab group")
-    gitlab.add_argument("--no-user", action="store_false", dest="user",
-                        help="do not add user to GitLab group")
-    gitlab.add_argument("--level", default=config.get('gitlab', 'level'),
-                        type=int,
-                        help="GitLab group access level to give to the user")
+    repo.add_argument("--user", default=config.get('gitlab', 'user'),
+                      help="user to add to the GitLab group")
+    repo.add_argument("--no-user", action="store_false", dest="user",
+                      help="do not add user to GitLab group")
+    repo.add_argument("--level", default=config.get('gitlab', 'level'),
+                      type=int,
+                      help="GitLab group access level to give to the user")
 
     agent = parser.add_argument_group('agent', 'Agent controller upload')
     agent.add_argument('--ssh', default=config.get('ssh', 'host'),
@@ -145,8 +146,9 @@ class Repository_Archive(object):
         if self._group is None:
             # pylint: disable=no-member
             name = self._project.gitlab_group_name
-            self._group = self.api.group(name)
-            if not self._group:
+            try:
+                self._group = self.api.groups.get(name)
+            except GitlabError:
                 raise RuntimeError('Group {} not found on GitLab'.format(name))
 
         return self._group
@@ -158,13 +160,13 @@ class Repository_Archive(object):
 
         project_name = self._project.gitlab_group_name
         path = '{0}/{1}'.format(project_name, self.repo_name.lower())
-        project_repo = self.api.find_project(path_with_namespace=path)
-        if project_repo:
+        try:
+            project_repo = self.api.projects.get(path)
             if not self._dry_run:
                 self.api.delete_project(project_repo)
 
             logging.info('%sDeleted repository %s', self._dry_run_log, path)
-        else:
+        except GitlabError:
             logging.warning('Could not find repository %s', path)
 
     def create(self):
@@ -174,17 +176,19 @@ class Repository_Archive(object):
 
         project_name = self._project.gitlab_group_name
         path = '{0}/{1}'.format(project_name, self.repo_name.lower())
-        project_repo = self.api.find_project(path_with_namespace=path)
-        if project_repo:
-            logging.warning('Repository for %s already exists', path)
-        else:
+        try:
             if not self._dry_run:
-                new_project_repo = self.api.add_project(self.repo_name)
-                new_project_repo.unprotect_branch('master')
-                self.group.transfer_project(new_project_repo.id)
+                project_repo = self.api.projects.create({
+                    'name': self.repo_name.lower(),
+                    'group': self.group.id
+                })
+
+                project_repo.protectedbranches.delete('master')
 
             logging.info('%sCreated repository %s/%s', self._dry_run_log,
                          project_name, self.repo_name)
+        except GitlabError:
+            logging.warning('Repository for %s could not be created', path)
 
     def upload(self):
         """
@@ -206,16 +210,27 @@ class Repository_Archive(object):
         Add a user with the correct access level to the group membership.
         """
 
-        user = self.api.find_user(name=user_name)
-        if not user:
+        users = self.api.users.list(username=user_name, all=False, per_page=1)
+        if not users:
             logging.warning('No existing user to be added to group membership')
             return
 
-        if self.group.find_member(id=user.id, access_level=level):
-            logging.info('User is already part of the group membership')
-        else:
+        try:
+            member = self.group.members.get(users[0].id)
+            if member.access_level == level:
+                logging.info('User is already part of the group membership')
+            else:
+                if not self._dry_run:
+                    member.access_level = level
+                    member.save()
+
+                logging.info('%sUpdated user access level', self._dry_run_log)
+        except GitlabError:
             if not self._dry_run:
-                self.group.add_member(user.id, level)
+                self.group.members.create({
+                    'user_id': users[0].id,
+                    'access_level': level
+                })
 
             logging.info('%sAdded user to the group membership',
                          self._dry_run_log)
@@ -304,7 +319,7 @@ def main():
                  project_key, project_name, len(project_repos))
 
     if args.delete or args.create or args.upload:
-        api = gitlab3.GitLab(args.url, args.token)
+        api = gitlab.Gitlab(args.url, private_token=args.token)
     else:
         api = None
 

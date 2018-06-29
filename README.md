@@ -46,6 +46,26 @@ separately or in combination with one another:
   to add additional parameters, such as `--extra-index-url` for a private 
   repository and `--process-dependency-links` to obtain Git dependencies.
 
+## Data sources
+
+The following list provides the supported version of platforms that the data 
+gatherer can use:
+
+- Jira: Tested with Jira 7.9.2 and later with Agile 7.3.1 and later.
+- Version control systems:
+  - Git: Tested with Git clients with version 1.8.3 and later. Supported review 
+    systems are GitHub, GitLab and TFS.
+    - GitLab: Tested with version 9.4 and later. The legacy API v3 is supported
+      up to version 0.0.2 of the gatherer (thus working with GitLab version 8), 
+      after which it has been dropped.
+    - TFS: Tested with TFS versions 2015, 2017 and 2018.
+  - Subversion: Tested with server version 1.6 and later and client version 1.7 
+    and later.
+- Quality report: Works with 1.79 on Python 2 and 2.21 or later on Python 3.
+- SonarQube: Versions supported by the quality report are supported, i.e., 
+  version 6 and later.
+- BigBoat: Works with BigBoat version 5.0 and later.
+
 ## Overview
 
 The usual pipeline setup runs the scripts in the following order:
@@ -89,7 +109,6 @@ rather than a quality dashboard history file.
 
 There are also a few tools for inspecting data or setting up sources:
 
-- `gitlab_events.py`: Create a dropin dump for events on a GitLab instance.
 - `hqlib_targets.py`: Extract default metric norms from the quality reporting 
   library repository.
 - `init_gitlab.py`: Set up repositories for filtered or archived source code.
@@ -127,7 +146,7 @@ Finally, the repository contains a controller API and its backend daemons, and
 a deployment interface:
 
 - `controller/auth/`: API endpoints of the controller, at which agents can 
-  register themselves, pulish health status and logs, or indicate that they 
+  register themselves, publish health status and logs, or indicate that they 
   have exported their scraped data.
 - `controller/daemon.py`: Internal daemon for handling agent user creation and 
   permissions of their files.
