@@ -5,7 +5,6 @@ Module that handles the JIRA API query.
 import logging
 from builtins import str, object
 from datetime import datetime
-from jira import JIRA
 from ..utils import format_date, Iterator_Limiter
 
 class Query(object):
@@ -17,9 +16,9 @@ class Query(object):
     QUERY_FORMAT = 'project={0} AND updated > "{1}"'
 
 
-    def __init__(self, jira, auth, options, query=None):
+    def __init__(self, jira, source, query=None):
         self._jira = jira
-        self._api = JIRA(options, basic_auth=auth)
+        self._api = source.jira_api
 
         updated_since = format_date(self._jira.updated_since.date,
                                     date_format=self.DATE_FORMAT)

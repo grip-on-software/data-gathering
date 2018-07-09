@@ -13,7 +13,7 @@ import argparse
 from gatherer.config import Configuration
 from gatherer.jira import Jira, Updated_Time, Update_Tracker
 from gatherer.log import Log_Setup
-from gatherer.domain import Project
+from gatherer.domain import Project, Source
 
 def validate_date(value):
     """
@@ -62,12 +62,10 @@ def main():
     tracker = Update_Tracker(project, args.updated_since)
     updated_since = tracker.get_updated_since()
 
-    options = {
-        "server": args.server
-    }
     jira = Jira(project, updated_since)
-    latest_update = jira.process(args.username, args.password, options,
-                                 query=args.query)
+    source = Source.from_type('jira', url=args.server, name=args.project,
+                              username=args.username, password=args.password)
+    latest_update = jira.process(source, query=args.query)
 
     tracker.save_updated_since(latest_update)
 
