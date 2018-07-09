@@ -72,6 +72,7 @@ class Base(with_metaclass(ABCMeta, object)):
         self._data = None
         self._has_data = False
         self._exists = exists
+        self._version = None
 
     @property
     def base_url(self):
@@ -106,6 +107,7 @@ class Base(with_metaclass(ABCMeta, object)):
         query = urllib.parse.urlencode(self._query)
         url = '{}api/json?{}'.format(self.base_url, query)
         request = self.instance.session.get(url)
+        self._version = request.headers.get('X-Jenkins', '')
         if Session.is_code(request, 'not_found'):
             self._exists = False
             self._data = NoneMapping()
@@ -139,6 +141,21 @@ class Base(with_metaclass(ABCMeta, object)):
 
         return self._has_data
 
+    @property
+    def version(self):
+        """
+        Retrieve the version number of the Jenkins instance.
+        """
+
+        if self._version is None:
+            if self._instance == self:
+                self._retrieve()
+                return self._version
+
+            return self._instance.version
+
+        return self._version
+
     def invalidate(self):
         """
         Ensure that we refresh the data for this object on next lookup.
@@ -146,6 +163,7 @@ class Base(with_metaclass(ABCMeta, object)):
 
         self._has_data = False
         self._data = None
+        self._version = None
 
     @property
     def instance(self):
