@@ -41,6 +41,10 @@ class Jira(Source):
         raise RuntimeError('Source does not support updating SSH key')
 
     @property
+    def version(self):
+        return self.jira_api.server_info()['version']
+
+    @property
     def jira_api(self):
         """
         Retrieve the JIRA API object for this source.

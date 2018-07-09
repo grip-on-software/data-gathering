@@ -158,6 +158,10 @@ class GitLab(Git):
         return self._gitlab_host
 
     @property
+    def version(self):
+        return self.gitlab_api.version()[0]
+
+    @property
     def gitlab_token(self):
         """
         Retrieve the token that is used for authenticating in the GitLab API.

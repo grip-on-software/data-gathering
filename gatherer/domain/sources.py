@@ -196,7 +196,8 @@ class Sources(MutableSet):
             environment_data.append({
                 "type": source.environment_type,
                 "url": source.environment_url,
-                "environment": environment
+                "environment": environment,
+                "version": source.version
             })
         with open(environments_path, 'w') as environments_file:
             json.dump(environment_data, environments_file)

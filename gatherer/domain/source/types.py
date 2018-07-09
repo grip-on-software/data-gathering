@@ -384,6 +384,17 @@ class Source(object):
 
         return self._credentials_path
 
+    @property
+    def version(self):
+        """
+        Retrieve relevant version information as a string for this source.
+
+        If no version information can be obtained, then this property returns
+        an empty string.
+        """
+
+        return ''
+
     @credentials_path.setter
     def credentials_path(self, value):
         """
@@ -483,7 +494,8 @@ class Source(object):
         return {
             'name': self._name,
             'url': self._plain_url,
-            'type': self._type
+            'type': self._type,
+            'version': self.version
         }
 
     def __repr__(self):
