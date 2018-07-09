@@ -17,6 +17,9 @@ class Scraper(object):
     Scraper listener.
     """
 
+    def __init__(self, domain=None):
+        self._domain = domain
+
     @staticmethod
     def _is_running():
         try:
@@ -27,6 +30,12 @@ class Scraper(object):
             return False
         else:
             return True
+
+    def _check_host(self):
+        if self._domain is not None:
+            host = cherrypy.request.headers.get('Host', '')
+            if host != self._domain:
+                raise cherrypy.HTTPError(403, 'Invalid Host header')
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -53,6 +62,8 @@ class Scraper(object):
         """
         Handle scrape request.
         """
+
+        self._check_host()
 
         if cherrypy.request.method != 'POST':
             raise cherrypy.HTTPError(400, 'Must be POSTed')
@@ -118,6 +129,8 @@ def parse_args():
                         help='Bind address (default: localhost)')
     parser.add_argument('--port', default=7070, type=int,
                         help='Port to listen to (default: 7070')
+    parser.add_argument('--domain', default=None,
+                        help='Host name and port to validate in headers')
     return parser.parse_args()
 
 def main():
@@ -139,7 +152,7 @@ def main():
     if args.listen is not None:
         config['global']['server.socket_host'] = args.listen
 
-    cherrypy.quickstart(Scraper(), config=config)
+    cherrypy.quickstart(Scraper(args.domain), config=config)
 
 if __name__ == '__main__':
     main()

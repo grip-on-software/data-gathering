@@ -39,5 +39,5 @@ if [ "$?" = "123" ]; then
 	# Run a server which keeps the container running until stopped and lets
 	# instances in the same network or the host machine send scrape requests.
 	echo "Starting docker scraper service"
-	python /home/agent/scraper/agent/scraper.py --listen 0.0.0.0
+	python /home/agent/scraper/agent/scraper.py --listen 0.0.0.0 --domain $AGENT_HOST
 fi
