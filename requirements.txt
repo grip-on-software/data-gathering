@@ -4,7 +4,7 @@ jira
 # gatherer.git
 gitpython>=2.1.8
 PyGithub
-git+https://github.com/lhelwerd/python-gitlab3.git@json-import#egg=gitlab3
+python-gitlab
 # gatherer.request
 requests
 requests_ntlm

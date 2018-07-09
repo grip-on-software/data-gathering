@@ -2,6 +2,7 @@
 GitLab source domain object.
 """
 
+from __future__ import absolute_import
 try:
     from future import standard_library
     standard_library.install_aliases()
@@ -14,8 +15,10 @@ try:
 except ImportError:
     raise
 
-import gitlab3
-from gitlab3.exceptions import GitLabException, ResourceNotFound, UnauthorizedRequest
+from gitlab import Gitlab
+from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError, \
+    GitlabListError
+from ...request import Session
 from .types import Source, Source_Types
 from .git import Git
 from ...git.gitlab import GitLab_Repository
@@ -210,13 +213,15 @@ class GitLab(Git):
 
         if self._gitlab_api is None:
             unsafe = self.get_option('unsafe_hosts')
+            session = Session(verify=unsafe is None)
             try:
                 logging.info('Setting up API for %s', self.host)
-                self._gitlab_api = gitlab3.GitLab(self.host,
-                                                  token=self.gitlab_token,
-                                                  ssl_verify=unsafe is None)
-            except (AttributeError, GitLabException):
-                raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
+                self._gitlab_api = Gitlab(self.host,
+                                          private_token=self.gitlab_token,
+                                          session=session)
+                self._gitlab_api.auth()
+            except (ValueError, GitlabAuthenticationError, GitlabGetError) as error:
+                raise RuntimeError('Cannot access the GitLab API: {}'.format(error))
 
         return self._gitlab_api
 
@@ -234,39 +239,28 @@ class GitLab(Git):
             group_name = self.gitlab_namespace
 
         try:
-            group = self.gitlab_api.group(group_name)
-        except ResourceNotFound:
+            group = self.gitlab_api.groups.get(group_name, lazy=True)
+        except (GitlabAuthenticationError, GitlabGetError):
             logging.warning('GitLab group %s is not accessible', group_name)
             return super(GitLab, self).get_sources()
 
-        if not group:
-            logging.warning("Could not find group '%s' on GitLab API",
-                            group_name)
-            return super(GitLab, self).get_sources()
-
         # Fetch the group projects by requesting the group to the API again.
-        group_repos = self.gitlab_api.group(str(group.id)).projects
+        group_repos = group.projects.list()
 
         logging.info('%s has %d repos: %s', group_name, len(group_repos),
-                     ', '.join([repo['name'] for repo in group_repos]))
+                     ', '.join([repo.name for repo in group_repos]))
 
         sources = []
-        for repo_data in group_repos:
-            # Retrieve the actual project from the API, to ensure it is accessible.
-            try:
-                project_repo = self.gitlab_api.project(str(repo_data['id']))
-            except ResourceNotFound:
-                logging.warning('GitLab repository %s is not accessible',
-                                repo_data['name'])
-                continue
-
+        for project_repo in group_repos:
             repo_name = project_repo.name
+            project = self.gitlab_api.projects.get(project_repo.get_id(),
+                                                   lazy=True)
             try:
-                if not project_repo.commits(limit=1):
+                if not project.commits.list(per_page=1, all=False):
                     logging.info('Ignoring empty GitLab repository %s',
                                  repo_name)
                     continue
-            except GitLabException:
+            except (GitlabAuthenticationError, GitlabListError):
                 logging.warning('GitLab repository %s is not accessible',
                                 repo_name)
                 continue
@@ -283,25 +277,22 @@ class GitLab(Git):
         if self.gitlab_token is None:
             raise RuntimeError('GitLab source {} has no API token'.format(self.host))
 
-        try:
-            # pylint: disable=no-member
-            user = self.gitlab_api.current_user()
-        except UnauthorizedRequest as error:
-            raise RuntimeError('GitLab source {} is unauthorized: {}'.format(self.host, error))
-
         title = 'GROS agent for the {} project'.format(project.key)
         logging.info('Checking for old SSH keys of %s from GitLab instance %s...',
                      title, self.host)
 
-        for key in user.ssh_keys():
+        for key in self.gitlab_api.user.keys.list(as_list=False):
             if key.title == title:
                 if key.key == public_key:
                     logging.info('SSH key already exists on GitLab instance %s.',
                                  self.host)
                     return
                 elif not dry_run:
-                    user.delete_ssh_key(key)
+                    key.delete()
 
         logging.info('Adding new SSH key to GitLab instance %s...', self.host)
         if not dry_run:
-            user.add_ssh_key(title, public_key)
+            self.gitlab_api.user.keys.create({
+                'title': title,
+                'key': public_key
+            })
