@@ -46,7 +46,7 @@ pipeline {
                         sh 'cp $SERVER_CERTIFICATE certs/wwwgros.crt'
                         sh 'cp $AGENT_ENVIRONMENT env'
                         sh 'chmod 444 certs/wwwgros.crt'
-                        sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = .([0-9.]+)./\\1/") > .version'
+                        sh 'echo $(grep __version__ gatherer/__init__.py | sed -E "s/__version__ = .([0-9\\.]+)./\\1/") > .version'
                         sh 'echo $(cat .version)-$BRANCH_NAME-$(git show-ref $BRANCH_NAME | cut -f1 -d\' \' | head -n 1) > VERSION'
                         sh 'docker build -t $AGENT_IMAGE .'
                     }
