@@ -252,7 +252,9 @@ class Git_Repository(Version_Control_Repository):
 
             logging.exception('Could not pull into existing repository %s',
                               self.repo_directory)
-            if not self._cleanup():
+            try:
+                self._cleanup()
+            except RepositorySourceException:
                 raise exception
 
     @classmethod

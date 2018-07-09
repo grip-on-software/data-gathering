@@ -150,6 +150,8 @@ class Repositories_Holder(object):
             except (RepositorySourceException, RepositoryDataException):
                 logging.exception('Cannot retrieve repository data for %s',
                                   repo.repo_name)
+                if force and repo.repo_name in self._latest_versions:
+                    del self._latest_versions[repo.repo_name]
 
         self._export(versions, tables)
 
