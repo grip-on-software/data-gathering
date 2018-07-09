@@ -256,8 +256,11 @@ the setting is not used in this environment.
 - jira (used by `jira_to_json.py`): JIRA access settings.
   - `server` (`$JIRA_SERVER`): Base URL of the JIRA server used by the 
     projects.
-  - `username` (`$JIRA_USER`): Username to log in to JIRA with.
-  - `password` (`$JIRA_PASSWORD`): Password to log in to JIRA with.
+  - `username` (`$JIRA_USER`): Username to log in to JIRA with. This may also
+    be provided in a credentials section for the URL's network location domain.
+  - `password` (`$JIRA_PASSWORD`): Password to log in to JIRA with. This may 
+    also be provided in a credentials section for the URL's network location 
+    domain.
 - definitions (used by `retrieve_metrics_repository.py` and 
   `project_sources.py`): Project definitions source. The settings in this 
   section may be customized per-project by suffixing the option name with 
@@ -438,9 +441,10 @@ definitions, matching the URLs in the `definitions` section of the settings.
 The two sections by default use separate credentials.
 
 These sections may be edited and additional sections may be added if the 
-project(s) have different setups, such as more VCS hosts. All options may be 
-set to falsy values, e.g., to perform unauthenticated access to to disable 
-access to the service completely.
+project(s) have different setups, such as more VCS hosts or other sources that 
+make use of credentials, including Jira. All options may be set to falsy 
+values, e.g., to perform unauthenticated access to to disable access to the 
+service completely.
 
 - `env` (`$SOURCE_CREDENTIALS_ENV` and `$DEFINITIONS_CREDENTIALS_ENV`): Name of 
   the environment variable that contains the path to the SSH identity file. 
