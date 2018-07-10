@@ -18,6 +18,7 @@ except ImportError:
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError, \
     GitlabListError
+from requests.exceptions import ConnectionError, Timeout
 from ...request import Session
 from .types import Source, Source_Types
 from .git import Git
@@ -159,7 +160,19 @@ class GitLab(Git):
 
     @property
     def version(self):
-        return self.gitlab_api.version()[0]
+        try:
+            self.gitlab_api.timeout = 3
+            version = self.gitlab_api.version()[0]
+        except RuntimeError:
+            version = ''
+        finally:
+            if self._gitlab_api is not None:
+                self.gitlab_api.timeout = None
+
+        if version == 'unknown':
+            return ''
+
+        return version
 
     @property
     def gitlab_token(self):
@@ -222,10 +235,13 @@ class GitLab(Git):
                 logging.info('Setting up API for %s', self.host)
                 self._gitlab_api = Gitlab(self.host,
                                           private_token=self.gitlab_token,
-                                          session=session)
+                                          session=session,
+                                          timeout=3)
                 self._gitlab_api.auth()
-            except (ValueError, GitlabAuthenticationError, GitlabGetError) as error:
-                raise RuntimeError('Cannot access the GitLab API: {}'.format(error))
+                self._gitlab_api.timeout = None
+            except (ConnectionError, Timeout, GitlabAuthenticationError, GitlabGetError) as error:
+                self._gitlab_api = None
+                raise RuntimeError('Cannot access the GitLab API: {!r}'.format(error))
 
         return self._gitlab_api
 

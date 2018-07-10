@@ -12,6 +12,7 @@ try:
     import urllib.parse
 except ImportError:
     raise
+from requests.exceptions import ConnectionError, Timeout
 from ...jenkins import Jenkins as JenkinsAPI
 from .types import Source, Source_Types
 
@@ -38,7 +39,14 @@ class Jenkins(Source):
 
     @property
     def version(self):
-        return self.jenkins_api.version
+        try:
+            self.jenkins_api.timeout = 3
+            return self.jenkins_api.version
+        except (ConnectionError, Timeout):
+            return ''
+        finally:
+            if self._jenkins_api is not None:
+                self.jenkins_api.timeout = None
 
     @property
     def jenkins_api(self):

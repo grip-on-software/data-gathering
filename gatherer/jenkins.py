@@ -106,7 +106,7 @@ class Base(with_metaclass(ABCMeta, object)):
     def _retrieve(self):
         query = urllib.parse.urlencode(self._query)
         url = '{}api/json?{}'.format(self.base_url, query)
-        request = self.instance.session.get(url)
+        request = self.instance.session.get(url, timeout=self.instance.timeout)
         self._version = request.headers.get('X-Jenkins', '')
         if Session.is_code(request, 'not_found'):
             self._exists = False
@@ -195,7 +195,8 @@ class Base(with_metaclass(ABCMeta, object)):
         if self.DELETE_URL is None:
             raise TypeError("This object does not support deletion")
 
-        request = self.instance.session.post(self.base_url + self.DELETE_URL)
+        request = self.instance.session.post(self.base_url + self.DELETE_URL,
+                                             timeout=self.instance.timeout)
         request.raise_for_status()
 
     def __eq__(self, other):
@@ -230,6 +231,7 @@ class Jenkins(Base):
             auth = None
 
         self._session = Session(verify=verify, auth=auth)
+        self.timeout = None
 
         self._add_crumb_header()
 
@@ -255,7 +257,8 @@ class Jenkins(Base):
         return cls(host, username=username, password=password, verify=verify)
 
     def _add_crumb_header(self):
-        request = self._session.get(self.base_url + 'crumbIssuer/api/json')
+        request = self._session.get(self.base_url + 'crumbIssuer/api/json',
+                                    timeout=3)
         if Session.is_code(request, 'not_found'):
             return
 
@@ -659,7 +662,8 @@ class Job(Base):
         elif parameters is not None:
             raise TypeError('Parameters must be list or dict')
 
-        return self.instance.session.post(url, params=params, data=data)
+        return self.instance.session.post(url, params=params, data=data,
+                                          timeout=self.instance.timeout)
 
     def __eq__(self, other):
         if isinstance(other, Job):
