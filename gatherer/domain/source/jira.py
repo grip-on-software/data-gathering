@@ -14,6 +14,7 @@ try:
 except ImportError:
     raise
 from jira import JIRA
+from jira.exceptions import JIRAError
 from .types import Source, Source_Types
 
 @Source_Types.register('jira')
@@ -26,6 +27,7 @@ class Jira(Source):
         self._username = kwargs.pop('username', None)
         self._password = kwargs.pop('password', None)
         self._jira_api = None
+        self._version = None
 
         super(Jira, self).__init__(*args, **kwargs)
 
@@ -42,7 +44,13 @@ class Jira(Source):
 
     @property
     def version(self):
-        return self.jira_api.server_info()['version']
+        if self._version is None:
+            try:
+                self._version = self.jira_api.server_info()['version']
+            except (JIRAError, KeyError):
+                self._version = ''
+
+        return self._version
 
     @property
     def jira_api(self):
@@ -57,12 +65,12 @@ class Jira(Source):
 
             parts = urllib.parse.urlsplit(self.url)
             if parts.username is not None:
-                username = parts.username
-                password = parts.password
+                auth = (parts.username, parts.password)
+            elif self._username is not None:
+                auth = (self._username, self._password)
             else:
-                username = self._username
-                password = self._password
+                auth = None
 
-            self._jira_api = JIRA(options, basic_auth=(username, password))
+            self._jira_api = JIRA(options, basic_auth=auth, max_retries=0)
 
         return self._jira_api

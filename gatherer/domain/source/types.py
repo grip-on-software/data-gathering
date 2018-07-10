@@ -494,8 +494,7 @@ class Source(object):
         return {
             'name': self._name,
             'url': self._plain_url,
-            'type': self._type,
-            'version': self.version
+            'type': self._type
         }
 
     def __repr__(self):
