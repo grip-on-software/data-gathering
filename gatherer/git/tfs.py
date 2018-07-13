@@ -10,6 +10,7 @@ except ImportError:
     raise
 
 from builtins import str
+import itertools
 import logging
 import re
 import dateutil.tz
@@ -86,23 +87,34 @@ class TFS_Project(object):
         # pylint: disable=raising-bad-type
         raise RuntimeError('Cannot find a suitable API URL: {}'.format(error))
 
-    def _get_iterator(self, area, path, api_version='1.0', size=100, **kw):
+    def _get_iterator(self, area, path, api_version='1.0', options=None, **kw):
+        if options is None:
+            options = {}
+
         params = kw.copy()
-        limiter = Iterator_Limiter(size=size)
+        limiter = Iterator_Limiter(size=options.get('size', 100))
         had_value = True
-        values = []
         while limiter.check(had_value):
             had_value = False
             params['$skip'] = limiter.skip
             params['$top'] = limiter.size
-            result = self._get(area, path, api_version=api_version, **params)
+
+            try:
+                result = self._get(area, path,
+                                   api_version=api_version, **params)
+            except RuntimeError:
+                if options.get('empty_on_error', False):
+                    # The TFS API sometimes returns an error for empty results.
+                    return
+                else:
+                    raise
+
             if result['count'] > 0:
-                values.extend(result['value'])
                 had_value = True
+                for value in result['value']:
+                    yield value
 
             limiter.update()
-
-        return values
 
     def repositories(self):
         """
@@ -137,38 +149,46 @@ class TFS_Project(object):
 
         raise ValueError("Repository '{}' cannot be found".format(repository))
 
+    def _update_push_refs(self, path, push):
+        push_details = self._get('git',
+                                 '{}/{}'.format(path, push['pushId']))
+        push['pushedBy']['uniqueName'] = push['pushedBy']['displayName']
+        push['refUpdates'] = []
+        for commit in push_details['commits']:
+            push['refUpdates'].append({
+                'newObjectId': commit['commitId'],
+                'oldObjectId': commit['commitId']
+            })
+
+        return push
+
     def pushes(self, repository, from_date=None, refs=True):
         """
         Retrieve information about Git pushes to a certain repository in the
-        project.
+        project. The push data is provided as an iterator.
         """
 
         path = 'repositories/{}/pushes'.format(repository)
         pushes = self._get_iterator('git', path, fromDate=from_date,
                                     includeRefUpdates=str(refs))
 
-        if not pushes:
-            return pushes
+        try:
+            first_push = next(pushes)
+        except StopIteration:
+            return iter([])
 
-        if refs and 'refUpdates' not in pushes[0]:
+        chain = itertools.chain([first_push], pushes)
+        if refs and 'refUpdates' not in first_push:
             # TFS 2013 support
-            for push in pushes:
-                push_details = self._get('git',
-                                         '{}/{}'.format(path, push['pushId']))
-                push['pushedBy']['uniqueName'] = push['pushedBy']['displayName']
-                push['refUpdates'] = []
-                for commit in push_details['commits']:
-                    push['refUpdates'].append({
-                        'newObjectId': commit['commitId'],
-                        'oldObjectId': commit['commitId']
-                    })
+            return iter(self._update_push_refs(path, push) for push in chain)
 
-        return pushes
+        return chain
 
     def pull_requests(self, repository=None, status='All'):
         """
         Retrieve information about pull requests from a repository or from
-        the entire collection or project.
+        the entire collection or project. The pull request data is returned as
+        an iterator.
         """
 
         if repository is not None:
@@ -183,18 +203,15 @@ class TFS_Project(object):
             options = request.json()
             if options['value'][0]['releasedVersion'] == '0.0':
                 # TFS 2013 compatibility
-                return self._pull_requests(path, 'Active') + \
-                        self._pull_requests(path, 'Completed') + \
-                        self._pull_requests(path, 'Abandoned')
+                return itertools.chain(self._pull_requests(path, 'Active'),
+                                       self._pull_requests(path, 'Completed'),
+                                       self._pull_requests(path, 'Abandoned'))
 
         return self._pull_requests(path, status, project_collection=True)
 
     def _pull_requests(self, path, status, **kw):
-        try:
-            return self._get_iterator('git', path, status=status, **kw)
-        except RuntimeError:
-            # The TFS API returns an error if there are no pull requests.
-            return []
+        return self._get_iterator('git', path, status=status,
+                                  options={'empty_on_error': True}, **kw)
 
     def pull_request(self, repository, request_id):
         """
