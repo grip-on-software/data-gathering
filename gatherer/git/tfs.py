@@ -15,6 +15,7 @@ import logging
 import re
 import dateutil.tz
 from git import Commit
+from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
@@ -25,19 +26,33 @@ from ..version_control.review import Review_System
 
 class TFS_Project(object):
     """
-    A project on a TFS server.
+    A project using Git on a TFS or VSTS server.
     """
 
     def __init__(self, host, collections, username, password):
         self._host = host
         self._collection = collections[0]
+
         if len(collections) > 1:
             self._project = collections[1]
         else:
             self._project = None
 
-        self._session = Session(auth=HttpNtlmAuth(username, password))
+        self._session = Session(auth=self._make_auth(username, password))
         self._url = '{}/{}'.format(self._host, self._collection)
+
+    @classmethod
+    def _make_auth(cls, username, password):
+        return HttpNtlmAuth(username, password)
+
+    def _perform_request(self, url, params):
+        try:
+            request = self._session.get(url, params=params)
+            self._validate_request(request)
+
+            return request.json(), None
+        except (RuntimeError, ValueError, HTTPError) as error:
+            return None, error
 
     @classmethod
     def _validate_request(cls, request):
@@ -57,32 +72,31 @@ class TFS_Project(object):
             except ValueError:
                 request.raise_for_status()
 
+    def _get_url_candidates(self, area, path, project_collection=False):
+        if self._project is None or project_collection is None:
+            return [(self._url, '_apis', area, path)]
+        if project_collection:
+            return [(self._url, self._project, '_apis', area, path)]
+
+        return [
+            (self._url, self._project, '_apis', area, path), # TFS 2017+
+            (self._url, '_apis', area, self._project, path) # TFS 2015
+        ]
+
     def _get(self, area, path, api_version='1.0', project_collection=False,
              **kw):
         params = kw.copy()
         params['api-version'] = api_version
 
-        if self._project is None:
-            candidates = [(self._url, '_apis', area, path)]
-        elif project_collection:
-            candidates = [(self._url, self._project, '_apis', area, path)]
-        else:
-            candidates = [
-                (self._url, '_apis', area, self._project, path), # TFS 2015
-                (self._url, self._project, '_apis', area, path) # TFS 2017
-            ]
+        candidates = self._get_url_candidates(area, path, project_collection)
 
         # Attempt all candidate URLs before giving up.
-        error = Exception('No error')
+        error = None
         for parts in candidates:
             url = '/'.join(parts)
-            try:
-                request = self._session.get(url, params=params)
-                self._validate_request(request)
-
-                return request.json()
-            except (RuntimeError, ValueError, HTTPError) as error:
-                pass
+            result, error = self._perform_request(url, params)
+            if result is not None:
+                return result
 
         # pylint: disable=raising-bad-type
         raise RuntimeError('Cannot find a suitable API URL: {}'.format(error))
@@ -115,6 +129,26 @@ class TFS_Project(object):
                     yield value
 
             limiter.update()
+
+    def _get_continuation(self, area, path, api_version='3.0', **kw):
+        params = kw.copy()
+        params['api-version'] = api_version
+
+        is_last_batch = False
+        url = None
+        while not is_last_batch:
+            if url is None:
+                url = '/'.join(self._get_url_candidates(area, path)[0])
+
+            result, error = self._perform_request(url, params)
+            if result is None:
+                raise RuntimeError('Could not obtain continuation result: {}'.format(error))
+
+            is_last_batch = result['isLastBatch']
+            url = result['nextLink']
+
+            for value in result['values']:
+                yield value
 
     def repositories(self):
         """
@@ -231,6 +265,86 @@ class TFS_Project(object):
         comments = self._get('discussion', 'threads',
                              api_version='3.0-preview.1', artifactUri=artifact)
         return comments['value']
+
+    def teams(self, project):
+        """
+        Retrieve information about teams in a project.
+
+        The team data is returned as an iterator.
+        """
+
+        return self._get_iterator('projects', '{}/teams'.format(project),
+                                  project_collection=None)
+
+    def team_members(self, project, team):
+        """
+        Retrieve information about teams in a project's team.
+
+        The team member data is returned as an iterator.
+        """
+
+        return self._get_iterator('projects',
+                                  '{}/teams/{}/members'.format(project, team))
+
+    def work_item_revisions(self, ids=None, fields=None, from_date=None):
+        """
+        Retrieve information about work items.
+
+        The work item data is returned as an iterator.
+        """
+
+        params = {}
+        if fields is not None:
+            params['fields'] = ','.join(fields)
+        if from_date is not None:
+            params['startDateTime'] = from_date
+
+        if ids is not None:
+            params.update({
+                'ids': ','.join(str(work_id) for work_id in ids),
+                'errorPolicy': 'Omit',
+                'expand': 'All'
+            })
+            if from_date is not None:
+                params['asOf'] = params.pop('startDateTime')
+
+            return self._get_iterator('wit', 'workitems', **params)
+
+        return self._get_continuation('wit', 'reporting/workitemrevisions',
+                                      **params)
+
+class TFVC_Project(TFS_Project):
+    """
+    A project using TFVC on a TFS or VSTS server.
+    """
+
+    @classmethod
+    def _make_auth(cls, username, password):
+        return HTTPBasicAuth(username, password)
+
+    def projects(self):
+        """
+        Retrieve the projects that exist on the server.
+        """
+
+        projects = self._get('projects', '', project_collection=None)
+        return projects['value']
+
+    def branches(self):
+        """
+        Retrieve the branches that exist for the project.
+        """
+
+        branches = self._get('tfvc', 'branches')
+        return branches['value']
+
+    def get_project_id(self, repository):
+        try:
+            project = self._get('projects', self._project,
+                                project_collection=None)
+            return project['id']
+        except (RuntimeError, KeyError) as error:
+            raise ValueError("Repository '{}' cannot be found: {}".format(repository, error))
 
 class TFS_Repository(Git_Repository, Review_System):
     """
