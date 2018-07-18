@@ -18,8 +18,8 @@ from git import GitCommandError
 from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
 from .repo import Git_Repository, RepositorySourceException
 from ..table import Table, Key_Table
-from ..utils import format_date, get_datetime, get_local_datetime, \
-    parse_date, parse_unicode
+from ..utils import format_date, get_local_datetime, get_utc_datetime, \
+    convert_local_datetime, parse_utc_date, parse_unicode
 from ..version_control.review import Review_System
 
 class GitLab_Dropins_Parser(object):
@@ -105,6 +105,8 @@ class GitLab_Repository(Git_Repository, Review_System):
 
     UPDATE_TRACKER_NAME = 'gitlab_update'
 
+    ISO8601_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
     AUXILIARY_TABLES = Git_Repository.AUXILIARY_TABLES | \
         Review_System.AUXILIARY_TABLES | {'gitlab_repo', 'vcs_event'}
 
@@ -173,8 +175,8 @@ class GitLab_Repository(Git_Repository, Review_System):
         # Check if the API indicates that there are updates
         if update_tracker is not None:
             tracker_date = get_local_datetime(update_tracker)
-            activity_date = get_datetime(project.last_activity_at,
-                                         '%Y-%m-%dT%H:%M:%S.%fZ')
+            activity_date = get_utc_datetime(project.last_activity_at,
+                                             cls.ISO8601_FORMAT)
             if tracker_date < activity_date:
                 return False
 
@@ -298,7 +300,7 @@ class GitLab_Repository(Git_Repository, Review_System):
             'repo_name': str(self._repo_name),
             'gitlab_id': str(repo_project.id),
             'description': description,
-            'create_time': parse_date(repo_project.created_at),
+            'create_time': parse_utc_date(repo_project.created_at),
             'archived': archived,
             'has_avatar': has_avatar,
             'star_count': str(repo_project.star_count)
@@ -310,7 +312,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         the merge requests table.
         """
 
-        updated_date = get_datetime(request.updated_at, '%Y-%m-%dT%H:%M:%S.%fZ')
+        updated_date = get_utc_datetime(request.updated_at, self.ISO8601_FORMAT)
         if not self._is_newer(updated_date):
             return False
 
@@ -335,8 +337,8 @@ class GitLab_Repository(Git_Repository, Review_System):
             'assignee_username': assignee_username,
             'upvotes': str(request.upvotes),
             'downvotes': str(request.downvotes),
-            'created_at': parse_date(request.created_at),
-            'updated_at': format_date(updated_date)
+            'created_at': parse_utc_date(request.created_at),
+            'updated_at': format_date(convert_local_datetime(updated_date))
         })
 
         return True
@@ -356,15 +358,13 @@ class GitLab_Repository(Git_Repository, Review_System):
             'author': parse_unicode(note.author['name']),
             'author_username': parse_unicode(note.author['username']),
             'comment': parse_unicode(note.body),
-            'created_at': parse_date(note.created_at)
+            'created_at': parse_utc_date(note.created_at)
         })
 
     def add_commit_comment(self, note, commit_id):
         """
         Add a commit comment note dictionary to the commit comments table.
         """
-
-        created_date = parse_date(note['created_at'])
 
         self._tables["commit_comment"].append({
             'repo_name': str(self._repo_name),
@@ -379,7 +379,7 @@ class GitLab_Repository(Git_Repository, Review_System):
             'file': note.path if note.path is not None else str(0),
             'line': str(note.line) if note.line is not None else str(0),
             'line_type': note.line_type if note.line_type is not None else str(0),
-            'created_date': created_date
+            'created_date': parse_utc_date(note.created_at)
         })
 
     @staticmethod
@@ -444,8 +444,8 @@ class GitLab_Repository(Git_Repository, Review_System):
         """
 
         if event.action_name in ('pushed to', 'pushed new', 'deleted'):
-            created_date = get_datetime(event.created_at,
-                                        '%Y-%m-%dT%H:%M:%S.%fZ')
+            created_date = get_utc_datetime(event.created_at,
+                                            '%Y-%m-%dT%H:%M:%S.%fZ')
             if not self._is_newer(created_date):
                 return
 
@@ -456,7 +456,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 'user': username,
                 'username': username,
                 'email': str(0),
-                'date': format_date(created_date)
+                'date': format_date(convert_local_datetime(created_date))
             }
             if event.data is not None:
                 # Legacy event push data

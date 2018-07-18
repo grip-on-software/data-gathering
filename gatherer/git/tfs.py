@@ -21,7 +21,8 @@ from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..request import Session
 from ..table import Table, Link_Table
-from ..utils import format_date, get_datetime, parse_unicode, Iterator_Limiter
+from ..utils import format_date, convert_local_datetime, get_datetime, \
+    parse_unicode, Iterator_Limiter
 from ..version_control.review import Review_System
 
 class TFS_Project(object):
@@ -492,8 +493,8 @@ class TFS_Repository(Git_Repository, Review_System):
             'assignee_username': str(0),
             'upvotes': str(upvotes),
             'downvotes': str(downvotes),
-            'created_at': format_date(created_date),
-            'updated_at': format_date(updated_date)
+            'created_at': format_date(convert_local_datetime(created_date)),
+            'updated_at': format_date(convert_local_datetime(updated_date))
         })
 
         for reviewer in reviewers:
@@ -570,7 +571,12 @@ class TFS_Repository(Git_Repository, Review_System):
         else:
             unique_name = author['uniqueName']
 
-        parent_id = comment['parentId'] if 'parentId' in comment else 0
+        if 'parentId' in comment:
+            parent_id = comment['parentId']
+        elif 'parentCommentId' in comment:
+            parent_id = comment['parentCommentId']
+        else:
+            parent_id = 0
 
         note = {
             'repo_name': str(self._repo_name),
@@ -581,8 +587,8 @@ class TFS_Repository(Git_Repository, Review_System):
             'author': parse_unicode(display_name),
             'author_username': parse_unicode(unique_name),
             'comment': parse_unicode(comment['content']),
-            'created_at': format_date(created_date),
-            'updated_at': format_date(updated_date)
+            'created_at': format_date(convert_local_datetime(created_date)),
+            'updated_at': format_date(convert_local_datetime(updated_date))
         }
 
         # Determine whether to add as commit comment or request note
@@ -618,6 +624,7 @@ class TFS_Repository(Git_Repository, Review_System):
             end_line = 0
 
         note.update({
+            # Move creation and update date fields
             'created_date': note['created_at'],
             'updated_date': note['updated_at'],
             'file': properties[self.PROPERTY + '.ItemPath']['$value'],
@@ -668,5 +675,5 @@ class TFS_Repository(Git_Repository, Review_System):
                 'user': parse_unicode(event['pushedBy']['displayName']),
                 'username': parse_unicode(event['pushedBy']['uniqueName']),
                 'email': str(0),
-                'date': format_date(event_date)
+                'date': format_date(convert_local_datetime(event_date))
             })

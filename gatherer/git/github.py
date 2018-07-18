@@ -15,7 +15,7 @@ import dateutil.tz
 from .repo import Git_Repository
 from ..table import Key_Table, Link_Table
 from ..utils import convert_utc_datetime, format_date, get_local_datetime, \
-    parse_unicode
+    convert_local_datetime, parse_unicode
 from ..version_control.review import Review_System
 
 class GitHub_Repository(Git_Repository, Review_System):
@@ -157,7 +157,7 @@ class GitHub_Repository(Git_Repository, Review_System):
             "repo_name": str(self._repo_name),
             "github_id": str(repo.id),
             "description": description,
-            "create_time": format_date(repo.created_at),
+            "create_time": format_date(convert_local_datetime(repo.created_at)),
             "private": private,
             "forked": forked,
             "star_count": str(repo.stargazers_count),
@@ -192,8 +192,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             'author_username': author_username,
             'assignee': assignee_username,
             'assignee_username': assignee_username,
-            'created_at': format_date(issue.created_at),
-            'updated_at': format_date(issue.updated_at)
+            'created_at': format_date(convert_local_datetime(issue.created_at)),
+            'updated_at': format_date(convert_local_datetime(issue.updated_at))
         }
 
     def add_pull_request(self, pull_request):
@@ -246,7 +246,7 @@ class GitHub_Repository(Git_Repository, Review_System):
                 pull_request_id = int(match.group(1))
 
         if issue.closed_at is not None:
-            closed_date = format_date(issue.closed_at)
+            closed_date = format_date(convert_local_datetime(issue.closed_at))
         else:
             closed_date = str(0)
 
@@ -269,8 +269,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             'author': author,
             'author_username': author,
             'comment': parse_unicode(comment.body),
-            'created_at': format_date(comment.created_at),
-            'updated_at': format_date(comment.updated_at)
+            'created_at': format_date(convert_local_datetime(comment.created_at)),
+            'updated_at': format_date(convert_local_datetime(comment.updated_at))
         }
 
     def add_issue_comment(self, comment, issue_id):

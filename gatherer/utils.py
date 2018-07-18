@@ -233,11 +233,26 @@ def format_date(date, date_format='%Y-%m-%d %H:%M:%S'):
 
     return datetime.strftime(date, date_format)
 
+def parse_utc_date(date, date_format='%Y-%m-%dT%H:%M:%S.%fZ'):
+    """
+    Convert a date string to a standard date string, assuming that the original
+    date string is a UTC date. By default, the original date string is formatted
+    as a ISO8601 date using the 'Z' zone identifier.
+
+    The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
+    """
+
+    utc_date = get_utc_datetime(date, date_format)
+    return format_date(convert_local_datetime(utc_date))
+
 def parse_date(date):
     """
     Convert a date string from sources like JIRA to a standard date string,
     excluding milliseconds and zone information, and using spaces to
     separate fields instead of 'T'.
+
+    This function does not account for time zones and assumes that the date
+    is a local date, even if it is trailed by a zone identifier.
 
     The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
 
