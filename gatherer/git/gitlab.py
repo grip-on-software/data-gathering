@@ -458,7 +458,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 'email': str(0),
                 'date': format_date(convert_local_datetime(created_date))
             }
-            if event.data is not None:
+            if 'data' in event.attributes and event.data is not None:
                 # Legacy event push data
                 commits = self._parse_legacy_push_event(event, event_data)
             else:
