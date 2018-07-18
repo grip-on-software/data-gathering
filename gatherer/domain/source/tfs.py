@@ -16,7 +16,7 @@ except ImportError:
 
 from .types import Source, Source_Types
 from .git import Git
-from ...git.tfs import TFS_Repository, TFS_Project
+from ...git.tfs import TFS_Repository, TFS_Project, TFVC_Project
 
 @Source_Types.register('tfs')
 @Source_Types.register('git',
@@ -25,7 +25,7 @@ from ...git.tfs import TFS_Repository, TFS_Project
                                       follow_host_change=follow_host_change))
 class TFS(Git):
     """
-    Team Foundation Server source repository.
+    Team Foundation Server source repository using Git.
     """
 
     def __init__(self, *args, **kwargs):
@@ -126,6 +126,9 @@ class TFS(Git):
 
     @property
     def web_url(self):
+        if self._tfs_repo is None:
+            return self.environment_url
+
         return self.environment_url + '/' + self._tfs_repo
 
     @property
@@ -183,6 +186,69 @@ class TFS(Git):
             url = self._format_url(repository['remoteUrl'])
             source = Source.from_type('tfs', name=repository['name'], url=url,
                                       follow_host_change=False)
+            sources.append(source)
+
+        return sources
+
+@Source_Types.register('tfvc')
+class TFVC(TFS):
+    """
+    Team Foundation Server source repository using TFVC.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TFVC, self).__init__(*args, **kwargs)
+        self._tfvc_project = None
+
+
+    def _update_credentials(self):
+        orig_parts, host = super(TFVC, self)._update_credentials()
+
+        self._tfvc_project = self._tfs_collections[-1]
+        if len(self._tfs_collections) == 1:
+            self._tfs_collections = ('', self._tfvc_project)
+
+        return orig_parts, host
+
+    @property
+    def tfvc_project(self):
+        """
+        Retrieve the project name of the TFVC repository.
+        """
+
+        return self._tfvc_project
+
+    @property
+    def tfs_api(self):
+        """
+        Retrieve an instance of the TFS API connection for the TFS collection
+        on this host.
+        """
+
+        if self._tfs_api is None:
+            logging.info('Setting up API for %s', self._tfs_host)
+            self._tfs_api = TFVC_Project(self._tfs_host, self._tfs_collections,
+                                         urllib.parse.unquote(self._tfs_user),
+                                         self._tfs_password)
+
+        return self._tfs_api
+
+    @property
+    def environment_url(self):
+        return self._tfs_host + '/' + \
+            '/'.join(part for part in self._tfs_collections if part != '')
+
+    def get_sources(self):
+        projects = self.tfs_api.projects()
+        sources = []
+        for project in projects:
+            url = '{}/{}{}{}'.format(self._tfs_host,
+                                     self._tfs_collections[0],
+                                     '/' if self._tfs_collections[0] else '',
+                                     project['name'])
+            name = project.get('description', project['name'])
+            source = Source.from_type('tfvc', name=name,
+                                      url=url, follow_host_change=False)
             sources.append(source)
 
         return sources
