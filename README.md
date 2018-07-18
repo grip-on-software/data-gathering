@@ -387,6 +387,11 @@ the setting is not used in this environment.
   preflight checks to let the agents check whether they should collect data.
   - `days` (`$SCHEDULE_DAYS`): Integer determining the interval in days between
      each collection run by each agent.
+  - `drift` (`$SCHEDULE_DRIFT`): Integer determining the maximum number of 
+    minutes that the controller may skew the schedule in either direction, thus 
+    causing agents to perform their scheduled scrape earlier or later than they 
+    all would. Useful if all agents want to perform the scrape at once to 
+    reduce load across the network.
 - ldap (used by `deployer.py` and `status.py`): Connection, authentication and 
   query parameters for an LDAP server.
   - `server` (`$LDAP_SERVER`): URL of the LDAP server, including protocol, host 
