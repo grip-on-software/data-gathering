@@ -173,7 +173,9 @@ class GitLab_Repository(Git_Repository, Review_System):
         # Check if the API indicates that there are updates
         if update_tracker is not None:
             tracker_date = get_local_datetime(update_tracker)
-            if tracker_date < project.last_activity_at:
+            activity_date = get_datetime(project.last_activity_at,
+                                         '%Y-%m-%dT%H:%M:%S.%fZ')
+            if tracker_date < activity_date:
                 return False
 
         # Use the API to fetch the latest commit
