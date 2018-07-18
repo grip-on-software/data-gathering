@@ -59,6 +59,21 @@ class Gatherer(object):
 
         return {'ok': True}
 
+    def _calculate_drift(self, project_key, today):
+        # Schedule drift: Next agent scrape may only occur after
+        # $SCHEDULE_DAYS days, plus or minus a number of drift minutes.
+        # Absolute value of drift minutes is up to $SCHEDULE_DRIFT minutes.
+        # The drift minutes are hashed based on the project key, and to allow
+        # projects to catch up, each schedule days period the drifts of each
+        # project is swapped (negative instead of positive drift minutes).
+        days = int(self._config.get('schedule', 'days'))
+        drift = int(self._config.get('schedule', 'drift'))
+        odd = (today.timetuple().tm_yday / days) % 2
+        toggle = (odd - 1 * (1 - odd))
+        offset = toggle * (hash(project_key) % (drift * 2) - drift)
+
+        return timedelta(days=days, minutes=offset)
+
     def get_tracker_status(self, project_key):
         """
         Retrieve the status of the update tracker schedule of the given project.
@@ -84,8 +99,10 @@ class Gatherer(object):
                 'message': 'Update tracker {} is unparseable: {}'.format(filename, str(error))
             }
 
-        interval = datetime.now() - tracker_date
-        schedule = timedelta(days=int(self._config.get('schedule', 'days')))
+        today = datetime.now()
+        schedule = self._calculate_drift(project_key, today)
+        interval = today - tracker_date
+
         if interval >= schedule:
             return {'ok': True}
 

@@ -60,6 +60,7 @@ password = $SONAR_PASSWORD
 verify = $SONAR_VERIFY
 [schedule]
 days = $SCHEDULE_DAYS
+drift = $SCHEDULE_DRIFT
 [ldap]
 server = $LDAP_SERVER
 root_dn = $LDAP_ROOT_DN
