@@ -177,7 +177,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 return False
 
         # Use the API to fetch the latest commit
-        if project.commit('HEAD').id == latest_version:
+        if project.commits.get('HEAD').id == latest_version:
             return True
 
         return False
