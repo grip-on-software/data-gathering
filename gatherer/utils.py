@@ -9,6 +9,7 @@ import logging
 import os
 from copy import deepcopy
 from datetime import datetime
+import dateutil.parser
 import dateutil.tz
 
 class Iterator_Limiter(object):
@@ -233,17 +234,16 @@ def format_date(date, date_format='%Y-%m-%d %H:%M:%S'):
 
     return datetime.strftime(date, date_format)
 
-def parse_utc_date(date, date_format='%Y-%m-%dT%H:%M:%S.%fZ'):
+def parse_utc_date(date):
     """
-    Convert a date string to a standard date string, assuming that the original
-    date string is a UTC date. By default, the original date string is formatted
-    as a ISO8601 date using the 'Z' zone identifier.
+    Convert a ISO8601 date string to a standard date string.
+    The date string must have a zone identifier.
 
     The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
     """
 
-    utc_date = get_utc_datetime(date, date_format)
-    return format_date(convert_local_datetime(utc_date))
+    zone_date = dateutil.parser.isoparse(date)
+    return format_date(convert_local_datetime(zone_date))
 
 def parse_date(date):
     """

@@ -17,8 +17,7 @@ quality_report>=2.21.0; python_version >= '3.0'
 git+https://github.com/dsoprea/PySvn.git@06de88419044f0241747f7259f440680992cfc22#egg=svn
 enum34; python_version < '3.4'
 # gatherer.utils
-python-dateutil==2.6.0; python_version < '3.0'
-python-dateutil>=2.6.1; python_version >= '3.0'
+python-dateutil>=2.7.0
 # gatherer.database
 pymonetdb
 # gatherer.files
