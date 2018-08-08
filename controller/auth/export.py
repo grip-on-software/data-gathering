@@ -48,6 +48,8 @@ def main():
     exporter = Pyro4.Proxy("PYRONAME:gros.exporter")
     exporter.start_scrape(project_key)
     exporter.export_data(project_key)
+    if "agent" in fields:
+        exporter.write_agent_status(fields.getfirst("agent"))
 
     print('Status: 202 Accepted')
     print()

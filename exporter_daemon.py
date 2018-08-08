@@ -21,6 +21,7 @@ class Exporter(object):
     """
 
     AGENT_DIRECTORY = '/agents'
+    CONTROLLER_DIRECTORY = '/controller'
 
     def __init__(self):
         self._config = Configuration.get_settings()
@@ -66,6 +67,17 @@ class Exporter(object):
             {"name": "jiraParameters", "value": "--server {}".format(jira_url)}
         ]
         job.build(parameters=parameters, token=token)
+
+    def write_agent_status(self, project_key, agent_status):
+        """
+        Write status information about the agent configuration to a file in
+        the controller directory.
+        """
+
+        path = os.path.join(self.CONTROLLER_DIRECTORY,
+                            "agent-{}.json".format(project_key))
+        with open(path, "w") as agent_file:
+            agent_file.write(agent_status)
 
 def main():
     """
