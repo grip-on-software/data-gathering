@@ -115,19 +115,18 @@ def get_jenkins_url(args):
 
     return build.base_url + 'artifact/' + args.artifact + '/*zip*/dist.zip'
 
-def copy_path(source_path):
+def copy_path(source_path, dest_path):
     """
     Copy a distribution directory from a local path.
     """
 
-    dist_path = 'dist/'
-    if os.path.exists(dist_path):
-        shutil.rmtree(dist_path)
+    if os.path.exists(dest_path):
+        shutil.rmtree(dest_path)
 
     shutil.copytree(os.path.join(os.path.expanduser(source_path), 'dist/'),
-                    dist_path)
+                    dest_path)
 
-def download_zip(url):
+def download_zip(url, dest_path):
     """
     Download a ZIP archive from an external URL.
     """
@@ -137,10 +136,19 @@ def download_zip(url):
         for chunk in request.iter_content(chunk_size=128):
             output_file.write(chunk)
 
+    temp_dir = tempfile.mkdtemp()
     with ZipFile('dist.zip', 'r') as dist_zip:
-        dist_zip.extractall()
+        dist_zip.extractall(path=temp_dir)
 
     os.remove('dist.zip')
+
+    if os.path.exists(os.path.join(dest_path, 'lib')):
+        shutil.rmtree(os.path.join(dest_path, 'lib'))
+
+    shutil.move(os.path.join(temp_dir, 'dist/importerjson.jar'),
+                os.path.join(dest_path, 'importerjson.jar'))
+    shutil.move(os.path.join(temp_dir, 'dist/lib/'), dest_path)
+    shutil.rmtree(temp_dir)
 
 def retrieve_files(args):
     """
@@ -148,7 +156,7 @@ def retrieve_files(args):
     """
 
     if args.path is not None:
-        copy_path(args.path)
+        copy_path(args.path, args.base)
     else:
         # Use an URL to download a dist directory artifact archive
         if args.jenkins is None:
@@ -164,7 +172,7 @@ def retrieve_files(args):
                 return
 
         logging.info('Downloading distribution from %s', url)
-        download_zip(url)
+        download_zip(url, args.base)
 
 def main():
     """
@@ -173,18 +181,6 @@ def main():
 
     args = parse_args()
     retrieve_files(args)
-
-    # Check if 'dist' is the directory we want to place it in
-    if os.path.realpath(args.base) == os.path.realpath('dist'):
-        return
-
-    if os.path.exists(os.path.join(args.base, 'lib')):
-        shutil.rmtree(os.path.join(args.base, 'lib'))
-
-    shutil.move('dist/importerjson.jar',
-                os.path.join(args.base, 'importerjson.jar'))
-    shutil.move('dist/lib/', args.base)
-    shutil.rmtree('dist')
 
     if args.files:
         store_type = File_Store.get_type(args.type)
