@@ -49,7 +49,7 @@ def main():
     exporter.start_scrape(project_key)
     exporter.export_data(project_key)
     if "agent" in fields:
-        exporter.write_agent_status(fields.getfirst("agent"))
+        exporter.write_agent_status(project_key, fields.getfirst("agent"))
 
     print('Status: 202 Accepted')
     print()
