@@ -421,6 +421,13 @@ class TFS_Repository(Git_Repository, Review_System):
         return parsed_date.replace(microsecond=microsecond,
                                    tzinfo=dateutil.tz.tzutc())
 
+    @classmethod
+    def _get_ssh_command(cls, source):
+        ssh_command = super(TFS_Repository, cls)._get_ssh_command(source)
+        ssh_command += ' -c +aes256-cbc,aes192-cbc,aes128-cbc'
+
+        return ssh_command
+
     def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         versions = super(TFS_Repository, self).get_data(from_revision,
                                                         to_revision,

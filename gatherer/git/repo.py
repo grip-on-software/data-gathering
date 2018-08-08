@@ -298,6 +298,15 @@ class Git_Repository(Version_Control_Repository):
         repo.git.update_environment(**environment)
 
     @classmethod
+    def _get_ssh_command(cls, source):
+        logging.debug('Using credentials path %s', source.credentials_path)
+        ssh_command = "ssh -i '{}'".format(source.credentials_path)
+        if source.get_option('unsafe_hosts'):
+            ssh_command += ' -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+        return ssh_command
+
+    @classmethod
     def _create_environment(cls, source, git=None):
         """
         Retrieve the environment variables for the Git subcommands.
@@ -305,12 +314,8 @@ class Git_Repository(Version_Control_Repository):
 
         environment = {}
 
-        credentials_path = source.credentials_path
-        if credentials_path is not None:
-            logging.debug('Using credentials path %s', credentials_path)
-            ssh_command = "ssh -i '{}'".format(credentials_path)
-            if source.get_option('unsafe_hosts'):
-                ssh_command += '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+        if source.credentials_path is not None:
+            ssh_command = cls._get_ssh_command(source)
 
             if git is None:
                 git = Git()
