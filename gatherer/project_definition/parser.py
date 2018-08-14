@@ -502,7 +502,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
                     'type': options_type,
                     'comment': ''
                 }
-            except (ValueError, AttributeError):
+            except (TypeError, ValueError, AttributeError):
                 # Could not parse targets as integers
                 return
 
