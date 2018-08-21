@@ -323,7 +323,7 @@ class Git_Repository(Version_Control_Repository):
             version_info = git.version_info
             if version_info < (2, 3, 0):
                 with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
-                    tmpfile.write(ssh_command + ' $*')
+                    tmpfile.write('{} $*'.format(ssh_command).encode('utf-8'))
                     command_filename = tmpfile.name
 
                 os.chmod(command_filename, 0o700)
