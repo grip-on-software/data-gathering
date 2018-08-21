@@ -243,13 +243,13 @@ class Controller(object):
             data_file.write('\n')
 
     @staticmethod
-    def _check_permissions(path, permissions=02770):
+    def _check_permissions(path, permissions=0o2770):
         try:
             mode = os.stat(path).st_mode
         except OSError:
             return False
 
-        if mode & 07777 != permissions:
+        if mode & 0o7777 != permissions:
             return False
 
         return True
@@ -260,7 +260,7 @@ class Controller(object):
         """
 
         if not self._check_permissions(self.get_ssh_directory(project_key),
-                                       permissions=02700):
+                                       permissions=0o2700):
             return {
                 'ok': False,
                 'message': 'SSH identity was not properly stored'
