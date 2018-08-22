@@ -1,0 +1,46 @@
+{
+    "status": {
+        "type": "string",
+        "field": "System.State"
+    },
+    "issuetype": {
+        "type": "string",
+        "field": "System.WorkItemType"
+    },
+    "created_date": {
+        "type": "timestamp",
+        "field": "System.CreatedDate"
+    },
+    "reporter": {
+        "type": "developer",
+        "field": "System.CreatedBy"
+    },
+    "assignee": {
+        "type": "developer",
+        "field": "System.AssignedTo"
+    },
+    "updated": {
+        "type": "timestamp",
+        "field": "System.ChangedDate"
+    },
+    "updated_by": {
+        "type": "developer",
+        "field": "System.ChangedBy"
+    },
+    "title": {
+        "type": "unicode",
+        "field": "System.Title"
+    },
+    "description": {
+        "type": "unicode",
+        "field": "System.Description"
+    },
+    "labels": {
+        "type": "tags",
+        "field": "System.Tags"
+    },
+    "attachments": {
+        "type": "integer",
+        "field": "System.AttachedFileCount"
+    }
+}

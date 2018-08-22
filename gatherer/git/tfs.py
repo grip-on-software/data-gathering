@@ -11,17 +11,19 @@ except ImportError:
 
 from builtins import str
 import itertools
+import json
 import logging
 import re
-import dateutil.tz
 from git import Commit
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..request import Session
-from ..table import Table, Link_Table
-from ..utils import format_date, convert_local_datetime, get_datetime, \
+from ..table import Table, Key_Table, Link_Table
+from ..vsts.parser import String_Parser, Int_Parser, Date_Parser, \
+    Unicode_Parser, Decimal_Parser, Tags_Parser, Developer_Parser
+from ..utils import format_date, convert_local_datetime, parse_utc_date, \
     parse_unicode, Iterator_Limiter
 from ..version_control.review import Review_System
 
@@ -375,7 +377,13 @@ class TFS_Repository(Git_Repository, Review_System):
                                                ('merge_request_id', 'reviewer'),
                                                encrypt_fields=review_fields),
             "vcs_event": Table('vcs_event',
-                               encrypt_fields=('user', 'username', 'email'))
+                               encrypt_fields=('user', 'username', 'email')),
+            "tfs_work_item": Link_Table('tfs_work_item',
+                                        ('issue_id', 'changelog_id'),
+                                        encrypt_fields=('reporter', 'assignee',
+                                                        'updated_by')),
+            "tfs_developer": Key_Table('tfs_developer', 'display_name',
+                                       encrypt_fields=('display_name', 'email'))
         })
         return review_tables
 
@@ -406,21 +414,6 @@ class TFS_Repository(Git_Repository, Review_System):
 
         return self._project_id
 
-    @staticmethod
-    def _parse_date(date):
-        if date.endswith('Z'):
-            date = date[:-1]
-        match = re.match(r'(.*)\.([0-9]{1,6})[0-9]*Z?$', date)
-        if match:
-            date = match.group(1)
-            microsecond = int(match.group(2))
-        else:
-            microsecond = 0
-
-        parsed_date = get_datetime(date, '%Y-%m-%dT%H:%M:%S')
-        return parsed_date.replace(microsecond=microsecond,
-                                   tzinfo=dateutil.tz.tzutc())
-
     @classmethod
     def _get_ssh_command(cls, source):
         ssh_command = super(TFS_Repository, cls)._get_ssh_command(source)
@@ -449,6 +442,8 @@ class TFS_Repository(Git_Repository, Review_System):
         for pull_request in self.api.pull_requests(repository_id):
             self.add_pull_request(repository_id, pull_request)
 
+        self.add_work_item_revisions()
+
         self.set_latest_date()
 
         return versions
@@ -472,9 +467,9 @@ class TFS_Repository(Git_Repository, Review_System):
         upvotes = len([1 for reviewer in reviewers if reviewer['vote'] > 0])
         downvotes = len([1 for reviewer in reviewers if reviewer['vote'] < 0])
 
-        created_date = self._parse_date(pull_request['creationDate'])
+        created_date = parse_utc_date(pull_request['creationDate'])
         if 'closedDate' in pull_request:
-            updated_date = self._parse_date(pull_request['closedDate'])
+            updated_date = parse_utc_date(pull_request['closedDate'])
 
             if not self._is_newer(updated_date):
                 return
@@ -568,8 +563,8 @@ class TFS_Repository(Git_Repository, Review_System):
         if 'isDeleted' in comment and comment['isDeleted']:
             return
 
-        created_date = self._parse_date(comment['publishedDate'])
-        updated_date = self._parse_date(comment['lastUpdatedDate'])
+        created_date = parse_utc_date(comment['publishedDate'])
+        updated_date = parse_utc_date(comment['lastUpdatedDate'])
         if not self._is_newer(updated_date):
             return
 
@@ -653,7 +648,7 @@ class TFS_Repository(Git_Repository, Review_System):
         if event['pushedBy']['uniqueName'].startswith('vstfs:///'):
             return
 
-        event_date = self._parse_date(event['date'])
+        event_date = parse_utc_date(event['date'])
         if not self._is_newer(event_date):
             return
 
@@ -684,3 +679,37 @@ class TFS_Repository(Git_Repository, Review_System):
                 'email': str(0),
                 'date': format_date(convert_local_datetime(event_date))
             })
+
+    def add_work_item_revisions(self):
+        """
+        Add work item revision data from the API.
+        """
+
+        parsers = [
+            String_Parser(), Int_Parser(), Date_Parser(), Unicode_Parser(),
+            Decimal_Parser(), Tags_Parser(),
+            Developer_Parser(self._tables)
+        ]
+        types = dict((parser.type, parser) for parser in parsers)
+
+        with open('vsts_fields.json') as vsts_fields_file:
+            work_item_fields = json.load(vsts_fields_file)
+
+        fields = set(field["field"] for field in work_item_fields.values())
+        from_date = self._update_trackers['tfs_update']
+        work_item_revisions = self.api.work_item_revisions(fields=list(fields),
+                                                           from_date=from_date)
+
+        for revision in work_item_revisions:
+            row = {
+                "issue_id": str(revision["id"]),
+                "changelog_id": str(revision["rev"])
+            }
+            for target, field in work_item_fields.items():
+                if field["field"] in revision["fields"]:
+                    parser = types[field["type"]]
+                    value = parser.parse(revision["fields"][field["field"]])
+
+                    row[target] = value
+
+            self._tables["tfs_work_item"].append(row)

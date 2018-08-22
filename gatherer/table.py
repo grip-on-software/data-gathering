@@ -73,6 +73,10 @@ class Table(object):
         pepper = str(self._secrets['salts']['pepper']).encode('utf-8')
 
         for field in self._encrypt_fields:
+            if field not in row:
+                # Sparse tables may not contain every row
+                continue
+
             if 'usernames' in self._secrets and field.endswith('username'):
                 row[field] = self._convert_username(row[field])
 
