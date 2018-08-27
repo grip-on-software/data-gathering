@@ -692,7 +692,13 @@ class TFS_Repository(Git_Repository, Review_System):
         with open('vsts_fields.json') as vsts_fields_file:
             work_item_fields = json.load(vsts_fields_file)
 
-        fields = set(field["field"] for field in work_item_fields.values())
+        for properties in work_item_fields:
+            if "field" in properties:
+                properties["fields"] = [properties["field"]]
+
+        fields = set(props["fields"] for props in work_item_fields.values())
+        fields.discard(None)
+
         from_date = self._update_trackers['tfs_update']
         work_item_revisions = self.api.work_item_revisions(fields=list(fields),
                                                            from_date=from_date)
@@ -702,11 +708,12 @@ class TFS_Repository(Git_Repository, Review_System):
                 "issue_id": str(revision["id"]),
                 "changelog_id": str(revision["rev"])
             }
-            for target, field in work_item_fields.items():
-                if field["field"] in revision["fields"]:
-                    parser = types[field["type"]]
-                    value = parser.parse(revision["fields"][field["field"]])
-
-                    row[target] = value
+            for target, properties in work_item_fields.items():
+                parser = types[properties["type"]]
+                for field in properties["fields"]:
+                    if field in revision["fields"]:
+                        value = parser.parse(revision["fields"][field])
+                        row[target] = value
+                        break
 
             self._tables["tfs_work_item"].append(row)
