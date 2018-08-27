@@ -375,6 +375,10 @@ class TFS_Repository(Git_Repository, Review_System):
                                                encrypt_fields=review_fields),
             "vcs_event": Table('vcs_event',
                                encrypt_fields=('user', 'username', 'email')),
+            "tfs_team": Key_Table('tfs_team', 'name'),
+            "tfs_team_member": Link_Table('tfs_team_member',
+                                          ('user', 'team_name'),
+                                          encrypt_fields=('user', 'username')),
             "tfs_work_item": Link_Table('tfs_work_item',
                                         ('issue_id', 'changelog_id'),
                                         encrypt_fields=('reporter', 'assignee',
@@ -438,6 +442,9 @@ class TFS_Repository(Git_Repository, Review_System):
 
         for pull_request in self.api.pull_requests(repository_id):
             self.add_pull_request(repository_id, pull_request)
+
+        for team in self.api.teams(self.project_id):
+            self.add_team(team)
 
         self.add_work_item_revisions()
 
@@ -675,6 +682,25 @@ class TFS_Repository(Git_Repository, Review_System):
                 'username': parse_unicode(event['pushedBy']['uniqueName']),
                 'email': str(0),
                 'date': format_date(convert_local_datetime(event_date))
+            })
+
+    def add_team(self, team):
+        """
+        Add team and team member data from the API to the associated tables.
+        """
+
+        team_name = parse_unicode(team['name'])
+        self._tables["tfs_team"].append({
+            'repo_name': str(self._repo_name),
+            'team_name': team_name,
+            'description': parse_unicode(team['description'])
+        })
+
+        for member in self.api.team_members(self.project_id, team['id']):
+            self._tables["tfs_team_member"].append({
+                'team_name': team_name,
+                'user': parse_unicode(member['displayName']),
+                'username': parse_unicode(member['uniqueName'])
             })
 
     def add_work_item_revisions(self):
