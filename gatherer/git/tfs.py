@@ -138,16 +138,13 @@ class TFS_Project(object):
         params['api-version'] = api_version
 
         is_last_batch = False
-        url = None
+        url = '/'.join(self._get_url_candidates(area, path)[0])
         while not is_last_batch:
-            if url is None:
-                url = '/'.join(self._get_url_candidates(area, path)[0])
-
             result, error = self._perform_request(url, params)
             if result is None:
                 raise RuntimeError('Could not obtain continuation result: {}'.format(error))
 
-            is_last_batch = result['isLastBatch']
+            is_last_batch = result['isLastBatch'] and result['values']
             url = result['nextLink']
 
             for value in result['values']:
