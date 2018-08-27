@@ -77,9 +77,17 @@ class TFS_Project(object):
 
     def _get_url_candidates(self, area, path, project_collection=False):
         if self._project is None or project_collection is None:
+            if project_collection not in (None, True, False):
+                return [(self._url, project_collection, '_apis', area, path)]
+
             return [(self._url, '_apis', area, path)]
-        if project_collection:
+        if project_collection is True:
             return [(self._url, self._project, '_apis', area, path)]
+        if project_collection is not False:
+            return [(
+                self._url, self._project, project_collection, '_apis',
+                area, path
+            )]
 
         return [
             (self._url, self._project, '_apis', area, path), # TFS 2017+
@@ -286,6 +294,22 @@ class TFS_Project(object):
         return self._get_iterator('projects',
                                   '{}/teams/{}/members'.format(project, team))
 
+    def sprints(self, project, team=None):
+        """
+        Retrieve information about sprints for a project or a project's team.
+
+        The sprint data is returned as an iterator.
+        """
+
+        if team is None:
+            project_collection = project
+        else:
+            project_collection = '{}/{}'.format(project, team)
+
+        return self._get('work', 'teamsettings/iterations',
+                         project_collection=project_collection,
+                         api_version='3.0')['value']
+
     def work_item_revisions(self, ids=None, fields=None, from_date=None):
         """
         Retrieve information about work items.
@@ -375,10 +399,12 @@ class TFS_Repository(Git_Repository, Review_System):
                                                encrypt_fields=review_fields),
             "vcs_event": Table('vcs_event',
                                encrypt_fields=('user', 'username', 'email')),
-            "tfs_team": Key_Table('tfs_team', 'name'),
+            "tfs_team": Link_Table('tfs_team', ('repo_name', 'team_name')),
             "tfs_team_member": Link_Table('tfs_team_member',
-                                          ('user', 'team_name'),
+                                          ('repo_name', 'team_name', 'user'),
                                           encrypt_fields=('user', 'username')),
+            "tfs_sprint": Link_Table('tfs_sprint',
+                                     ('repo_name', 'team_name', 'sprint_name')),
             "tfs_work_item": Link_Table('tfs_work_item',
                                         ('issue_id', 'changelog_id'),
                                         encrypt_fields=('reporter', 'assignee',
@@ -698,9 +724,29 @@ class TFS_Repository(Git_Repository, Review_System):
 
         for member in self.api.team_members(self.project_id, team['id']):
             self._tables["tfs_team_member"].append({
+                'repo_name': str(self._repo_name),
                 'team_name': team_name,
                 'user': parse_unicode(member['displayName']),
                 'username': parse_unicode(member['uniqueName'])
+            })
+
+        for sprint in self.api.sprints(self.project_id, team['id']):
+            if sprint['attributes'].get('startDate') is not None:
+                start_date = parse_utc_date(sprint['attributes']['startDate'])
+            else:
+                start_date = str(0)
+
+            if sprint['attributes'].get('finishDate') is not None:
+                end_date = parse_utc_date(sprint['attributes']['finishDate'])
+            else:
+                end_date = str(0)
+
+            self._tables["tfs_sprint"].append({
+                'repo_name': str(self._repo_name),
+                'team_name': team_name,
+                'sprint_name': parse_unicode(sprint['name']),
+                'start_date': start_date,
+                'end_date': end_date,
             })
 
     def add_work_item_revisions(self):
