@@ -42,5 +42,57 @@
     "attachments": {
         "type": "integer",
         "field": "System.AttachedFileCount"
+    },
+    "project_name": {
+        "type": "unicode",
+        "field": "System.TeamProject"
+    },
+    "team_name": {
+        "type": "unicode",
+        "field": "System.NodeName"
+    },
+    "sprint_name": {
+        "type": "string",
+        "field": "System.IterationPath"
+    },
+    "priority": {
+        "type": "integer",
+        "fields": ["Microsoft.VSTS.Common.Priority", "Wigo4it.PrioRegie"]
+    },
+    "rank_change": {
+        "type": "difference",
+        "field": "Microsoft.VSTS.Common.BacklogPriority"
+    },
+    "additional_information": {
+        "type": "unicode",
+        "field": "Microsoft.VSTS.Common.AcceptanceCriteria"
+    },
+    "severity": {
+        "type": "string",
+        "field": "Microsoft.VSTS.Common.Severity"
+    },
+    "impact": {
+        "type": "integer",
+        "field": "Wigo4it.ImpactWI"
+    },
+    "business_value": {
+        "type": "integer",
+        "field": "Microsoft.VSTS.Common.BusinessValue"
+    },
+    "duedate": {
+        "type": "",
+        "field": "Microsoft.VSTS.Scheduling.TargetDate"
+    },
+    "story_points": {
+        "type": "integer",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+    },
+    "topdesk_number": {
+        "type": "string",
+        "fields": ["Wigo4it.TopDeskSyncWijzigingNr", "Wigo4it.TopDeskIncidentNr", "dSZW.Socrates.TopDeskWijzigingNr"]
+    },
+    "use_case": {
+        "type": "string",
+        "field": "Wigo4it.UseCaseNr"
     }
 }
