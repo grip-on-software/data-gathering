@@ -23,11 +23,13 @@ lib/
 # Agent distribution and generated files
 certs/*.crt
 dropins/*/
+data_guilds.json
 export/
 data_guilds.json
 history-*.json
 metric*_base_names.json
 secrets.json
+secrets.*.json
 
 # filter-sourcecode.sh
 filter.txt

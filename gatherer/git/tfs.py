@@ -11,17 +11,19 @@ except ImportError:
 
 from builtins import str
 import itertools
+import json
 import logging
 import re
-import dateutil.tz
 from git import Commit
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..request import Session
-from ..table import Table, Link_Table
-from ..utils import format_date, convert_local_datetime, get_datetime, \
+from ..table import Table, Key_Table, Link_Table
+from ..vsts.parser import String_Parser, Int_Parser, Date_Parser, \
+    Unicode_Parser, Decimal_Parser, Tags_Parser, Developer_Parser
+from ..utils import format_date, convert_local_datetime, parse_utc_date, \
     parse_unicode, Iterator_Limiter
 from ..version_control.review import Review_System
 
@@ -75,9 +77,17 @@ class TFS_Project(object):
 
     def _get_url_candidates(self, area, path, project_collection=False):
         if self._project is None or project_collection is None:
+            if project_collection not in (None, True, False):
+                return [(self._url, project_collection, '_apis', area, path)]
+
             return [(self._url, '_apis', area, path)]
-        if project_collection:
+        if project_collection is True:
             return [(self._url, self._project, '_apis', area, path)]
+        if project_collection is not False:
+            return [(
+                self._url, self._project, project_collection, '_apis',
+                area, path
+            )]
 
         return [
             (self._url, self._project, '_apis', area, path), # TFS 2017+
@@ -136,16 +146,13 @@ class TFS_Project(object):
         params['api-version'] = api_version
 
         is_last_batch = False
-        url = None
+        url = '/'.join(self._get_url_candidates(area, path)[0])
         while not is_last_batch:
-            if url is None:
-                url = '/'.join(self._get_url_candidates(area, path)[0])
-
             result, error = self._perform_request(url, params)
             if result is None:
                 raise RuntimeError('Could not obtain continuation result: {}'.format(error))
 
-            is_last_batch = result['isLastBatch']
+            is_last_batch = result['isLastBatch'] and result['values']
             url = result['nextLink']
 
             for value in result['values']:
@@ -287,6 +294,22 @@ class TFS_Project(object):
         return self._get_iterator('projects',
                                   '{}/teams/{}/members'.format(project, team))
 
+    def sprints(self, project, team=None):
+        """
+        Retrieve information about sprints for a project or a project's team.
+
+        The sprint data is returned as an iterator.
+        """
+
+        if team is None:
+            project_collection = project
+        else:
+            project_collection = '{}/{}'.format(project, team)
+
+        return self._get('work', 'teamsettings/iterations',
+                         project_collection=project_collection,
+                         api_version='3.0')['value']
+
     def work_item_revisions(self, ids=None, fields=None, from_date=None):
         """
         Retrieve information about work items.
@@ -375,7 +398,19 @@ class TFS_Repository(Git_Repository, Review_System):
                                                ('merge_request_id', 'reviewer'),
                                                encrypt_fields=review_fields),
             "vcs_event": Table('vcs_event',
-                               encrypt_fields=('user', 'username', 'email'))
+                               encrypt_fields=('user', 'username', 'email')),
+            "tfs_team": Link_Table('tfs_team', ('repo_name', 'team_name')),
+            "tfs_team_member": Link_Table('tfs_team_member',
+                                          ('repo_name', 'team_name', 'user'),
+                                          encrypt_fields=('user', 'username')),
+            "tfs_sprint": Link_Table('tfs_sprint',
+                                     ('repo_name', 'team_name', 'sprint_name')),
+            "tfs_work_item": Link_Table('tfs_work_item',
+                                        ('issue_id', 'changelog_id'),
+                                        encrypt_fields=('reporter', 'assignee',
+                                                        'updated_by')),
+            "tfs_developer": Key_Table('tfs_developer', 'display_name',
+                                       encrypt_fields=('display_name', 'email'))
         })
         return review_tables
 
@@ -406,21 +441,6 @@ class TFS_Repository(Git_Repository, Review_System):
 
         return self._project_id
 
-    @staticmethod
-    def _parse_date(date):
-        if date.endswith('Z'):
-            date = date[:-1]
-        match = re.match(r'(.*)\.([0-9]{1,6})[0-9]*Z?$', date)
-        if match:
-            date = match.group(1)
-            microsecond = int(match.group(2))
-        else:
-            microsecond = 0
-
-        parsed_date = get_datetime(date, '%Y-%m-%dT%H:%M:%S')
-        return parsed_date.replace(microsecond=microsecond,
-                                   tzinfo=dateutil.tz.tzutc())
-
     @classmethod
     def _get_ssh_command(cls, source):
         ssh_command = super(TFS_Repository, cls)._get_ssh_command(source)
@@ -449,6 +469,11 @@ class TFS_Repository(Git_Repository, Review_System):
         for pull_request in self.api.pull_requests(repository_id):
             self.add_pull_request(repository_id, pull_request)
 
+        for team in self.api.teams(self.project_id):
+            self.add_team(team)
+
+        self.add_work_item_revisions()
+
         self.set_latest_date()
 
         return versions
@@ -472,9 +497,9 @@ class TFS_Repository(Git_Repository, Review_System):
         upvotes = len([1 for reviewer in reviewers if reviewer['vote'] > 0])
         downvotes = len([1 for reviewer in reviewers if reviewer['vote'] < 0])
 
-        created_date = self._parse_date(pull_request['creationDate'])
+        created_date = parse_utc_date(pull_request['creationDate'])
         if 'closedDate' in pull_request:
-            updated_date = self._parse_date(pull_request['closedDate'])
+            updated_date = parse_utc_date(pull_request['closedDate'])
 
             if not self._is_newer(updated_date):
                 return
@@ -568,8 +593,8 @@ class TFS_Repository(Git_Repository, Review_System):
         if 'isDeleted' in comment and comment['isDeleted']:
             return
 
-        created_date = self._parse_date(comment['publishedDate'])
-        updated_date = self._parse_date(comment['lastUpdatedDate'])
+        created_date = parse_utc_date(comment['publishedDate'])
+        updated_date = parse_utc_date(comment['lastUpdatedDate'])
         if not self._is_newer(updated_date):
             return
 
@@ -653,7 +678,7 @@ class TFS_Repository(Git_Repository, Review_System):
         if event['pushedBy']['uniqueName'].startswith('vstfs:///'):
             return
 
-        event_date = self._parse_date(event['date'])
+        event_date = parse_utc_date(event['date'])
         if not self._is_newer(event_date):
             return
 
@@ -684,3 +709,83 @@ class TFS_Repository(Git_Repository, Review_System):
                 'email': str(0),
                 'date': format_date(convert_local_datetime(event_date))
             })
+
+    def add_team(self, team):
+        """
+        Add team and team member data from the API to the associated tables.
+        """
+
+        team_name = parse_unicode(team['name'])
+        self._tables["tfs_team"].append({
+            'repo_name': str(self._repo_name),
+            'team_name': team_name,
+            'description': parse_unicode(team['description'])
+        })
+
+        for member in self.api.team_members(self.project_id, team['id']):
+            self._tables["tfs_team_member"].append({
+                'repo_name': str(self._repo_name),
+                'team_name': team_name,
+                'user': parse_unicode(member['displayName']),
+                'username': parse_unicode(member['uniqueName'])
+            })
+
+        for sprint in self.api.sprints(self.project_id, team['id']):
+            if sprint['attributes'].get('startDate') is not None:
+                start_date = parse_utc_date(sprint['attributes']['startDate'])
+            else:
+                start_date = str(0)
+
+            if sprint['attributes'].get('finishDate') is not None:
+                end_date = parse_utc_date(sprint['attributes']['finishDate'])
+            else:
+                end_date = str(0)
+
+            self._tables["tfs_sprint"].append({
+                'repo_name': str(self._repo_name),
+                'team_name': team_name,
+                'sprint_name': parse_unicode(sprint['name']),
+                'start_date': start_date,
+                'end_date': end_date,
+            })
+
+    def add_work_item_revisions(self):
+        """
+        Add work item revision data from the API.
+        """
+
+        parsers = [
+            String_Parser(), Int_Parser(), Date_Parser(), Unicode_Parser(),
+            Decimal_Parser(), Tags_Parser(),
+            Developer_Parser(self._tables)
+        ]
+        types = dict((parser.type, parser) for parser in parsers)
+
+        with open('vsts_fields.json') as vsts_fields_file:
+            work_item_fields = json.load(vsts_fields_file)
+
+        for properties in work_item_fields:
+            if "field" in properties:
+                properties["fields"] = [properties["field"]]
+
+        fields = set(props["fields"] for props in work_item_fields.values())
+        fields.discard(None)
+
+        from_date = self._update_trackers['tfs_update']
+        work_item_revisions = self.api.work_item_revisions(fields=list(fields),
+                                                           from_date=from_date)
+
+        for revision in work_item_revisions:
+            row = {
+                "issue_id": str(revision["id"]),
+                "changelog_id": str(revision["rev"])
+            }
+            for target, properties in work_item_fields.items():
+                parser = types[properties["type"]]
+                for field in properties["fields"]:
+                    if field in revision["fields"]:
+                        value = parser.parse(revision["fields"][field])
+                        row[target] = value
+                        break
+
+            self._tables["tfs_work_item"].append(row)
