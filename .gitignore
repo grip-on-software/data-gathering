@@ -24,6 +24,7 @@ lib/
 certs/*.crt
 dropins/*/
 export/
+data_guilds.json
 history-*.json
 metric*_base_names.json
 secrets.json
