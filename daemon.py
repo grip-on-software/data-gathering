@@ -156,7 +156,7 @@ class Gatherer(object):
             return ''
 
         salt, pepper = pair
-        return Salt.encrypt(value, salt, pepper)
+        return Salt.encrypt(value.encode('utf-8'), salt.encode('utf-8'), pepper.encode('utf-8'))
 
     def get_usernames(self, project_key):
         """
