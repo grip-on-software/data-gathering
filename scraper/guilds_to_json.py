@@ -34,6 +34,14 @@ class Schema(object):
 
         return None
 
+    @classmethod
+    def add_arguments(cls, parser):
+        """
+        Add command-line arguments to the parser.
+        """
+
+        raise NotImplementedError('Must be implemented by subclasses')
+
     def parse(self):
         """
         Parse the schema.
@@ -53,6 +61,7 @@ class Excel_Schema(Schema):
         super(Excel_Schema, self).__init__(config, path)
         self._workbook = xlrd.open_workbook(path)
         self._worksheet = self._workbook.sheet_by_index(0)
+        self._placeholders = self._config.get('placeholders')
 
     def _find_types(self):
         columns = self._config.get('columns')
@@ -64,34 +73,44 @@ class Excel_Schema(Schema):
 
         return types
 
-    def _get_guild(self, row, types, placeholders):
+    def _set_date(self, guild_date, col_type, value):
+        if "value" in col_type and value != '':
+            guild_date[col_type["type"]] = col_type["value"]
+        if col_type["type"] == "week":
+            try:
+                guild_date["week"] = int(value)
+            except ValueError:
+                pass
+        else:
+            try:
+                guild_date["date"] = xlrd.xldate.xldate_as_datetime(value, self._workbook.datemode)
+            except ValueError:
+                pass
+
+    def _check_placeholder(self, col_type, value):
+        for placeholder in self._placeholders.get(col_type, []):
+            if placeholder in value:
+                value = ''
+
+        if value == '' and col_type == 'topic':
+            return None
+
+        return value.strip()
+
+    def _get_guild(self, row, types):
         guild_date = {}
         guild = {}
         for col, col_type in types.items():
             value = self._worksheet.cell_value(row, col)
 
             if isinstance(col_type, dict):
-                if "value" in col_type and value != '':
-                    guild_date[col_type["type"]] = col_type["value"]
-                if col_type["type"] == "week":
-                    try:
-                        guild_date["week"] = int(value)
-                    except ValueError:
-                        pass
-                else:
-                    try:
-                        guild_date["date"] = xlrd.xldate.xldate_as_datetime(value, self._workbook.datemode)
-                    except ValueError:
-                        pass
+                self._set_date(guild_date, col_type, value)
             else:
-                for placeholder in placeholders.get(col_type, []):
-                    if placeholder in value:
-                        value = ''
-
-                if value == '' and col_type == 'topic':
+                value = self._check_placeholder(col_type, value)
+                if value is None:
                     return None
 
-                guild[col_type] = value.strip()
+                guild[col_type] = value
 
         date = self._validate_date(guild_date)
         if date is None:
@@ -100,13 +119,18 @@ class Excel_Schema(Schema):
         guild["date"] = format_date(date)
         return guild
 
+    @classmethod
+    def add_arguments(cls, parser):
+        group = parser.add_argument_group('Excel', 'Excel parser')
+        group.add_argument('--filename', help='Excel file name',
+                           default='Guilds.xls')
+
     def parse(self):
         guilds = []
 
         types = self._find_types()
-        placeholders = self._config.get('placeholders')
         for row in range(self.SKIP_ROWS + 1, self._worksheet.nrows):
-            guild = self._get_guild(row, types, placeholders)
+            guild = self._get_guild(row, types)
             if guild is not None:
                 guilds.append(guild)
 
@@ -119,8 +143,7 @@ def parse_args():
 
     description = "Obtain guild dates from Excel and output JSON"
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--filename', help='Excel file name',
-                        default='Guilds.xls')
+    Excel_Schema.add_arguments(parser)
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
