@@ -190,15 +190,22 @@ class Git_Repository(Version_Control_Repository):
         then the local repository is deleted and a clone is attempted.
         This method raises a `RepositorySourceException` if a clone fails, or
         if a pull fails and `force` is not enabled.
+
+        If `pull` is disabled, then no pull for an existing repository is
+        attempted at all and `force` has no effect.
         """
 
         checkout = kwargs.pop('checkout', False)
         shallow = kwargs.pop('shallow', False)
         shared = kwargs.pop('shared', False)
         force = kwargs.pop('force', False)
+        pull = kwargs.pop('pull', False)
 
         repository = cls(source, repo_directory, **kwargs)
         if os.path.exists(repo_directory):
+            if not pull:
+                return repository
+
             try:
                 repository.pull(shallow=shallow, shared=shared,
                                 checkout=checkout, force=force)
@@ -420,6 +427,9 @@ class Git_Repository(Version_Control_Repository):
     def update(self, shallow=False, checkout=True):
         # Update the repository from the origin URL.
         try:
+            if not self.repo.remotes:
+                raise RepositorySourceException('No remotes defined for repository')
+
             self._prev_head = self.repo.head.commit
             if shallow:
                 self.repo.remotes.origin.fetch(self.default_branch, depth=1,

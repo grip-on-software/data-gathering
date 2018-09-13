@@ -23,6 +23,8 @@ def parse_args():
                         help="Ignore credential host changes and use the original host instead")
     parser.add_argument("--force", action="store_true", default=False,
                         help="Delete and clone repository is pull fails")
+    parser.add_argument("--no-pull", action="store_false", default=True,
+                        dest="pull", help="Do not pull existing repositories")
     Log_Setup.add_argument(parser)
     Log_Setup.add_upload_arguments(parser)
     args = parser.parse_args()
@@ -38,7 +40,7 @@ def main():
     project = Project(args.project, follow_host_change=args.follow_host_change)
 
     holder = Repositories_Holder(project, args.repos)
-    holder.process(args.force)
+    holder.process(force=args.force, pull=args.pull)
 
 if __name__ == "__main__":
     main()

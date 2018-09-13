@@ -89,7 +89,7 @@ class Repositories_Holder(object):
             if table_name not in tables:
                 tables[table_name] = []
 
-    def get_repositories(self, tables, force=False):
+    def get_repositories(self, tables, force=False, pull=True):
         """
         Retrieve repository objects for all involved version control systems.
 
@@ -98,7 +98,8 @@ class Repositories_Holder(object):
         cannot be updated or retrieved are skipped unless `force` is given and
         the repository can be retrieved in full instead of updating from the
         working directory. The `force` option removes working directories that
-        encounter problems to achieve this.
+        encounter problems to achieve this. The `pull` option allows skipping
+        updates of the repository.
 
         Returns a generator that can be iterated over.
         """
@@ -120,7 +121,8 @@ class Repositories_Holder(object):
                 repo = repo_class.from_source(source, path,
                                               project=self._project,
                                               sprints=self._sprints,
-                                              force=force)
+                                              force=force,
+                                              pull=pull)
             except RepositorySourceException:
                 logging.exception('Cannot retrieve repository source for %s',
                                   source.name)
