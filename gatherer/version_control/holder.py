@@ -133,12 +133,14 @@ class Repositories_Holder(object):
             if not repo.is_empty():
                 yield repo
 
-    def process(self, force=False):
+    def process(self, force=False, pull=True):
         """
         Perform all actions required for retrieving updated commit data of all
         the repositories and exporting it to JSON. If `force` is set to `True`,
         then repositories that cannot be updated can be deleted locally and
-        retrieved.
+        retrieved. If `pull` is set to `False`, then repositories are not
+        updated locally is there already is a local state of the repository
+        at the appropriate directory location.
         """
 
         self._load_latest_versions()
@@ -146,7 +148,7 @@ class Repositories_Holder(object):
         encrypt_fields = ('developer', 'developer_username', 'developer_email')
         versions = Table('vcs_versions', encrypt_fields=encrypt_fields)
         tables = {}
-        for repo in self.get_repositories(tables, force=force):
+        for repo in self.get_repositories(tables, force=force, pull=pull):
             try:
                 self._process_repo(repo, versions, tables, force=force)
             except (RepositorySourceException, RepositoryDataException):
