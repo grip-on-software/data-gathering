@@ -766,7 +766,7 @@ class TFS_Repository(Git_Repository, Review_System):
         with open('vsts_fields.json') as vsts_fields_file:
             work_item_fields = json.load(vsts_fields_file)
 
-        for properties in work_item_fields:
+        for properties in work_item_fields.values():
             if "field" in properties:
                 properties["fields"] = [properties["field"]]
 
