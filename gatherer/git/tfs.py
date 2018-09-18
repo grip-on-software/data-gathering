@@ -770,7 +770,7 @@ class TFS_Repository(Git_Repository, Review_System):
             if "field" in properties:
                 properties["fields"] = [properties["field"]]
 
-        fields = set(prop for prop in props["fields"] for props in work_item_fields.values())
+        fields = set(prop for props in work_item_fields.values() for prop in props["fields"])
         fields.discard(None)
 
         from_date = self._update_trackers['tfs_update']
