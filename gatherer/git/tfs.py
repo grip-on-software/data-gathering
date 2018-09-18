@@ -84,10 +84,7 @@ class TFS_Project(object):
         if project_collection is True:
             return [(self._url, self._project, '_apis', area, path)]
         if project_collection is not False:
-            return [(
-                self._url, self._project, project_collection, '_apis',
-                area, path
-            )]
+            return [(self._url, project_collection, '_apis', area, path)]
 
         return [
             (self._url, self._project, '_apis', area, path), # TFS 2017+
