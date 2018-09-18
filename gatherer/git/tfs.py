@@ -454,20 +454,8 @@ class TFS_Repository(Git_Repository, Review_System):
                                                         force=force,
                                                         **kwargs)
 
-        try:
-            repository_id = self.api.get_repository_id(self._source.tfs_repo)
-        except (RuntimeError, ValueError):
-            logging.exception('Could not retrieve repository ID for %s',
-                              self._source.tfs_repo)
-            return versions
-
-        events = self.api.pushes(repository_id, refs=True,
-                                 from_date=self._update_trackers['tfs_update'])
-        for event in events:
-            self.add_event(event)
-
-        for pull_request in self.api.pull_requests(repository_id):
-            self.add_pull_request(repository_id, pull_request)
+        if self._source.tfs_repo is not None:
+            self._get_repo_data()
 
         for team in self.api.teams(self.project_id):
             self.add_team(team)
@@ -477,6 +465,22 @@ class TFS_Repository(Git_Repository, Review_System):
         self.set_latest_date()
 
         return versions
+
+    def _get_repo_data(self):
+        try:
+            repository_id = self.api.get_repository_id(self._source.tfs_repo)
+        except (RuntimeError, ValueError):
+            logging.exception('Could not retrieve repository ID for %s',
+                              self._source.tfs_repo)
+            return
+
+        events = self.api.pushes(repository_id, refs=True,
+                                 from_date=self._update_trackers['tfs_update'])
+        for event in events:
+            self.add_event(event)
+
+        for pull_request in self.api.pull_requests(repository_id):
+            self.add_pull_request(repository_id, pull_request)
 
     def add_pull_request(self, repository_id, pull_request):
         """
@@ -776,16 +780,19 @@ class TFS_Repository(Git_Repository, Review_System):
                                                            from_date=from_date)
 
         for revision in work_item_revisions:
-            row = {
-                "issue_id": str(revision["id"]),
-                "changelog_id": str(revision["rev"])
-            }
-            for target, properties in work_item_fields.items():
-                parser = types[properties["type"]]
-                for field in properties["fields"]:
-                    if field in revision["fields"]:
-                        value = parser.parse(revision["fields"][field])
-                        row[target] = value
-                        break
+            self._add_work_item_revision(revision, work_item_fields, types)
 
-            self._tables["tfs_work_item"].append(row)
+    def _add_work_item_revision(self, revision, work_item_fields, types):
+        row = {
+            "issue_id": str(revision["id"]),
+            "changelog_id": str(revision["rev"])
+        }
+        for target, properties in work_item_fields.items():
+            parser = types[properties["type"]]
+            for field in properties["fields"]:
+                if field in revision["fields"]:
+                    value = parser.parse(revision["fields"][field])
+                    row[target] = value
+                    break
+
+        self._tables["tfs_work_item"].append(row)
