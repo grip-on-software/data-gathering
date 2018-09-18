@@ -292,7 +292,8 @@ class TFS_Project(object):
         """
 
         return self._get_iterator('projects',
-                                  '{}/teams/{}/members'.format(project, team))
+                                  '{}/teams/{}/members'.format(project, team),
+                                  project_collection=None)
 
     def sprints(self, project, team=None):
         """
