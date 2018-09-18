@@ -64,6 +64,10 @@ class Repositories_Holder(object):
         # process if it is considered up to date, which might also mean
         # that auxiliary table data is not retrieved. Repository classes
         # must override is_up_to_date to support auxliary data updates.
+        #
+        # This check if performed by `get_repositories` before including the
+        # repository in the update/retrieve cycle, but is skipped if its `pull`
+        # parameter is disabled.
         if source.name in self._latest_versions:
             latest_version = self._latest_versions[source.name]
             update_tracker = None
@@ -99,7 +103,8 @@ class Repositories_Holder(object):
         the repository can be retrieved in full instead of updating from the
         working directory. The `force` option removes working directories that
         encounter problems to achieve this. The `pull` option allows skipping
-        updates of the repository.
+        local updates of the repository while still obtaining the current
+        versions as well as any auxiliary data.
 
         Returns a generator that can be iterated over.
         """
@@ -113,7 +118,7 @@ class Repositories_Holder(object):
 
             self._init_tables(repo_class, tables)
 
-            if self._check_up_to_date(source, repo_class):
+            if pull and self._check_up_to_date(source, repo_class):
                 continue
 
             path = os.path.join(self._repo_directory, source.path_name)
