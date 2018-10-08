@@ -6,11 +6,11 @@ from past.builtins import basestring
 from builtins import str
 import logging
 import re
-import jira.resources as resources
+import jira.resources as jira_resources
 from .base import Table_Source
 from ..utils import parse_date, parse_unicode
 
-class StatusCategory(resources.Resource):
+class StatusCategory(jira_resources.Resource):
     """
     Specialized resource for status category field.
     """
@@ -20,7 +20,7 @@ class StatusCategory(resources.Resource):
         if raw:
             self._parse_raw(raw)
 
-resources.resource_class_map[r'statuscategory/[^/]+$'] = StatusCategory
+jira_resources.resource_class_map[r'statuscategory/[^/]+$'] = StatusCategory
 
 class Field_Parser(Table_Source):
     """
@@ -201,25 +201,24 @@ class Sprint_Parser(Field_Parser):
 
         sprint_id = int(sprint_data["id"])
 
-        if self._has(sprint_data, "endDate") and \
-            self._has(sprint_data, "startDate"):
-            row = {
-                "id": str(sprint_id),
-                "name": str(sprint_data["name"]),
-                "start_date": parse_date(sprint_data["startDate"]),
-                "end_date": parse_date(sprint_data["endDate"])
-            }
+        row = {
+            "id": str(sprint_id),
+            "name": str(sprint_data["name"]),
+        }
 
-            if self._has(sprint_data, "completeDate"):
-                row["complete_date"] = parse_date(sprint_data["completeDate"])
+        if self._has(sprint_data, "endDate"):
+            row["start_date"] = parse_date(sprint_data["startDate"])
+        if self._has(sprint_data, "startDate"):
+            row["end_date"] = parse_date(sprint_data["endDate"])
+        if self._has(sprint_data, "completeDate"):
+            row["complete_date"] = parse_date(sprint_data["completeDate"])
 
-            if self._has(sprint_data, "goal"):
-                row["goal"] = parse_unicode(sprint_data["goal"])
+        if self._has(sprint_data, "goal"):
+            row["goal"] = parse_unicode(sprint_data["goal"])
+        if self._has(sprint_data, "rapidViewId"):
+            row["board_id"] = int(sprint_data["rapidViewId"])
 
-            if self._has(sprint_data, "rapidViewId"):
-                row["board_id"] = int(sprint_data["rapidViewId"])
-
-            self.jira.get_table("sprint").append(row)
+        self.jira.get_table("sprint").append(row)
 
         return sprint_id
 
@@ -265,10 +264,11 @@ class Developer_Parser(Field_Parser):
                 })
 
             return encoded_name
-        elif isinstance(value, str):
+
+        if isinstance(value, str):
             return parse_unicode(value)
-        else:
-            return None
+
+        return None
 
     @property
     def table_name(self):
@@ -493,7 +493,7 @@ class Labels_Parser(Field_Parser):
         # Count the number of labels.
         if isinstance(value, list):
             return str(len(value))
-        elif isinstance(value, str) and value != "":
+        if isinstance(value, str) and value != "":
             return str(len(value.split(' ')))
 
         return str(0)
