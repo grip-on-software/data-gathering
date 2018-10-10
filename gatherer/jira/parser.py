@@ -223,7 +223,7 @@ class Sprint_Parser(Field_Parser):
         return sprint_id
 
     def parse_changelog(self, change, value, diffs):
-        if change['from'] is None:
+        if change['from'] is None or change['from'] == '':
             return None
 
         return [int(sprint) for sprint in change['from'].split(', ')]
