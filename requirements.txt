@@ -1,6 +1,6 @@
 # Pip requirements file
 # gatherer.jira
-jira
+git+https://github.com/pycontribs/jira.git@8306c3d3fd03eec7749d9d288b5c8e8a7dde9b28#egg=jira
 # gatherer.git
 gitpython>=2.1.8
 PyGithub
@@ -14,7 +14,7 @@ mock
 git+https://github.com/wekan/wekan-python-api-client.git@master#egg=wekanapi&subdirectory=src
 quality_report<=1.79.3; python_version < '3.0'
 quality_report>=2.21.0; python_version >= '3.0'
-git+https://github.com/dsoprea/PySvn.git@06de88419044f0241747f7259f440680992cfc22#egg=svn
+svn>=0.3.45
 enum34; python_version < '3.4'
 # gatherer.utils
 python-dateutil>=2.7.0
