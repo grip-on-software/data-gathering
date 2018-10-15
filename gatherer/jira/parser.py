@@ -6,21 +6,8 @@ from past.builtins import basestring
 from builtins import str
 import logging
 import re
-import jira.resources as jira_resources
 from .base import Table_Source
 from ..utils import parse_date, parse_unicode
-
-class StatusCategory(jira_resources.Resource):
-    """
-    Specialized resource for status category field.
-    """
-
-    def __init__(self, options, session, raw=None):
-        super(StatusCategory, self).__init__('statuscategory/{0}', options, session)
-        if raw:
-            self._parse_raw(raw)
-
-jira_resources.resource_class_map[r'statuscategory/[^/]+$'] = StatusCategory
 
 class Field_Parser(Table_Source):
     """
@@ -149,6 +136,25 @@ class Sprint_Parser(Field_Parser):
     ID is correct for this issue version.
     """
 
+    def __init__(self, jira):
+        super(Sprint_Parser, self).__init__(jira)
+        self.jira.register_prefetcher(self.prefetch)
+
+    def prefetch(self, query):
+        """
+        Retrieve data about all sprints for the project registered
+        in Jira using the query API, and store the data in a table.
+        """
+
+        project_key = self.jira.project.jira_key
+        for board in query.api.boards(projectKeyOrID=project_key):
+            if hasattr(board, 'filter'):
+                logging.info('Cannot prefetch sprints from old Agile API')
+                return
+
+            for sprint in query.api.sprints(board.id, maxResults=False):
+                self._parse_sprint_data(sprint.raw)
+
     @classmethod
     def _split_sprint(cls, sprint):
         sprint_data = {}
@@ -199,6 +205,9 @@ class Sprint_Parser(Field_Parser):
         if not sprint_data:
             return None
 
+        return self._parse_sprint_data(sprint_data)
+
+    def _parse_sprint_data(self, sprint_data):
         sprint_id = int(sprint_data["id"])
 
         row = {
@@ -217,6 +226,8 @@ class Sprint_Parser(Field_Parser):
             row["goal"] = parse_unicode(sprint_data["goal"])
         if self._has(sprint_data, "rapidViewId"):
             row["board_id"] = int(sprint_data["rapidViewId"])
+        if self._has(sprint_data, "originBoardId"):
+            row["board_id"] = int(sprint_data["originBoardId"])
 
         self.jira.get_table("sprint").append(row)
 

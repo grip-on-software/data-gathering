@@ -26,10 +26,18 @@ class Jira(Source):
     def __init__(self, *args, **kwargs):
         self._username = kwargs.pop('username', None)
         self._password = kwargs.pop('password', None)
+        self._agile_path = JIRA.DEFAULT_OPTIONS["agile_rest_path"]
         self._jira_api = None
         self._version = None
 
         super(Jira, self).__init__(*args, **kwargs)
+
+    def _update_credentials(self):
+        orig_parts, host = super(Jira, self)._update_credentials()
+        if self.has_option(host, 'agile_rest_path'):
+            self._agile_path = self._credentials.get(host, 'agile_rest_path')
+
+        return orig_parts, host
 
     @property
     def environment(self):
@@ -53,6 +61,14 @@ class Jira(Source):
         return self._version
 
     @property
+    def jira_agile_path(self):
+        """
+        Retrieve the REST path to use for JIRA Agile requests.
+        """
+
+        return self._agile_path
+
+    @property
     def jira_api(self):
         """
         Retrieve the JIRA API object for this source.
@@ -60,7 +76,8 @@ class Jira(Source):
 
         if self._jira_api is None:
             options = {
-                "server": self.plain_url
+                "server": self.plain_url,
+                "agile_rest_path": self._agile_path
             }
 
             parts = urllib.parse.urlsplit(self.url)
