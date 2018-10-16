@@ -157,14 +157,19 @@ class Sources(MutableSet):
 
     def find_source_type(self, source_type):
         """
-        Retrieve a `Source` object for a specific source type.
+        Retrieve the first found `Source` object for a specific source type.
+        """
+
+        return next(self.find_sources_by_type(source_type))
+
+    def find_sources_by_type(self, source_type):
+        """
+        Provide a generator with `Source` objects for a specific source type.
         """
 
         for source in self._sources:
             if isinstance(source, source_type):
-                return source
-
-        return None
+                yield source
 
     def export(self):
         """

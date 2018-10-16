@@ -4,6 +4,8 @@ Script to obtain the base names of all metrics used in HQ.
 
 import argparse
 import json
+import logging
+from requests.exceptions import ConnectionError, Timeout
 from gatherer.config import Configuration
 from gatherer.log import Log_Setup
 from gatherer.request import Session
@@ -34,7 +36,18 @@ def main():
     """
 
     args = parse_args()
-    meta_data = Session().get(args.url).json()
+    try:
+        request = Session().get(args.url)
+    except (ConnectionError, Timeout):
+        logging.exception('Could not obtain metrics base names')
+        return
+
+    try:
+        meta_data = request.json()
+    except ValueError:
+        logging.exception('Could not parse metrics base names')
+        return
+
     base_names = [metric["id"] for metric in meta_data["metrics"]]
     with open(args.file, 'w') as output_file:
         json.dump(base_names, output_file)

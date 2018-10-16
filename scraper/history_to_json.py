@@ -289,11 +289,11 @@ class Url(Location):
 class Data_Source(object):
     """
     Object holding properties, path/URL, and possibly open file descriptor
-    for a history data source.
+    for one or more history data sources.
     """
 
-    def __init__(self, source, locations, open_file=None):
-        self._source = source
+    def __init__(self, sources, locations, open_file=None):
+        self._sources = sources
         if isinstance(locations, Location):
             self._locations = (locations,)
         elif len(locations) < 1:
@@ -304,13 +304,13 @@ class Data_Source(object):
         self._file = open_file
 
     @property
-    def source(self):
+    def sources(self):
         """
-        Retrieve the `History` source object which was involved in locating
-        the history file, or `None` if there is no such source object.
+        Retrieve the `History` source objects which were involved in locating
+        the history file, or an empty list if there are no such source objects.
         """
 
-        return self._source
+        return self._sources
 
     @property
     def locations(self):
@@ -347,29 +347,30 @@ class Data_Source(object):
             self._file.close()
             self._file = None
 
-def get_filename(project, source, args):
+def get_filename(project, sources, args):
     """
     Retrieve the file name of the history file. This name, without any preceding
-    paths, may be set from a command line argument, the history source, or the
+    paths, may be set from a command line argument, the history sources, or the
     (project-specific) settings configuration, in that order of precedence.
     """
 
     if args.filename is not None:
         return args.filename
 
-    if source is not None:
-        return source.file_name
+    for source in sources:
+        if source.file_name is not None:
+            return source.file_name
 
     return project.get_key_setting('history', 'filename')
 
-def get_filename_compression(project, source, args):
+def get_filename_compression(project, sources, args):
     """
     Retrieve the file name of the history file and the compression to be used
     to read the file. The file name is adjusted to contain the compression
     extension.
     """
 
-    filename = get_filename(project, source, args)
+    filename = get_filename(project, sources, args)
     compression = get_setting(args.compression, 'compression', project)
     if compression and os.path.splitext(filename)[1] != compression:
         filename += "." + compression
@@ -406,8 +407,8 @@ def get_data_source(project, args):
     # environment settings. See `get_filename` for details. We adjust the
     # filename to contain the compression extension if it did not have one;
     # note that we do not remove extensions if compression is disabled.
-    source = project.sources.find_source_type(History)
-    filename, compression = get_filename_compression(project, source, args)
+    sources = list(project.sources.find_sources_by_type(History))
+    filename, compression = get_filename_compression(project, sources, args)
 
     if args.export_path is not None:
         # Path to a local directory or a repository target for a GitLab URL.
@@ -420,13 +421,13 @@ def get_data_source(project, args):
             if gitlab_url is not None:
                 locations.append(Url(gitlab_url, compression=compression))
             logging.info('Found metrics history path: %s', locations[0])
-            yield Data_Source(source, locations)
+            yield Data_Source(sources, locations)
             return
     elif args.path is not None:
         # Path to a directory with a local file that can be opened.
         path = Path(args.path, filename, compression)
         opener = get_file_opener(compression)
-        yield Data_Source(source, path, open_file=opener(path, 'r'))
+        yield Data_Source(sources, path, open_file=opener(path, 'r'))
         return
 
     if args.export_url is not None:
@@ -436,7 +437,7 @@ def get_data_source(project, args):
         if parts is not None:
             url = Url(parts, filename, compression)
             logging.info('Found metrics history URL: %s', url)
-            yield Data_Source(source, url)
+            yield Data_Source(sources, url)
             return
     elif args.url is not None:
         # URL prefix to a specific download location.
@@ -449,7 +450,7 @@ def get_data_source(project, args):
         else:
             open_file = stream
 
-        yield Data_Source(source, url, open_file=open_file)
+        yield Data_Source(sources, url, open_file=open_file)
         return
 
     raise RuntimeError('No valid metrics history source defined')
@@ -482,13 +483,21 @@ def update_source(project, data):
 
     for location in data.locations:
         if not location.local:
-            name = data.source.name if data.source is not None else project.key
-            source = Source.from_type('metric_history',
-                                      name=name,
-                                      url=location.parts[0])
-            if data.source is not None:
-                project.sources.remove(data.source)
-            project.sources.add(source)
+            source_name = project.key
+            file_name = ''
+            for source in data.sources:
+                if source.file_name is not None:
+                    source_name = data.source.name
+                    file_name = data.source.file_name
+                    break
+
+            url = '{}/{}'.format(location.parts[0], file_name)
+            new_source = Source.from_type('metric_history',
+                                          name=source_name,
+                                          url=url)
+            for source in data.sources:
+                project.sources.remove(source)
+            project.sources.add(new_source)
             project.export_sources()
 
             break
@@ -512,7 +521,7 @@ def main():
 
             if args.compact is not None:
                 is_compact = args.compact
-            elif data.source is not None and data.source.is_compact:
+            elif any(source.is_compact for source in data.sources):
                 is_compact = True
             else:
                 is_compact = False

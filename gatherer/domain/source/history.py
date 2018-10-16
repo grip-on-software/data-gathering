@@ -35,7 +35,11 @@ class History(Source):
         Retrieve the file name from the "URL" of the source.
         """
 
-        return self.url.split('/')[-1]
+        part = self.url.split('/')[-1]
+        if '.' not in part:
+            return None
+
+        return part
 
     @property
     def is_compact(self):
@@ -46,8 +50,8 @@ class History(Source):
         if self._type == 'compact-history':
             return True
 
-        if self.file_name.startswith('compact_history.json'):
-            return True
+        if self.file_name is not None:
+            return self.file_name.startswith('compact_history.json')
 
         return False
 
