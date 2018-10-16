@@ -487,8 +487,8 @@ def update_source(project, data):
             file_name = ''
             for source in data.sources:
                 if source.file_name is not None:
-                    source_name = data.source.name
-                    file_name = data.source.file_name
+                    source_name = source.name
+                    file_name = source.file_name
                     break
 
             url = '{}/{}'.format(location.parts[0], file_name)
