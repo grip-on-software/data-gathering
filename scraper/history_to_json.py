@@ -407,7 +407,7 @@ def get_data_source(project, args):
     # environment settings. See `get_filename` for details. We adjust the
     # filename to contain the compression extension if it did not have one;
     # note that we do not remove extensions if compression is disabled.
-    sources = list(project.sources.find_sources_by_type(History))
+    sources = set(project.sources.find_sources_by_type(History))
     filename, compression = get_filename_compression(project, sources, args)
 
     if args.export_path is not None:

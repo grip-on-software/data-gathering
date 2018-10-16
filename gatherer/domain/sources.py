@@ -157,10 +157,14 @@ class Sources(MutableSet):
 
     def find_source_type(self, source_type):
         """
-        Retrieve the first found `Source` object for a specific source type.
+        Retrieve the first found `Source` object for a specific source type,
+        or `None` if there is no such object.
         """
 
-        return next(self.find_sources_by_type(source_type))
+        try:
+            return next(self.find_sources_by_type(source_type))
+        except StopIteration:
+            return None
 
     def find_sources_by_type(self, source_type):
         """
