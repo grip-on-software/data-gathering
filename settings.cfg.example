@@ -18,6 +18,7 @@ filename = $HISTORY_FILENAME
 delete = $HISTORY_DELETE
 [metrics]
 url = $METRICS_URL
+host = $METRICS_HOST
 [gitlab]
 url = $GITLAB_URL
 repo = $GITLAB_REPO

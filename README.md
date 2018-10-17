@@ -305,8 +305,12 @@ the setting is not used in this environment.
     fully support shallow fetches due to which file updates are not available.
 - metrics (used by `retrieve_metrics_base_names.py`): Quality dashboard report
   locations containing metadata for live metrics.
+  - `host` (`$METRICS_HOST`): The HTTP(S) base name from which the metrics data
+    can be obtained for projects in subdirectories by their quality metrics
+    name. A JSON formatted metrics report file `json/metrics.json` must be 
+    available in such a subdirectory.
   - `url` (`$METRICS_URL`): The HTTP(S) URL from which the metrics metadata can
-    be obtained.
+    be obtained. This must be a URL to a metrics metadata formatted JSON file.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
