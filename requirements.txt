@@ -17,7 +17,7 @@ quality_report>=2.21.0; python_version >= '3.0'
 svn>=0.3.45
 enum34; python_version < '3.4'
 # gatherer.utils
-python-dateutil>=2.7.0
+git+https://github.com/dateutil/dateutil@770b8f05e0f4de22a2cae4c6ac81c8df725369e7#egg=python-dateutil
 # gatherer.database
 pymonetdb
 # gatherer.files
