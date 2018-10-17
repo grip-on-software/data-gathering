@@ -13,6 +13,7 @@ from builtins import str
 import itertools
 import json
 import logging
+import os.path
 import re
 from git import Commit
 from requests.auth import HTTPBasicAuth
@@ -755,6 +756,10 @@ class TFS_Repository(Git_Repository, Review_System):
         """
         Add work item revision data from the API.
         """
+
+        if not os.path.exists('vsts_fields.json'):
+            logging.info('Skipping collection of work items; no fields known')
+            return
 
         parsers = [
             String_Parser(), Int_Parser(), Date_Parser(), Unicode_Parser(),
