@@ -23,8 +23,8 @@ from ..request import Session
 from ..table import Table, Key_Table, Link_Table
 from ..vsts.parser import String_Parser, Int_Parser, Date_Parser, \
     Unicode_Parser, Decimal_Parser, Tags_Parser, Developer_Parser
-from ..utils import format_date, convert_local_datetime, parse_utc_date, \
-    parse_unicode, Iterator_Limiter
+from ..utils import get_local_datetime, parse_utc_date, parse_unicode, \
+    Iterator_Limiter
 from ..version_control.review import Review_System
 
 class TFS_Project(object):
@@ -128,8 +128,8 @@ class TFS_Project(object):
                 if options.get('empty_on_error', False):
                     # The TFS API sometimes returns an error for empty results.
                     return
-                else:
-                    raise
+
+                raise
 
             if result['count'] > 0:
                 had_value = True
@@ -503,7 +503,7 @@ class TFS_Repository(Git_Repository, Review_System):
         if 'closedDate' in pull_request:
             updated_date = parse_utc_date(pull_request['closedDate'])
 
-            if not self._is_newer(updated_date):
+            if not self._is_newer(get_local_datetime(updated_date)):
                 return
         else:
             updated_date = created_date
@@ -527,8 +527,8 @@ class TFS_Repository(Git_Repository, Review_System):
             'assignee_username': str(0),
             'upvotes': str(upvotes),
             'downvotes': str(downvotes),
-            'created_at': format_date(convert_local_datetime(created_date)),
-            'updated_at': format_date(convert_local_datetime(updated_date))
+            'created_at': created_date,
+            'updated_at': updated_date
         })
 
         for reviewer in reviewers:
@@ -597,7 +597,7 @@ class TFS_Repository(Git_Repository, Review_System):
 
         created_date = parse_utc_date(comment['publishedDate'])
         updated_date = parse_utc_date(comment['lastUpdatedDate'])
-        if not self._is_newer(updated_date):
+        if not self._is_newer(get_local_datetime(updated_date)):
             return
 
         if 'authorDisplayName' in comment or 'uniqueName' not in author:
@@ -621,8 +621,8 @@ class TFS_Repository(Git_Repository, Review_System):
             'author': parse_unicode(display_name),
             'author_username': parse_unicode(unique_name),
             'comment': parse_unicode(comment['content']),
-            'created_at': format_date(convert_local_datetime(created_date)),
-            'updated_at': format_date(convert_local_datetime(updated_date))
+            'created_at': created_date,
+            'updated_at': updated_date
         }
 
         # Determine whether to add as commit comment or request note
@@ -681,7 +681,7 @@ class TFS_Repository(Git_Repository, Review_System):
             return
 
         event_date = parse_utc_date(event['date'])
-        if not self._is_newer(event_date):
+        if not self._is_newer(get_local_datetime(event_date)):
             return
 
         for ref_update in event['refUpdates']:
@@ -709,7 +709,7 @@ class TFS_Repository(Git_Repository, Review_System):
                 'user': parse_unicode(event['pushedBy']['displayName']),
                 'username': parse_unicode(event['pushedBy']['uniqueName']),
                 'email': str(0),
-                'date': format_date(convert_local_datetime(event_date))
+                'date': event_date
             })
 
     def add_team(self, team):
