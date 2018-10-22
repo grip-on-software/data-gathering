@@ -151,6 +151,9 @@ class Sprint_Parser(Field_Parser):
             if hasattr(board, 'filter'):
                 logging.info('Cannot prefetch sprints from old Agile API')
                 return
+            if hasattr(board, 'type') and board.type != 'scrum':
+                logging.info('Skipping non-Scrum board #%d', board.id)
+                continue
 
             for sprint in query.api.sprints(board.id, maxResults=False):
                 self._parse_sprint_data(sprint.raw)
