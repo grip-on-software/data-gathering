@@ -204,7 +204,7 @@ class Version_Control_Repository(object):
 
         raise NotImplementedError("Must be implemented by subclass")
 
-    def update(self, shallow=False, checkout=True):
+    def update(self, shallow=False, checkout=True, branch=None):
         """
         Update the local state of the repository to its latest upstream state.
 
@@ -218,13 +218,16 @@ class Version_Control_Repository(object):
         available. If it is `False`, then the current state files need not be
         stored explicitly on the filesystem.
 
+        If `branch` is not `None`, then change to a different branch if this
+        is possible for this repository type.
+
         If the repository cannot be updated due to a source issue, then this
         method may raise a `RepositorySourceException`.
         """
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout(self, paths=None, shallow=False):
+    def checkout(self, paths=None, shallow=False, branch=None):
         """
         Create a local state of the repository based on the current uptream
         state or a part of it.
@@ -238,13 +241,16 @@ class Version_Control_Repository(object):
         If `shallow` is `True`, then check out as few commits from the remote
         repository as possible.
 
+        If `branch` is not `None`, then change to a different branch if this
+        is possible for this repository type.
+
         If the repository cannot be updated due to a source issue, then this
         method may raise a `RepositorySourceException`.
         """
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout_sparse(self, paths, remove=False, shallow=False):
+    def checkout_sparse(self, paths, remove=False, shallow=False, branch=None):
         """
         Update information and checked out files in the local state of the
         repository such that it also contains the given list of `paths`.
@@ -262,6 +268,9 @@ class Version_Control_Repository(object):
 
         If sparse checkouts are not supported, then this method simply updates
         the (entire) repository such that all paths are up to date.
+
+        If `branch` is not `None`, then change to a different branch if this
+        is possible for this repository type.
 
         If the repository cannot be updated due to a source issue, then this
         method may raise a `RepositorySourceException`.

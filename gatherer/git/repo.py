@@ -139,7 +139,7 @@ class Git_Repository(Version_Control_Repository):
         # tag as end point instead. Otherwise, the range can be limited by
         # a starting date defined in the credentials for compatibility with
         # partial migrations.
-        default_to_revision = self.default_branch
+        default_to_revision = self.repo.head.commit.hexsha
         if self._tag is not None and self._tag in self.repo.tags:
             default_to_revision = self._tag
         elif from_revision is None and self._from_date is not None:
@@ -178,6 +178,9 @@ class Git_Repository(Version_Control_Repository):
         after cloning. Note that no precautions are made to prevent pulling in
         more commits unless `shallow` is provided to each such action.
 
+        If `branch` is provided, then the repository is checked out to this
+        branch's head after updating it.
+
         Use 'shared' to enable shared repository permissions during the clone
         and subsequent pulls. 'shared' may be a boolean to enable or disable
         global sharing, but it can also be a string such as "group" to enable
@@ -197,6 +200,7 @@ class Git_Repository(Version_Control_Repository):
 
         checkout = kwargs.pop('checkout', False)
         shallow = kwargs.pop('shallow', False)
+        branch = kwargs.pop('branch', None)
         shared = kwargs.pop('shared', False)
         force = kwargs.pop('force', False)
         pull = kwargs.pop('pull', False)
@@ -208,19 +212,20 @@ class Git_Repository(Version_Control_Repository):
 
             try:
                 repository.pull(shallow=shallow, shared=shared,
-                                checkout=checkout, force=force)
+                                checkout=checkout, branch=branch, force=force)
                 return repository
             except RepositorySourceException:
                 if not force:
                     raise
 
         if isinstance(checkout, bool):
-            repository.clone(checkout=checkout, shallow=shallow, shared=shared)
+            repository.clone(checkout=checkout, shallow=shallow,
+                             branch=branch, shared=shared)
         elif shared is not False:
             # Checkout is a list of paths to checkout, so sparse
             raise RuntimeError('Shared repositories are not supported for sparse checkouts')
         else:
-            repository.checkout(paths=checkout, shallow=shallow)
+            repository.checkout(paths=checkout, shallow=shallow, branch=branch)
 
         return repository
 
@@ -231,7 +236,8 @@ class Git_Repository(Version_Control_Repository):
         except OSError as error:
             raise RepositorySourceException(str(error))
 
-    def pull(self, shallow=False, shared=False, checkout=True, force=False):
+    def pull(self, shallow=False, shared=False, checkout=True, branch=None,
+             force=False):
         """
         Pull the latest changes into the existing local repository.
 
@@ -239,7 +245,11 @@ class Git_Repository(Version_Control_Repository):
         pull in the default branch's head commit. If `shared` is given, then
         the repository's permissions are set to global or group permissions.
         `checkout` may be set to `False` to disable a local repository checkout
-        of the latest commits, or to a list of paths to check out.
+        of the latest commits, or to a list of paths to check out. If `branch`
+        is provided, then the repository is checked out to the head of this
+        branch after updating it. If `force` is enabled, then an attempt is
+        made to clean up when the first attempt fails rather than raising
+        an exception.
         """
 
         try:
@@ -250,9 +260,9 @@ class Git_Repository(Version_Control_Repository):
                 return
 
             if isinstance(checkout, list):
-                self.checkout_sparse(checkout, shallow=shallow)
+                self.checkout_sparse(checkout, shallow=shallow, branch=branch)
             else:
-                self.update(shallow=shallow, checkout=checkout)
+                self.update(shallow=shallow, checkout=checkout, branch=branch)
         except RepositorySourceException as exception:
             if not force:
                 raise exception
@@ -424,39 +434,45 @@ class Git_Repository(Version_Control_Repository):
 
         return shared == shared_mapping[value]
 
-    def update(self, shallow=False, checkout=True):
+    def update(self, shallow=False, checkout=True, branch=None):
         # Update the repository from the origin URL.
         try:
+            if branch is None:
+                branch = self.default_branch
+
             if not self.repo.remotes:
                 raise RepositorySourceException('No remotes defined for repository')
 
+            refspec = 'origin/{}'.format(branch)
             self._prev_head = self.repo.head.commit
             if shallow:
-                self.repo.remotes.origin.fetch(self.default_branch, depth=1,
+                self.repo.remotes.origin.fetch(branch, depth=1,
                                                progress=self._progress)
                 if checkout:
-                    refspec = 'origin/{}'.format(self.default_branch)
                     self.repo.head.reset(refspec, hard=True)
 
                 self.repo.git.reflog(['expire', '--expire=now', '--all'])
                 self.repo.git.gc(['--prune=now'])
+            elif checkout and branch != self.default_branch:
+                self.repo.remotes.origin.fetch(branch, progress=self._progress)
+                self.repo.git.checkout(branch)
+                self.repo.head.reset(refspec, hard=True)
             elif checkout:
-                self.repo.remotes.origin.pull(self.default_branch,
-                                              progress=self._progress)
+                self.repo.remotes.origin.pull(branch, progress=self._progress)
             else:
                 # Update local branch but not the working tree
-                spec = '{}:{}'.format(self.default_branch, self.default_branch)
+                spec = '{0}:{0}'.format(branch)
                 self.repo.remotes.origin.fetch(spec,
                                                update_head_ok=True,
                                                progress=self._progress)
         except GitCommandError as error:
             raise RepositorySourceException(str(error))
 
-    def checkout(self, paths=None, shallow=False):
-        self.clone(checkout=paths is None, shallow=shallow)
+    def checkout(self, paths=None, shallow=False, branch=None):
+        self.clone(checkout=paths is None, shallow=shallow, branch=branch)
 
         if paths is not None:
-            self.checkout_sparse(paths, shallow=shallow)
+            self.checkout_sparse(paths, shallow=shallow, branch=branch)
 
     def _checkout_index(self):
         try:
@@ -464,7 +480,7 @@ class Git_Repository(Version_Control_Repository):
         except GitCommandError as error:
             raise RepositorySourceException(str(error))
 
-    def checkout_sparse(self, paths, remove=False, shallow=False):
+    def checkout_sparse(self, paths, remove=False, shallow=False, branch=None):
         self.repo.config_writer().set_value('core', 'sparseCheckout', True)
         sparse = Sparse_Checkout_Paths(self.repo)
 
@@ -477,9 +493,9 @@ class Git_Repository(Version_Control_Repository):
         self._checkout_index()
 
         # Ensure repository is up to date.
-        self.update(shallow=shallow)
+        self.update(shallow=shallow, branch=branch)
 
-    def clone(self, checkout=True, shallow=False, shared=False):
+    def clone(self, checkout=True, shallow=False, shared=False, branch=None):
         """
         Clone the repository, optionally according to a certain checkout
         scheme. If `checkout` is `False`, then do not check out the local files
@@ -509,6 +525,8 @@ class Git_Repository(Version_Control_Repository):
         if shared is not False:
             value = "true" if shared is True else shared
             kwargs["config"] = "core.sharedRepository={}".format(value)
+        if branch is not None:
+            kwargs["branch"] = branch
 
         try:
             environment = self._create_environment(self.source)
