@@ -70,8 +70,8 @@ def main():
             logging.warning('No BigBoat API key defined for %s', project_key)
 
     client = Client_v2(host, api_key=key)
-    statuses = Statuses.from_api(project, client.statuses())
-    output = statuses.export()
+    with Statuses.from_api(project, client.statuses()) as statuses:
+        output = statuses.export()
 
     if args.ssh:
         url = 'https://{}/auth/status.py?project={}'.format(args.ssh,

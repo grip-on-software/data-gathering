@@ -76,44 +76,43 @@ class Database_Tracker(Update_Tracker):
 
     def retrieve(self, files=None):
         self._project.make_export_directory()
-        connection = Database(**self._options)
+        with Database(**self._options) as database:
+            project_id = database.get_project_id(self._project.key)
+            if project_id is None:
+                logging.warning("Project '%s' is not in the database",
+                                self._project.key)
+                return
 
-        project_id = connection.get_project_id(self._project.key)
-        if project_id is None:
-            logging.warning("Project '%s' is not in the database",
-                            self._project.key)
-            return
+            result = database.execute('''SELECT filename, contents, update_date
+                                         FROM gros.update_tracker
+                                         WHERE project_id=%s''',
+                                      parameters=[project_id], one=False)
 
-        result = connection.execute('''SELECT filename, contents, update_date
-                                       FROM gros.update_tracker
-                                       WHERE project_id=%s''',
-                                    parameters=[project_id], one=False)
-
-        for row in result:
-            filename, contents, update_date = row[0:3]
-            # Update only specific files if given,
-            if not files or filename in files:
-                self.update_file(filename, contents, update_date)
+            for row in result:
+                filename, contents, update_date = row[0:3]
+                # Update only specific files if given,
+                if not files or filename in files:
+                    self.update_file(filename, contents, update_date)
 
     def retrieve_content(self, filename):
-        connection = Database(**self._options)
+        with Database(**self._options) as database:
+            project_id = database.get_project_id(self._project.key)
+            if project_id is None:
+                logging.warning("Project '%s' is not in the database",
+                                self._project.key)
+                return None
 
-        project_id = connection.get_project_id(self._project.key)
-        if project_id is None:
-            logging.warning("Project '%s' is not in the database",
-                            self._project.key)
-            return None
+            result = database.execute('''SELECT contents
+                                         FROM gros.update_tracker
+                                         WHERE project_id=%s
+                                         AND filename=%s''',
+                                      parameters=[project_id, filename],
+                                      one=True)
 
-        result = connection.execute('''SELECT contents
-                                       FROM gros.update_tracker
-                                       WHERE project_id=%s
-                                       AND filename=%s''',
-                                    parameters=[project_id, filename], one=True)
-
-        if result is None:
-            return None
-
-        return result[0]
+            if result is None:
+                return None
+            
+            return result[0]
 
 class SSH_Tracker(Update_Tracker):
     """

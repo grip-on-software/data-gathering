@@ -27,6 +27,21 @@ class Statuses(object):
 
         self._source = source
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        """
+        Close the database connection if it is opened.
+        """
+
+        if self._database is not None:
+            self._database.close()
+            self._database = None
+
     @staticmethod
     def _find_details(details, keys, subkey=None):
         """

@@ -44,20 +44,19 @@ class Gatherer(object):
         """
 
         try:
-            database = Database(**self._options)
+            with Database(**self._options) as database:
+                if database.get_project_id(project_key) is not None:
+                    return {'ok': True}
+
+                return {
+                    'ok': False,
+                    'message': 'Project is not yet registered in the database'
+                }
         except (EnvironmentError, pymonetdb.Error) as error:
             return {
                 'ok': False,
                 'message': str(error)
             }
-
-        if database.get_project_id(project_key) is None:
-            return {
-                'ok': False,
-                'message': 'Project is not yet registered in the database'
-            }
-
-        return {'ok': True}
 
     def _calculate_drift(self, project_key, today):
         # Schedule drift: Next agent scrape may only occur after
@@ -137,7 +136,8 @@ class Gatherer(object):
         else:
             project = Project(project_key)
 
-        return Salt(project=project, **self._options).execute()
+        with Salt(project=project, **self._options) as salt:
+            return salt.execute()
 
     def encrypt(self, project_key, value):
         """
@@ -151,12 +151,14 @@ class Gatherer(object):
         else:
             project = Project(project_key)
 
-        pair = Salt(project=project, **self._options).get()
-        if not pair:
-            return ''
+        with Salt(project=project, **self._options) as store:
+            pair = store.get()
+            if not pair:
+                return ''
 
-        salt, pepper = pair
-        return Salt.encrypt(value.encode('utf-8'), salt.encode('utf-8'), pepper.encode('utf-8'))
+            salt, pepper = pair
+            return store.encrypt(value.encode('utf-8'), salt.encode('utf-8'),
+                                 pepper.encode('utf-8'))
 
     def get_usernames(self, project_key):
         """
@@ -187,7 +189,8 @@ class Gatherer(object):
         """
 
         project = Project(project_key)
-        return Statuses(project, statuses, source, **self._options).update()
+        with Statuses(project, statuses, source, **self._options) as status:
+            return status.update()
 
 def main():
     """

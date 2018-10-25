@@ -46,13 +46,12 @@ def main():
 
     args = parse_args()
     project = Project(args.project)
-    store = Salt(project, user=args.user, password=args.password,
-                 host=args.host, database=args.database)
+    with Salt(project, user=args.user, password=args.password,
+              host=args.host, database=args.database) as store:
+        salt, pepper = store.execute()
 
-    salt, pepper = store.execute()
-
-    logging.info('Salt: %s', salt)
-    logging.info('Pepper: %s', pepper)
+        logging.info('Salt: %s', salt)
+        logging.info('Pepper: %s', pepper)
 
 if __name__ == '__main__':
     main()

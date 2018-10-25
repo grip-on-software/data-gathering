@@ -15,7 +15,8 @@ class Salt(object):
     def __init__(self, project=None, **options):
         self._project = project
         self._project_id = None
-        self._database = Database(**options)
+        self._database = None
+        self._options = options
 
     @staticmethod
     def encrypt(value, salt, pepper):
@@ -24,6 +25,32 @@ class Salt(object):
         """
 
         return hashlib.sha256(salt + value + pepper).hexdigest()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        """
+        Close the database connection.
+        """
+
+        if self._database is not None:
+            self._database.close()
+            self._database = None
+
+    @property
+    def database(self):
+        """
+        Retrieve the database connection.
+        """
+
+        if self._database is None:
+            self._database = Database(**self._options)
+
+        return self._database
 
     @property
     def project_id(self):
@@ -38,10 +65,10 @@ class Salt(object):
             self._project_id = 0
             return self._project_id
 
-        self._project_id = self._database.get_project_id(self._project.key)
+        self._project_id = self.database.get_project_id(self._project.key)
         if self._project_id is None:
-            self._database.set_project_id(self._project.key)
-            self._project_id = self._database.get_project_id(self._project.key)
+            self.database.set_project_id(self._project.key)
+            self._project_id = self.database.get_project_id(self._project.key)
 
         return self._project_id
 
@@ -64,10 +91,10 @@ class Salt(object):
         Retrieve the project-specific salts.
         """
 
-        result = self._database.execute('''SELECT salt, pepper
-                                           FROM gros.project_salt
-                                           WHERE project_id=%s''',
-                                        parameters=[self.project_id], one=True)
+        result = self.database.execute('''SELECT salt, pepper
+                                          FROM gros.project_salt
+                                          WHERE project_id=%s''',
+                                       parameters=[self.project_id], one=True)
 
         return result
 
@@ -83,7 +110,7 @@ class Salt(object):
         return salt, pepper
 
     def _update(self, salt, pepper):
-        self._database.execute('''INSERT INTO gros.project_salt(project_id,salt,pepper)
-                                  VALUES (%s,%s,%s)''',
-                               parameters=[self.project_id, salt, pepper],
-                               update=True)
+        self.database.execute('''INSERT INTO gros.project_salt(project_id,salt,pepper)
+                                 VALUES (%s,%s,%s)''',
+                              parameters=[self.project_id, salt, pepper],
+                              update=True)

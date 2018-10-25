@@ -13,6 +13,26 @@ class Database(object):
     def __init__(self, **options):
         self._connection = pymonetdb.connect(**options)
         self._cursor = self._connection.cursor()
+        self._open = True
+
+    def __del__(self):
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        """
+        Close the database connection.
+        """
+
+        if self._open:
+            self._cursor.close()
+            self._connection.close()
+            self._open = False
 
     def get_project_id(self, project_key):
         """

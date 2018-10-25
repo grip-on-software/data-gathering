@@ -60,19 +60,18 @@ def main():
         status_filename = args.path
 
     start = timer()
-    statuses = Statuses(project, user=args.user, password=args.password,
-                        host=args.host, database=args.database)
+    with Statuses(project, user=args.user, password=args.password,
+                  host=args.host, database=args.database) as statuses:
+        result = True
+        with open(status_filename, 'r') as status_file:
+            for line in status_file:
+                result = statuses.add_batch(json.loads(line))
+                if not result:
+                    break
 
-    result = True
-    with open(status_filename, 'r') as status_file:
-        for line in status_file:
-            result = statuses.add_batch(json.loads(line))
-            if not result:
-                break
-
-    result = statuses.update()
-    if not result:
-        logging.error('Could not import: database unavailable or project not known')
+        result = statuses.update()
+        if not result:
+            logging.error('Could not import: database unavailable or project not known')
 
     end = timer()
     logging.info('Imported BigBoat status information in %d seconds', end - start)
