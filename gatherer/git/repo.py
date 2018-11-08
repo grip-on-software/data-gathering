@@ -275,12 +275,16 @@ class Git_Repository(Version_Control_Repository):
                 raise exception
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None):
+    def is_up_to_date(cls, source, latest_version, update_tracker=None,
+                      branch=None):
+        if branch is None:
+            branch = 'master'
+
         git = Git()
         git.update_environment(**cls._create_environment(source, git))
         # Check if the provided version is up to date compared to master.
         try:
-            remote_refs = git.ls_remote('--heads', source.url, 'master')
+            remote_refs = git.ls_remote('--heads', source.url, branch)
         except GitCommandError as error:
             raise RepositorySourceException(str(error))
 

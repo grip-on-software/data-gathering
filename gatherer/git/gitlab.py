@@ -165,7 +165,11 @@ class GitLab_Repository(Git_Repository, Review_System):
         return parser.parse()
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None):
+    def is_up_to_date(cls, source, latest_version, update_tracker=None,
+                      branch=None):
+        if branch is None:
+            branch = 'master'
+
         try:
             project = cls._get_repo_project(source)
         except RuntimeError:
@@ -178,11 +182,13 @@ class GitLab_Repository(Git_Repository, Review_System):
             if tracker_date < get_local_datetime(activity_date):
                 return False
 
-        # Use the API to fetch the latest commit
-        if project.commits.get('HEAD').id == latest_version:
-            return True
+        # Use the API to fetch the latest commit of the branch
+        try:
+            current_version = project.commits.get(branch).id
+        except GitlabGetError:
+            return False
 
-        return False
+        return current_version == latest_version
 
     @classmethod
     def _get_repo_project(cls, source):

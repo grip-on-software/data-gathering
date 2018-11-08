@@ -102,14 +102,19 @@ class Version_Control_Repository(object):
         raise NotImplementedError("Must be implemented by subclass")
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None):
+    def is_up_to_date(cls, source, latest_version, update_tracker=None,
+                      branch=None):
         # pylint: disable=unused-argument
         """
-        Check whether the `source` is up to date without retrieving the entire
-        repository. The `latest_version` is a version identifier of the version
-        that has been collected previously. Optionally, `update_tracker` is
-        the update tracker value for the repository in the file referenced by
-        `UPDATE_TRACKER_NAME`.
+        Check whether the local state of the repository pointed at by `source`
+        is up to date without updating the local state, possibly also avoiding
+        large updates in retrieving the entire repository. The `latest_version`
+        is an identifier of the version that has been collected previously.
+        Optionally, `update_tracker` is the update tracker value for the
+        repository in the file referenced by `UPDATE_TRACKER_NAME`.
+        The `branch` is the reference name of the branch that we wish to be at
+        the latest version. If `branch` is `None` then we only consider the
+        default branch in up-to-date checks.
 
         If it is impossible to determine up-to-dateness, or the entire
         repository does not need to be retrieved beforehand to check this

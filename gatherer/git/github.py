@@ -72,10 +72,12 @@ class GitHub_Repository(Git_Repository, Review_System):
         return "1900-01-01 01:01:01"
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None):
+    def is_up_to_date(cls, source, latest_version, update_tracker=None,
+                      branch=None):
         if update_tracker is None:
             return super(GitHub_Repository, cls).is_up_to_date(source,
-                                                               latest_version)
+                                                               latest_version,
+                                                               branch=branch)
 
         try:
             repo = source.github_repo
