@@ -304,6 +304,7 @@ class Sources_Parser(Project_Definition_Parser):
         'Jenkins': metric_source.Jenkins,
         'Jira': metric_source.Jira,
         'JiraFilter': JIRA_FILTER,
+        'Sonar': metric_source.Sonar,
         'Git': metric_source.Git,
         'Subversion': metric_source.Subversion
     }
@@ -394,13 +395,16 @@ class Sources_Parser(Project_Definition_Parser):
 
     def _parse_source_value(self, key, value, from_key):
         if from_key and isinstance(key, self.source_types):
-            class_name = self.get_class_name(type(key))
+            class_name = self.get_class_name(key)
             source_url = self._get_source_url(key)
             if source_url is None or value.startswith(source_url):
                 source_url = value
+            elif class_name == 'Sonar' and value != 'dummy':
+                source_url = (source_url, value)
 
             return class_name, source_url
-        elif not from_key and isinstance(value, self.source_types):
+
+        if not from_key and isinstance(value, self.source_types):
             class_name = self.get_class_name(value)
             logging.debug('Class name: %s', class_name)
 

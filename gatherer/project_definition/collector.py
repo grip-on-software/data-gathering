@@ -10,6 +10,7 @@ from .parser import Metric_Options_Parser, Project_Parser, Sources_Parser
 from .update import Update_Tracker
 from ..domain import Source
 from ..domain.source.types import Source_Type_Error
+from ..table import Table
 
 class Collector(object):
     """
@@ -156,7 +157,8 @@ class Sources_Collector(Collector):
         'CompactHistory': 'compact-history',
         'Jenkins': 'jenkins',
         'Jira': 'jira',
-        'JiraFilter': 'jira'
+        'JiraFilter': 'jira',
+        'Sonar': 'sonar'
     }
 
     def __init__(self, project, **kwargs):
@@ -170,11 +172,22 @@ class Sources_Collector(Collector):
         else:
             self._repo_path = repo_path
 
+        self._source_ids = Table('source_ids')
+
     def build_parser(self, version):
         return Sources_Parser(self._repo_path, **self._options)
 
     def _build_metric_source(self, name, url, source_type):
         try:
+            if isinstance(url, tuple):
+                source_id = url[1]
+                url = url[0]
+                self._source_ids.append({
+                    "domain_name": name,
+                    "url": url,
+                    "source_id": source_id
+                })
+
             source = Source.from_type(source_type, name=name, url=url)
 
             if not self._project.has_source(source):
@@ -190,6 +203,11 @@ class Sources_Collector(Collector):
                 if metric_type in metric_source:
                     for url in metric_source[metric_type]:
                         self._build_metric_source(name, url, source_type)
+
+    def finish(self, end_revision, data=None):
+        super(Sources_Collector, self).finish(end_revision, data=data)
+
+        self._source_ids.write(self._project.export_key)
 
 class Metric_Options_Collector(Collector):
     """

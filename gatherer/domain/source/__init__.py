@@ -12,6 +12,7 @@ from .history import History
 from .metric_options import Metric_Options
 from .jenkins import Jenkins
 from .jira import Jira
+from .sonar import Sonar
 from .controller import Controller
 
 __all__ = [
