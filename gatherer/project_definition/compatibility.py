@@ -91,3 +91,4 @@ def produce_mock(name):
 
 COMPACT_HISTORY = produce_mock('CompactHistory')
 JIRA_FILTER = produce_mock('JiraFilter')
+SONAR = produce_mock('Sonar')

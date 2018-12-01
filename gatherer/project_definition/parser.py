@@ -17,7 +17,7 @@ import traceback
 # Non-standard imports
 import mock
 from hqlib import domain, metric, metric_source
-from .compatibility import Compatibility, COMPACT_HISTORY, JIRA_FILTER
+from .compatibility import Compatibility, COMPACT_HISTORY, JIRA_FILTER, SONAR
 from ..utils import get_datetime, parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
@@ -304,7 +304,7 @@ class Sources_Parser(Project_Definition_Parser):
         'Jenkins': metric_source.Jenkins,
         'Jira': metric_source.Jira,
         'JiraFilter': JIRA_FILTER,
-        'Sonar': metric_source.Sonar,
+        'Sonar': SONAR,
         'Git': metric_source.Git,
         'Subversion': metric_source.Subversion
     }
