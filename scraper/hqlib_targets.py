@@ -191,7 +191,7 @@ class Metric_Target_Tracker(object):
         Retrieve the revision that was parsed by an earlier run.
         """
 
-        filename = 'export/hqlib_targets_update.json'
+        filename = 'hqlib_targets_update.json'
         if not os.path.exists(filename):
             return None
 
@@ -233,9 +233,9 @@ class Metric_Target_Tracker(object):
         Export the version targets to a JSON file.
         """
 
-        with open('export/data_hqlib.json', 'w') as targets_file:
+        with open('data_hqlib.json', 'w') as targets_file:
             json.dump(self._version_targets, targets_file, indent=4)
-        with open('export/hqlib_targets_update.json', 'w') as update_file:
+        with open('hqlib_targets_update.json', 'w') as update_file:
             json.dump(self._latest_version, update_file)
 
 def main():
