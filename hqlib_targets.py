@@ -5,12 +5,16 @@ the quality reporting tool.
 
 import argparse
 import ast
+from distutils.version import LooseVersion
 import json
 import logging
 import os.path
+import hqlib.domain
+from hqlib.utils import version_number_to_numerical
 from gatherer.domain import Source
 from gatherer.git import Git_Repository
 from gatherer.log import Log_Setup
+from gatherer.utils import get_local_datetime
 from gatherer.version_control.repo import FileNotFoundException
 
 def parse_args():
@@ -22,6 +26,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--repo', default='quality-report',
                         help='path to the quality reporting Git repository')
+    parser.add_argument('--checkout', action='store_true', default=False,
+                        help='Check out the quality reporting repository tree')
+    parser.add_argument('--from-revision', dest='from_revision', default=None,
+                        help='revision to start from gathering metric targets')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -34,11 +42,19 @@ class Metric_Visitor(ast.NodeVisitor):
     """
 
     # pylint: disable=invalid-name
-    TARGETS = ('target_value', 'low_target_value', 'perfect_value')
+    TARGETS = (
+        'target_value', 'low_target_value', 'perfect_value',
+        'numerical_value_map'
+    )
+    OLD_TARGETS = {
+        'target_factor': 'target_value',
+        'low_target_factor': 'low_target_value'
+    }
 
     def __init__(self):
         self.class_name = None
         self.target_name = None
+        self.abstract = False
         self.targets = {}
         self.class_targets = {}
 
@@ -58,21 +74,57 @@ class Metric_Visitor(ast.NodeVisitor):
         """
 
         self.class_name = node.name
+        self.abstract = False
         self.targets = {}
+
+        # Inherit values from superclasses
+        for base in node.bases:
+            self.visit(base)
 
         for subnode in node.body:
             self.visit(subnode)
 
         if self.targets:
+            if 'numerical_value_map' in self.targets:
+                value_map = self.targets.pop('numerical_value_map')
+                self.targets = dict([
+                    (key, value_map[value])
+                    if value in value_map else (key, value)
+                    for key, value in self.targets.items()
+                ])
+
+            self.targets['_abstract'] = self.abstract
             self.class_targets[self.class_name] = self.targets
+
+    def _inherit_superclass(self, name):
+        if self.class_name is not None:
+            if name in self.class_targets:
+                self.targets.update(self.class_targets[name])
+            elif name.endswith('IsBetterMetric'):
+                if name.startswith('Lower'):
+                    self.targets['direction'] = "-1"
+                elif name.startswith('Higher'):
+                    self.targets['direction'] = "1"
+
+    def visit_Attribute(self, node):
+        """
+        Visit an attribute name in the AST.
+        """
+
+        self._inherit_superclass(node.attr)
 
     def visit_Name(self, node):
         """
         Visit a variable name in the AST.
         """
 
-        if self.class_name is not None and node.id in self.TARGETS:
-            self.target_name = node.id
+        if self.class_name is not None:
+            if node.id in self.TARGETS:
+                self.target_name = node.id
+            elif node.id in self.OLD_TARGETS:
+                self.target_name = self.OLD_TARGETS[node.id]
+            else:
+                self._inherit_superclass(node.id)
 
     def visit_Num(self, node):
         """
@@ -87,8 +139,40 @@ class Metric_Visitor(ast.NodeVisitor):
         Visit a literal string in the AST.
         """
 
+        if "Subclass responsibility" in str(node.s):
+            self.abstract = True
+
         if self.target_name is not None:
             self.targets[self.target_name] = str(node.s)
+
+    def visit_Dict(self, node):
+        """
+        Visit a literal dictionary object in the AST.
+        """
+
+        if self.target_name == 'numerical_value_map':
+            value = dict(zip([key.s for key in node.keys],
+                             [value.n for value in node.values]))
+            self.targets[self.target_name] = value
+
+    def visit_Call(self, node):
+        """
+        Visit a call in the AST.
+        """
+
+        if self.target_name is not None and node.func.id == 'LooseVersion':
+            arg = LooseVersion(node.args[0].s).version
+            self.targets[self.target_name] = version_number_to_numerical(arg)
+
+    def visit_Raise(self, node):
+        """
+        Visit a function definition in the AST.
+        """
+
+        if self.class_name is not None:
+            if isinstance(node.exc, ast.Name) and \
+                node.exc.id == 'NotImplementedError':
+                self.abstract = True
 
 class Metric_Target_Tracker(object):
     """
@@ -98,6 +182,21 @@ class Metric_Target_Tracker(object):
     def __init__(self):
         self._all_class_targets = {}
         self._version_targets = []
+        self._latest_version = None
+        self._latest_date = None
+
+    @classmethod
+    def get_from_revision(cls):
+        """
+        Retrieve the revision that was parsed by an earlier run.
+        """
+
+        filename = 'export/hqlib_targets_update.json'
+        if not os.path.exists(filename):
+            return None
+
+        with open(filename) as update_file:
+            return json.load(update_file)
 
     def update(self, version, class_targets):
         """
@@ -108,6 +207,9 @@ class Metric_Target_Tracker(object):
         """
 
         for class_name, targets in class_targets.items():
+            if targets.get('_abstract'):
+                continue
+
             if class_name not in self._all_class_targets or \
                     self._all_class_targets[class_name] != targets:
                 version_target = {
@@ -116,9 +218,15 @@ class Metric_Target_Tracker(object):
                     'commit_date': version['commit_date']
                 }
                 version_target.update(targets)
+                version_target.pop('_abstract')
                 self._version_targets.append(version_target)
 
         self._all_class_targets.update(class_targets)
+
+        commit_date = get_local_datetime(version['commit_date'])
+        if self._latest_date is None or commit_date > self._latest_date:
+            self._latest_date = commit_date
+            self._latest_version = version['version_id']
 
     def export(self):
         """
@@ -126,7 +234,9 @@ class Metric_Target_Tracker(object):
         """
 
         with open('export/data_hqlib.json', 'w') as targets_file:
-            json.dump(self._version_targets, targets_file)
+            json.dump(self._version_targets, targets_file, indent=4)
+        with open('export/hqlib_targets_update.json', 'w') as update_file:
+            json.dump(self._latest_version, update_file)
 
 def main():
     """
@@ -134,22 +244,29 @@ def main():
     """
 
     args = parse_args()
-    modules = ('python/qualitylib', 'qualitylib', 'quality_report', 'hqlib')
+    modules = (
+        'python/qualitylib', 'qualitylib', 'quality_report', 'hqlib'
+        'backend/hqlib'
+    )
     paths = tuple(os.path.join(mod, 'metric') for mod in modules)
 
     source = Source.from_type('git', name='quality-report',
                               url='https://github.com/ICTU/quality-report.git')
-    repo = Git_Repository.from_source(source, args.repo)
+    repo = Git_Repository.from_source(source, args.repo,
+                                      checkout=args.checkout, pull=True)
 
     tracker = Metric_Target_Tracker()
+    start = args.from_revision
+    if start is None:
+        start = tracker.get_from_revision()
+
     for path in paths:
-        for version in repo.get_versions(filename=path, descending=False,
-                                         stats=False):
+        for version in repo.get_versions(filename=path, from_revision=start,
+                                         descending=False, stats=False):
             metric_visitor = Metric_Visitor()
-            logging.info('%s: %s', version['version_id'], version['commit_date'])
             commit = repo.repo.commit(version['version_id'])
             for file_path in commit.stats.files.keys():
-                if not file_path.startswith(path):
+                if not file_path.startswith(path) or '{' in file_path:
                     continue
 
                 try:
