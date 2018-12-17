@@ -18,6 +18,7 @@ key-*
 # Importer distribution
 importerjson.jar
 data_vcsdev_to_dev.json
+README.TXT
 lib/
 
 # Agent distribution and generated files
@@ -28,6 +29,8 @@ export/
 data_guilds.json
 history-*.json
 metric*_base_names.json
+data_hqlib.json
+hqlib_targets_update.json
 secrets.json
 secrets.*.json
 
