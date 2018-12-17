@@ -88,7 +88,7 @@ class Metric_Visitor(ast.NodeVisitor):
             if 'numerical_value_map' in self.targets:
                 value_map = self.targets.pop('numerical_value_map')
                 self.targets = dict([
-                    (key, value_map[value])
+                    (key, str(value_map[value]))
                     if value in value_map else (key, value)
                     for key, value in self.targets.items()
                 ])
@@ -162,7 +162,8 @@ class Metric_Visitor(ast.NodeVisitor):
 
         if self.target_name is not None and node.func.id == 'LooseVersion':
             arg = LooseVersion(node.args[0].s).version
-            self.targets[self.target_name] = version_number_to_numerical(arg)
+            number = version_number_to_numerical(arg)
+            self.targets[self.target_name] = str(number)
 
     def visit_Raise(self, node):
         """
