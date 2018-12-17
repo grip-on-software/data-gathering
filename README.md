@@ -89,12 +89,12 @@ The usual pipeline setup runs the scripts in the following order:
   version control systems, based on the group/namespace/collection in which the 
   repositories that were found earlier live.
 - `scraper/git_to_json.py`: Retrieve version information from Git or Subversion 
-  instances, possibly including additional information such as GitLab project 
-  data (commit comments, merge requests).
+  instances, possibly including auxiliary information such as GitLab/GitHub 
+  project data (commit comments, merge requests) and TFS work item data.
 - `scraper/history_to_json.py`: Retrieve a history file containing measurement 
   values for metrics during the project, or only output a reference to it.
 - `scraper/metric_options_to_json.py`: Retrieve changes to metric targets from 
-  a Subversion repository holding the project definitions.
+  a Git or Subversion repository holding the project definitions.
 - `scraper/jenkins_to_json.py`: Retrieve usage statistics from a Jenkins 
   instance.
 
