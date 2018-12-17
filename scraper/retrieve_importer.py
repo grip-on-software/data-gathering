@@ -120,11 +120,17 @@ def copy_path(source_path, dest_path):
     Copy a distribution directory from a local path.
     """
 
+    dist_path = os.path.join(os.path.expanduser(source_path), 'dist/')
+    if not os.path.exists(dist_path):
+        raise OSError('Could not find distribution in {}'.format(dist_path))
+
     if os.path.exists(dest_path):
+        if dest_path == '.':
+            raise OSError('Refusing to delete the current working directory')
+
         shutil.rmtree(dest_path)
 
-    shutil.copytree(os.path.join(os.path.expanduser(source_path), 'dist/'),
-                    dest_path)
+    shutil.copytree(dist_path, dest_path)
 
 def download_zip(url, dest_path):
     """
@@ -156,7 +162,11 @@ def retrieve_files(args):
     """
 
     if args.path is not None:
-        copy_path(args.path, args.base)
+        try:
+            copy_path(args.path, args.base)
+        except OSError:
+            logging.exception('Could not retrieve distribution')
+            return
     else:
         # Use an URL to download a dist directory artifact archive
         if args.jenkins is None:
