@@ -9,6 +9,8 @@ from distutils.version import LooseVersion
 import json
 import logging
 import os.path
+# We need to import a normal import of hqlib before we can import from utils
+# pylint: disable=unused-import
 import hqlib.domain
 from hqlib.utils import version_number_to_numerical
 from gatherer.domain import Source
@@ -58,15 +60,24 @@ class Metric_Visitor(ast.NodeVisitor):
         self.targets = {}
         self.class_targets = {}
 
-    def visit(self, node):
+    def visit_Assign(self, node):
         """
-        Visit a node in the AST.
+        Visit an assignment node in the AST.
         """
 
-        prev_target_name = self.target_name
-        super(Metric_Visitor, self).visit(node)
-        if prev_target_name is not None and self.target_name is not None:
-            self.target_name = None
+        for target in node.targets:
+            self.visit(target)
+        self.visit(node.value)
+        self.target_name = None
+
+    def visit_AnnAssign(self, node):
+        """
+        Visit a type-annotated assignment node in the AST.
+        """
+
+        self.visit(node.target)
+        self.visit(node.value)
+        self.target_name = None
 
     def visit_ClassDef(self, node):
         """
@@ -155,15 +166,29 @@ class Metric_Visitor(ast.NodeVisitor):
                              [value.n for value in node.values]))
             self.targets[self.target_name] = value
 
+    def visit_Subscript(self, node):
+        """
+        Visit a type annotation in the AST.
+
+        Ignore type annotation nodes so that they do not interfere with the
+        target name and value parsing.
+        """
+
+        pass
+
     def visit_Call(self, node):
         """
         Visit a call in the AST.
         """
 
-        if self.target_name is not None and node.func.id == 'LooseVersion':
-            arg = LooseVersion(node.args[0].s).version
-            number = version_number_to_numerical(arg)
-            self.targets[self.target_name] = str(number)
+        if self.target_name is not None:
+            if not hasattr(node.func, 'id'):
+                logging.warning('Expression in %s for %s: %s', self.class_name,
+                                self.target_name, ast.dump(node.func))
+            elif node.func.id == 'LooseVersion':
+                arg = LooseVersion(node.args[0].s).version
+                number = version_number_to_numerical(arg)
+                self.targets[self.target_name] = str(number)
 
     def visit_Raise(self, node):
         """
