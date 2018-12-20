@@ -54,11 +54,19 @@ class Metric_Visitor(ast.NodeVisitor):
     }
 
     def __init__(self):
-        self.class_name = None
-        self.target_name = None
-        self.abstract = False
-        self.targets = {}
-        self.class_targets = {}
+        self._class_name = None
+        self._target_name = None
+        self._abstract = False
+        self._targets = {}
+        self._class_targets = {}
+
+    @property
+    def class_targets(self):
+        """
+        Retrieve the target norms for all classes detected thus far.
+        """
+
+        return self._class_targets
 
     def visit_Assign(self, node):
         """
@@ -68,7 +76,7 @@ class Metric_Visitor(ast.NodeVisitor):
         for target in node.targets:
             self.visit(target)
         self.visit(node.value)
-        self.target_name = None
+        self._target_name = None
 
     def visit_AnnAssign(self, node):
         """
@@ -77,16 +85,16 @@ class Metric_Visitor(ast.NodeVisitor):
 
         self.visit(node.target)
         self.visit(node.value)
-        self.target_name = None
+        self._target_name = None
 
     def visit_ClassDef(self, node):
         """
         Visit a class definition in the AST.
         """
 
-        self.class_name = node.name
-        self.abstract = False
-        self.targets = {}
+        self._class_name = node.name
+        self._abstract = False
+        self._targets = {}
 
         # Inherit values from superclasses
         for base in node.bases:
@@ -95,27 +103,27 @@ class Metric_Visitor(ast.NodeVisitor):
         for subnode in node.body:
             self.visit(subnode)
 
-        if self.targets:
-            if 'numerical_value_map' in self.targets:
-                value_map = self.targets.pop('numerical_value_map')
-                self.targets = dict([
+        if self._targets:
+            if 'numerical_value_map' in self._targets:
+                value_map = self._targets.pop('numerical_value_map')
+                self._targets = dict([
                     (key, str(value_map[value]))
                     if value in value_map else (key, value)
-                    for key, value in self.targets.items()
+                    for key, value in self._targets.items()
                 ])
 
-            self.targets['_abstract'] = self.abstract
-            self.class_targets[self.class_name] = self.targets
+            self._targets['_abstract'] = self._abstract
+            self._class_targets[self._class_name] = self._targets
 
     def _inherit_superclass(self, name):
-        if self.class_name is not None:
-            if name in self.class_targets:
-                self.targets.update(self.class_targets[name])
+        if self._class_name is not None:
+            if name in self._class_targets:
+                self._targets.update(self._class_targets[name])
             elif name.endswith('IsBetterMetric'):
                 if name.startswith('Lower'):
-                    self.targets['direction'] = "-1"
+                    self._targets['direction'] = "-1"
                 elif name.startswith('Higher'):
-                    self.targets['direction'] = "1"
+                    self._targets['direction'] = "1"
 
     def visit_Attribute(self, node):
         """
@@ -129,11 +137,11 @@ class Metric_Visitor(ast.NodeVisitor):
         Visit a variable name in the AST.
         """
 
-        if self.class_name is not None:
+        if self._class_name is not None:
             if node.id in self.TARGETS:
-                self.target_name = node.id
+                self._target_name = node.id
             elif node.id in self.OLD_TARGETS:
-                self.target_name = self.OLD_TARGETS[node.id]
+                self._target_name = self.OLD_TARGETS[node.id]
             else:
                 self._inherit_superclass(node.id)
 
@@ -142,8 +150,8 @@ class Metric_Visitor(ast.NodeVisitor):
         Visit a literal number in the AST.
         """
 
-        if self.target_name is not None:
-            self.targets[self.target_name] = str(node.n)
+        if self._target_name is not None:
+            self._targets[self._target_name] = str(node.n)
 
     def visit_Str(self, node):
         """
@@ -151,20 +159,19 @@ class Metric_Visitor(ast.NodeVisitor):
         """
 
         if "Subclass responsibility" in str(node.s):
-            self.abstract = True
-
-        if self.target_name is not None:
-            self.targets[self.target_name] = str(node.s)
+            self._abstract = True
+        elif self._target_name is not None:
+            self._targets[self._target_name] = str(node.s)
 
     def visit_Dict(self, node):
         """
         Visit a literal dictionary object in the AST.
         """
 
-        if self.target_name == 'numerical_value_map':
+        if self._target_name == 'numerical_value_map':
             value = dict(zip([key.s for key in node.keys],
                              [value.n for value in node.values]))
-            self.targets[self.target_name] = value
+            self._targets[self._target_name] = value
 
     def visit_Subscript(self, node):
         """
@@ -181,24 +188,24 @@ class Metric_Visitor(ast.NodeVisitor):
         Visit a call in the AST.
         """
 
-        if self.target_name is not None:
+        if self._target_name is not None:
             if not hasattr(node.func, 'id'):
-                logging.warning('Expression in %s for %s: %s', self.class_name,
-                                self.target_name, ast.dump(node.func))
+                logging.warning('Expression in %s for %s: %s', self._class_name,
+                                self._target_name, ast.dump(node.func))
             elif node.func.id == 'LooseVersion':
                 arg = LooseVersion(node.args[0].s).version
                 number = version_number_to_numerical(arg)
-                self.targets[self.target_name] = str(number)
+                self._targets[self._target_name] = str(number)
 
     def visit_Raise(self, node):
         """
         Visit a function definition in the AST.
         """
 
-        if self.class_name is not None:
-            if isinstance(node.exc, ast.Name) and \
-                node.exc.id == 'NotImplementedError':
-                self.abstract = True
+        if self._class_name is not None and \
+            isinstance(node.exc, ast.Name) and \
+            node.exc.id == 'NotImplementedError':
+            self._abstract = True
 
 class Metric_Target_Tracker(object):
     """
@@ -264,6 +271,40 @@ class Metric_Target_Tracker(object):
         with open('hqlib_targets_update.json', 'w') as update_file:
             json.dump(self._latest_version, update_file)
 
+def parse(path, start, repo, tracker):
+    """
+    Parse all files that are changed in revisions from `start` that exist
+    within the `path` in the quality report library repository `repo`, and
+    collect the detected metric targets in the `tracker`.
+    """
+
+    logging.info('Analyzing path %s', path)
+    for version in repo.get_versions(filename=path, from_revision=start,
+                                     descending=False, stats=False):
+        metric_visitor = Metric_Visitor()
+        commit = repo.repo.commit(version['version_id'])
+        for file_path in commit.stats.files.keys():
+            if not file_path.startswith(path) or '{' in file_path:
+                continue
+
+            try:
+                contents = repo.get_contents(file_path, revision=commit)
+            except FileNotFoundException:
+                logging.exception('Could not find file %s in version %s',
+                                  file_path, version['version_id'])
+                continue
+
+            try:
+                parse_tree = ast.parse(contents, file_path, 'exec')
+            except SyntaxError:
+                logging.exception('Syntax error in file %s in version %s',
+                                  file_path, version['version_id'])
+                continue
+
+            metric_visitor.visit(parse_tree)
+
+        tracker.update(version, metric_visitor.class_targets)
+
 def main():
     """
     Main entry point.
@@ -287,32 +328,7 @@ def main():
     tracker = Metric_Target_Tracker(start)
 
     for path in paths:
-        logging.info('Analyzing path %s', path)
-        for version in repo.get_versions(filename=path, from_revision=start,
-                                         descending=False, stats=False):
-            metric_visitor = Metric_Visitor()
-            commit = repo.repo.commit(version['version_id'])
-            for file_path in commit.stats.files.keys():
-                if not file_path.startswith(path) or '{' in file_path:
-                    continue
-
-                try:
-                    contents = repo.get_contents(file_path, revision=commit)
-                except FileNotFoundException:
-                    logging.exception('Could not find file %s in version %s',
-                                      file_path, version['version_id'])
-                    continue
-
-                try:
-                    parse_tree = ast.parse(contents, file_path, 'exec')
-                except SyntaxError:
-                    logging.exception('Syntax error in file %s in version %s',
-                                      file_path, version['version_id'])
-                    continue
-
-                metric_visitor.visit(parse_tree)
-
-            tracker.update(version, metric_visitor.class_targets)
+        parse(path, start, repo, tracker)
 
     tracker.export()
 
