@@ -180,10 +180,10 @@ class Metric_Target_Tracker(object):
     Class which keeps track of updates to metric targets.
     """
 
-    def __init__(self):
+    def __init__(self, from_revision):
         self._all_class_targets = {}
         self._version_targets = []
-        self._latest_version = None
+        self._latest_version = from_revision
         self._latest_date = None
 
     @classmethod
@@ -246,7 +246,7 @@ def main():
 
     args = parse_args()
     modules = (
-        'python/qualitylib', 'qualitylib', 'quality_report', 'hqlib'
+        'python/qualitylib', 'qualitylib', 'quality_report', 'hqlib',
         'backend/hqlib'
     )
     paths = tuple(os.path.join(mod, 'metric') for mod in modules)
@@ -256,12 +256,13 @@ def main():
     repo = Git_Repository.from_source(source, args.repo,
                                       checkout=args.checkout, pull=True)
 
-    tracker = Metric_Target_Tracker()
     start = args.from_revision
     if start is None:
-        start = tracker.get_from_revision()
+        start = Metric_Target_Tracker.get_from_revision()
+    tracker = Metric_Target_Tracker(start)
 
     for path in paths:
+        logging.info('Analyzing path %s', path)
         for version in repo.get_versions(filename=path, from_revision=start,
                                          descending=False, stats=False):
             metric_visitor = Metric_Visitor()
