@@ -344,7 +344,7 @@ def main():
             return
 
         with open(sources_file) as source_ids:
-            products = [domain.source_id for domain in json.load(source_ids)]
+            products = [domain["source_id"] for domain in json.load(source_ids)]
 
     sonar = Sonar_Time_Machine(url, username=username, password=password)
     retrieve(sonar, project, products, metrics=args.metrics)
