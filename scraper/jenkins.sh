@@ -300,6 +300,7 @@ do
 		export_handler history_to_json.py $project --export-path --export-url --log $logLevel
 		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
 		export_handler jenkins_to_json.py $project --log $logLevel
+		export_handler sonar_to_json.py $project --log $logLevel --metrics sqale_index
 		export_handler ldap_to_json.py $project --log $logLevel
 		if [ ! -z "$TOPDESK_FILE" ]; then
 			export_handler topdesk_to_json.py $project --file $TOPDESK_FILE --log $logLevel

@@ -40,6 +40,7 @@ python scraper/project_to_json.py $project --log $logLevel
 python scraper/environment_sources.py $project --log $logLevel
 python scraper/git_to_json.py $project --log $logLevel --force
 python scraper/jenkins_to_json.py $project --log $logLevel
+python scraper/sonar_to_json.py $project --log $logLevel --metrics sqale_index
 python scraper/export_files.py $project --update $preflightFiles $updateFiles --export $exportFiles
 
 if [ $cleanupRepos = "true" ]; then
