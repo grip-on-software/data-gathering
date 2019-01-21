@@ -5,93 +5,62 @@ of the quality reporting dashboard history.
 
 import argparse
 import datetime
+import json
 import os
 import logging
 import ssl
 from hqlib import domain
-from hqlib.metric_source import Sonar
+from hqlib.metric_source import Sonar, Sonar7
+from hqlib.metric_source.sonar import extract_branch_decorator
 try:
     from hqlib.metric_source import CompactHistory
 except ImportError:
     raise ImportError('Cannot import CompactHistory: quality_reporting 2.3.0+ required')
 from hqlib.requirement import CodeQuality
 from hqlib.metric_source.url_opener import UrlOpener
+from hqlib.domain import LowerIsBetterMetric
+from hqlib.metric.metric_source_mixin import SonarMetric
 from gatherer.config import Configuration
+from gatherer.domain import Project
+from gatherer.domain import source
 from gatherer.log import Log_Setup
 from gatherer.utils import get_datetime, Iterator_Limiter
 
-def format_private_method(class_type, method, is_name=False):
+class Custom_Metric(SonarMetric, LowerIsBetterMetric):
     """
-    Format a private method name according to PEP 8, where double underscores
-    are replaced by an underscore, the class name and two underscores.
-
-    The `class_type` is the class object where the method is defined, and
-    `method` is the method or function object itself. If `is_name` is `True`,
-    then this is instead the method name, excluding the double underscores.
+    A custom metric from Sonar.
     """
 
-    if is_name:
-        method_name = '__{}'.format(method)
-    else:
-        method_name = method.__name__
+    target_value = 0
+    low_target_value = 100
 
-    return '_{}{}'.format(class_type.__name__, method_name)
+    def __init__(self, name, subject=None, project=None):
+        self._metric_name = name
+        super(Custom_Metric, self).__init__(subject, project)
 
-def override(class_type):
-    """
-    Override a decorated method from a parent class `class_type`.
-    """
+    def stable_id(self):
+        name = ''.join(part.title() for part in self._metric_name.split('_'))
+        name += self._subject.name()
+        return name
 
-    def overridden(func):
-        """
-        Use the decorated function `func` to provide as an overridden variant
-        of the private method in the parent class.
-        """
+    def value(self):
+        if self._metric_source:
+            val = self._metric_source.custom(self._sonar_id(),
+                                             metric_name=self._metric_name)
+        else:
+            val = -1
 
-        setattr(class_type, format_private_method(class_type, func), func)
+        print(repr(val))
+        return val
 
-        return func
-
-    return overridden
-
-def reprovide(*methods):
-    """
-    Inherit some 'private' methods from a parent class for the decorated class.
-
-    The arguments are method names without their double underscore prefix.
-    """
-
-    def reprovided(class_type):
-        """
-        Apply the private parent methods on the inheriting class `class_type`.
-
-        If a method cannot be found in the direct bases of the class, then
-        an `AttributeError` is raised.
-        """
-
-        for method in methods:
-            for base in class_type.__bases__:
-                parent_method = format_private_method(base, method, True)
-                if hasattr(base, parent_method):
-                    setattr(class_type,
-                            format_private_method(class_type, method, True),
-                            getattr(base, parent_method))
-                    break
-            else:
-                raise AttributeError("Cannot find overridable private method {}".format(method))
-
-        return class_type
-
-    return reprovided
-
-@reprovide("has_project", "get_json", "add_branch_param_to_url")
-class Sonar_Time_Machine(Sonar):
+class Sonar_Time_Machine(Sonar7):
     """
     Sonar instance with time machine history search support.
     """
 
     def __init__(self, sonar_url, *args, **kwargs):
         super(Sonar_Time_Machine, self).__init__(sonar_url, *args, **kwargs)
+        self.__class__ = Sonar_Time_Machine
 
         self.__sonar_url = sonar_url
         self.__current_datetime = None
@@ -152,9 +121,8 @@ class Sonar_Time_Machine(Sonar):
                         self.__current_datetime, self.__end_datetime)
         return -1
 
-    @override(Sonar)
-    def __metric(self, product, metric_name, branch):
-        if not self.__has_project(product, branch):
+    def _metric(self, product, metric_name, branch):
+        if not self._has_project(product, branch):
             return -1
 
         metric_url = self.__sonar_url + 'api/timemachine/index?' + \
@@ -162,18 +130,18 @@ class Sonar_Time_Machine(Sonar):
         measures_url = self.__sonar_url + 'api/measures/search_history?' + \
             'component={component}&metrics={metric}'
         api_options = [
-            (self.__add_branch_param_to_url(measures_url, branch),
+            (self._add_branch_param_to_url(measures_url, branch),
              lambda json: json['measures'][0]['history'],
              ('date', 'value')),
-            (self.__add_branch_param_to_url(metric_url, branch),
+            (self._add_branch_param_to_url(metric_url, branch),
              lambda json: json[0]['cells'], ('d', 'v'))
         ]
         for api_url, data_getter, keys in api_options:
             url = api_url.format(component=product, metric=metric_name)
             if url not in self.__failed_urls:
                 try:
-                    json = self.__get_json(url)
-                    return self.__parse_measures(data_getter(json), keys)
+                    data = self._get_json(url)
+                    return self.__parse_measures(data_getter(data), keys)
                 except UrlOpener.url_open_exceptions:
                     self.__failed_urls.add(url)
 
@@ -190,9 +158,10 @@ class Sonar_Time_Machine(Sonar):
                              ps=iterator_limiter.size,
                              **url_params)
             try:
-                json = self.__get_json(url)
-                has_content = json['paging']['total'] > iterator_limiter.skip + json['paging']['pageSize']
-                for issue in json['issues']:
+                data = self._get_json(url)
+                new_size = iterator_limiter.skip + data['paging']['pageSize']
+                has_content = data['paging']['total'] > new_size
+                for issue in data['issues']:
                     creation_date = self.__make_datetime(issue['creationDate'])
                     if creation_date > self.__current_datetime:
                         continue
@@ -214,48 +183,57 @@ class Sonar_Time_Machine(Sonar):
 
         return count
 
-    @override(Sonar)
-    def __rule_violation(self, product, rule_name, default=0, branch=None):
-        if not self.__has_project(product, branch):
+    def _rule_violation(self, product, rule_name, default=0, branch=None):
+        if not self._has_project(product, branch):
             return -1
 
         rule_violation_url = self.__sonar_url + 'api/issues/search?' + \
             'componentRoots={component}&rules={rule}&p={p}&ps={ps}'
-        rule_violation_url = self.__add_branch_param_to_url(rule_violation_url,
-                                                            branch)
+        rule_violation_url = self._add_branch_param_to_url(rule_violation_url,
+                                                           branch)
         return self.__count_issues(rule_violation_url, closed=False,
                                    component=product, rule=rule_name,
                                    default=default)
 
-    @override(Sonar)
-    def __false_positives(self, product, default=0, branch=None):
-        if not self.__has_project(product, branch):
+    def _false_positives(self, product, default=0, branch=None):
+        if not self._has_project(product, branch):
             return -1
 
         false_positives_url = self.__sonar_url + 'api/issues/search?' + \
             'componentRoots={component}&' + \
             'resolutions=FALSE-POSITIVE&p={p}&ps={ps}'
-        false_positives_url = self.__add_branch_param_to_url(false_positives_url,
-                                                             branch)
+        false_positives_url = self._add_branch_param_to_url(false_positives_url,
+                                                            branch)
         return self.__count_issues(false_positives_url, closed=True,
                                    default=default, component=product)
 
-def retrieve(url, name, products, username="", password=""):
+    @extract_branch_decorator
+    def custom(self, product, branch, metric_name=None):
+        """
+        Retrieve a custom metric.
+        """
+
+        return int(self._metric(product, metric_name, branch))
+
+def retrieve(sonar, project, products, metrics=None):
     """
     Retrieve Sonar metrics from the instance at `url`, of the project `name`,
     and for the component names in the list `products`.
     """
 
-    sonar = Sonar_Time_Machine(url, username=username, password=password)
-    project = domain.Project(name=name, metric_sources={Sonar: sonar})
-    history = CompactHistory('history-{}.json'.format(name))
-    for product in products:
-        retrieve_product(sonar, history, project, product)
+    hq_project = domain.Project(name=project.key,
+                                metric_sources={Sonar: sonar})
 
-def retrieve_product(sonar, history, project, product):
+    history_filename = os.path.join(project.export_key, 'data_history.json')
+    history = CompactHistory(history_filename)
+    for product in products:
+        retrieve_product(sonar, history, hq_project, product, metrics)
+
+def retrieve_product(sonar, history, project, product, include_metrics=None):
     """
-    Retrieve Sonar metrics from the instance at `url`, of the project `name`,
-    and for the component name `product`.
+    Retrieve Sonar metrics from the instance described by the domain object
+    `sonar`, of the project `project`, and for the component name `product`.
+    The results are added to the `history` object.
     """
 
     component = domain.Component(name=product,
@@ -263,12 +241,24 @@ def retrieve_product(sonar, history, project, product):
     requirement = CodeQuality()
     metric_classes = requirement.metric_classes()
     metrics = []
+    metric_names = set()
     for metric_class in metric_classes:
-        metrics.append(metric_class(subject=component, project=project))
+        if include_metrics is None or metric_class.__name__ in include_metrics:
+            metrics.append(metric_class(subject=component, project=project))
+            metric_names.add(metric_class.__name__)
+
+    for metric in include_metrics:
+        if metric not in metric_names:
+            metrics.append(Custom_Metric(metric, subject=component,
+                                         project=project))
 
     has_next_date = True
     while has_next_date:
+        # Clear caches and reload
+        for metric in metrics:
+            metric.status.cache_clear()
         metrics[0].value()
+
         try:
             sonar.set_datetime()
         except RuntimeError:
@@ -291,6 +281,7 @@ def parse_args():
 
     description = "Obtain sonar history and output JSON"
     parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('project', help='Project key')
     parser.add_argument('--url', help='Sonar URL',
                         default=config.get('sonar', 'host'))
     parser.add_argument('--username', help='Sonar username',
@@ -301,8 +292,8 @@ def parse_args():
                         help='Enable SSL certificate verification')
     parser.add_argument('--no-verify', action='store_false', dest='verify',
                         help='Disable SSL certificate verification')
-    parser.add_argument('--name', help='Project name')
     parser.add_argument('--products', nargs='+', help='Sonar products')
+    parser.add_argument('--metrics', nargs='+', help='Quality report metrics')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -331,8 +322,32 @@ def main():
         cafile_env = ssl.get_default_verify_paths().openssl_cafile_env
         os.environ[cafile_env] = args.verify
 
-    retrieve(args.url, args.name, args.products,
-             username=username, password=password)
+    project = Project(args.project)
+    project.make_export_directory()
+
+    sonar_source = project.sources.find_source_type(source.Sonar)
+    if sonar_source:
+        url = sonar_source.url
+    elif Configuration.has_value(args.url):
+        url = args.url
+    else:
+        logging.warning('No Sonar URL defined for project %s', project.key)
+        return
+
+    if args.products is not None:
+        products = args.products
+    else:
+        sources_file = os.path.join(project.export_key, 'data_source_ids.json')
+        if not os.path.exists(sources_file):
+            logging.warning('No Sonar products defined for project %s',
+                            project.key)
+            return
+
+        with open(sources_file) as source_ids:
+            products = [domain.source_id for domain in json.load(source_ids)]
+
+    sonar = Sonar_Time_Machine(url, username=username, password=password)
+    retrieve(sonar, project, products, metrics=args.metrics)
 
 if __name__ == '__main__':
     main()
