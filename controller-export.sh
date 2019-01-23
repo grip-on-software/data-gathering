@@ -2,8 +2,8 @@
 
 AGENTS_DIRECTORY="/agents"
 CONTROLLER_DIRECTORY="/controller"
-# The scripts that docker-scrape.sh runs which generate update files
-gathererScripts="preflight.py project_to_json.py project_sources.py environment_sources.py git_to_json.py jenkins_to_json.py"
+# The scripts that the agent scraper runs which generate update files
+gathererScripts="preflight.py project_to_json.py project_sources.py environment_sources.py git_to_json.py jenkins_to_json.py sonar_to_json.py"
 updateFiles=$(./scraper/list-files.sh update $gathererScripts)
 preflightFiles=$(./scraper/list-files.sh update preflight.py)
 
