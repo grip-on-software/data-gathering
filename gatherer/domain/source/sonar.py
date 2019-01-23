@@ -38,8 +38,8 @@ class Sonar(Source):
         try:
             logging.info("Checking server version of %s", self.url)
             session = Session()
-            response = session.get('{}/api/server/version'.format(self.url),
-                                   timeout=3)
+            url = '{}/api/server/version'.format(self.url.rstrip('/'))
+            response = session.get(url, timeout=3)
             return response.text
         except (ConnectionError, HTTPError, Timeout):
             return ''
