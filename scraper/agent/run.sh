@@ -18,7 +18,7 @@ if [ -z "$logLevel" ]; then
 fi
 
 # Declare update and export files
-scripts="project_to_json.py project_sources.py git_to_json.py jenkins_to_json.py"
+scripts="project_to_json.py project_sources.py git_to_json.py jenkins_to_json.py sonar_to_json.py"
 preflightFiles=$(./scraper/list-files.sh update preflight.py)
 updateFiles=$(./scraper/list-files.sh update $scripts)
 exportFiles=$(./scraper/list-files.sh export $scripts)

@@ -259,6 +259,9 @@ def retrieve(sonar, project, products, metrics=None):
                                 metric_sources={Sonar: sonar})
 
     history_filename = os.path.join(project.export_key, 'data_history.json')
+    with open(history_filename, 'w') as history_file:
+        json.dump({"dates": [], "statuses": [], "metrics": {}}, history_file)
+
     history = CompactHistory(history_filename)
     metric_names = set()
     for product in products:
