@@ -317,21 +317,29 @@ def parse_args():
     """
 
     config = Configuration.get_settings()
-    verify = config.get('sonar', 'verify')
-    if not Configuration.has_value(verify):
-        verify = False
-    elif not os.path.exists(verify):
+    if config.has_section('sonar'):
+        sonar = dict(config.items('sonar'))
+        verify = config.get('sonar', 'verify')
+        if not Configuration.has_value(verify):
+            verify = False
+        elif not os.path.exists(verify):
+            verify = True
+    else:
+        sonar = {
+            'host': None,
+            'username': '',
+            'password': ''
+        }
         verify = True
 
     description = "Obtain sonar history and output JSON"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('project', help='Project key')
-    parser.add_argument('--url', help='Sonar URL',
-                        default=config.get('sonar', 'host'))
+    parser.add_argument('--url', help='Sonar URL', default=sonar['host'])
     parser.add_argument('--username', help='Sonar username',
-                        default=config.get('sonar', 'username'))
+                        default=sonar['username'])
     parser.add_argument('--password', help='Sonar password',
-                        default=config.get('sonar', 'password'))
+                        default=sonar['password'])
     parser.add_argument('--verify', nargs='?', const=True, default=verify,
                         help='Enable SSL certificate verification')
     parser.add_argument('--no-verify', action='store_false', dest='verify',
