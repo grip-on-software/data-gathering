@@ -39,8 +39,15 @@ class Custom_Metric(SonarMetric, LowerIsBetterMetric):
         self._metric_name = name
         super(Custom_Metric, self).__init__(subject, project)
 
+    def get_name(self):
+        """
+        Retrieve the custom metric name.
+        """
+
+        return ''.join(part.title() for part in self._metric_name.split('_'))
+
     def stable_id(self):
-        name = ''.join(part.title() for part in self._metric_name.split('_'))
+        name = self.get_name()
         name += self._subject.name()
         return name
 
@@ -253,8 +260,12 @@ def retrieve(sonar, project, products, metrics=None):
 
     history_filename = os.path.join(project.export_key, 'data_history.json')
     history = CompactHistory(history_filename)
+    metric_names = set()
     for product in products:
-        retrieve_product(sonar, history, hq_project, product, metrics)
+        metric_names.update(retrieve_product(sonar, history, hq_project,
+                                             product, metrics))
+
+    return metric_names
 
 def retrieve_product(sonar, history, project, product, include_metrics=None):
     """
@@ -277,8 +288,9 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
 
     for metric in include_metrics:
         if metric not in metric_names:
-            metrics.append(Custom_Metric(metric, subject=component,
-                                         project=project))
+            custom = Custom_Metric(metric, subject=component, project=project)
+            metrics.append(custom)
+            metric_names.add(custom.get_name())
 
     has_next_date = True
     while has_next_date:
@@ -296,6 +308,8 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
         except RuntimeError:
             has_next_date = False
             logging.warning('Cannot obtain next measurement date')
+
+    return metric_names
 
 def parse_args():
     """
@@ -326,6 +340,8 @@ def parse_args():
     parser.add_argument('--metrics', nargs='+', help='Quality report metrics')
     parser.add_argument('--from-date', dest='from_date',
                         help='Date to start collecting data from')
+    parser.add_argument('--names', default='metrics_base_names.json',
+                        help='File to add metric base names to')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -359,6 +375,19 @@ def get_products(products, project):
             products = [domain["source_id"] for domain in json.load(source_ids)]
 
     return products
+
+def update_metric_names(filename, metric_names):
+    """
+    Update a JSON file with metric base names to contain the collected base
+    names.
+    """
+
+    if os.path.exists(filename):
+        with open(filename) as input_file:
+            metric_names.update(json.load(input_file))
+
+    with open(filename, 'w') as output_file:
+        json.dump(list(metric_names), output_file)
 
 def main():
     """
@@ -405,7 +434,7 @@ def main():
 
     sonar = Sonar_Time_Machine(url, from_date, username=username,
                                password=password)
-    retrieve(sonar, project, products, metrics=args.metrics)
+    metric_names = retrieve(sonar, project, products, metrics=args.metrics)
 
     if args.metrics is not None:
         for metric in args.metrics:
@@ -413,6 +442,8 @@ def main():
 
     with open(update_filename, 'w') as update_file:
         json.dump(dates, update_file)
+
+    update_metric_names(args.names, metric_names)
 
 if __name__ == '__main__':
     main()
