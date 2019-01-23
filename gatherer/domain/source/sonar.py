@@ -40,6 +40,6 @@ class Sonar(Source):
             session = Session()
             response = session.get('{}/api/server/version'.format(self.url),
                                    timeout=3)
-            return response.text()
+            return response.text
         except (ConnectionError, HTTPError, Timeout):
             return ''
