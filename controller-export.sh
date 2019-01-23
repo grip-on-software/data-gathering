@@ -35,7 +35,7 @@ perform_export() {
 		while pgrep -u $USER -f "jenkins\.sh" > /dev/null; do
 			sleep 1
 		done
-		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,environment,jenkins,update,developerlink,repo_sources" logLevel="INFO" skipGather="true" restoreFiles="$updateFiles" IMPORTER_BASE="$CONTROLLER_DIRECTORY" relPath="$project/export" SKIP_REQUIREMENTS="true" ./scraper/jenkins.sh 2>&1 | tee $controller_directory/export.log
+		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,environment,jenkins,metric_value,update,developerlink,repo_sources" logLevel="INFO" skipGather="true" restoreFiles="$updateFiles" IMPORTER_BASE="$CONTROLLER_DIRECTORY" relPath="$project/export" SKIP_REQUIREMENTS="true" ./scraper/jenkins.sh 2>&1 | tee $controller_directory/export.log
 		local status=$?
 
 		if [ $status -eq 0 ]; then
