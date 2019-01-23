@@ -9,6 +9,7 @@ import json
 import os
 import logging
 import ssl
+import urllib
 from hqlib import domain
 from hqlib.metric_source import Sonar, Sonar7
 from hqlib.metric_source.sonar import extract_branch_decorator
@@ -24,7 +25,7 @@ from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.domain import source
 from gatherer.log import Log_Setup
-from gatherer.utils import get_datetime, Iterator_Limiter
+from gatherer.utils import format_date, get_datetime, Iterator_Limiter
 
 class Custom_Metric(SonarMetric, LowerIsBetterMetric):
     """
@@ -50,7 +51,6 @@ class Custom_Metric(SonarMetric, LowerIsBetterMetric):
         else:
             val = -1
 
-        print(repr(val))
         return val
 
 class Sonar_Time_Machine(Sonar7):
@@ -58,15 +58,20 @@ class Sonar_Time_Machine(Sonar7):
     Sonar instance with time machine history search support.
     """
 
-    def __init__(self, sonar_url, *args, **kwargs):
+    def __init__(self, sonar_url, from_date, *args, **kwargs):
         super(Sonar_Time_Machine, self).__init__(sonar_url, *args, **kwargs)
-        self.__class__ = Sonar_Time_Machine
+        setattr(self, '__class__', Sonar_Time_Machine)
 
-        self.__sonar_url = sonar_url
         self.__current_datetime = None
         self.__end_datetime = None
         self.__next_datetime = None
         self.__failed_urls = set()
+        self.__iterator = None
+        self.__has_next_page = False
+        if from_date is not None:
+            self.__from_datetime = get_datetime(from_date)
+        else:
+            self.__from_datetime = datetime.datetime(1, 1, 1)
         self.reset_datetime()
 
     def set_datetime(self, date=None):
@@ -77,6 +82,9 @@ class Sonar_Time_Machine(Sonar7):
         if date is None:
             if self.__next_datetime is None:
                 raise RuntimeError('Cannot set next datetime')
+            if self.__next_datetime == self.__end_datetime and self.__has_next_page:
+                self.__iterator.update()
+                self.__has_next_page = False
 
             date = self.__next_datetime
             self.__next_datetime = None
@@ -88,16 +96,18 @@ class Sonar_Time_Machine(Sonar7):
         Alter the moment in time to the full initial range.
         """
 
-        self.__current_datetime = datetime.datetime(1, 1, 1)
+        self.__current_datetime = self.__from_datetime
         self.__end_datetime = datetime.datetime.now()
         self.__next_datetime = None
+        self.__iterator = Iterator_Limiter(size=100, maximum=100000)
+        self.__has_next_page = False
 
     def get_datetime(self):
         """
         Retrieve the moment in time at which to check the Sonar state.
         """
 
-        return self.__current_datetime
+        return self.__next_datetime
 
     @staticmethod
     def __make_datetime(date):
@@ -105,9 +115,13 @@ class Sonar_Time_Machine(Sonar7):
 
     def __parse_measures(self, data, keys):
         date_key, value_key = keys
+
+        if data:
+            self.__end_datetime = self.__make_datetime(data[-1][date_key])
+
         for metric in data:
             date = self.__make_datetime(metric[date_key])
-            if self.__current_datetime < date < self.__end_datetime:
+            if self.__current_datetime < date <= self.__end_datetime:
                 if self.__next_datetime is not None and self.__next_datetime != date:
                     logging.warning('Measurement dates differ: %s %s',
                                     self.__next_datetime, date)
@@ -121,14 +135,19 @@ class Sonar_Time_Machine(Sonar7):
                         self.__current_datetime, self.__end_datetime)
         return -1
 
+    def _update_page(self, data):
+        size = self.__iterator.skip + data['paging']['pageSize']
+        has_content = data['paging']['total'] > size
+        self.__has_next_page = self.__iterator.check(has_content)
+
     def _metric(self, product, metric_name, branch):
         if not self._has_project(product, branch):
             return -1
 
-        metric_url = self.__sonar_url + 'api/timemachine/index?' + \
-            'resource={component}&metrics={metric}'
-        measures_url = self.__sonar_url + 'api/measures/search_history?' + \
-            'component={component}&metrics={metric}'
+        metric_url = self.url() + 'api/timemachine/index?' + \
+            'resource={component}&metrics={metric}&fromDateTime={from_date}'
+        measures_url = self.url() + 'api/measures/search_history?' + \
+            'component={component}&metrics={metric}&from={from_date}'
         api_options = [
             (self._add_branch_param_to_url(measures_url, branch),
              lambda json: json['measures'][0]['history'],
@@ -136,11 +155,19 @@ class Sonar_Time_Machine(Sonar7):
             (self._add_branch_param_to_url(metric_url, branch),
              lambda json: json[0]['cells'], ('d', 'v'))
         ]
+        from_date = format_date(self.__from_datetime,
+                                '%Y-%m-%dT%H:%M:%S+0000')
         for api_url, data_getter, keys in api_options:
-            url = api_url.format(component=product, metric=metric_name)
+            api_url = "{0}&p={{p}}&ps={{ps}}".format(api_url)
+            url = api_url.format(component=urllib.parse.quote(product),
+                                 metric=urllib.parse.quote(metric_name),
+                                 from_date=urllib.parse.quote(from_date),
+                                 p=self.__iterator.page,
+                                 ps=self.__iterator.size)
             if url not in self.__failed_urls:
                 try:
                     data = self._get_json(url)
+                    self._update_page(data)
                     return self.__parse_measures(data_getter(data), keys)
                 except UrlOpener.url_open_exceptions:
                     self.__failed_urls.add(url)
@@ -187,7 +214,7 @@ class Sonar_Time_Machine(Sonar7):
         if not self._has_project(product, branch):
             return -1
 
-        rule_violation_url = self.__sonar_url + 'api/issues/search?' + \
+        rule_violation_url = self.url() + 'api/issues/search?' + \
             'componentRoots={component}&rules={rule}&p={p}&ps={ps}'
         rule_violation_url = self._add_branch_param_to_url(rule_violation_url,
                                                            branch)
@@ -199,7 +226,7 @@ class Sonar_Time_Machine(Sonar7):
         if not self._has_project(product, branch):
             return -1
 
-        false_positives_url = self.__sonar_url + 'api/issues/search?' + \
+        false_positives_url = self.url() + 'api/issues/search?' + \
             'componentRoots={component}&' + \
             'resolutions=FALSE-POSITIVE&p={p}&ps={ps}'
         false_positives_url = self._add_branch_param_to_url(false_positives_url,
@@ -236,6 +263,7 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
     The results are added to the `history` object.
     """
 
+    sonar.reset_datetime()
     component = domain.Component(name=product,
                                  metric_source_ids={sonar: product})
     requirement = CodeQuality()
@@ -259,13 +287,15 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
             metric.status.cache_clear()
         metrics[0].value()
 
+        date = sonar.get_datetime()
+        if date is not None:
+            history.add_metrics(date, metrics)
+
         try:
             sonar.set_datetime()
         except RuntimeError:
             has_next_date = False
             logging.warning('Cannot obtain next measurement date')
-
-        history.add_metrics(sonar.get_datetime(), metrics)
 
 def parse_args():
     """
@@ -294,11 +324,41 @@ def parse_args():
                         help='Disable SSL certificate verification')
     parser.add_argument('--products', nargs='+', help='Sonar products')
     parser.add_argument('--metrics', nargs='+', help='Quality report metrics')
+    parser.add_argument('--from-date', dest='from_date',
+                        help='Date to start collecting data from')
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)
     return args
+
+def adjust_verify(verify):
+    """
+    Adjust SSL certificate verification for the Sonar source.
+    """
+
+    if verify is False:
+        logging.critical('SSL certificate verification cannot be disabled for Sonar export')
+    elif verify is not True:
+        cafile_env = ssl.get_default_verify_paths().openssl_cafile_env
+        os.environ[cafile_env] = verify
+
+def get_products(products, project):
+    """
+    Retrieve a list of product components to collect for the project.
+    """
+
+    if products is None:
+        sources_file = os.path.join(project.export_key, 'data_source_ids.json')
+        if not os.path.exists(sources_file):
+            logging.warning('No Sonar products defined for project %s',
+                            project.key)
+            return []
+
+        with open(sources_file) as source_ids:
+            products = [domain["source_id"] for domain in json.load(source_ids)]
+
+    return products
 
 def main():
     """
@@ -316,11 +376,7 @@ def main():
     else:
         password = ""
 
-    if args.verify is False:
-        logging.critical('SSL certificate verification cannot be disabled for Sonar export')
-    elif args.verify is not True:
-        cafile_env = ssl.get_default_verify_paths().openssl_cafile_env
-        os.environ[cafile_env] = args.verify
+    adjust_verify(args.verify)
 
     project = Project(args.project)
     project.make_export_directory()
@@ -334,20 +390,29 @@ def main():
         logging.warning('No Sonar URL defined for project %s', project.key)
         return
 
-    if args.products is not None:
-        products = args.products
-    else:
-        sources_file = os.path.join(project.export_key, 'data_source_ids.json')
-        if not os.path.exists(sources_file):
-            logging.warning('No Sonar products defined for project %s',
-                            project.key)
-            return
+    products = get_products(args.products, project)
 
-        with open(sources_file) as source_ids:
-            products = [domain["source_id"] for domain in json.load(source_ids)]
+    update_filename = os.path.join(project.export_key, 'history_update.json')
+    from_date = args.from_date
+    dates = {}
+    if os.path.exists(update_filename):
+        with open(update_filename) as update_file:
+            dates = json.load(update_file)
 
-    sonar = Sonar_Time_Machine(url, username=username, password=password)
+    if from_date is None and args.metrics is not None:
+        for metric in args.metrics:
+            from_date = dates.get(metric)
+
+    sonar = Sonar_Time_Machine(url, from_date, username=username,
+                               password=password)
     retrieve(sonar, project, products, metrics=args.metrics)
+
+    if args.metrics is not None:
+        for metric in args.metrics:
+            dates[metric] = format_date(datetime.datetime.now())
+
+    with open(update_filename, 'w') as update_file:
+        json.dump(dates, update_file)
 
 if __name__ == '__main__':
     main()
