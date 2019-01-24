@@ -35,6 +35,14 @@ class Custom_Metric(SonarMetric, LowerIsBetterMetric):
     target_value = 0
     low_target_value = 100
 
+    @classmethod
+    def build_name(cls, name):
+        """
+        Format a metric class name for stable IDs from a Sonar metric name.
+        """
+
+        return ''.join(part.title() for part in name.split('_'))
+
     def __init__(self, name, subject=None, project=None):
         self._metric_name = name
         super(Custom_Metric, self).__init__(subject, project)
@@ -44,7 +52,7 @@ class Custom_Metric(SonarMetric, LowerIsBetterMetric):
         Retrieve the custom metric name.
         """
 
-        return ''.join(part.title() for part in self._metric_name.split('_'))
+        return self.build_name(self._metric_name)
 
     def stable_id(self):
         name = self.get_name()
@@ -282,18 +290,8 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
                                  metric_source_ids={sonar: product})
     requirement = CodeQuality()
     metric_classes = requirement.metric_classes()
-    metrics = []
-    metric_names = set()
-    for metric_class in metric_classes:
-        if include_metrics is None or metric_class.__name__ in include_metrics:
-            metrics.append(metric_class(subject=component, project=project))
-            metric_names.add(metric_class.__name__)
-
-    for metric in include_metrics:
-        if metric not in metric_names:
-            custom = Custom_Metric(metric, subject=component, project=project)
-            metrics.append(custom)
-            metric_names.add(custom.get_name())
+    metrics, metric_names = get_metrics(metric_classes, include_metrics,
+                                        component, project)
 
     has_next_date = True
     while has_next_date:
@@ -313,6 +311,44 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
             logging.warning('Cannot obtain next measurement date')
 
     return metric_names
+
+def get_metrics(metric_classes=None, include_metrics=None, component=None,
+                project=None):
+    """
+    Retrieve metric objects that we wish to collect from the Sonar source, based
+    upon `metric_classes`, a list of required metric classes, and
+    `include_metrics`, a list of metric names to filter on and/or include
+    custom metrics. Either list may also be `None`. The metrics are initialized
+    with the provided `component` and `project`, or if both are `None`, then
+    only the metric names are provided.
+    """
+
+    metrics = []
+    metric_names = set()
+
+    if metric_classes is None:
+        metric_classes = []
+    if include_metrics is None:
+        include_metrics = []
+
+    for metric_class in metric_classes:
+        if include_metrics is None or metric_class.__name__ in include_metrics:
+            if component is not None and project is not None:
+                metrics.append(metric_class(subject=component, project=project))
+
+            metric_names.add(metric_class.__name__)
+
+    for metric in include_metrics:
+        if metric not in metric_names:
+            if component is not None and project is not None:
+                custom = Custom_Metric(metric, subject=component,
+                                       project=project)
+                metrics.append(custom)
+                metric_names.add(custom.get_name())
+            else:
+                metric_names.add(Custom_Metric.build_name(metric))
+
+    return metrics, metric_names
 
 def parse_args():
     """
@@ -339,6 +375,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('project', help='Project key')
     parser.add_argument('--url', help='Sonar URL', default=sonar['host'])
+    parser.add_argument('--no-url', action='store_const', const='', dest='url',
+                        help='Do not use the sonar URL from settings')
     parser.add_argument('--username', help='Sonar username',
                         default=sonar['username'])
     parser.add_argument('--password', help='Sonar password',
@@ -348,7 +386,7 @@ def parse_args():
     parser.add_argument('--no-verify', action='store_false', dest='verify',
                         help='Disable SSL certificate verification')
     parser.add_argument('--products', nargs='+', help='Sonar products')
-    parser.add_argument('--metrics', nargs='+', help='Quality report metrics')
+    parser.add_argument('--metrics', nargs='*', help='Quality report metrics')
     parser.add_argument('--from-date', dest='from_date',
                         help='Date to start collecting data from')
     parser.add_argument('--names', default='metrics_base_names.json',
@@ -400,6 +438,25 @@ def update_metric_names(filename, metric_names):
     with open(filename, 'w') as output_file:
         json.dump(list(metric_names), output_file)
 
+def get_sonar_url(project):
+    """
+    Retrieve the URL to the Sonar instance of the project, from project
+    sources, or return an empty string if the source is unavailable or its
+    version is not known.
+    """
+
+    sonar_source = project.sources.find_source_type(source.Sonar)
+    if not sonar_source:
+        logging.warning('No Sonar URL defined for project %s', project.key)
+        return ""
+
+    if sonar_source.version == "":
+        logging.warning('Cannot determine Sonar version for project %s',
+                        project.key)
+        return ""
+
+    return sonar_source.url
+
 def main():
     """
     Main entry point.
@@ -421,14 +478,14 @@ def main():
     project = Project(args.project)
     project.make_export_directory()
 
-    sonar_source = project.sources.find_source_type(source.Sonar)
-    if sonar_source:
-        url = sonar_source.url
-    elif Configuration.has_value(args.url):
+    if Configuration.has_value(args.url):
         url = args.url
     else:
-        logging.warning('No Sonar URL defined for project %s', project.key)
-        return
+        url = get_sonar_url(project)
+        if url == "":
+            metric_names = get_metrics(include_metrics=args.metrics)[1]
+            update_metric_names(args.names, metric_names)
+            return
 
     products = get_products(args.products, project)
 

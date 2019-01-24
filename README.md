@@ -97,20 +97,26 @@ The usual pipeline setup runs the scripts in the following order:
   a Git or Subversion repository holding the project definitions.
 - `scraper/jenkins_to_json.py`: Retrieve usage statistics from a Jenkins 
   instance.
+- `scraper/sonar_to_json.py`: Retrieve additional or historical metrics 
+  directly from a SonarQube instance instead of an existing quality dashboard 
+  history file.
 
 These scripts are already streamlined in the `scraper/jenkins.sh` script 
 suitable for a Jenkins job, as well as in a number of Docker scripts explained 
-in the [Docker](#docker) section.
+in the [Docker](#docker) section. Depending on the environment, the selected 
+scripts to run or the files to produce for an importer, some scripts may be 
+skipped through these scripts.
 
-Additionally `topdesk_to_json.py` can be manually run to retrieve reservation 
-data related to projects from a CSV dump, and `sonar_to_json.py` can be 
-manually run to retrieve historical code metrics directly from a Sonar instance 
-rather than a quality dashboard history file.
+Additionally `scraper/topdesk_to_json.py` can be manually run to retrieve 
+reservation data related to projects from a CSV dump (see the 
+[Topdesk](#topdesk) section), and `scraper/seats_to_json.py` can be manually 
+run to retrieve seat counts for projects from a spreadsheet (see the 
+[Seats](#seats) section).
 
 There are also a few tools for inspecting data or setting up sources:
 
-- `hqlib_targets.py`: Extract default metric norms from the quality reporting 
-  library repository.
+- `scraper/hqlib_targets.py`: Extract default metric norms from the quality 
+  reporting library repository.
 - `init_gitlab.py`: Set up repositories for filtered or archived source code.
 - `retrieve_salts.py`: Retrieve project salts from the database.
 - `update_jira_mails.py`: Update email addresses in legacy dropin developer 
@@ -154,7 +160,6 @@ a deployment interface:
   for use by the agent.
 - `exporter_daemon.py` and `controller-export.sh`: Internal daemon for handling 
   agent's collected data to import into the database.
-- `deployer.py`: Deployment web service for triggering updates.
 
 ## Docker
 
