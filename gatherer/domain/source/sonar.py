@@ -10,6 +10,7 @@ except ImportError:
 
 import logging
 from requests.exceptions import ConnectionError, HTTPError, Timeout
+from ...config import Configuration
 from ...request import Session
 from .types import Source, Source_Types
 
@@ -21,6 +22,7 @@ class Sonar(Source):
 
     def __init__(self, *args, **kwargs):
         super(Sonar, self).__init__(*args, **kwargs)
+        self._blacklisted = Configuration.is_url_blacklisted(self.url)
 
     @property
     def environment(self):
@@ -35,6 +37,9 @@ class Sonar(Source):
 
     @property
     def version(self):
+        if self._blacklisted:
+            return ''
+
         try:
             logging.info("Checking server version of %s", self.url)
             session = Session()
@@ -42,4 +47,5 @@ class Sonar(Source):
             response = session.get(url, timeout=3)
             return response.text
         except (ConnectionError, HTTPError, Timeout):
+            self._blacklisted = True
             return ''

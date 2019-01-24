@@ -19,6 +19,7 @@ from gitlab import Gitlab
 from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError, \
     GitlabListError
 from requests.exceptions import ConnectionError, Timeout
+from ...config import Configuration
 from ...request import Session
 from .types import Source, Source_Types
 from .git import Git
@@ -228,6 +229,9 @@ class GitLab(Git):
         instance on this host.
         """
 
+        if Configuration.is_url_blacklisted(self.host):
+            raise RuntimeError('GitLab API for {} is blacklisted'.format(self.host))
+
         if self._gitlab_api is None:
             unsafe = self.get_option('unsafe_hosts')
             session = Session(verify=unsafe is None)
@@ -307,7 +311,8 @@ class GitLab(Git):
                     logging.info('SSH key already exists on GitLab instance %s.',
                                  self.host)
                     return
-                elif not dry_run:
+
+                if not dry_run:
                     key.delete()
 
         logging.info('Adding new SSH key to GitLab instance %s...', self.host)

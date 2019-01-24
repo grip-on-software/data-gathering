@@ -13,6 +13,7 @@ try:
 except ImportError:
     raise
 from requests.exceptions import ConnectionError, HTTPError, Timeout
+from ...config import Configuration
 from ...jenkins import Jenkins as JenkinsAPI
 from .types import Source, Source_Types
 
@@ -42,7 +43,7 @@ class Jenkins(Source):
         try:
             self.jenkins_api.timeout = 3
             return self.jenkins_api.version
-        except (ConnectionError, HTTPError, Timeout):
+        except (RuntimeError, ConnectionError, HTTPError, Timeout):
             return ''
         finally:
             if self._jenkins_api is not None:
@@ -53,6 +54,9 @@ class Jenkins(Source):
         """
         Retrieve the Jenkins API object for this source.
         """
+
+        if Configuration.is_url_blacklisted(self.url):
+            raise RuntimeError('Jenkins API for {} is blacklisted'.format(self.plain_url))
 
         if self._jenkins_api is None:
             parts = urllib.parse.urlsplit(self.url)

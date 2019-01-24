@@ -16,6 +16,7 @@ except ImportError:
 from jira import JIRA
 from jira.exceptions import JIRAError
 from .types import Source, Source_Types
+from ...config import Configuration
 
 @Source_Types.register('jira')
 class Jira(Source):
@@ -55,7 +56,7 @@ class Jira(Source):
         if self._version is None:
             try:
                 self._version = self.jira_api.server_info()['version']
-            except (JIRAError, KeyError):
+            except (RuntimeError, JIRAError, KeyError):
                 self._version = ''
 
         return self._version
@@ -73,6 +74,9 @@ class Jira(Source):
         """
         Retrieve the JIRA API object for this source.
         """
+
+        if Configuration.is_url_blacklisted(self.url):
+            raise RuntimeError('JIRA API for {} is blacklisted'.format(self.plain_url))
 
         if self._jira_api is None:
             options = {

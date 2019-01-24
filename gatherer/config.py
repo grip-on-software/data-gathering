@@ -3,7 +3,9 @@ Configuration provider.
 """
 
 import os
+import re
 from configparser import RawConfigParser
+from urlmatch.urlmatch import parse_match_pattern, BadMatchPattern
 
 class Configuration(object):
     """
@@ -13,6 +15,7 @@ class Configuration(object):
 
     _settings = None
     _credentials = None
+    _url_blacklist = None
 
     @classmethod
     def get_filename(cls, file_name):
@@ -70,3 +73,36 @@ class Configuration(object):
         """
 
         return value not in ('false', 'no', 'off', '-', '0', '', None)
+
+    @classmethod
+    def get_url_blacklist(cls):
+        """
+        Retrieve a regular expression object that matches URLs that should not
+        be requested by the gatherer because they are known to be inaccessible.
+        """
+
+        if cls._url_blacklist is None:
+            # By default the blacklist matches nothing.
+            cls._url_blacklist = re.compile('a^')
+            if 'GATHERER_URL_BLACKLIST' in os.environ:
+                patterns = os.environ['GATHERER_URL_BLACKLIST'].split(',')
+                try:
+                    blacklist = [parse_match_pattern(pattern,
+                                                     path_required=False,
+                                                     http_auth_allowed=True)
+                                 for pattern in patterns]
+                except BadMatchPattern:
+                    blacklist = False
+                if blacklist:
+                    cls._url_blacklist = re.compile("|".join(blacklist))
+
+        return cls._url_blacklist
+
+    @classmethod
+    def is_url_blacklisted(cls, url):
+        """
+        Check whether the provided URL should not be requested by the gatherer
+        because it is known to be inaccessible.
+        """
+
+        return bool(cls.get_url_blacklist().match(url))

@@ -17,6 +17,7 @@ except ImportError:
 from .types import Source, Source_Types
 from .git import Git
 from ...git.tfs import TFS_Repository, TFS_Project, TFVC_Project
+from ...config import Configuration
 
 @Source_Types.register('tfs')
 @Source_Types.register('git',
@@ -137,6 +138,9 @@ class TFS(Git):
         Retrieve an instance of the TFS API connection for the TFS collection
         on this host.
         """
+
+        if Configuration.is_url_blacklisted(self._tfs_host):
+            raise RuntimeError('TFS API for {} is blacklisted'.format(self._tfs_host))
 
         if self._tfs_api is None:
             logging.info('Setting up API for %s', self._tfs_host)
