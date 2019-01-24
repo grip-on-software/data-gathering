@@ -285,9 +285,15 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
     The results are added to the `history` object.
     """
 
+    if isinstance(product, dict):
+        source_id = product["source_id"]
+        product = product["domain_name"]
+    else:
+        source_id = product
+
     sonar.reset_datetime()
     component = domain.Component(name=product,
-                                 metric_source_ids={sonar: product})
+                                 metric_source_ids={sonar: source_id})
     requirement = CodeQuality()
     metric_classes = requirement.metric_classes()
     metrics, metric_names = get_metrics(metric_classes, include_metrics,
@@ -421,7 +427,7 @@ def get_products(products, project):
             return []
 
         with open(sources_file) as source_ids:
-            products = [domain["source_id"] for domain in json.load(source_ids)]
+            products = json.load(source_ids)
 
     return products
 
