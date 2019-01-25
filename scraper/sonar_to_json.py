@@ -203,25 +203,30 @@ class Sonar_Time_Machine(Sonar7):
                 data = self._get_json(url)
                 new_size = iterator_limiter.skip + data['paging']['pageSize']
                 has_content = data['paging']['total'] > new_size
-                for issue in data['issues']:
-                    creation_date = self.__make_datetime(issue['creationDate'])
-                    if creation_date > self.__current_datetime:
-                        continue
-
-                    if 'closeDate' not in issue:
-                        if not closed:
-                            count += 1
-                    else:
-                        close_date = self.__make_datetime(issue['closeDate'])
-                        if closed and close_date < self.__current_datetime:
-                            count += 1
-                        elif not closed and close_date > self.__current_datetime:
-                            count += 1
+                count += self.__count_issue_data(data['issues'], closed)
 
                 iterator_limiter.update()
             except UrlOpener.url_open_exceptions:
                 logging.exception("Can't get value from %s", url)
                 return default
+
+        return count
+
+    def __count_issue_data(self, issues, closed):
+        count = 0
+        for issue in issues:
+            creation_date = self.__make_datetime(issue['creationDate'])
+            if creation_date > self.__current_datetime:
+                continue
+
+            if 'closeDate' not in issue:
+                if not closed:
+                    count += 1
+            else:
+                close_date = self.__make_datetime(issue['closeDate'])
+                if (closed and close_date < self.__current_datetime) or \
+                    (not closed and close_date > self.__current_datetime):
+                    count += 1
 
         return count
 
