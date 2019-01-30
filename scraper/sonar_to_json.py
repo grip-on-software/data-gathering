@@ -5,6 +5,7 @@ of the quality reporting dashboard history.
 
 import argparse
 import datetime
+import itertools
 import json
 import os
 import logging
@@ -17,7 +18,7 @@ try:
     from hqlib.metric_source import CompactHistory
 except ImportError:
     raise ImportError('Cannot import CompactHistory: quality_reporting 2.3.0+ required')
-from hqlib.requirement import CodeQuality
+from hqlib.requirement import CodeQuality, ViolationsByType
 from hqlib.metric_source.url_opener import UrlOpener
 from hqlib.domain import LowerIsBetterMetric
 from hqlib.metric.metric_source_mixin import SonarMetric
@@ -254,6 +255,30 @@ class Sonar_Time_Machine(Sonar7):
         return self.__count_issues(false_positives_url, closed=True,
                                    default=default, component=product)
 
+    _issues_by_type_api_url = 'api/issues/search?' + \
+        'componentRoots={component}&types={type}&p={p}&ps={ps}'
+
+    @extract_branch_decorator
+    def maintainability_bugs(self, product, branch):
+        bugs_url = self.url() + 'api/issues/search?' + \
+            'componentRoots={component}&types=BUG&p={p}&ps={ps}'
+        return self.__count_issues(bugs_url, closed=False, default=0,
+                                   component=product)
+
+    @extract_branch_decorator
+    def vulnerabilities(self, product, branch):
+        vulnerabilities_url = self.url() + 'api/issues/search?' + \
+            'componentRoots={component}&types=VULNERABILITY&p={p}&ps={ps}'
+        return self.__count_issues(vulnerabilities_url, closed=False, default=0,
+                                   component=product)
+
+    @extract_branch_decorator
+    def code_smells(self, product, branch):
+        code_smells_url = self.url() + 'api/issues/search?' + \
+            'componentRoots={component}&types=CODE_SMELL&p={p}&ps={ps}'
+        return self.__count_issues(code_smells_url, closed=False, default=0,
+                                   component=product)
+
     @extract_branch_decorator
     def custom(self, product, branch, metric_name=None):
         """
@@ -299,17 +324,21 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
     sonar.reset_datetime()
     component = domain.Component(name=product,
                                  metric_source_ids={sonar: source_id})
-    requirement = CodeQuality()
-    metric_classes = requirement.metric_classes()
+    requirements = (CodeQuality(), ViolationsByType())
+    metric_classes = tuple(itertools.chain(*[
+        requirement.metric_classes() for requirement in requirements
+    ]))
     metrics, metric_names = get_metrics(metric_classes, include_metrics,
                                         component, project)
+    if not metrics:
+        return metric_names
 
     has_next_date = True
     while has_next_date:
         # Clear caches and reload
         for metric in metrics:
             metric.status.cache_clear()
-        metrics[0].value()
+            metric.value()
 
         date = sonar.get_datetime()
         if date is not None:
