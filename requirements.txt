@@ -6,7 +6,7 @@ git+https://github.com/pycontribs/jira.git@8306c3d3fd03eec7749d9d288b5c8e8a7dde9
 # gatherer.git
 gitpython>=2.1.8
 PyGithub
-python-gitlab
+python-gitlab>=1.7.0
 # gatherer.request
 requests
 requests_ntlm
