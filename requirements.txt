@@ -15,7 +15,7 @@ ordered-set
 mock
 git+https://github.com/wekan/wekan-python-api-client.git@master#egg=wekanapi&subdirectory=src
 quality_report<=1.79.3; python_version < '3.0'
-quality_report>=2.21.0; python_version >= '3.0'
+quality_report>=2.71.0; python_version >= '3.0'
 svn>=0.3.45
 enum34; python_version < '3.4'
 # gatherer.utils
