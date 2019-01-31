@@ -5,7 +5,7 @@ Script to obtain the base names of all metrics used in HQ.
 import argparse
 import json
 import logging
-from requests.exceptions import ConnectionError, Timeout
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -55,18 +55,20 @@ def main():
     """
 
     args = parse_args()
+    url = args.url
+    meta_data = True
+
     if args.project is not None:
         project = Project(args.project)
-        url = '{}/{}/json/metrics.json'.format(args.host,
-                                               project.quality_metrics_name)
-        meta_data = False
-    else:
-        url = args.url
-        meta_data = True
+        if project.quality_metrics_name is not None:
+            url = '{}/{}/json/metrics.json'.format(args.host,
+                                                   project.quality_metrics_name)
+            meta_data = False
 
     try:
         request = Session().get(url)
-    except (ConnectionError, Timeout):
+        request.raise_for_status()
+    except (ConnectionError, HTTPError, Timeout):
         logging.exception('Could not obtain metrics base names')
         return
 
