@@ -308,7 +308,7 @@ def retrieve(sonar, project, products, metrics=None):
 
     return metric_names
 
-def retrieve_product(sonar, history, project, product, include_metrics=None):
+def retrieve_product(sonar, history, project, product, include_metrics):
     """
     Retrieve Sonar metrics from the instance described by the domain object
     `sonar`, of the project `project`, and for the component name `product`.
@@ -352,41 +352,35 @@ def retrieve_product(sonar, history, project, product, include_metrics=None):
 
     return metric_names
 
-def get_metrics(metric_classes=None, include_metrics=None, component=None,
-                project=None):
+def get_metrics(metric_classes, include_metrics, component=None, project=None):
     """
     Retrieve metric objects that we wish to collect from the Sonar source, based
     upon `metric_classes`, a list of required metric classes, and
     `include_metrics`, a list of metric names to filter on and/or include
-    custom metrics. Either list may also be `None`. The metrics are initialized
-    with the provided `component` and `project`, or if both are `None`, then
-    only the metric names are provided.
+    custom metrics. The metrics are initialized with the provided `component`
+    and `project`, or if both are `None`, then only the metric names are
+    provided.
     """
 
     metrics = []
     metric_names = set()
-
-    if metric_classes is None:
-        metric_classes = []
-    if include_metrics is None:
-        include_metrics = []
+    has_parameters = component is not None and project is not None
 
     for metric_class in metric_classes:
-        if include_metrics is None or metric_class.__name__ in include_metrics:
-            if component is not None and project is not None:
+        if 'all' in include_metrics or metric_class.__name__ in include_metrics:
+            if has_parameters:
                 metrics.append(metric_class(subject=component, project=project))
 
             metric_names.add(metric_class.__name__)
 
     for metric in include_metrics:
-        if metric not in metric_names:
-            if component is not None and project is not None:
+        if metric not in metric_names and metric != 'all':
+            if has_parameters:
                 custom = Custom_Metric(metric, subject=component,
                                        project=project)
                 metrics.append(custom)
-                metric_names.add(custom.get_name())
-            else:
-                metric_names.add(Custom_Metric.build_name(metric))
+
+            metric_names.add(Custom_Metric.build_name(metric))
 
     return metrics, metric_names
 
@@ -426,7 +420,8 @@ def parse_args():
     parser.add_argument('--no-verify', action='store_false', dest='verify',
                         help='Disable SSL certificate verification')
     parser.add_argument('--products', nargs='+', help='Sonar products')
-    parser.add_argument('--metrics', nargs='*', help='Quality report metrics')
+    parser.add_argument('--metrics', nargs='*', default=['all'],
+                        help='Quality report metrics')
     parser.add_argument('--from-date', dest='from_date',
                         help='Date to start collecting data from')
     parser.add_argument('--names', default='metrics_base_names.json',
@@ -523,7 +518,7 @@ def main():
     else:
         url = get_sonar_url(project)
         if url == "":
-            metric_names = get_metrics(include_metrics=args.metrics)[1]
+            metric_names = get_metrics([], args.metrics)[1]
             update_metric_names(args.names, metric_names)
             return
 
@@ -536,17 +531,16 @@ def main():
         with open(update_filename) as update_file:
             dates = json.load(update_file)
 
-    if from_date is None and args.metrics is not None:
+    if from_date is None:
         for metric in args.metrics:
-            from_date = dates.get(metric)
+            from_date = dates.get(metric, from_date)
 
     sonar = Sonar_Time_Machine(url, from_date, username=username,
                                password=password)
-    metric_names = retrieve(sonar, project, products, metrics=args.metrics)
+    metric_names = retrieve(sonar, project, products, args.metrics)
 
-    if args.metrics is not None:
-        for metric in args.metrics:
-            dates[metric] = format_date(datetime.datetime.now())
+    for metric in args.metrics:
+        dates[metric] = format_date(datetime.datetime.now())
 
     with open(update_filename, 'w') as update_file:
         json.dump(dates, update_file)

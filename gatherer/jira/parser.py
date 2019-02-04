@@ -387,12 +387,9 @@ class Version_Parser(Field_Parser):
             if all(hasattr(fix_version, prop) for prop in required_properties):
                 start_date = str(0)
                 release_date = str(0)
-                released = str(-1)
-                description = ""
-                if fix_version.released:
-                    released = str(1)
-                if hasattr(fix_version, 'description'):
-                    description = parse_unicode(fix_version.description)
+                released = str(1) if fix_version.released else str(-1)
+                description = parse_unicode(getattr(fix_version, 'description',
+                                                    ""))
                 if hasattr(fix_version, 'startDate'):
                     start_date = parse_date(fix_version.startDate)
                 if hasattr(fix_version, 'releaseDate'):
