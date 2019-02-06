@@ -64,7 +64,7 @@ def main():
         print('The value could not be encrypted for the provided project')
         return
 
-    print('Content-Type: text/json')
+    print('Content-Type: application/json')
     print()
     json.dump({
         "value": encrypted_value,
