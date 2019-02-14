@@ -52,16 +52,8 @@ class Subversion_Repository(Version_Control_Repository):
         return env
 
     @classmethod
-    def from_source(cls, source, repo_directory, **kwargs):
-        """
-        Initialize a Subversion repository from its `Source` domain object.
-
-        This does not require a checkout of the repository, and instead
-        communicates solely with the server.
-        """
-
+    def _create_remote_repo(cls, source):
         env = cls._create_environment(source)
-        repository = cls(source, repo_directory, **kwargs)
         if source.get_option('unsafe_hosts'):
             # Do not pass username and password as authority part of an URL to
             # an unsafe HTTPS host because it is also most likely misconfigured
@@ -71,8 +63,28 @@ class Subversion_Repository(Version_Control_Repository):
         else:
             url = source.url
 
-        repository.repo = svn.remote.RemoteClient(url, **env)
+        return svn.remote.RemoteClient(url, **env)
+
+    @classmethod
+    def from_source(cls, source, repo_directory, **kwargs):
+        """
+        Initialize a Subversion repository from its `Source` domain object.
+
+        This does not require a checkout of the repository, and instead
+        communicates solely with the server.
+        """
+
+        repository = cls(source, repo_directory, **kwargs)
+        repository.repo = cls._create_remote_repo(source)
         return repository
+
+    @classmethod
+    def get_branches(cls, source):
+        repo = cls._create_remote_repo(source)
+        try:
+            return [path.rstrip('/') for path in repo.list(rel_path='branches')]
+        except svn.exception.SvnException as error:
+            raise RepositorySourceException(str(error))
 
     @property
     def repo(self):
@@ -99,9 +111,6 @@ class Subversion_Repository(Version_Control_Repository):
             )
 
         return self._version_info
-
-    def exists(self):
-        return not self.is_empty()
 
     def is_empty(self):
         try:

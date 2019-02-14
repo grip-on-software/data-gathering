@@ -114,7 +114,8 @@ class Version_Control_Repository(object):
         repository in the file referenced by `UPDATE_TRACKER_NAME`.
         The `branch` is the reference name of the branch that we wish to be at
         the latest version. If `branch` is `None` then we only consider the
-        default branch in up-to-date checks.
+        default branch in up-to-date checks. For repositories without
+        branches, this parameter is ignored.
 
         If it is impossible to determine up-to-dateness, or the entire
         repository does not need to be retrieved beforehand to check this
@@ -125,6 +126,19 @@ class Version_Control_Repository(object):
         """
 
         return False
+
+    @classmethod
+    def get_branches(cls, source):
+        # pylint: disable=unused-argument
+        """
+        Check which branches are available at the repository pointed at by
+        `source`. The branch names are returned as a list.
+
+        If the branches cannot be obtained, then a `RepositorySourceException`
+        may be raised.
+        """
+
+        return []
 
     @property
     def repo(self):
@@ -194,13 +208,6 @@ class Version_Control_Repository(object):
         """
 
         raise NotImplementedError("Must be implemented by subclasses")
-
-    def exists(self):
-        """
-        Check if the repository exists.
-        """
-
-        raise NotImplementedError("Must be implemented by subclass")
 
     def is_empty(self):
         """

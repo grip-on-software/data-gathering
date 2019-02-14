@@ -195,8 +195,8 @@ class Repository_Archive(object):
         Upload a local repository to the archived repository.
         """
 
-        if not self._repo.exists():
-            logging.warning('Cannot find local repository %s', self.repo_path)
+        if self._repo.is_empty():
+            logging.warning('No filled local repository at %s', self.repo_path)
         else:
             if not self._dry_run:
                 self._repo.repo.remotes.origin.set_url(self.repo_url)
@@ -274,8 +274,8 @@ class Repository_Archive(object):
 
 def get_git_repositories(project, repo_directory, repo_names=None):
     """
-    Retrieve all immediate directories containing git repositories as well as
-    all repositories in subdirectories.
+    Retrieve all immediate directories containing non-empty Git repositories
+    as well as all non-empty Git repositories in subdirectories.
     """
 
     repos = []
@@ -284,7 +284,7 @@ def get_git_repositories(project, repo_directory, repo_names=None):
         if repo_names is None or source.path_name in repo_names:
             path = os.path.join(repo_directory, source.path_name)
             repo = Git_Repository.from_source(source, path, project=project)
-            if repo.exists():
+            if not repo.is_empty():
                 repos.append(repo)
                 found_names.add(source.path_name)
 

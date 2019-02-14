@@ -294,6 +294,21 @@ class Git_Repository(Version_Control_Repository):
 
         return False
 
+    @classmethod
+    def get_branches(cls, source):
+        git = Git()
+        git.update_environment(**cls._create_environment(source, git))
+        try:
+            remote_refs = git.ls_remote('--heads', source.url)
+        except GitCommandError as error:
+            raise RepositorySourceException(str(error))
+
+        prefix = 'refs/heads/'
+        return [
+            ref.split('\t', 1)[1][len(prefix):]
+            for ref in remote_refs.split('\n')
+        ]
+
     @property
     def repo(self):
         if self._repo is None:
@@ -385,24 +400,11 @@ class Git_Repository(Version_Control_Repository):
 
         return self._prev_head
 
-    def exists(self):
-        """
-        Check whether the repository exists, i.e., the path points to a valid
-        Git repository.
-        """
-
-        try:
-            return bool(self.repo)
-        except RepositorySourceException:
-            return False
-
     def is_empty(self):
-        """
-        Check whether the repository is empty, i.e. no commits have been made
-        at all.
-        """
-
-        return not self.repo.branches
+        try:
+            return not self.repo.branches
+        except RepositorySourceException:
+            return True
 
     def is_shared(self, shared=True):
         """
