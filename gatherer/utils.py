@@ -242,7 +242,7 @@ def parse_utc_date(date):
     The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
     """
 
-    zone_date = dateutil.parser.isoparse(date)
+    zone_date = dateutil.parser.parse(date)
     return format_date(convert_local_datetime(zone_date))
 
 def parse_date(date):
