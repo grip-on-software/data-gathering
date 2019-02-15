@@ -142,6 +142,8 @@ class Sonar_Time_Machine(Sonar7):
                     logging.warning('Measurement dates differ: %s %s',
                                     self.__next_datetime, date)
                 self.__next_datetime = date
+                if value_key not in metric:
+                    return -1
                 if isinstance(metric[value_key], list):
                     return float(metric[value_key][0])
 
