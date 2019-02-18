@@ -73,11 +73,19 @@ class Gatherer(object):
 
         return timedelta(days=days, minutes=offset)
 
-    def get_tracker_status(self, project_key):
+    def get_tracker_schedule(self, project_key):
         """
-        Retrieve the status of the update tracker schedule of the given project.
+        Retrieve the scheduled time of the given project.
         This uses the update tracker file 'preflight_date.txt' to compare
         against the current date, to determine if the collected data is stale.
+
+        Returns the time delta after which an agent may collect data for the
+        project again. If the delta is less than or equal to zero, then data
+        collection may resume immediately.
+
+        This function may raise an exception which indicates that the update
+        tracker is not available and data collection should be allowed as soon
+        as no other issues arise.
         """
 
         project = Project(project_key)
@@ -85,29 +93,44 @@ class Gatherer(object):
         filename = 'preflight_date.txt'
         content = track.retrieve_content(filename)
         if content is None:
-            return {
-                'ok': True,
-                'message': 'No update tracker {} found'.format(filename)
-            }
+            raise ValueError('No update tracker {} found'.format(filename))
 
         try:
             tracker_date = get_datetime(content)
         except ValueError as error:
-            return {
-                'ok': True,
-                'message': 'Update tracker {} is unparseable: {}'.format(filename, str(error))
-            }
+            raise ValueError('Update tracker {} is unparseable: {}'.format(filename, str(error)))
 
         today = datetime.now()
         schedule = self._calculate_drift(project_key, today)
         interval = today - tracker_date
+        return schedule - interval
 
-        if interval >= schedule:
+    def get_tracker_status(self, project_key):
+        """
+        Retrieve the status of the update tracker schedule of the given project.
+        This uses the update tracker file 'preflight_date.txt' to compare
+        against the current date, to determine if the collected data is stale.
+
+        The status is a dictionary with at least a key 'ok' indicating the
+        status, where `True` means an agent can collect data while `False`
+        means no updates are necessary. Additionally, a key 'message' may
+        provide a human-readable reason for the status.
+        """
+
+        try:
+            delta = self.get_tracker_schedule(project_key)
+        except ValueError as error:
+            return {
+                'ok': True,
+                'message': str(error)
+            }
+
+        if delta <= timedelta(0):
             return {'ok': True}
 
         return {
             'ok': False,
-            'message': 'Next scheduled gather moment is in {}'.format(schedule - interval)
+            'message': 'Next scheduled gather moment is in {}'.format(delta)
         }
 
     def get_update_trackers(self, project_key, home_directory):
