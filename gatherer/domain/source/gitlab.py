@@ -86,6 +86,15 @@ class GitLab(Git):
 
         # Retrieve the actual namespace of the source.
         path = orig_parts.path.strip('/')
+        if self.has_option(host, 'strip'):
+            # Use the strip path to add the web base URL and remove from the
+            # provided URL path.
+            host_path = self._credentials.get(host, 'strip')
+            if path.startswith(host_path):
+                path = path[len(host_path):].lstrip('/')
+        else:
+            host_path = ''
+
         path_parts = path.split('/', 1)
         self._gitlab_namespace = path_parts[0]
 
@@ -100,11 +109,6 @@ class GitLab(Git):
             self._gitlab_token = self._credentials.get(host, 'gitlab_token')
 
         scheme = self._get_web_protocol(host, orig_parts.scheme)
-        if self.has_option(host, 'strip'):
-            # Add the stripped path to the web URL.
-            host_path = self._credentials.get(host, 'strip')
-        else:
-            host_path = ''
 
         self._gitlab_host = self._create_url(scheme, host, host_path, '', '')
         self._gitlab_path = self.remove_git_suffix(path)
