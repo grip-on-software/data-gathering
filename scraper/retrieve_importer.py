@@ -197,7 +197,9 @@ def main():
         store = store_type(args.store)
         store.login(args.username, args.password)
 
-        path = tempfile.mktemp()
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+            path = tmpfile.name
+
         data_file = 'data_vcsdev_to_dev.json'
         data_path = os.path.join(args.base, data_file)
         store.get_file('import/{}'.format(data_file), path)

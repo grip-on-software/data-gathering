@@ -7,6 +7,7 @@ import datetime
 import logging
 import os
 import subprocess
+import tempfile
 from .database import Database
 
 class Update_Tracker(object):
@@ -35,6 +36,13 @@ class Update_Tracker(object):
 
         The update tracker file is not stored locally. If the filename cannot
         be found remotely, then `None` is returned.
+        """
+
+        raise NotImplementedError('Must be implemented by subclasses')
+
+    def put_content(self, filename, contents):
+        """
+        Update the remote update tracker file with the given contents.
         """
 
         raise NotImplementedError('Must be implemented by subclasses')
@@ -111,8 +119,22 @@ class Database_Tracker(Update_Tracker):
 
             if result is None:
                 return None
-            
+
             return result[0]
+
+    def put_content(self, filename, contents):
+        with Database(**self._options) as database:
+            project_id = database.get_project_id(self._project.key)
+            if project_id is None:
+                logging.warning("Project '%s' is not in the database",
+                                self._project.key)
+
+            database.execute('''UPDATE gros.update_tracker
+                                SET contents=%s
+                                WHERE project_id=%s
+                                AND filename=%s''',
+                             parameters=[contents, project_id, filename],
+                             update=True)
 
 class SSH_Tracker(Update_Tracker):
     """
@@ -157,3 +179,14 @@ class SSH_Tracker(Update_Tracker):
             ])
         except subprocess.CalledProcessError:
             return None
+
+    def put_content(self, filename, contents):
+        with tempfile.NamedTemporaryFile(buffering=0) as temp_file:
+            temp_file.write(contents)
+            try:
+                subprocess.run([
+                    'scp', '-i', self._key_path,
+                    temp_file.name, '{}/{}'.format(self.remote_path, filename)
+                ])
+            except subprocess.CalledProcessError:
+                pass
