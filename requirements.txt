@@ -18,8 +18,6 @@ quality_report<=1.79.3; python_version < '3.0'
 quality_report>=2.71.0; python_version >= '3.0'
 svn>=0.3.45
 enum34; python_version < '3.4'
-# gatherer.utils
-python-dateutil>=2.7.5
 # gatherer.database
 pymonetdb
 # gatherer.files
