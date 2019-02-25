@@ -458,7 +458,10 @@ def get_products(products, project):
             return []
 
         with open(sources_file) as source_ids:
-            products = json.load(source_ids)
+            products = [
+                product for product in json.load(source_ids)
+                if product.get("source_type", "sonar") == "sonar"
+            ]
 
     return products
 
