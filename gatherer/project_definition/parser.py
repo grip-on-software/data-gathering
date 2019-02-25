@@ -295,8 +295,8 @@ class Sources_Parser(Project_Definition_Parser):
 
     METRIC_SOURCE = 'hqlib.metric_source'
     DOMAIN_CLASSES = (
-        domain.Application, domain.Component, domain.Environment,
-        domain.Product, domain.Project
+        domain.Application, domain.Component, domain.Document,
+        domain.Environment, domain.Product, domain.Project
     )
     SOURCE_CLASSES = {
         'History': metric_source.History,
@@ -308,6 +308,8 @@ class Sources_Parser(Project_Definition_Parser):
         'Git': metric_source.Git,
         'Subversion': metric_source.Subversion
     }
+    SOURCE_ID_SOURCES = ('Sonar', 'Git', 'Subversion')
+    DUMMY_URLS = (None, 'dummy', '.', '/')
 
     def __init__(self, path, **kwargs):
         super(Sources_Parser, self).__init__(**kwargs)
@@ -397,9 +399,10 @@ class Sources_Parser(Project_Definition_Parser):
         if from_key and isinstance(key, self.source_types):
             class_name = self.get_class_name(key)
             source_url = self._get_source_url(key)
-            if source_url is None or value.startswith(source_url):
+            if value.startswith(source_url) or source_url in self.DUMMY_URLS:
                 source_url = value
-            elif class_name == 'Sonar' and value != 'dummy':
+            elif class_name in self.SOURCE_ID_SOURCES and \
+                value not in self.DUMMY_URLS:
                 source_url = (source_url, value)
 
             return class_name, source_url

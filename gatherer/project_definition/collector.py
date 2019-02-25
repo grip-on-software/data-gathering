@@ -185,7 +185,8 @@ class Sources_Collector(Collector):
                 self._source_ids.append({
                     "domain_name": name,
                     "url": url,
-                    "source_id": source_id
+                    "source_id": source_id,
+                    "source_type": source_type
                 })
 
             source = Source.from_type(source_type, name=name, url=url)
