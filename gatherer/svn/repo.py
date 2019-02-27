@@ -18,6 +18,18 @@ from ..utils import format_date, parse_unicode, Iterator_Limiter
 from ..version_control.repo import Version_Control_Repository, \
     RepositorySourceException, FileNotFoundException
 
+class UnsafeRemoteClient(svn.remote.RemoteClient):
+    """
+    A remote subversion client which trusts a server certificate, even
+    if it has other verification failures than a self-signed certificate.
+    """
+
+    def run_command(self, subcommand, args, **kwargs):
+        failures = 'unknown-ca,cn-mismatch,expired,not-yet-valid,other'
+        args.append('--trust-server-cert-failures={}'.format(failures))
+        return super(UnsafeRemoteClient, self).run_command(subcommand,
+                                                           args, **kwargs)
+
 class Subversion_Repository(Version_Control_Repository):
     """
     Class representing a subversion repository from which files and their
@@ -59,11 +71,9 @@ class Subversion_Repository(Version_Control_Repository):
             # an unsafe HTTPS host because it is also most likely misconfigured
             # in handling the authorization. Instead use the username and
             # password from the credentials environment.
-            url = source.plain_url
-        else:
-            url = source.url
+            return UnsafeRemoteClient(source.plain_url, **env)
 
-        return svn.remote.RemoteClient(url, **env)
+        return svn.remote.RemoteClient(source.url, **env)
 
     @classmethod
     def from_source(cls, source, repo_directory, **kwargs):
