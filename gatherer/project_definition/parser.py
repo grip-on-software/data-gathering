@@ -399,7 +399,7 @@ class Sources_Parser(Project_Definition_Parser):
         if from_key and isinstance(key, self.source_types):
             class_name = self.get_class_name(key)
             source_url = self._get_source_url(key)
-            if value.startswith(source_url) or source_url in self.DUMMY_URLS:
+            if source_url in self.DUMMY_URLS or value.startswith(source_url):
                 source_url = value
             elif class_name in self.SOURCE_ID_SOURCES and \
                 value not in self.DUMMY_URLS:
