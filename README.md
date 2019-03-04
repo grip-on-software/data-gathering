@@ -357,6 +357,9 @@ the setting is not used in this environment.
   - `job` (`$IMPORTER_JOB`): Name of a Jenkins job that holds artifacts for 
     multiple branches. Freestyle or multibranch pipeline jobs are supported.
   - `branch` (`$IMPORTER_BRANCH`): Branch to use to retrieve the artifact from
+  - `results` (`$IMPORTER_RESULTS`): Comma-separated list of Jenkins build 
+    results that we consider to be stable builds from which we collect new 
+    importer distributions.
   - `artifact` (`$IMPORTER_ARTIFACT`): Path to the distribution directory 
     artifact in the job build artifacts.
 - bigboat (used by `bigboat_to_json.py`): BigBoat dashboard to monitor with 

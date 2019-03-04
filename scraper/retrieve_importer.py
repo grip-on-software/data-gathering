@@ -17,6 +17,7 @@ import shutil
 import tempfile
 from zipfile import ZipFile
 # Not-standard imports
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 from gatherer.config import Configuration
 from gatherer.files import File_Store
 from gatherer.jenkins import Jenkins
@@ -77,6 +78,8 @@ def parse_args():
                          help='Path to the dist directory artifact')
     jenkins.add_argument('--branch', default=config.get('importer', 'branch'),
                          help='Branch name to retrieve build artifact for')
+    jenkins.add_argument('--results', default=config.get('importer', 'results'),
+                         nargs='+', help='Build results to consider successful')
     jenkins.add_argument('--jenkins-username', dest='jenkins_username',
                          default=username,
                          help='Username to log into the Jenkins instance')
@@ -113,6 +116,14 @@ def get_jenkins_url(args):
         logging.warning('Could not find last build for branch %s', args.branch)
         build = job.last_build
 
+    if isinstance(args.results, (list, tuple)):
+        results = args.results
+    else:
+        results = args.results.split(',')
+
+    if build.result not in results:
+        raise ValueError('Build result is not {} but {}'.format(' or '.join(results), build.result))
+
     return build.base_url + 'artifact/' + args.artifact + '/*zip*/dist.zip'
 
 def copy_path(source_path, dest_path):
@@ -138,6 +149,7 @@ def download_zip(url, dest_path):
     """
 
     request = Session().get(url)
+    request.raise_for_status()
     with open('dist.zip', 'wb') as output_file:
         for chunk in request.iter_content(chunk_size=128):
             output_file.write(chunk)
@@ -182,7 +194,10 @@ def retrieve_files(args):
                 return
 
         logging.info('Downloading distribution from %s', url)
-        download_zip(url, args.base)
+        try:
+            download_zip(url, args.base)
+        except (ConnectionError, HTTPError, Timeout):
+            logging.exception('Could not download ZIP file')
 
 def main():
     """
