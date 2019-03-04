@@ -17,6 +17,7 @@ RUN cd /tmp && python setup.py install && \
 COPY VERSION *.cfg.example jira_fields.json en[v] /home/agent/
 COPY certs/ /home/agent/certs/
 COPY scraper/ /home/agent/scraper/
+COPY subversion-servers /home/agent/.subversion/servers
 
 RUN mkdir -p /home/agent/.ssh && \
 	chown -R agent:agent /home/agent/.ssh && \

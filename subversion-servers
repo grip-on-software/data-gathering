@@ -1,0 +1,2 @@
+[global]
+http-timeout = 3600
