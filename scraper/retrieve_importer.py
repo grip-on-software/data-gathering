@@ -158,7 +158,10 @@ def download_zip(url, dest_path):
     with ZipFile('dist.zip', 'r') as dist_zip:
         dist_zip.extractall(path=temp_dir)
 
-    os.remove('dist.zip')
+    try:
+        os.remove('dist.zip')
+    except OSError:
+        logging.exception('Could not remove distribution ZIP archive')
 
     if os.path.exists(os.path.join(dest_path, 'lib')):
         shutil.rmtree(os.path.join(dest_path, 'lib'))
