@@ -94,6 +94,10 @@ class GitHub(Git):
         return (self._host, self.github_owner, self.github_team)
 
     @property
+    def environment_type(self):
+        return 'github'
+
+    @property
     def environment_url(self):
         return self._github_url + '/' + self.github_owner
 

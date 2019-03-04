@@ -182,14 +182,15 @@ class Sources_Collector(Collector):
             if isinstance(url, tuple):
                 source_id = url[1]
                 url = url[0]
+                source = Source.from_type(source_type, name=name, url=url)
                 self._source_ids.append({
                     "domain_name": name,
                     "url": url,
                     "source_id": source_id,
-                    "source_type": source_type
+                    "source_type": source.environment_type
                 })
-
-            source = Source.from_type(source_type, name=name, url=url)
+            else:
+                source = Source.from_type(source_type, name=name, url=url)
 
             if not self._project.has_source(source):
                 self._project.sources.add(source)

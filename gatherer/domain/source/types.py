@@ -334,7 +334,8 @@ class Source(object):
         The type should match up with one of the registered type names of
         the sources in the environment. It can be used to normalize the type
         names of multiple sources in the same environment such that the
-        environment can ideally describe all of them.
+        environment can ideally describe all of them. This may also be used as
+        a canonical type name of the source.
         """
 
         return self.type

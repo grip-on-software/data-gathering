@@ -122,6 +122,10 @@ class TFS(Git):
         return (self._tfs_host,) + tuple(collection.lower() for collection in self._tfs_collections)
 
     @property
+    def environment_type(self):
+        return 'tfs'
+
+    @property
     def environment_url(self):
         return self._tfs_host + '/' + '/'.join(self._tfs_collections)
 

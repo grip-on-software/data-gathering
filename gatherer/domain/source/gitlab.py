@@ -143,6 +143,10 @@ class GitLab(Git):
         return (self._gitlab_host, self._gitlab_group, self._gitlab_namespace)
 
     @property
+    def environment_type(self):
+        return 'gitlab'
+
+    @property
     def environment_url(self):
         if self._gitlab_group is not None:
             return self._gitlab_host + '/' + self._gitlab_group
