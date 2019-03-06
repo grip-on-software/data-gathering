@@ -528,6 +528,8 @@ service completely.
 - `unsafe_hosts` (`$SOURCE_UNSAFE`): Disable strict HTTPS certificate and SSH 
   host key verification for the host. This works for Git SSH communication and 
   Subversion HTTPS requests.
+- `skip_stats` (`$SOURCE_SKIP_STATS`): Disable collection of statistics on 
+  commit sizes from repositories at this source.
 - `agile_rest_path` (used by `jira` source type): The REST path to use for JIRA 
   Agile requests. Set to `agile` in order to use the public API.
 
