@@ -179,7 +179,7 @@ class Repositories_Holder(object):
             latest_version = None
 
         # Retrieve the versions and auxliary tables.
-        skip_stats = repo.source.has_option('skip_stats')
+        skip_stats = repo.source.get_option('skip_stats')
         versions.extend(repo.get_data(from_revision=latest_version, force=force,
                                       stats=not skip_stats))
         self._latest_versions[repo.repo_name] = repo.get_latest_version()
