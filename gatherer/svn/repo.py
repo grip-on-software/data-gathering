@@ -16,7 +16,7 @@ from .difference import Difference
 from ..table import Table, Key_Table
 from ..utils import format_date, parse_unicode, Iterator_Limiter
 from ..version_control.repo import Version_Control_Repository, \
-    RepositorySourceException, FileNotFoundException
+    RepositoryDataException, RepositorySourceException, FileNotFoundException
 
 class UnsafeRemoteClient(svn.remote.RemoteClient):
     """
@@ -199,10 +199,13 @@ class Subversion_Repository(Version_Control_Repository):
         return str(int(rev))
 
     def _query(self, filename, from_revision, to_revision):
-        return self.repo.log_default(rel_filepath=filename,
-                                     revision_from=from_revision,
-                                     revision_to=to_revision,
-                                     limit=self._iterator_limiter.size)
+        try:
+            return self.repo.log_default(rel_filepath=filename,
+                                         revision_from=from_revision,
+                                         revision_to=to_revision,
+                                         limit=self._iterator_limiter.size)
+        except svn.exception.SvnException as error:
+            raise RepositoryDataException(str(error))
 
     def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
         versions = super(Subversion_Repository, self).get_data(from_revision,
