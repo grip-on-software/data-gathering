@@ -232,38 +232,43 @@ class Subversion_Repository(Version_Control_Repository):
 
         versions = []
         self._reset_limiter()
-        log = self._query(filename, from_revision, to_revision)
-        log_descending = None
-        had_versions = True
-        while self._iterator_limiter.check(had_versions):
-            had_versions = False
-            for entry in log:
-                had_versions = True
-                new_version = self._parse_version(entry, filename=filename,
-                                                  **kwargs)
-                versions.append(new_version)
+        try:
+            log = self._query(filename, from_revision, to_revision)
+            log_descending = None
+            had_versions = True
+            while self._iterator_limiter.check(had_versions):
+                had_versions = False
+                for entry in log:
+                    had_versions = True
+                    new_version = self._parse_version(entry, filename=filename,
+                                                      **kwargs)
+                    versions.append(new_version)
 
-            count = self._iterator_limiter.size + self._iterator_limiter.skip
-            if had_versions:
-                logging.info('Analysed batch of revisions, now at %d (r%s)',
-                             count, versions[-1]['version_id'])
+                count = self._iterator_limiter.size + self._iterator_limiter.skip
+                if had_versions:
+                    logging.info('Analysed batch of revisions, now at %d (r%s)',
+                                 count, versions[-1]['version_id'])
 
-            self._iterator_limiter.update()
-            if self._iterator_limiter.check(had_versions):
-                # Check whether the log is being followed in a descending order
-                if log_descending is None and len(versions) > 1:
-                    log_descending = int(versions[-2]['version_id']) > \
-                                     int(versions[-1]['version_id'])
+                self._iterator_limiter.update()
+                if self._iterator_limiter.check(had_versions):
+                    # Check whether the log is being followed in a descending
+                    # order for reordering the result
+                    if log_descending is None and len(versions) > 1:
+                        log_descending = int(versions[-2]['version_id']) > \
+                                         int(versions[-1]['version_id'])
 
-                # Update the revision range. Because Subversion does not allow
-                # logs on ranges where the target path does not exist, always
-                # keep the latest revision within the range but trim it off.
-                from_revision = versions[-1]['version_id']
-                log = self._query(filename, from_revision, to_revision)
-                try:
-                    next(log)
-                except StopIteration:
-                    break
+                    # Update the revision range. Because Subversion does not
+                    # allow logs on ranges where the target path does not
+                    # exist, always keep the latest revision within the range
+                    # but trim it off.
+                    from_revision = versions[-1]['version_id']
+                    log = self._query(filename, from_revision, to_revision)
+                    try:
+                        next(log)
+                    except StopIteration:
+                        break
+        except svn.exception.SvnException as error:
+            raise RepositoryDataException(str(error))
 
         # Sort the log if it is not already in the preferred order
         if descending == log_descending:
