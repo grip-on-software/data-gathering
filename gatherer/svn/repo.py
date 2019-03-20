@@ -231,10 +231,10 @@ class Subversion_Repository(Version_Control_Repository):
         to_revision = self.parse_svn_revision(to_revision, 'HEAD')
 
         versions = []
+        log_descending = None
         self._reset_limiter()
         try:
             log = self._query(filename, from_revision, to_revision)
-            log_descending = None
             had_versions = True
             while self._iterator_limiter.check(had_versions):
                 had_versions = False
@@ -245,9 +245,8 @@ class Subversion_Repository(Version_Control_Repository):
                     versions.append(new_version)
 
                 count = self._iterator_limiter.size + self._iterator_limiter.skip
-                if had_versions:
-                    logging.info('Analysed batch of revisions, now at %d (r%s)',
-                                 count, versions[-1]['version_id'])
+                logging.info('Analysed batch of revisions, now at %d (r%s)',
+                             count, versions[-1]['version_id'])
 
                 self._iterator_limiter.update()
                 if self._iterator_limiter.check(had_versions):
