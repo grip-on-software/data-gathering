@@ -6,7 +6,9 @@ git+https://github.com/pycontribs/jira.git@8306c3d3fd03eec7749d9d288b5c8e8a7dde9
 # gatherer.git
 gitpython>=2.1.8
 PyGithub
-python-gitlab>=1.7.0
+python-gitlab>=1.8.0
+# gatherer.svn
+svn>=0.3.45
 # gatherer.request
 requests
 requests_ntlm
@@ -16,7 +18,6 @@ mock
 git+https://github.com/wekan/wekan-python-api-client.git@master#egg=wekanapi&subdirectory=src
 quality_report<=1.79.3; python_version < '3.0'
 quality_report>=2.84.2; python_version >= '3.0'
-svn>=0.3.45
 enum34; python_version < '3.4'
 # gatherer.database
 pymonetdb
