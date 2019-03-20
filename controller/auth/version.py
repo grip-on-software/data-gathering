@@ -16,7 +16,6 @@ import re
 from gatherer import __version__ as VERSION
 from gatherer.config import Configuration
 from gatherer.domain import Source
-from gatherer.git import Git_Repository
 from gatherer.version_control.repo import RepositorySourceException
 
 def setup_log():
@@ -59,13 +58,13 @@ def main():
         source = Source.from_type('gitlab', name='Data gathering',
                                   url=config.get('gitlab', 'url') + config.get('gitlab', 'repo'))
         try:
-            repo = Git_Repository(source, '../..')
+            repo = source.repository_class(source, '../..')
             if branch != repo.default_branch:
                 raise RuntimeError('Version must have branch {}'.format(repo.default_branch))
 
             local_version = repo.repo.head.commit.hexsha
             up_to_date = local_version == agent_version or \
-                Git_Repository.is_up_to_date(source, agent_version)
+                source.repository_class.is_up_to_date(source, agent_version)
         except RepositorySourceException:
             raise RuntimeError('Cannot detect local/remote repository')
 
