@@ -165,7 +165,7 @@ class SSH_Tracker(Update_Tracker):
             logging.warning('Cannot determine which files to retrieve')
             return
 
-        args = ['scp', '-i', self._key_path] + [
+        args = ['scp', '-T', '-i', self._key_path] + [
             self.remote_path + '/\\{' + ','.join(files) + '\\}'
         ] + [self._project.export_key]
         subprocess.call(args)
