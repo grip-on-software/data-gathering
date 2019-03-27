@@ -209,7 +209,7 @@ class Project_Definition_Parser(object):
         for mock_object in list(self.domain_objects.values()):
             if self.filter_domain_object(mock_object):
                 for call in mock_object.call_args_list:
-                    self.parse_domain_call(*call)
+                    self.parse_domain_call(mock_object, *call)
 
         return self.data
 
@@ -221,7 +221,7 @@ class Project_Definition_Parser(object):
 
         raise NotImplementedError("Must be extended by subclass")
 
-    def parse_domain_call(self, args, keywords):
+    def parse_domain_call(self, mock_object, args, keywords):
         """
         Extract data from the domain object initialization call from within the
         project definition.
@@ -277,7 +277,7 @@ class Project_Parser(Project_Definition_Parser):
     def filter_domain_object(self, mock_object):
         return isinstance(mock_object, domain.Project)
 
-    def parse_domain_call(self, args, keywords):
+    def parse_domain_call(self, mock_object, args, keywords):
         if "name" in keywords:
             name = keywords["name"]
         elif len(args) > 1:
@@ -309,6 +309,8 @@ class Sources_Parser(Project_Definition_Parser):
         'Subversion': metric_source.Subversion
     }
     SOURCE_ID_SOURCES = ('Sonar', 'Git', 'Subversion')
+    SOURCES_DOMAIN_FILTER = ('Document',)
+
     DUMMY_URLS = (None, 'dummy', '.', '/')
 
     def __init__(self, path, **kwargs):
@@ -353,7 +355,7 @@ class Sources_Parser(Project_Definition_Parser):
     def filter_domain_object(self, mock_object):
         return isinstance(mock_object, self.DOMAIN_CLASSES)
 
-    def parse_domain_call(self, args, keywords):
+    def parse_domain_call(self, mock_object, args, keywords):
         if "name" in keywords:
             name = keywords["name"]
         elif len(args) > 1:
@@ -362,31 +364,40 @@ class Sources_Parser(Project_Definition_Parser):
             # Likely a call to a superclass constructor
             return
 
-        logging.debug('Name: %s', name)
+        domain_name = mock_object.__class__.__name__
+        logging.debug('Name: %s Domain: %s', name, domain_name)
 
-        self._parse_sources(name, keywords, "metric_source_ids", from_key=True)
-        self._parse_sources(name, keywords, "metric_sources", from_key=False)
+        self.data.setdefault(name, {})
+        self.data[name].update(self._parse_sources(keywords,
+                                                   "metric_source_ids",
+                                                   domain_name,
+                                                   from_key=True))
+        self.data[name].update(self._parse_sources(keywords, "metric_sources",
+                                                   domain_name,
+                                                   from_key=False))
 
-    def _parse_sources(self, name, keywords, keyword, from_key=True):
+    def _parse_sources(self, keywords, keyword, domain_name, from_key=True):
+        sources = {}
         if keyword not in keywords:
-            return
+            return sources
 
         if not isinstance(keywords[keyword], dict):
             logging.debug('keyword %s does not hold a dict', keyword)
-            return
+            return sources
 
-        self.data.setdefault(name, {})
         for key, items in list(keywords[keyword].items()):
             if not isinstance(items, (list, tuple)):
                 items = [items]
 
             for value in items:
-                class_name, source_value = self._parse_source_value(key, value,
-                                                                    from_key)
+                class_name, source_value = \
+                    self._parse_source_value(key, value, domain_name, from_key)
 
                 if class_name is not None:
-                    self.data[name].setdefault(class_name, set())
-                    self.data[name][class_name].add(source_value)
+                    sources.setdefault(class_name, set())
+                    sources[class_name].add(source_value)
+
+        return sources
 
     @staticmethod
     def _get_source_url(source):
@@ -395,7 +406,7 @@ class Sources_Parser(Project_Definition_Parser):
 
         return source.url()
 
-    def _parse_source_value(self, key, value, from_key):
+    def _parse_source_value(self, key, value, domain_name, from_key):
         if from_key and isinstance(key, self.source_types):
             class_name = self.get_class_name(key)
             source_url = self._get_source_url(key)
@@ -403,7 +414,11 @@ class Sources_Parser(Project_Definition_Parser):
                 source_url = value
             elif class_name in self.SOURCE_ID_SOURCES and \
                 value not in self.DUMMY_URLS:
-                source_url = (source_url, value)
+                source_url = (source_url, value, domain_name)
+
+            if not isinstance(source_url, tuple) and \
+                domain_name in self.SOURCES_DOMAIN_FILTER:
+                return None, None
 
             return class_name, source_url
 
@@ -452,7 +467,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         return modules
 
-    def parse_domain_call(self, args, keywords):
+    def parse_domain_call(self, mock_object, args, keywords):
         """
         Retrieve metric targets from a singular call within the project
         definition, which may have redefined metric options.

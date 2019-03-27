@@ -180,6 +180,7 @@ class Sources_Collector(Collector):
     def _build_metric_source(self, name, url, source_type):
         try:
             if isinstance(url, tuple):
+                domain_type = url[2]
                 source_id = url[1]
                 url = url[0]
                 source = Source.from_type(source_type, name=name, url=url)
@@ -189,6 +190,10 @@ class Sources_Collector(Collector):
                     "source_id": source_id,
                     "source_type": source.environment_type
                 })
+                # Do not add sources belonging to search domain types to the
+                # main sources list, such as a VCS in a document object.
+                if domain_type in Sources_Parser.SOURCES_DOMAIN_FILTER:
+                    return
             else:
                 source = Source.from_type(source_type, name=name, url=url)
 
