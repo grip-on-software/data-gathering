@@ -159,7 +159,8 @@ def download_zip(url, dest_path):
         dist_zip.extractall(path=temp_dir)
 
     try:
-        os.remove('dist.zip')
+        if os.path.exists('dist.zip'):
+            os.remove('dist.zip')
     except OSError:
         logging.exception('Could not remove distribution ZIP archive')
 
