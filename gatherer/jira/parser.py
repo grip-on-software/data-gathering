@@ -267,6 +267,21 @@ class Developer_Parser(Field_Parser):
     their account name and usually the display name.
     """
 
+    def __init__(self, jira):
+        super(Developer_Parser, self).__init__(jira)
+        self.jira.register_prefetcher(self.prefetch)
+
+    def prefetch(self, query):
+        """
+        Retrieve data about all fix version releases for the project registered
+        in Jira using the query API, and store the data in a table.
+        """
+
+        project_key = self.jira.project_key
+        users = query.api.search_assignable_users_for_projects('', project_key)
+        for user in users:
+            self.parse(user)
+
     def parse(self, value):
         if value is not None and hasattr(value, "name"):
             encoded_name = parse_unicode(value.name)
