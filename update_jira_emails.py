@@ -16,7 +16,7 @@ from gatherer.config import Configuration
 from gatherer.jira import Jira, Update_Tracker
 from gatherer.jira.query import Query
 from gatherer.log import Log_Setup
-from gatherer.domain import Project
+from gatherer.domain import Project, Source
 
 def parse_args():
     """
@@ -53,11 +53,10 @@ def main():
     with open(data_path) as data_file:
         developers = json.load(data_file)
 
-    options = {
-        "server": args.server
-    }
     jira = Jira(project, Update_Tracker.NULL_TIMESTAMP)
-    query = Query(jira, args.username, args.password, options)
+    source = Source.from_type('jira', url=args.server, name=args.project,
+                              username=args.username, password=args.password)
+    query = Query(jira, source)
     parser = jira.get_type_cast("developer")
     api = query.api
 
