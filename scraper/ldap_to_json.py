@@ -52,6 +52,15 @@ def parse_args(config):
     Log_Setup.parse_args(args)
     return args
 
+def get_groups(client, args):
+    """
+    Retrieve a list of group names from LDAP.
+    """
+
+    groups = client.search_s(args.root, ldap.SCOPE_SUBTREE,
+                             'objectClass=posixgroup', ['cn'])
+    return [group['cn'][0].decode('utf-8') for group in groups]
+
 def get_members(client, name, args):
     """
     Retrieve group members and their properties.
@@ -68,7 +77,8 @@ def get_members(client, name, args):
         return data
 
     query = '(|{})'.format(''.join([
-        '({})'.format(args.search_filter.format(uid)) for uid in group[args.group_attr]
+        '({})'.format(args.search_filter.format(uid.decode('utf-8')))
+        for uid in group[args.group_attr]
     ]))
 
     users = client.search_s(args.root, ldap.SCOPE_SUBTREE, query, [
@@ -81,9 +91,9 @@ def get_members(client, name, args):
             continue
 
         data.append({
-            "name": user[args.user_id][0],
-            "display_name": user[args.display_name][0],
-            "email": user[args.user_email][0]
+            "name": user[args.user_id][0].decode('utf-8'),
+            "display_name": user[args.display_name][0].decode('utf-8'),
+            "email": user[args.user_email][0].decode('utf-8')
         })
 
     return data
@@ -95,14 +105,6 @@ def main():
 
     config = Configuration.get_settings()
     args = parse_args(config)
-    project = Project(args.project)
-    if args.group is not None:
-        group = args.group
-    elif config.has_option('groups', project.key):
-        group = config.get('groups', project.key)
-    else:
-        logging.critical('No group specified for project %s', project.key)
-        return
 
     if ldap is None:
         logging.critical('Cannot import module "ldap"')
@@ -111,6 +113,17 @@ def main():
     client = ldap.initialize(args.server)
     client.set_option(ldap.OPT_REFERRALS, 0)
     client.simple_bind(args.manager, args.manager_password)
+
+    project = Project(args.project)
+    if args.group is not None:
+        group = args.group
+    elif config.has_option('groups', project.key):
+        group = config.get('groups', project.key)
+    else:
+        logging.critical('No group specified for project %s', project.key)
+        logging.info('Known LDAP groups: %s',
+                     ', '.join(get_groups(client, args)))
+        return
 
     data = get_members(client, group, args)
 
