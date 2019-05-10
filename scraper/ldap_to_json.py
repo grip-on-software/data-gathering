@@ -59,7 +59,7 @@ def get_groups(client, args):
 
     groups = client.search_s(args.root, ldap.SCOPE_SUBTREE,
                              'objectClass=posixgroup', ['cn'])
-    return [group['cn'][0].decode('utf-8') for group in groups]
+    return [group['cn'][0].decode('utf-8') for _, group in groups]
 
 def get_members(client, name, args):
     """
