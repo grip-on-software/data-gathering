@@ -22,6 +22,7 @@ class Log_Setup(object):
         re.compile(r'^Could not load sprint data, no sprint matching possible'),
         re.compile(r'^Controller status: Some parts are not OK: .*' + \
             r'Status \'tracker\': Next scheduled gather moment is in'),
+        re.compile(r'No BigBoat (host|API key) defined for \w+'),
         re.compile(r'Cannot retrieve repository source for dummy repository on')
     ]
 
