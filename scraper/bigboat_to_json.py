@@ -61,6 +61,7 @@ def main():
         host = project.get_key_setting('bigboat', 'host')
         if not Configuration.has_value(host):
             logging.warning('No BigBoat host defined for %s', project_key)
+            return
 
     if args.key is not None:
         key = args.key
@@ -68,6 +69,7 @@ def main():
         key = project.get_key_setting('bigboat', 'key')
         if not Configuration.has_value(key):
             logging.warning('No BigBoat API key defined for %s', project_key)
+            return
 
     client = Client_v2(host, api_key=key)
     with Statuses.from_api(project, client.statuses()) as statuses:
