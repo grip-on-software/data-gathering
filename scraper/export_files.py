@@ -11,6 +11,7 @@ except ImportError:
 import argparse
 import json
 import logging
+import os
 import socket
 import subprocess
 import sys
@@ -104,6 +105,11 @@ class Exporter(object):
             logging.info('Dry run: Would send a POST request to %s', url)
             return
 
+        if "JIRA_KEY" in os.environ:
+            agent_key = os.environ["JIRA_KEY"].split(" ")[0]
+        else:
+            agent_key = self.project.jira_key
+
         session = Session(verify=cert)
         request = session.post(url, data={
             "files": json.dumps({
@@ -112,6 +118,8 @@ class Exporter(object):
                 "other": other,
             }),
             "agent": json.dumps({
+                "user": self.agent,
+                "key": agent_key,
                 "hostname": socket.gethostname(),
                 "version": session.headers['User-Agent']
             })

@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 import os.path
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.domain import source
@@ -56,30 +57,34 @@ def main():
     config = Configuration.get_settings()
     args = parse_args(config)
     project = Project(args.project)
-    if Configuration.has_value(args.host):
-        url = args.host
-    else:
-        jenkins = project.sources.find_source_type(source.Jenkins)
-        if not jenkins:
-            logging.warning('Project %s has no Jenkins instance configured',
-                            project.key)
-            return
-
-        url = jenkins.url
-
     try:
-        jenkins = Jenkins(url, username=args.username, password=args.password,
-                          verify=args.verify)
-    except EnvironmentError:
+        if Configuration.has_value(args.host):
+            jenkins = Jenkins(args.host,
+                              username=args.username,
+                              password=args.password,
+                              verify=args.verify)
+        else:
+            jenkins_source = project.sources.find_source_type(source.Jenkins)
+            if not jenkins_source:
+                logging.warning('Project %s has no Jenkins instance configured',
+                                project.key)
+                return
+
+            jenkins = jenkins_source.jenkins_api
+    except (RuntimeError, ConnectionError, HTTPError, Timeout):
         logging.exception('Could not log in to Jenkins')
         return
 
-    data = {
-        'host': jenkins.base_url,
-        'jobs': len(jenkins.jobs),
-        'views': len(jenkins.views),
-        'nodes': len(jenkins.nodes)
-    }
+    try:
+        data = {
+            'host': jenkins.base_url,
+            'jobs': len(jenkins.jobs),
+            'views': len(jenkins.views),
+            'nodes': len(jenkins.nodes)
+        }
+    except (ConnectionError, HTTPError, Timeout):
+        logging.exception('Could not receive data from Jenkins')
+        return
 
     export_filename = os.path.join(project.export_key, 'data_jenkins.json')
     with open(export_filename, 'w') as export_file:

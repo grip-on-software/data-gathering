@@ -11,6 +11,7 @@ except ImportError:
 
 import cgi
 import cgitb
+import json
 import Pyro4
 
 def setup_log():
@@ -46,10 +47,25 @@ def main():
         return
 
     exporter = Pyro4.Proxy("PYRONAME:gros.exporter")
-    exporter.start_scrape(project_key)
-    exporter.export_data(project_key)
     if "agent" in fields:
-        exporter.write_agent_status(project_key, fields.getfirst("agent"))
+        agent = fields.getfirst("agent")
+        try:
+            status = json.loads(agent)
+            if "key" in status:
+                agent_key = status["key"]
+        except ValueError as error:
+            print('Status: 400 Bad Request')
+            print('Content-Type: text/plain')
+            print()
+            print(str(error))
+            return
+
+        exporter.write_agent_status(project_key, agent)
+    else:
+        agent_key = project_key
+
+    exporter.start_scrape(project_key)
+    exporter.export_data(project_key, agent_key)
 
     print('Status: 202 Accepted')
     print()

@@ -27,41 +27,51 @@ class Permissions(object):
     Object that updates access and permissions for a project's agent.
     """
 
-    def __init__(self, project_key):
+    def __init__(self, project_key, agent_key):
         self._controller = Pyro4.Proxy("PYRONAME:gros.controller")
         self._project_key = project_key
+        self._agent_key = agent_key
 
     def get_home_directory(self):
         """
         Retrieve the home directory of the agent user.
         """
 
-        return self._controller.get_home_directory(self._project_key)
+        return self._controller.get_home_directory(self._agent_key)
 
     def update_user(self, full=True):
-        """Update agent home directory."""
+        """
+        Update agent home directory.
+
+        If `full` is enabled (the default), then the home directory is removed
+        and recreated. Otherwise, only the update tracker directory is removed
+        and recreated. In either case, the update trackers must be retrieved
+        and stored with correct permissions in the new directories after this.
+        """
 
         if full:
-            self._controller.create_agent(self._project_key)
+            self._controller.create_agent(self._project_key, self._agent_key)
         else:
             self._controller.clean_home_subdirectories(self._project_key,
-                                                       ('update',))
+                                                       self._agent_key,
+                                                       ('export', 'update',))
 
     def update_public_key(self, public_key):
         """
         Update authorized public key.
 
-        Returns whether the public key already exists with the same contents.
+        Returns whether the public key already exists for the agent with the
+        exact same contents.
         """
 
-        return self._controller.update_public_key(self._project_key, public_key)
+        return self._controller.update_public_key(self._agent_key, public_key)
 
     def update_permissions(self):
         """
         Change permissions such that only the agent can access the directories.
         """
 
-        self._controller.update_permissions(self._project_key)
+        self._controller.update_permissions(self._project_key, self._agent_key)
 
 class Response(object):
     """
@@ -104,13 +114,16 @@ class Parameters(object):
         self._post_data = urllib.parse.parse_qs(post_query)
         self._get_data = cgi.FieldStorage()
 
-    def get_project_key(self):
+    def get_project_key(self, key="project", default=None):
         """Retrieve and validate the project key from a CGI request."""
 
-        if "project" not in self._get_data:
-            raise RuntimeError('Project must be specified')
+        if key not in self._get_data:
+            if default is None:
+                raise RuntimeError('Project must be specified')
 
-        projects = self._get_data.getlist("project")
+            return default
+
+        projects = self._get_data.getlist(key)
         if len(projects) != 1:
             raise RuntimeError('Exactly one project must be specified in GET')
 
@@ -156,6 +169,7 @@ def main():
     try:
         params = Parameters()
         project_key = params.get_project_key()
+        agent_key = params.get_project_key("agent", project_key)
         public_key = params.get_public_key()
     except RuntimeError as error:
         print('Status: 400 Bad Request')
@@ -176,21 +190,22 @@ def main():
         print('Could not lock the agent for updating: {!r}'.format(error))
         return
 
-    permissions = Permissions(project_key)
+    try:
+        permissions = Permissions(project_key, agent_key)
 
-    same_key = permissions.update_public_key(public_key)
-    # If the public key is the same, then we do not need to replace the
-    # entire user home directory.
-    permissions.update_user(full=not same_key)
+        same_key = permissions.update_public_key(public_key)
+        # If the public key is the same, then we do not need to replace the
+        # entire user home directory.
+        permissions.update_user(full=not same_key)
 
-    response = Response(project_key)
-    response.get_update_trackers(permissions.get_home_directory())
-    salt, pepper = response.get_salts()
-    usernames = response.get_usernames()
+        response = Response(project_key)
+        response.get_update_trackers(permissions.get_home_directory())
+        salt, pepper = response.get_salts()
+        usernames = response.get_usernames()
 
-    permissions.update_permissions()
-
-    lock.release()
+        permissions.update_permissions()
+    finally:
+        lock.release()
 
     print('Content-Type: application/json')
     print()

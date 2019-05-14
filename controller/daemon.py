@@ -42,7 +42,7 @@ class Controller(object):
     # agent's home directory.
     HUSH_FILE = '.hushlogin'
 
-    def _create_directory(self, project_key, directory, user=None,
+    def _create_directory(self, agent_key, directory, user=None,
                           permissions=None):
         if permissions is None:
             permissions = self.CREATE_PERMISSIONS
@@ -50,9 +50,9 @@ class Controller(object):
         subprocess.check_call([
             'sudo', 'mkdir', '-m', permissions, directory
         ])
-        self._update_owner(project_key, directory, user=user)
+        self._update_owner(agent_key, directory, user=user)
 
-    def _create_file(self, project_key, path, user=None, permissions=None):
+    def _create_file(self, agent_key, path, user=None, permissions=None):
         if permissions is None:
             permissions = self.FILE_PERMISSIONS
 
@@ -60,24 +60,24 @@ class Controller(object):
             pass
 
         subprocess.check_call(['sudo', 'chmod', permissions, path])
-        self._update_owner(project_key, path, user=user)
+        self._update_owner(agent_key, path, user=user)
 
-    def _update_owner(self, project_key, path, user=None):
+    def _update_owner(self, agent_key, path, user=None):
         if user is None:
-            user = self.get_agent_user(project_key)
+            user = self.get_agent_user(agent_key)
 
         subprocess.check_call([
             'sudo', 'chown', '-R', '{}:controller'.format(user), path
         ])
 
-    def get_home_directory(self, project_key):
+    def get_home_directory(self, agent_key):
         """
-        Retrieve the home directory for a certain project.
+        Retrieve the home directory for a certain project's agent.
         """
 
-        return os.path.join(self.HOME_DIRECTORY, project_key)
+        return os.path.join(self.HOME_DIRECTORY, agent_key)
 
-    def get_home_subdirectories(self, project_key, subpath=None):
+    def get_home_subdirectories(self, project_key, agent_key, subpath=None):
         """
         Retrieve the subdirectories of the home directory of a certain project
         which should be created in a clean version of the directory.
@@ -90,15 +90,15 @@ class Controller(object):
         any elements earlier in the tuple.
         """
 
-        home_directory = self.get_home_directory(project_key)
+        home_directory = self.get_home_directory(agent_key)
         if subpath is not None:
             subpath_directory = os.path.join(home_directory, subpath)
             subpath_key_directory = os.path.join(subpath_directory, project_key)
             return (subpath_directory, subpath_key_directory)
 
         return (home_directory,) + \
-                self.get_home_subdirectories(project_key, 'export') + \
-                self.get_home_subdirectories(project_key, 'update')
+            self.get_home_subdirectories(project_key, agent_key, 'export') + \
+            self.get_home_subdirectories(project_key, agent_key, 'update')
 
     def get_agent_user(self, project_key):
         """
@@ -123,7 +123,7 @@ class Controller(object):
 
         return os.path.join(self.CONTROLLER_DIRECTORY, project_key)
 
-    def create_agent(self, project_key):
+    def create_agent(self, project_key, agent_key):
         """
         Create a user for the agent of the given project if it did not yet exist
         and return the username.
@@ -134,8 +134,8 @@ class Controller(object):
         must be corrected using `update_permissions` afterward.
         """
 
-        home_directory = self.get_home_directory(project_key)
-        username = self.get_agent_user(project_key)
+        home_directory = self.get_home_directory(agent_key)
+        username = self.get_agent_user(agent_key)
         if os.path.exists(home_directory):
             subprocess.check_call(['sudo', 'rm', '-rf', home_directory])
         else:
@@ -149,28 +149,30 @@ class Controller(object):
                 username
             ])
 
-        for directory in self.get_home_subdirectories(project_key):
-            self._create_directory(project_key, directory)
+        for directory in self.get_home_subdirectories(project_key, agent_key):
+            self._create_directory(agent_key, directory)
 
         path = os.path.join(home_directory, self.HUSH_FILE)
-        self._create_file(project_key, path)
+        self._create_file(agent_key, path)
 
         return home_directory
 
-    def clean_home_subdirectories(self, project_key, paths):
+    def clean_home_subdirectories(self, project_key, agent_key, paths):
         """
         Clean certain subdirectories related to the user of the agent.
         """
 
-        home_directory = self.get_home_directory(project_key)
+        home_directory = self.get_home_directory(agent_key)
         subprocess.check_call(['sudo', 'chmod', '2770', home_directory])
         for path in paths:
             directory = os.path.join(home_directory, path)
             subprocess.check_call(['sudo', 'rm', '-rf', directory])
-            for subdirectory in self.get_home_subdirectories(project_key, path):
-                self._create_directory(project_key, subdirectory)
+            subdirectories = self.get_home_subdirectories(project_key,
+                                                          agent_key, path)
+            for subdirectory in subdirectories:
+                self._create_directory(agent_key, subdirectory)
 
-    def update_public_key(self, project_key, public_key):
+    def update_public_key(self, agent_key, public_key):
         """
         Update authorized public key.
 
@@ -181,7 +183,7 @@ class Controller(object):
         log in on platforms with strict permissions checks for authorized keys.
         """
 
-        ssh_directory = self.get_ssh_directory(project_key)
+        ssh_directory = self.get_ssh_directory(agent_key)
         key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
         if os.path.exists(ssh_directory):
             subprocess.check_call(['sudo', 'chmod', '2770', ssh_directory])
@@ -194,27 +196,27 @@ class Controller(object):
 
             subprocess.check_call(['sudo', 'rm', '-rf', ssh_directory])
 
-        self._create_directory(project_key, ssh_directory, user='controller')
+        self._create_directory(agent_key, ssh_directory, user='controller')
 
         with open(key_filename, 'w') as key_file:
             key_file.write(public_key)
 
         return False
 
-    def update_permissions(self, project_key):
+    def update_permissions(self, project_key, agent_key):
         """
         Change permissions such that only the agent can access the directories.
         """
 
-        home_directories = self.get_home_subdirectories(project_key)
-        ssh_directory = self.get_ssh_directory(project_key)
+        home_directories = self.get_home_subdirectories(project_key, agent_key)
+        ssh_directory = self.get_ssh_directory(agent_key)
         for directory in reversed(home_directories):
-            self._update_owner(project_key, directory)
+            self._update_owner(agent_key, directory)
             subprocess.check_call(['sudo', 'chmod', '2770', directory])
 
         key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
         subprocess.check_call(['sudo', 'chmod', '2600', key_filename])
-        self._update_owner(project_key, ssh_directory)
+        self._update_owner(agent_key, ssh_directory)
         subprocess.check_call(['sudo', 'chmod', '2700', ssh_directory])
 
     def create_controller(self, project_key):
@@ -254,19 +256,19 @@ class Controller(object):
 
         return True
 
-    def get_permissions_status(self, project_key):
+    def get_permissions_status(self, project_key, agent_key):
         """
         Check whether permissions are correct for certain paths.
         """
 
-        if not self._check_permissions(self.get_ssh_directory(project_key),
+        if not self._check_permissions(self.get_ssh_directory(agent_key),
                                        permissions=0o2700):
             return {
                 'ok': False,
                 'message': 'SSH identity was not properly stored'
             }
 
-        for path in self.get_home_subdirectories(project_key):
+        for path in self.get_home_subdirectories(project_key, agent_key):
             if not self._check_permissions(path):
                 return {
                     'ok': False,

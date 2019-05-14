@@ -10,17 +10,21 @@ preflightFiles=$(./scraper/list-files.sh update preflight.py)
 perform_export() {
 	agent_directory=$1
 	shift
-	project=${agent_directory##*/}
+	project=$1
+	shift
 	controller_directory="$CONTROLLER_DIRECTORY/$project"
 
-	sudo chmod 2770 $agent_directory
+	sudo chmod 2770 "$agent_directory"
 
-	sudo chmod 2770 $agent_directory/export
-	sudo chmod 2770 $agent_directory/export/$project
-	if [ ! -e "$controller_directory" ]; then
-		mkdir -m 770 $controller_directory
+	sudo chmod 2770 "$agent_directory/export"
+	sudo chmod 2770 "$agent_directory/export/$project"
+	if [ ! -e "$controller_directory/export/$project" ]; then
+		mkdir -p "$controller_directory/export/$project"
+		chmod 770 "$controller_directory"
+		chmod 770 "$controller_directory/export"
+		chmod 770 "$controller_directory/export/$project"
 	fi
-	cp -r $agent_directory/export $controller_directory
+	cp -r "$agent_directory/export/$project" "$controller_directory/export/$project"
 	sudo rm -rf $agent_directory/export/$project/*
 
 	touch "$controller_directory/log.json"
@@ -35,26 +39,26 @@ perform_export() {
 		while pgrep -u $USER -f "jenkins\.sh" > /dev/null; do
 			sleep 1
 		done
-		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,environment,jenkins,metric_value,update,developerlink,repo_sources" logLevel="INFO" skipGather="true" restoreFiles="$updateFiles" IMPORTER_BASE="$CONTROLLER_DIRECTORY" relPath="$project/export" SKIP_REQUIREMENTS="true" ./scraper/jenkins.sh 2>&1 | tee $controller_directory/export.log
+		listOfProjects="$project" gathererScripts="$gathererScripts" importerTasks="vcs,environment,jenkins,metric_value,update,developerlink,repo_sources" logLevel="INFO" skipGather="true" restoreFiles="$updateFiles" IMPORTER_BASE="$CONTROLLER_DIRECTORY" relPath="$project/export" SKIP_REQUIREMENTS="true" ./scraper/jenkins.sh 2>&1 | tee "$controller_directory/export.log"
 		local status=$?
 
 		if [ $status -eq 0 ]; then
-			sudo chmod 2770 $agent_directory/update
-			sudo chmod 2770 $agent_directory/update/$project
+			sudo chmod 2770 "$agent_directory/update"
+			sudo chmod 2770 "$agent_directory/update/$project"
 			sudo rm -rf $agent_directory/update/$project/*
 			for updateFile in $updateFiles; do
 				updatePath="$controller_directory/export/$project/$updateFile"
 				if [ -e "$updatePath" ]; then
-					cp $updatePath $agent_directory/update/$project/$updateFile
+					cp "$updatePath" "$agent_directory/update/$project/$updateFile"
 				else
 					echo "Update file $updatePath could not be copied"
 				fi
 			done
 			# Do not push back preflight update file to agent
 			for preflightFile in $preflightFiles; do
-				rm -f $agent_directory/update/$project/$preflightFile
+				rm -f "$agent_directory/update/$project/$preflightFile"
 			done
-			sudo chown agent-$project:controller -R $agent_directory/update/$project
+			sudo chown agent-$project:controller -R "$agent_directory/update/$project"
 			sudo chmod 2770 $agent_directory/update/$project
 			sudo chmod 2770 $agent_directory/update
 		fi
@@ -68,10 +72,12 @@ perform_export() {
 }
 
 directory=$1
+project=$2
 if [ -z $directory ]; then
 	for agent_directory in $AGENTS_DIRECTORY/*; do
-		perform_export $agent_directory
+		project=${agent_directory##*/}
+		perform_export $agent_directory $project
 	done
 else
-	perform_export $directory
+	perform_export $directory $project
 fi
