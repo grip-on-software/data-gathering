@@ -97,9 +97,10 @@ class Permissions_Status(Status):
     Status provider for the controller/agent file permissions.
     """
 
-    def __init__(self, project_key):
+    def __init__(self, project_key, agent_key):
         super(Permissions_Status, self).__init__()
         self._project_key = project_key
+        self._agent_key = agent_key
 
     @property
     def key(self):
@@ -108,7 +109,8 @@ class Permissions_Status(Status):
     def generate(self):
         try:
             controller = Pyro4.Proxy("PYRONAME:gros.controller")
-            return controller.get_permissions_status(self._project_key)
+            return controller.get_permissions_status(self._project_key,
+                                                     self._agent_key)
         except Pyro4.errors.NamingError as error:
             return {
                 'ok': False,
@@ -391,7 +393,7 @@ def receive_status(fields, project_key):
     print('Status: 202 Accepted')
     print()
 
-def display_status(project_key):
+def display_status(project_key, agent_key):
     """
     Display server status to the agent as JSON.
     """
@@ -400,7 +402,7 @@ def display_status(project_key):
     generators = [
         Database_Status(project_key),
         Tracker_Status(project_key),
-        Permissions_Status(project_key),
+        Permissions_Status(project_key, agent_key),
         Lock_Status(project_key),
         Importer_Status(),
         Daemon_Status(),
@@ -420,6 +422,27 @@ def display_status(project_key):
     print()
     print(json.dumps(status))
 
+def get_project_key(fields, key="project", default=None):
+    """
+    Retrieve and validate the project key from a CGI request.
+    """
+
+    if key not in fields:
+        if default is None:
+            raise RuntimeError('Project must be specified')
+
+        return default
+
+    projects = fields.getlist(key)
+    if len(projects) != 1:
+        raise RuntimeError('Exactly one project must be specified')
+
+    project_key = projects[0]
+    if not project_key.isupper() or not project_key.isalpha():
+        raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
+
+    return project_key
+
 def main():
     """
     Main entry point.
@@ -430,21 +453,13 @@ def main():
     try:
         method = os.getenv('REQUEST_METHOD')
 
-        if 'project' not in fields:
-            raise RuntimeError('Project must be specified')
-
-        projects = fields.getlist('project')
-        if len(projects) != 1:
-            raise RuntimeError('Exactly one project must be specified')
-
-        project_key = projects[0]
-        if not project_key.isupper() or not project_key.isalpha():
-            raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
+        project_key = get_project_key(fields)
 
         if method == 'POST':
             receive_status(fields, project_key)
         elif method == 'GET':
-            display_status(project_key)
+            agent_key = get_project_key(fields, 'agent', project_key)
+            display_status(project_key, agent_key)
         else:
             raise StatusError(501)
     except StatusError as error:

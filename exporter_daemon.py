@@ -26,20 +26,20 @@ class Exporter(object):
     def __init__(self):
         self._config = Configuration.get_settings()
 
-    def export_data(self, project_key):
+    def export_data(self, project_key, agent_key):
         """
         Export the agent data and import it into the database.
         """
 
-        directory = os.path.join(self.AGENT_DIRECTORY, project_key)
+        directory = os.path.join(self.AGENT_DIRECTORY, agent_key)
 
         environment = os.environ.copy()
         environment.update({
             'USER': os.getenv('USER'),
             'CLEANUP_EXPORT': '1'
         })
-        subprocess.Popen(['/bin/bash', 'controller-export.sh', directory],
-                         stdout=None, stderr=None, env=environment)
+        args = ['/bin/bash', 'controller-export.sh', directory, project_key]
+        subprocess.Popen(args, stdout=None, stderr=None, env=environment)
 
     def start_scrape(self, project_key):
         """

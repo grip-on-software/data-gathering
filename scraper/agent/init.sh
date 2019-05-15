@@ -19,7 +19,7 @@ SH
 	if [ ! -z "$BIGBOAT_PERIOD" ] && [ "$BIGBOAT_PERIOD" != "-" ]; then
 		cat >/etc/periodic/$BIGBOAT_PERIOD/bigboat <<'SH'
 #!/bin/sh
-/home/agent/scraper/agent/env.sh 'cd /home/agent && python scraper/bigboat_to_json.py ${JIRA_KEY}'
+/home/agent/scraper/agent/env.sh 'cd /home/agent && python scraper/bigboat_to_json.py ${JIRA_KEY%% *}'
 SH
 		chmod +x /etc/periodic/$BIGBOAT_PERIOD/bigboat
 	fi
@@ -31,6 +31,7 @@ fi
 chown -R agent:agent /home/agent/export
 find "/home/agent/export" -type d -exec chmod 755 {} \;
 find "/home/agent/export" -type f -exec chmod 644 {} \;
+rm -f /home/agent/export/scrape.log
 
 # Start the scraper agent within the agent user environment, which performs
 # additional environment setup and checks if the scrape should run immediately. 

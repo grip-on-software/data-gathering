@@ -71,8 +71,14 @@ def check_controller(host, cert, project):
     Check availability of the controller API host and services.
     """
 
-    url = 'https://{}/auth/status.py?project={}'.format(host, project.jira_key)
-    request = Session(verify=cert).get(url)
+    if "JIRA_KEY" in os.environ:
+        agent_key = os.environ["JIRA_KEY"].split(" ")[0]
+    else:
+        agent_key = project.jira_key
+
+    url_format = 'https://{}/auth/status.py?project={}&agent={}'
+    session = Session(verify=cert)
+    request = session.get(url_format.format(host, project.jira_key, agent_key))
 
     try:
         response = json.loads(request.text)
@@ -117,8 +123,7 @@ def perform_checks(args, project):
             logging.critical('Secrets file %s is not available',
                              args.secrets)
             errors.append('secrets-missing')
-
-        if not check_secrets(args.secrets):
+        elif not check_secrets(args.secrets):
             errors.append('secrets-format')
 
     if args.ssh:

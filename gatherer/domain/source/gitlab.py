@@ -310,20 +310,20 @@ class GitLab(Git):
             raise RuntimeError('GitLab source {} has no API token'.format(self.host))
 
         title = 'GROS agent for the {} project'.format(project.key)
-        logging.info('Checking for old SSH keys of %s from GitLab instance %s...',
-                     title, self.host)
-
         for key in self.gitlab_api.user.keys.list(as_list=False):
-            if key.title == title:
-                if key.key == public_key:
-                    logging.info('SSH key already exists on GitLab instance %s.',
-                                 self.host)
-                    return
+            if key.key == public_key:
+                logging.info('SSH key already exists on GitLab host %s.',
+                             self.host)
+                return
 
+            if key.title == title:
+                logging.info('Removing old SSH key "%s" on GitLab host %s...',
+                             key.title, self.host)
                 if not dry_run:
                     key.delete()
 
-        logging.info('Adding new SSH key to GitLab instance %s...', self.host)
+        logging.info('Adding new SSH key "%s" to GitLab host %s...', title,
+                     self.host)
         if not dry_run:
             self.gitlab_api.user.keys.create({
                 'title': title,
