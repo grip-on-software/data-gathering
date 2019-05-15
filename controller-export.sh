@@ -24,7 +24,7 @@ perform_export() {
 		chmod 770 "$controller_directory/export"
 		chmod 770 "$controller_directory/export/$project"
 	fi
-	cp -r "$agent_directory/export/$project" "$controller_directory/export/$project"
+	cp -r "$agent_directory/export/$project/" "$controller_directory/export"
 	sudo rm -rf $agent_directory/export/$project/*
 
 	touch "$controller_directory/log.json"
