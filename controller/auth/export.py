@@ -47,6 +47,7 @@ def main():
         return
 
     exporter = Pyro4.Proxy("PYRONAME:gros.exporter")
+    agent_key = project_key
     if "agent" in fields:
         agent = fields.getfirst("agent")
         try:
@@ -61,8 +62,6 @@ def main():
             return
 
         exporter.write_agent_status(project_key, agent)
-    else:
-        agent_key = project_key
 
     exporter.start_scrape(project_key)
     exporter.export_data(project_key, agent_key)
