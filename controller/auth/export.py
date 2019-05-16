@@ -52,8 +52,10 @@ def main():
         agent = fields.getfirst("agent")
         try:
             status = json.loads(agent)
-            if "key" in status:
+            if "key" in status and status["key"] not in ("", "-"):
                 agent_key = status["key"]
+            elif "user" in status and status["user"].startswith("agent-"):
+                agent_key = status["user"][len("agent-"):]
         except ValueError as error:
             print('Status: 400 Bad Request')
             print('Content-Type: text/plain')
