@@ -3,8 +3,8 @@ Agent controller source domain object.
 """
 
 import logging
-import os
 import json
+from ...config import Configuration
 from ...request import Session
 from .types import Source, Source_Types
 
@@ -35,11 +35,7 @@ class Controller(Source):
         return self._certificate
 
     def update_identity(self, project, public_key, dry_run=False):
-        if "JIRA_KEY" in os.environ:
-            agent_key = os.environ["JIRA_KEY"].split(" ")[0]
-        else:
-            agent_key = project.key
-
+        agent_key = Configuration.get_agent_key()
         url = '{}/agent.py?project={}&agent={}'.format(self.url.rstrip('/'),
                                                        project.key,
                                                        agent_key)

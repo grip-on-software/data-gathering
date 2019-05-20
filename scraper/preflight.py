@@ -71,11 +71,7 @@ def check_controller(host, cert, project):
     Check availability of the controller API host and services.
     """
 
-    if "JIRA_KEY" in os.environ:
-        agent_key = os.environ["JIRA_KEY"].split(" ")[0]
-    else:
-        agent_key = project.jira_key
-
+    agent_key = Configuration.get_agent_key()
     url_format = 'https://{}/auth/status.py?project={}&agent={}'
     session = Session(verify=cert)
     request = session.get(url_format.format(host, project.jira_key, agent_key))
@@ -91,7 +87,7 @@ def check_controller(host, cert, project):
         problems = ['controller-service-unavailable']
         for key, value in list(response.items()):
             if key != 'total' and not value['ok']:
-                message = value['message'] if 'message' in value else 'Not OK'
+                message = value.get('message', 'Not OK')
                 problems.append("Status '{}': {}".format(key, message))
 
         logging.warning('Controller status: %s: %s',

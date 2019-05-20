@@ -75,6 +75,14 @@ class Configuration(object):
         return value not in ('false', 'no', 'off', '-', '0', '', None)
 
     @classmethod
+    def get_agent_key(cls):
+        """
+        Retrieve the first configured project key.
+        """
+
+        return cls.get_settings().items('projects')[0][0].upper()
+
+    @classmethod
     def get_url_blacklist(cls):
         """
         Retrieve a regular expression object that matches URLs that should not
