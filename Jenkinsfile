@@ -62,7 +62,7 @@ pipeline {
             when {
                 anyOf {
                     expression {
-                        currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) != null
+                        currentBuild.rawBuild.getCause(hudson.triggers.SCMTrigger$SCMTriggerCause) == null
                     }
                     not { branch 'master' }
                 }
