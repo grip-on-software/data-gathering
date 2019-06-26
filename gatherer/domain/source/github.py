@@ -152,8 +152,10 @@ class GitHub(Git):
 
         if self._github_api is None:
             logging.info('Setting up GitHub API')
+            unsafe = self.get_option('unsafe_hosts')
             self._github_api = github.Github(self.github_token,
-                                             base_url=self._github_api_url)
+                                             base_url=self._github_api_url,
+                                             verify=not unsafe)
 
         return self._github_api
 

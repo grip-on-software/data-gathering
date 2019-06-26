@@ -54,16 +54,15 @@ gatherer can use:
 - Jira: Tested with Jira 7.9.2 and later with Agile 7.3.1 and later.
 - Version control systems:
   - Git: Tested with Git clients with version 1.8.3 and later. Supported review 
-    systems are GitHub, GitLab and TFS.
+    systems are GitHub, GitLab and Azure DevOps (TFS).
     - GitLab: Tested with version 9.4 and later. The legacy API v3 is supported
       up to version 0.0.2 of the gatherer (thus working with GitLab version 8), 
       after which it has been dropped.
-    - TFS: Tested with TFS versions 2015, 2017 and 2018.
+    - Azure DevOps: Tested with TFS versions 2015, 2017 and 2018.
   - Subversion: Tested with server version 1.6 and later and client version 1.7 
     and later.
 - Quality report: Works with 1.79 on Python 2 and 2.21 or later on Python 3.
-- SonarQube: Versions supported by the quality report are supported, i.e., 
-  version 6 and later.
+- SonarQube: Works with version 7 and later.
 - BigBoat: Works with BigBoat version 5.0 and later.
 
 ## Overview
