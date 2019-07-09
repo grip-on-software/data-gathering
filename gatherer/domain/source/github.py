@@ -2,18 +2,7 @@
 GitHub source domain object.
 """
 
-from __future__ import absolute_import
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-try:
-    import urllib.parse
-except ImportError:
-    raise
-
+import urllib.parse
 import logging
 import github
 from .types import Source, Source_Types

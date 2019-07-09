@@ -2,9 +2,7 @@
 Module for collecting data from various versions of project definitions.
 """
 
-from builtins import object
 import logging
-import os.path
 from .metric import Metric_Difference
 from .parser import Metric_Options_Parser, Project_Parser, Sources_Parser
 from .update import Update_Tracker
@@ -12,7 +10,7 @@ from ..domain import Source
 from ..domain.source.types import Source_Type_Error
 from ..table import Table
 
-class Collector(object):
+class Collector:
     """
     Class that collects and aggregates data from different versions of project
     definition files.
@@ -167,8 +165,8 @@ class Sources_Collector(Collector):
                                                 **kwargs)
 
         repo_path = self._repo.repo_directory
-        if project.quality_metrics_name in repo_path:
-            self._repo_path = os.path.dirname(os.path.abspath(repo_path))
+        if project.quality_metrics_name in str(repo_path):
+            self._repo_path = repo_path.resolve().parent
         else:
             self._repo_path = repo_path
 

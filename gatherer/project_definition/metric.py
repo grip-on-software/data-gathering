@@ -2,10 +2,9 @@
 Utilities for comparing and analyzing metric options.
 """
 
-from builtins import object
 import json
 
-class Metric_Difference(object):
+class Metric_Difference:
     """
     Class that determines whether metric options were changed.
     """
@@ -47,10 +46,10 @@ class Metric_Difference(object):
         Save the unique data to JSON files.
         """
 
-        with open(self._project_key + '/data_metric_versions.json', 'w') as out:
+        with open(self._project_key / 'data_metric_versions.json', 'w') as out:
             json.dump(self._unique_versions, out, indent=4)
 
-        with open(self._project_key + '/data_metric_targets.json', 'w') as out:
+        with open(self._project_key / 'data_metric_targets.json', 'w') as out:
             json.dump(self._unique_metric_targets, out, indent=4)
 
     @property

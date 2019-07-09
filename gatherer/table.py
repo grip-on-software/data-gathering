@@ -2,14 +2,13 @@
 Table structures.
 """
 
-from builtins import object, str
 import json
-import os
+from pathlib import Path
 import re
 from copy import copy, deepcopy
 from .salt import Salt
 
-class Table(object):
+class Table:
     """
     Data storage for eventual JSON output for the database importer.
     """
@@ -21,14 +20,15 @@ class Table(object):
         self._merge_update = merge_update
         self._encrypt_fields = encrypt_fields
 
-        if self._encrypt_fields is not None and os.path.exists("secrets.json"):
-            with open("secrets.json") as secrets_file:
+        secrets_path = Path('secrets.json')
+        if self._encrypt_fields is not None and secrets_path.exists():
+            with secrets_path.open('r') as secrets_file:
                 self._secrets = json.load(secrets_file)
         else:
             self._secrets = None
 
         if filename is None:
-            self._filename = 'data_{}.json'.format(self._name)
+            self._filename = f'data_{self._name}.json'
         else:
             self._filename = filename
 
@@ -177,7 +177,7 @@ class Table(object):
         if self._merge_update:
             self.load(folder)
 
-        with open(folder + "/" + self._filename, 'w') as outfile:
+        with Path(folder, self._filename).open('w') as outfile:
             json.dump(self._data, outfile, indent=4)
 
     def load(self, folder):
@@ -190,9 +190,9 @@ class Table(object):
         will prefer the data in memory over the data loaded by this method.
         """
 
-        path = folder + "/" + self._filename
-        if os.path.exists(path):
-            with open(path, 'r') as infile:
+        path = Path(folder, self._filename)
+        if path.exists():
+            with path.open('r') as infile:
                 self.extend(json.load(infile))
 
 class Key_Table(Table):

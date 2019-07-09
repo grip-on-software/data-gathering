@@ -2,17 +2,16 @@
 Utilities for various parts of the data gathering chain.
 """
 
-from builtins import str, object
 import bisect
 import json
 import logging
-import os
 from copy import deepcopy
 from datetime import datetime
+from pathlib import Path
 import dateutil.parser
 import dateutil.tz
 
-class Iterator_Limiter(object):
+class Iterator_Limiter:
     """
     Class which keeps handles batches of queries and keeps track of iterator
     count, in order to limit batch processing.
@@ -79,7 +78,7 @@ class Iterator_Limiter(object):
 
         return self._skip
 
-class Sprint_Data(object):
+class Sprint_Data:
     """
     Object that loads sprint data and allows matching timestamps to sprints
     based on their date ranges.
@@ -105,10 +104,10 @@ class Sprint_Data(object):
 
     @staticmethod
     def _import_sprints(project):
-        sprint_filename = os.path.join(project.export_key, 'data_sprint.json')
+        sprint_filename = Path(project.export_key, 'data_sprint.json')
 
-        if os.path.exists(sprint_filename):
-            with open(sprint_filename, 'r') as sprint_file:
+        if sprint_filename.exists():
+            with sprint_filename.open('r') as sprint_file:
                 return json.load(sprint_file)
         else:
             logging.warning('Could not load sprint data, no sprint matching possible.')

@@ -2,16 +2,10 @@
 Script to import dumps of BigBoat health status information into a database.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import json
 import logging
-import os.path
+from pathlib import Path
 from timeit import default_timer as timer
 
 from gatherer.bigboat import Statuses
@@ -55,15 +49,15 @@ def main():
     project = Project(project_key)
 
     if args.path is None:
-        status_filename = os.path.join(project.export_key, "data_status.json")
+        status_path = project.export_key / "data_status.json"
     else:
-        status_filename = args.path
+        status_path = Path(args.path)
 
     start = timer()
     with Statuses(project, user=args.user, password=args.password,
                   host=args.host, database=args.database) as statuses:
         result = True
-        with open(status_filename, 'r') as status_file:
+        with status_path.open('r') as status_file:
             for line in status_file:
                 result = statuses.add_batch(json.loads(line))
                 if not result:

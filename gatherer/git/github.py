@@ -3,13 +3,6 @@ Module that handles access to a GitHub-based repository, augmenting the usual
 repository version information with pull requests and commit comments.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import str
 import re
 import dateutil.tz
 from .repo import Git_Repository
@@ -42,7 +35,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         if bots is None:
             self._github_bots = set()
         else:
-            self._github_bots = set([bot.strip() for bot in bots.split(',')])
+            self._github_bots = {bot.strip() for bot in bots.split(',')}
 
     @property
     def review_tables(self):

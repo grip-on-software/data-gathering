@@ -2,13 +2,6 @@
 API to check whether an agent's version is up to date with the controller.
 """
 
-from __future__ import print_function
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import cgi
 import cgitb
 import json

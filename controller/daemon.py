@@ -3,12 +3,12 @@ Internal daemon for handling agent user creation and update requests.
 """
 
 import json
-import os.path
+from pathlib import Path, PurePath
 import subprocess
 import Pyro4
 
 @Pyro4.expose
-class Controller(object):
+class Controller:
     """
     Object that updates access and permissions for agents.
     """
@@ -56,7 +56,7 @@ class Controller(object):
         if permissions is None:
             permissions = self.FILE_PERMISSIONS
 
-        with open(path, 'w'):
+        with Path(path).open('w'):
             pass
 
         subprocess.check_call(['sudo', 'chmod', permissions, path])
@@ -67,7 +67,7 @@ class Controller(object):
             user = self.get_agent_user(agent_key)
 
         subprocess.check_call([
-            'sudo', 'chown', '-R', '{}:controller'.format(user), path
+            'sudo', 'chown', '-R', f'{user}:controller', path
         ])
 
     def get_home_directory(self, agent_key):
@@ -75,7 +75,7 @@ class Controller(object):
         Retrieve the home directory for a certain project's agent.
         """
 
-        return os.path.join(self.HOME_DIRECTORY, agent_key)
+        return str(PurePath(self.HOME_DIRECTORY, agent_key))
 
     def get_home_subdirectories(self, project_key, agent_key, subpath=None):
         """
@@ -92,9 +92,9 @@ class Controller(object):
 
         home_directory = self.get_home_directory(agent_key)
         if subpath is not None:
-            subpath_directory = os.path.join(home_directory, subpath)
-            subpath_key_directory = os.path.join(subpath_directory, project_key)
-            return (subpath_directory, subpath_key_directory)
+            subpath_directory = PurePath(home_directory, subpath)
+            subpath_key_directory = PurePath(subpath_directory, project_key)
+            return (str(subpath_directory), str(subpath_key_directory))
 
         return (home_directory,) + \
             self.get_home_subdirectories(project_key, agent_key, 'export') + \
@@ -112,8 +112,8 @@ class Controller(object):
         Retrieve the SSH directory for the agent's user of a certain project.
         """
 
-        return os.path.join(self.SSH_DIRECTORY,
-                            self.get_agent_user(project_key))
+        return str(PurePath(self.SSH_DIRECTORY,
+                            self.get_agent_user(project_key)))
 
     def get_controller_directory(self, project_key):
         """
@@ -121,7 +121,7 @@ class Controller(object):
         agent's data.
         """
 
-        return os.path.join(self.CONTROLLER_DIRECTORY, project_key)
+        return str(PurePath(self.CONTROLLER_DIRECTORY, project_key))
 
     def create_agent(self, project_key, agent_key):
         """
@@ -134,9 +134,9 @@ class Controller(object):
         must be corrected using `update_permissions` afterward.
         """
 
-        home_directory = self.get_home_directory(agent_key)
+        home_directory = Path(self.get_home_directory(agent_key))
         username = self.get_agent_user(agent_key)
-        if os.path.exists(home_directory):
+        if home_directory.exists():
             subprocess.check_call(['sudo', 'rm', '-rf', home_directory])
         else:
             subprocess.check_call([
@@ -152,7 +152,7 @@ class Controller(object):
         for directory in self.get_home_subdirectories(project_key, agent_key):
             self._create_directory(agent_key, directory)
 
-        path = os.path.join(home_directory, self.HUSH_FILE)
+        path = Path(home_directory, self.HUSH_FILE)
         self._create_file(agent_key, path)
 
         return home_directory
@@ -165,7 +165,7 @@ class Controller(object):
         home_directory = self.get_home_directory(agent_key)
         subprocess.check_call(['sudo', 'chmod', '2770', home_directory])
         for path in paths:
-            directory = os.path.join(home_directory, path)
+            directory = PurePath(home_directory, path)
             subprocess.check_call(['sudo', 'rm', '-rf', directory])
             subdirectories = self.get_home_subdirectories(project_key,
                                                           agent_key, path)
@@ -183,14 +183,14 @@ class Controller(object):
         log in on platforms with strict permissions checks for authorized keys.
         """
 
-        ssh_directory = self.get_ssh_directory(agent_key)
-        key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
-        if os.path.exists(ssh_directory):
+        ssh_directory = Path(self.get_ssh_directory(agent_key))
+        key_filename = Path(ssh_directory, self.KEY_FILENAME)
+        if ssh_directory.exists():
             subprocess.check_call(['sudo', 'chmod', '2770', ssh_directory])
             subprocess.check_call(['sudo', 'chmod', '2660', key_filename])
 
-            if os.path.exists(key_filename):
-                with open(key_filename, 'r') as read_key_file:
+            if key_filename.exists():
+                with key_filename.open('r') as read_key_file:
                     if read_key_file.readline().rstrip('\n') == public_key:
                         return True
 
@@ -198,7 +198,7 @@ class Controller(object):
 
         self._create_directory(agent_key, ssh_directory, user='controller')
 
-        with open(key_filename, 'w') as key_file:
+        with key_filename.open('w') as key_file:
             key_file.write(public_key)
 
         return False
@@ -214,7 +214,7 @@ class Controller(object):
             self._update_owner(agent_key, directory)
             subprocess.check_call(['sudo', 'chmod', '2770', directory])
 
-        key_filename = os.path.join(ssh_directory, self.KEY_FILENAME)
+        key_filename = PurePath(ssh_directory, self.KEY_FILENAME)
         subprocess.check_call(['sudo', 'chmod', '2600', key_filename])
         self._update_owner(agent_key, ssh_directory)
         subprocess.check_call(['sudo', 'chmod', '2700', ssh_directory])
@@ -226,7 +226,7 @@ class Controller(object):
         """
 
         controller_path = self.get_controller_directory(project_key)
-        if not os.path.exists(controller_path):
+        if not Path(controller_path).exists():
             self._create_directory(project_key, controller_path,
                                    user='exporter', permissions='0770')
 
@@ -236,18 +236,18 @@ class Controller(object):
         """
 
         controller_path = self.get_controller_directory(project_key)
-        data_filename = os.path.join(controller_path, filename)
-        if not os.path.exists(data_filename):
-            self._create_file(project_key, data_filename, 'exporter')
+        data_path = Path(controller_path, filename)
+        if not data_path.exists():
+            self._create_file(project_key, data_path, 'exporter')
 
-        with open(data_filename, 'a') as data_file:
+        with data_path.open('a') as data_file:
             json.dump(statuses, data_file, indent=None)
             data_file.write('\n')
 
     @staticmethod
     def _check_permissions(path, permissions=0o2770):
         try:
-            mode = os.stat(path).st_mode
+            mode = Path(path).stat().st_mode
         except OSError:
             return False
 

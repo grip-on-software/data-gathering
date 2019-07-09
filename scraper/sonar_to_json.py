@@ -7,8 +7,9 @@ import argparse
 import datetime
 import itertools
 import json
-import os
 import logging
+import os
+from pathlib import Path
 import ssl
 import urllib
 from hqlib import domain
@@ -298,11 +299,11 @@ def retrieve(sonar, project, products, metrics=None):
     hq_project = domain.Project(name=project.key,
                                 metric_sources={Sonar: sonar})
 
-    history_filename = os.path.join(project.export_key, 'data_history.json')
-    with open(history_filename, 'w') as history_file:
+    history_path = project.export_key / 'data_history.json'
+    with history_path.open('w') as history_file:
         json.dump({"dates": [], "statuses": [], "metrics": {}}, history_file)
 
-    history = CompactHistory(history_filename)
+    history = CompactHistory(str(history_path))
     metric_names = set()
     for product in products:
         metric_names.update(retrieve_product(sonar, history, hq_project,
@@ -397,7 +398,7 @@ def parse_args():
         verify = config.get('sonar', 'verify')
         if not Configuration.has_value(verify):
             verify = False
-        elif not os.path.exists(verify):
+        elif not Path(verify).exists():
             verify = True
     else:
         sonar = {
@@ -451,13 +452,13 @@ def get_products(products, project):
     """
 
     if products is None:
-        sources_file = os.path.join(project.export_key, 'data_source_ids.json')
-        if not os.path.exists(sources_file):
+        sources_path = project.export_key / 'data_source_ids.json'
+        if not sources_path.exists():
             logging.warning('No Sonar products defined for project %s',
                             project.key)
             return []
 
-        with open(sources_file) as source_ids:
+        with sources_path.open('r') as source_ids:
             products = [
                 product for product in json.load(source_ids)
                 if product.get("source_type", "sonar") == "sonar"
@@ -471,11 +472,12 @@ def update_metric_names(filename, metric_names):
     names.
     """
 
-    if os.path.exists(filename):
-        with open(filename) as input_file:
+    path = Path(filename)
+    if path.exists():
+        with path.open('r') as input_file:
             metric_names.update(json.load(input_file))
 
-    with open(filename, 'w') as output_file:
+    with path.open('w') as output_file:
         json.dump(list(metric_names), output_file)
 
 def get_sonar_url(project):
@@ -529,11 +531,11 @@ def main():
 
     products = get_products(args.products, project)
 
-    update_filename = os.path.join(project.export_key, 'history_update.json')
+    update_filename = project.export_key / 'history_update.json'
     from_date = args.from_date
     dates = {}
-    if os.path.exists(update_filename):
-        with open(update_filename) as update_file:
+    if update_filename.exists():
+        with update_filename.open('r') as update_file:
             dates = json.load(update_file)
 
     if from_date is None:
@@ -547,7 +549,7 @@ def main():
     for metric in args.metrics:
         dates[metric] = format_date(datetime.datetime.now())
 
-    with open(update_filename, 'w') as update_file:
+    with update_filename.open('w') as update_file:
         json.dump(dates, update_file)
 
     update_metric_names(args.names, metric_names)

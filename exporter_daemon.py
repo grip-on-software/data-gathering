@@ -2,20 +2,15 @@
 Internal daemon for handling agent data export and database import jobs.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-import os.path
+import os
+from pathlib import Path
 import subprocess
 import Pyro4
 from gatherer.config import Configuration
 from gatherer.jenkins import Jenkins
 
 @Pyro4.expose
-class Exporter(object):
+class Exporter:
     """
     Object that starts exporter scripts.
     """
@@ -31,7 +26,7 @@ class Exporter(object):
         Export the agent data and import it into the database.
         """
 
-        directory = os.path.join(self.AGENT_DIRECTORY, agent_key)
+        directory = Path(self.AGENT_DIRECTORY, agent_key)
 
         environment = os.environ.copy()
         environment.update({
@@ -74,9 +69,8 @@ class Exporter(object):
         the controller directory.
         """
 
-        path = os.path.join(self.CONTROLLER_DIRECTORY,
-                            "agent-{}.json".format(project_key))
-        with open(path, "w") as agent_file:
+        path = Path(self.CONTROLLER_DIRECTORY, f'agent-{project_key}.json')
+        with path.open('w') as agent_file:
             agent_file.write(agent_status)
 
 def main():

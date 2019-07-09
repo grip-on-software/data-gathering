@@ -2,13 +2,12 @@
 Module for parsing Subversion difference formats.
 """
 
-from builtins import object, str
 import logging
 import svn.exception
 from ..version_control.repo import Change_Type
 from ..table import Table
 
-class Difference_State(object):
+class Difference_State:
     """
     Tracking object for the current state of the difference parser through
     token updates from the parser.
@@ -64,7 +63,7 @@ class Difference_State(object):
             'size': str(self._size)
         }
 
-class Difference_File(object):
+class Difference_File:
     """
     Tracking object for the current file-specific state of the difference
     parser through token updates from the difference-wide state.
@@ -170,7 +169,7 @@ class Difference_File(object):
                 'deletions': str(self._file_deletions)
             })
 
-class Difference(object):
+class Difference:
     """
     Parser for Subversion difference format.
     """

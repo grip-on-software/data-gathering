@@ -6,12 +6,13 @@ to the server.
 import argparse
 import json
 import os
+from pathlib import Path
 import subprocess
 import time
 import cherrypy
 import gatherer
 
-class Scraper(object):
+class Scraper:
     # pylint: disable=no-self-use
     """
     Scraper listener.
@@ -71,9 +72,9 @@ class Scraper(object):
         if self._is_running():
             raise cherrypy.HTTPError(503, 'Another scrape process is already running')
 
-        path = '/home/agent/scraper/agent/scrape.sh'
-        if not os.path.exists(path):
-            raise cherrypy.HTTPError(500, 'Cannot find scraper {}'.format(path))
+        path = Path('/home/agent/scraper/agent/scrape.sh')
+        if not path.exists():
+            raise cherrypy.HTTPError(500, f'Cannot find scraper at {path}')
 
         # Skip the controller status check at preflight: We want to run the
         # scrape now as a test run, and not bother with schedules.

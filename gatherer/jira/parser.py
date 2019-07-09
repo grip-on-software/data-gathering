@@ -2,8 +2,6 @@
 Type specific parsers that convert field values to correct format.
 """
 
-from past.builtins import basestring
-from builtins import str
 import logging
 import re
 from .base import Table_Source
@@ -68,7 +66,7 @@ class Int_Parser(String_Parser):
         if value is None:
             return None
 
-        if isinstance(value, basestring) and '.' in value:
+        if isinstance(value, str) and '.' in value:
             logging.info('Decimal point in integer value: %s', value)
             value = value.split('.', 1)[0]
 

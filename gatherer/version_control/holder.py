@@ -2,15 +2,14 @@
 Base module that defines an abstract version control system.
 """
 
-from builtins import object
 import json
 import logging
-import os.path
+from pathlib import Path, PurePath
 from .repo import RepositorySourceException, RepositoryDataException
 from ..table import Table
 from ..utils import Sprint_Data
 
-class Repositories_Holder(object):
+class Repositories_Holder:
     """
     Abstract interface for interacting with multiple version control systems
     of a certain source type at once.
@@ -18,7 +17,7 @@ class Repositories_Holder(object):
 
     def __init__(self, project, repo_directory):
         self._project = project
-        self._repo_directory = os.path.join(repo_directory, project.key)
+        self._repo_directory = PurePath(repo_directory, project.key)
         self._sprints = Sprint_Data(project)
 
         self._latest_versions = {}
@@ -26,15 +25,15 @@ class Repositories_Holder(object):
         self._update_trackers = {}
 
     def _make_tracker_path(self, file_name):
-        return os.path.join(self._project.export_key, file_name + '.json')
+        return Path(self._project.export_key, f'{file_name}.json')
 
     def _load_latest_versions(self):
         """
         Load the information detailing the latest commits from the data store.
         """
 
-        if os.path.exists(self._latest_filename):
-            with open(self._latest_filename, 'r') as latest_versions_file:
+        if self._latest_filename.exists():
+            with self._latest_filename.open('r') as latest_versions_file:
                 self._latest_versions = json.load(latest_versions_file)
 
         return self._latest_versions
@@ -44,8 +43,8 @@ class Repositories_Holder(object):
             return self._update_trackers[file_name]
 
         path = self._make_tracker_path(file_name)
-        if os.path.exists(path):
-            with open(path) as update_file:
+        if path.exists():
+            with path.open('r') as update_file:
                 self._update_trackers[file_name] = json.load(update_file)
         else:
             self._update_trackers[file_name] = {}
@@ -121,7 +120,7 @@ class Repositories_Holder(object):
             if pull and self._check_up_to_date(source, repo_class):
                 continue
 
-            path = os.path.join(self._repo_directory, source.path_name)
+            path = PurePath(self._repo_directory, source.path_name)
             try:
                 repo = repo_class.from_source(source, path,
                                               project=self._project,
@@ -202,14 +201,13 @@ class Repositories_Holder(object):
         versions.write(self._project.export_key)
 
         for table, table_data in tables.items():
-            table_filename = os.path.join(self._project.export_key,
-                                          'data_{}.json'.format(table))
-            with open(table_filename, 'w') as table_file:
+            table_path = Path(self._project.export_key, f'data_{table}.json')
+            with table_path.open('w') as table_file:
                 json.dump(table_data, table_file, indent=4)
 
-        with open(self._latest_filename, 'w') as latest_versions_file:
+        with self._latest_filename.open('w') as latest_versions_file:
             json.dump(self._latest_versions, latest_versions_file)
 
         for file_name, repo_trackers in self._update_trackers.items():
-            with open(self._make_tracker_path(file_name), 'w') as tracker_file:
+            with self._make_tracker_path(file_name).open('w') as tracker_file:
                 json.dump(repo_trackers, tracker_file)

@@ -2,23 +2,11 @@
 Module for accessing Jenkins build information and starting jobs.
 """
 
-from builtins import object
-
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from future.utils import with_metaclass
 from abc import ABCMeta
 from collections import Mapping, Sequence
 import json
-import os
-try:
-    import urllib.parse
-except ImportError:
-    raise
+from pathlib import Path
+import urllib.parse
 from requests.auth import HTTPBasicAuth
 from requests.utils import quote
 from .config import Configuration
@@ -45,7 +33,7 @@ class NoneMapping(Mapping): # pylint: disable=no-init
     def __repr__(self):
         return 'NoneMapping()'
 
-class Base(with_metaclass(ABCMeta, object)):
+class Base(metaclass=ABCMeta):
     """
     Base Jenkins object.
     """
@@ -251,7 +239,7 @@ class Jenkins(Base):
             password = None
         if not Configuration.has_value(verify):
             verify = False
-        elif not os.path.exists(verify):
+        elif not Path(verify).exists():
             verify = True
 
         return cls(host, username=username, password=password, verify=verify)

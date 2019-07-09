@@ -5,7 +5,7 @@ Script to obtain the base names of all metrics used in HQ.
 import argparse
 import json
 import logging
-from requests.exceptions import ConnectionError, HTTPError, Timeout
+from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -68,7 +68,7 @@ def main():
     try:
         request = Session().get(url)
         request.raise_for_status()
-    except (ConnectionError, HTTPError, Timeout):
+    except (ConnectError, HTTPError, Timeout):
         logging.exception('Could not obtain metrics base names')
         return
 

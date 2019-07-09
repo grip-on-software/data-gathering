@@ -2,12 +2,6 @@
 Script to retrieve or generate project-specific salts.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import logging
 from gatherer.config import Configuration

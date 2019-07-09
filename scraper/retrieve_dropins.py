@@ -2,17 +2,11 @@
 Script that accesses a file store to retrieve the dropins for a certain project.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import logging
-import os
 import shutil
 from gatherer.config import Configuration
+from gatherer.domain import Project
 from gatherer.files import File_Store, PathExistenceError
 from gatherer.log import Log_Setup
 
@@ -50,12 +44,12 @@ def main():
     """
 
     args = parse_args()
+    project = Project(args.project)
 
-    remote_path = '{}/{}'.format(args.path, args.project)
-    path = os.path.join('dropins', args.project)
-    if os.path.exists(path):
-        logging.info('Removing old dropins path %s', path)
-        shutil.rmtree(path)
+    remote_path = f'{args.path}/{args.project}'
+    if project.dropins_key.exists():
+        logging.info('Removing old dropins path %s', project.dropins_key)
+        shutil.rmtree(str(project.dropins_key))
 
     if args.skip:
         logging.warning('Skipped dropins import for project %s', args.project)
@@ -66,7 +60,7 @@ def main():
     store.login(args.username, args.password)
 
     try:
-        store.get_directory(remote_path, path)
+        store.get_directory(remote_path, project.dropins_key)
     except PathExistenceError:
         logging.warning('Project %s has no dropin files', args.project)
     else:

@@ -2,8 +2,7 @@
 Module that supports retrieving auxiliary files from a data store.
 """
 
-from builtins import object
-import os.path
+from pathlib import Path, PurePath
 import shutil
 import tempfile
 from zipfile import ZipFile
@@ -15,9 +14,7 @@ class PathExistenceError(RuntimeError):
     in the file store.
     """
 
-    pass
-
-class File_Store(object):
+class File_Store:
     """
     File store abstract class.
     """
@@ -117,8 +114,7 @@ class OwnCloud_Store(File_Store):
         except owncloud.HTTPResponseError as error:
             if error.status_code == 404:
                 raise PathExistenceError(remote_file)
-            else:
-                raise error
+            raise error
 
     def get_file_contents(self, remote_file):
         return self._client.get_file_contents(remote_file)
@@ -133,16 +129,15 @@ class OwnCloud_Store(File_Store):
         except owncloud.HTTPResponseError as error:
             if error.status_code == 404:
                 raise PathExistenceError(remote_path)
-            else:
-                raise error
+            raise error
 
         extract_path = tempfile.mkdtemp()
         with ZipFile(zip_file_name, 'r') as zip_file:
             zip_file.extractall(extract_path)
 
-        zip_inner_path = os.path.basename(remote_path.rstrip('/'))
-        full_path = os.path.join(extract_path, zip_inner_path)
-        shutil.move(full_path, local_path)
+        zip_inner_path = PurePath(remote_path.rstrip('/')).name
+        full_path = Path(extract_path, zip_inner_path)
+        shutil.move(str(full_path), str(local_path))
 
     def put_file(self, local_file, remote_file):
         self._client.put_file(remote_file, local_file)

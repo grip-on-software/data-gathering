@@ -5,10 +5,9 @@ a JSON file containing sheet counts per project, per month.
 
 import argparse
 import datetime
-import glob
 import json
 import logging
-import os.path
+from pathlib import Path
 import xlrd
 import yaml
 from gatherer.domain import Project
@@ -16,13 +15,13 @@ from gatherer.log import Log_Setup
 from gatherer.table import Key_Table
 from gatherer.utils import format_date
 
-def parse_filename(filename, config):
+def parse_filename(file_path, config):
     """
     Retrieve the forecast date from the filename.
     """
 
     try:
-        forecast_date = datetime.datetime.strptime(os.path.basename(filename),
+        forecast_date = datetime.datetime.strptime(file_path.name,
                                                    config.get('filename'))
     except ValueError:
         logging.exception('Could not parse filename date format')
@@ -172,9 +171,9 @@ def main():
 
     args = parse_args()
     project = Project(args.project)
-    update_path = os.path.join(project.export_key, 'seats_files.json')
-    if os.path.exists(update_path):
-        with open(update_path) as update_file:
+    update_path = Path(project.export_key, 'seats_files.json')
+    if update_path.exists():
+        with update_path.open('r') as update_file:
             filenames = json.load(update_file)
             if set(filenames) == set(args.filename):
                 logging.info('Seat files were already read for %s, skipping.',
@@ -187,13 +186,13 @@ def main():
     teams = {}
     for pattern in args.filename:
         logging.info('Expanding pattern %s', pattern)
-        for filename in glob.glob(pattern):
-            logging.info('Parsing file %s', filename)
+        for file_path in Path('.').glob(pattern):
+            logging.info('Parsing file %s', file_path)
 
-            forecast_date = parse_filename(filename, config)
+            forecast_date = parse_filename(file_path, config)
             logging.info('Forecast date: %r', forecast_date)
 
-            workbook = xlrd.open_workbook(filename)
+            workbook = xlrd.open_workbook(str(file_path))
             worksheet = workbook.sheet_by_name(config.get('sheet'))
 
             months = gather_months(workbook, worksheet, forecast_date)

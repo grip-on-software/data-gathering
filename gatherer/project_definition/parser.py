@@ -6,23 +6,21 @@ such as projects, products and teams. Additionally, they specify options for
 quality metrics, namely custom targets.
 """
 
-from builtins import str, object
-from past.builtins import basestring
 import datetime
 import importlib
 import inspect
 import logging
 import sys
 import traceback
+from unittest import mock
 # Non-standard imports
-import mock
 from hqlib import domain, metric, metric_source
 from .compatibility import Compatibility, COMPACT_HISTORY, JIRA_FILTER, SONAR
 from ..utils import get_datetime, parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
 
-class Project_Definition_Parser(object):
+class Project_Definition_Parser:
     """
     Parser for project definitions of the quality reporting tool.
     """
@@ -191,9 +189,7 @@ class Project_Definition_Parser(object):
                     # Most syntax errors have correct line marker information
                     if exception.text is None:
                         raise self.format_exception(contents)
-                    else:
-                        raise self.format_exception(contents,
-                                                    emulate_context=False)
+                    raise self.format_exception(contents, emulate_context=False)
                 except Exception:
                     # Because of string execution, the line number of the
                     # exception becomes incorrect. Attempt to emulate the
@@ -316,7 +312,7 @@ class Sources_Parser(Project_Definition_Parser):
     def __init__(self, path, **kwargs):
         super(Sources_Parser, self).__init__(**kwargs)
 
-        self.sys_path = path
+        self.sys_path = str(path)
         self.source_objects = self.get_mock_domain_objects(metric_source,
                                                            self.METRIC_SOURCE)
         self.source_objects.update(self.SOURCE_CLASSES)
@@ -530,7 +526,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         for key in ('low_target', 'target', 'comment'):
             if key in options:
-                if isinstance(options[key], basestring):
+                if isinstance(options[key], (str, bytes)):
                     targets[key] = parse_unicode(options[key])
                 else:
                     targets[key] = str(options[key])

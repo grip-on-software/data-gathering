@@ -3,13 +3,6 @@ API to determine whether access should be granted to data for certain projects
 to a user.
 """
 
-from __future__ import print_function
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import cgitb
 import ipaddress
 import json

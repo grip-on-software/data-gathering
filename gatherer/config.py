@@ -7,7 +7,7 @@ import re
 from configparser import RawConfigParser
 from urlmatch.urlmatch import parse_match_pattern, BadMatchPattern
 
-class Configuration(object):
+class Configuration:
     """
     Object that provides access to options and sections from configuration files
     that are stored alongside the repository or elsewhere.

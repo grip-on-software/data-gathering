@@ -5,7 +5,6 @@ Script to obtain user details from an LDAP server.
 import argparse
 import json
 import logging
-import os.path
 try:
     import ldap
 except ImportError:
@@ -127,8 +126,8 @@ def main():
 
     data = get_members(client, group, args)
 
-    output_filename = os.path.join(project.export_key, 'data_ldap.json')
-    with open(output_filename, 'w') as output_file:
+    output_path = project.export_key / 'data_ldap.json'
+    with output_path.open('w') as output_file:
         json.dump(data, output_file)
 
 if __name__ == '__main__':

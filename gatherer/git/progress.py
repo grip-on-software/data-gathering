@@ -2,8 +2,6 @@
 Module that tracks and logs Git command progress output.
 """
 
-from __future__ import division
-
 import logging
 from git import RemoteProgress
 

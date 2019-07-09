@@ -3,17 +3,10 @@ Module that handles access to a Team Foundation Server-based repository,
 augmenting the usual repository version information such as pull requests.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import str
 import itertools
 import json
 import logging
-import os.path
+from pathlib import Path
 import re
 from git import Commit
 from requests.auth import HTTPBasicAuth
@@ -28,7 +21,7 @@ from ..utils import get_local_datetime, parse_utc_date, parse_unicode, \
     Iterator_Limiter
 from ..version_control.review import Review_System
 
-class TFS_Project(object):
+class TFS_Project:
     """
     A project using Git on a TFS or VSTS server.
     """
@@ -757,7 +750,8 @@ class TFS_Repository(Git_Repository, Review_System):
         Add work item revision data from the API.
         """
 
-        if not os.path.exists('vsts_fields.json'):
+        vsts_fields_path = Path('vsts_fields.json')
+        if not vsts_fields_path.exists():
             logging.info('Skipping collection of work items; no fields known')
             return
 
@@ -768,7 +762,7 @@ class TFS_Repository(Git_Repository, Review_System):
         ]
         types = dict((parser.type, parser) for parser in parsers)
 
-        with open('vsts_fields.json') as vsts_fields_file:
+        with vsts_fields_path.open('r') as vsts_fields_file:
             work_item_fields = json.load(vsts_fields_file)
 
         for properties in work_item_fields.values():

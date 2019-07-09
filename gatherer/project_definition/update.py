@@ -2,12 +2,11 @@
 Utilities for tracking updates between versions of a project definition.
 """
 
-from builtins import object
 import json
 import os
 from ..domain.sources import Sources
 
-class Update_Tracker(object):
+class Update_Tracker:
     """
     Class that keeps track of the previous and current state of an incremental
     update, so that the data gatherer can resume from a previous known state.
@@ -17,8 +16,7 @@ class Update_Tracker(object):
         self._project = project
         self._source = project.project_definitions_source
 
-        export_key = project.export_key
-        self._filename = os.path.join(export_key, '{}_update.json'.format(target))
+        self._filename = project.export_key / f'{target}_update.json'
 
         self._file_loaded = False
         self._previous_data = None
@@ -60,8 +58,8 @@ class Update_Tracker(object):
         if self._file_loaded:
             return
 
-        if os.path.exists(self._filename):
-            with open(self._filename, 'r') as update_file:
+        if self._filename.exists():
+            with self._filename.open('r') as update_file:
                 data = json.load(update_file)
 
             self._previous_data = data['targets']

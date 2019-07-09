@@ -2,23 +2,12 @@
 GitLab source domain object.
 """
 
-from __future__ import absolute_import
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import logging
-try:
-    import urllib.parse
-except ImportError:
-    raise
-
+import urllib.parse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError, \
     GitlabListError
-from requests.exceptions import ConnectionError, Timeout
+from requests.exceptions import ConnectionError as ConnectError, Timeout
 from ...config import Configuration
 from ...request import Session
 from .types import Source, Source_Types
@@ -251,7 +240,7 @@ class GitLab(Git):
                                           timeout=3)
                 self._gitlab_api.auth()
                 self._gitlab_api.timeout = None
-            except (ConnectionError, Timeout, GitlabAuthenticationError, GitlabGetError) as error:
+            except (ConnectError, Timeout, GitlabAuthenticationError, GitlabGetError) as error:
                 self._gitlab_api = None
                 raise RuntimeError('Cannot access the GitLab API: {!r}'.format(error))
 

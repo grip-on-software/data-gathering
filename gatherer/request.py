@@ -2,7 +2,7 @@
 Module that provides HTTP request sessions.
 """
 
-import os
+from pathlib import Path
 import requests
 from . import __name__ as _gatherer_name, __version__ as _gatherer_version
 
@@ -32,8 +32,9 @@ class Session(requests.Session):
 
     @staticmethod
     def _get_user_agent():
-        if os.path.exists('VERSION'):
-            with open('VERSION') as version_file:
+        version_path = Path('VERSION')
+        if version_path.exists():
+            with version_path.open('r') as version_file:
                 version = version_file.readline().rstrip()
         else:
             version = _gatherer_version

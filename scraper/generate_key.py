@@ -2,29 +2,23 @@
 Generate a private and public key and distribute it to the correct locations.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import logging
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
-try:
-    import urllib.parse
-except ImportError:
-    raise
+from typing import Optional, Union
+import urllib.parse
 import inform
 try:
-    from mock import MagicMock
+    from unittest.mock import MagicMock
     sys.modules['abraxas'] = MagicMock()
     from sshdeploy.key import Key
 except ImportError:
+    sys.modules.pop('abraxas')
     raise
 
 from gatherer.config import Configuration
@@ -79,13 +73,14 @@ def get_temp_filename():
 
     return filename
 
-class Identity(object):
+class Identity:
     """
     Object indicating a key pair for one or more certain sources that require
     credentials to function.
     """
 
-    def __init__(self, project, key_path, known_hosts, dry_run=False):
+    def __init__(self, project: Project, key_path: Path, known_hosts: Path,
+                 dry_run: bool = False):
         self.project = project
         self.key_path = key_path
         self.known_hosts = known_hosts
@@ -110,7 +105,7 @@ class Identity(object):
 
         return self._public_key
 
-    def _generate_key_pair(self):
+    def _generate_key_pair(self) -> Optional[str]:
         """
         Generate a public and private key pair for the project to be used as
         credentials for the sources.
@@ -140,33 +135,33 @@ class Identity(object):
         generate the key and store it at the key path location.
         """
 
-        if not os.path.exists(self.key_path):
+        if not self.key_path.exists():
             logging.info('Generating new key pair to %s', self.key_path)
             if not self.dry_run:
                 temp_key_name = self._generate_key_pair()
-                shutil.move(temp_key_name, self.key_path)
+                shutil.move(temp_key_name, str(self.key_path))
                 shutil.move('{}.pub'.format(temp_key_name),
                             '{}.pub'.format(self.key_path))
-                os.chmod(self.key_path, 0o600)
+                self.key_path.chmod(0o600)
         else:
             logging.info('Using existing key pair from %s', self.key_path)
 
-    def _read_key(self):
-        public_key_path = '{}.pub'.format(self.key_path)
-        if not os.path.exists(public_key_path):
+    def _read_key(self) -> Union[str, bool]:
+        public_key_path = Path(f'{self.key_path}.pub')
+        if not public_key_path.exists():
             return False
 
-        with open(public_key_path, 'r') as public_key_file:
+        with public_key_path.open('r') as public_key_file:
             return public_key_file.read().rstrip('\n')
 
-    def _scan_host(self, url):
+    def _scan_host(self, url: str):
         hostname = urllib.parse.urlsplit(url).hostname
         if hostname is None:
             logging.warning('Cannot extract hostname from source URL %s', url)
             return
 
         try:
-            if os.path.exists(self.known_hosts):
+            if self.known_hosts.exists():
                 logging.info('Removing old host keys for %s from %s',
                              hostname, self.known_hosts)
                 if not self.dry_run:
@@ -180,12 +175,12 @@ class Identity(object):
                 with open(os.devnull, 'w') as null_file:
                     lines = subprocess.check_output(['ssh-keyscan', hostname],
                                                     stderr=null_file)
-                with open(self.known_hosts, 'ab') as known_hosts_file:
+                with self.known_hosts.open('ab') as known_hosts_file:
                     known_hosts_file.write(lines)
         except subprocess.CalledProcessError:
             logging.exception('Could not scan host %s', hostname)
 
-    def update_source(self, source):
+    def update_source(self, source: Source):
         """
         Register the SSH public key for this identity to the source, if this is
         possible and necessary for this source, environment, and source type.
@@ -263,8 +258,8 @@ def main():
     if args.dry_run:
         logging.info('Dry run: Logging output only describes what would happen')
 
-    main_key = os.path.expanduser(args.path)
-    known_hosts = os.path.expanduser(args.known_hosts)
+    main_key = Path(args.path).expanduser()
+    known_hosts = Path(args.known_hosts).expanduser()
     identities = {}
 
     if args.ssh and Configuration.has_value(args.ssh):

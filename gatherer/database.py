@@ -2,10 +2,9 @@
 Module that implements a connection to a MonetDB database.
 """
 
-from builtins import object
 import pymonetdb
 
-class Database(object):
+class Database:
     """
     Database query utilities.
     """

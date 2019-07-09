@@ -2,16 +2,9 @@
 Script to update old dropin files with fresh developer data, including emails.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import json
 import logging
-import os.path
 from gatherer.config import Configuration
 from gatherer.jira import Jira, Update_Tracker
 from gatherer.jira.query import Query
@@ -49,8 +42,11 @@ def main():
     args = parse_args()
     project = Project(args.project)
 
-    data_path = os.path.join(project.dropins_key, 'data_developer.json')
-    with open(data_path) as data_file:
+    data_path = project.dropins_key / 'data_developer.json'
+    if not data_path.exists():
+        raise OSError(f'Developer dropin file {data_path} does not exist')
+
+    with data_path.open('r') as data_file:
         developers = json.load(data_file)
 
     jira = Jira(project, Update_Tracker.NULL_TIMESTAMP)
@@ -61,9 +57,10 @@ def main():
     api = query.api
 
     for developer in developers:
-        users = api.search_users(developer['name'], includeInactive=True)
+        name = developer['name']
+        users = api.search_users(name, includeInactive=True)
         if not users:
-            raise ValueError('Developer {} not found on JIRA'.format(developer['name']))
+            raise ValueError(f"Developer {name} not found on JIRA")
 
         parser.parse(users[0])
 

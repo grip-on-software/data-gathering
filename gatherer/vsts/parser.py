@@ -5,7 +5,7 @@ Parsers for VSTS work item fields.
 import re
 from ..utils import parse_utc_date, parse_unicode
 
-class Field_Parser(object):
+class Field_Parser:
     """
     Base parser for VSTS work item fields.
     """

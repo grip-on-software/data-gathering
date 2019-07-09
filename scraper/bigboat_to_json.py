@@ -2,16 +2,9 @@
 Script to retrieve current details of the state of a BigBoat host.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import json
 import logging
-import os.path
 
 from bigboat import Client_v2
 
@@ -87,8 +80,8 @@ def main():
             raise RuntimeError('HTTP error {}: {}'.format(request.status_code,
                                                           request.text))
     else:
-        data_path = os.path.join(project.export_key, 'data_bigboat.json')
-        with open(data_path, 'w') as data_file:
+        data_path = project.export_key / 'data_bigboat.json'
+        with data_path.open('w') as data_file:
             json.dump(output, data_file, indent=4)
 
 if __name__ == '__main__':
