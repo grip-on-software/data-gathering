@@ -5,9 +5,18 @@ Base module that defines an abstract version control system.
 import json
 import logging
 from pathlib import Path, PurePath
-from .repo import RepositorySourceException, RepositoryDataException
+from typing import Dict, Iterable, List, Optional, Type, TYPE_CHECKING
+from .repo import RepositorySourceException, RepositoryDataException, \
+    Version, Version_Control_Repository
 from ..table import Table
 from ..utils import Sprint_Data
+if TYPE_CHECKING:
+    from ..domain import Project, Source
+else:
+    Project = object
+    Source = object
+
+Tables = Dict[str, List[Dict[str, str]]]
 
 class Repositories_Holder:
     """
@@ -15,19 +24,19 @@ class Repositories_Holder:
     of a certain source type at once.
     """
 
-    def __init__(self, project, repo_directory):
+    def __init__(self, project: Project, repo_directory: str) -> None:
         self._project = project
         self._repo_directory = PurePath(repo_directory, project.key)
         self._sprints = Sprint_Data(project)
 
-        self._latest_versions = {}
+        self._latest_versions: Dict[str, Version] = {}
         self._latest_filename = self._make_tracker_path('latest_vcs_versions')
-        self._update_trackers = {}
+        self._update_trackers: Dict[str, Dict[str, str]] = {}
 
-    def _make_tracker_path(self, file_name):
+    def _make_tracker_path(self, file_name: str) -> Path:
         return Path(self._project.export_key, f'{file_name}.json')
 
-    def _load_latest_versions(self):
+    def _load_latest_versions(self) -> Dict[str, Version]:
         """
         Load the information detailing the latest commits from the data store.
         """
@@ -38,7 +47,7 @@ class Repositories_Holder:
 
         return self._latest_versions
 
-    def _load_update_tracker(self, file_name):
+    def _load_update_tracker(self, file_name: str) -> Dict[str, str]:
         if file_name in self._update_trackers:
             return self._update_trackers[file_name]
 
@@ -51,13 +60,15 @@ class Repositories_Holder:
 
         return self._update_trackers[file_name]
 
-    def _check_update_trackers(self, repo, repo_name):
+    def _check_update_trackers(self, repo: Version_Control_Repository,
+                               repo_name: str) -> None:
         for file_name in repo.update_trackers.keys():
             update_tracker = self._load_update_tracker(file_name)
             if repo_name in update_tracker:
                 repo.set_update_tracker(file_name, update_tracker[repo_name])
 
-    def _check_up_to_date(self, source, repo_class):
+    def _check_up_to_date(self, source: Source,
+                          repo_class: Type[Version_Control_Repository]) -> bool:
         # Check up-to-dateness before retrieving from source.
         # Note that this excludes the entire repository from the gathering
         # process if it is considered up to date, which might also mean
@@ -87,12 +98,15 @@ class Repositories_Holder:
         return False
 
     @staticmethod
-    def _init_tables(repo_class, tables):
+    def _init_tables(repo_class: Type[Version_Control_Repository],
+                     tables: Tables) -> None:
         for table_name in repo_class.AUXILIARY_TABLES:
             if table_name not in tables:
                 tables[table_name] = []
 
-    def get_repositories(self, tables, force=False, pull=True):
+    def get_repositories(self, tables: Tables, force: bool = False,
+                         pull: bool = True) -> \
+                         Iterable[Version_Control_Repository]:
         """
         Retrieve repository objects for all involved version control systems.
 
@@ -137,7 +151,7 @@ class Repositories_Holder:
             if not repo.is_empty():
                 yield repo
 
-    def process(self, force=False, pull=True):
+    def process(self, force: bool = False, pull: bool = True) -> None:
         """
         Perform all actions required for retrieving updated commit data of all
         the repositories and exporting it to JSON. If `force` is set to `True`,
@@ -151,7 +165,7 @@ class Repositories_Holder:
 
         encrypt_fields = ('developer', 'developer_username', 'developer_email')
         versions = Table('vcs_versions', encrypt_fields=encrypt_fields)
-        tables = {}
+        tables: Tables = {}
         for repo in self.get_repositories(tables, force=force, pull=pull):
             try:
                 self._process_repo(repo, versions, tables, force=force)
@@ -163,7 +177,8 @@ class Repositories_Holder:
 
         self._export(versions, tables)
 
-    def _process_repo(self, repo, versions, tables, force=False):
+    def _process_repo(self, repo: Version_Control_Repository, versions: Table,
+                      tables: Tables, force: bool = False) -> None:
         # Retrieve all tables from the repositories so that we know the
         # names and overwrite old export files when there are no updates.
         for table_name, table_data in repo.tables.items():
@@ -172,10 +187,9 @@ class Repositories_Holder:
 
         repo_name = repo.repo_name
         logging.info('Processing repository %s', repo_name)
+        latest_version: Optional[Version] = None
         if repo.repo_name in self._latest_versions:
             latest_version = self._latest_versions[repo.repo_name]
-        else:
-            latest_version = None
 
         # Retrieve the versions and auxliary tables.
         skip_stats = repo.source.get_option('skip_stats')
@@ -192,7 +206,7 @@ class Repositories_Holder:
 
             self._update_trackers[file_name][repo.repo_name] = value
 
-    def _export(self, versions, tables):
+    def _export(self, versions: Table, tables: Tables) -> None:
         """
         Export the version metadata, additional table metadata, and identifiers
         of the latest versions from the repositories to JSON files.

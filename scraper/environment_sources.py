@@ -3,18 +3,18 @@ Script used for retrieving additional domain sources from environments in
 order to import data from them later on.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Retrieve additional sources from domain environments"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--ignore-host-change", dest="follow_host_change",
                         action="store_false", default=True,
@@ -27,7 +27,7 @@ def parse_args():
     return args
 
 # pylint: disable=no-member
-def retrieve_sources(project):
+def retrieve_sources(project: Project) -> None:
     """
     Retrieve sources for a specific project based on environments that contain
     multiple sources with similar traits.
@@ -46,15 +46,16 @@ def retrieve_sources(project):
             logging.info('Skipping environment %r because it is out of scope',
                          environment_source.environment)
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
 
     args = parse_args()
 
-    project_key = args.project
-    project = Project(project_key, follow_host_change=args.follow_host_change)
+    project_key = str(args.project)
+    project = Project(project_key,
+                      follow_host_change=bool(args.follow_host_change))
 
     retrieve_sources(project)
     project.export_sources()

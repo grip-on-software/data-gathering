@@ -3,13 +3,13 @@ Script to retrieve JIRA issue data and convert it to JSON format readable by
 the database importer.
 """
 
-import argparse
+from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from gatherer.config import Configuration
 from gatherer.jira import Jira, Updated_Time, Update_Tracker
 from gatherer.log import Log_Setup
-from gatherer.domain import Project, Source
+from gatherer.domain import Project, source
 
-def validate_date(value):
+def validate_date(value: str) -> str:
     """
     Check whether a given value can be correctly parsed as a timestamp with
     a date and time.
@@ -18,9 +18,9 @@ def validate_date(value):
     try:
         return Updated_Time(value).timestamp
     except ValueError as error:
-        raise argparse.ArgumentTypeError("Not a valid date: " + str(error))
+        raise ArgumentTypeError("Not a valid date: " + str(error))
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
@@ -28,7 +28,7 @@ def parse_args():
     config = Configuration.get_settings()
 
     description = "Obtain JIRA issue data and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="JIRA project key")
     parser.add_argument("--username", default=config.get("jira", "username"),
                         help="JIRA username")
@@ -45,7 +45,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -57,9 +57,9 @@ def main():
     updated_since = tracker.get_updated_since()
 
     jira = Jira(project, updated_since)
-    source = Source.from_type('jira', url=args.server, name=args.project,
+    jira_source = source.Jira('jira', url=args.server, name=args.project,
                               username=args.username, password=args.password)
-    latest_update = jira.process(source, query=args.query)
+    latest_update = jira.process(jira_source, query=args.query)
 
     tracker.save_updated_since(latest_update)
 

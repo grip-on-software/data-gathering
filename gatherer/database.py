@@ -2,6 +2,8 @@
 Module that implements a connection to a MonetDB database.
 """
 
+from types import TracebackType
+from typing import Any, List, Optional, Sequence, Type, Union
 import pymonetdb
 
 class Database:
@@ -9,21 +11,23 @@ class Database:
     Database query utilities.
     """
 
-    def __init__(self, **options):
+    def __init__(self, **options: Any) -> None:
         self._connection = pymonetdb.connect(**options)
         self._cursor = self._connection.cursor()
         self._open = True
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
 
-    def __enter__(self):
+    def __enter__(self) -> 'Database':
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         """
         Close the database connection.
         """
@@ -33,7 +37,7 @@ class Database:
             self._connection.close()
             self._open = False
 
-    def get_project_id(self, project_key):
+    def get_project_id(self, project_key: str) -> Optional[int]:
         """
         Retrieve the project ID from the database, or `None` if it is not
         in the database.
@@ -46,9 +50,9 @@ class Database:
         if not row:
             return None
 
-        return str(row[0])
+        return int(row[0])
 
-    def set_project_id(self, project_key):
+    def set_project_id(self, project_key: str) -> int:
         """
         Add the project key to the database with a new project ID.
         """
@@ -56,7 +60,15 @@ class Database:
         self._cursor.execute('INSERT INTO gros.project(name) VALUES (%s)',
                              parameters=[project_key])
 
-    def execute(self, query, parameters, update=False, one=False):
+        project_id = self.get_project_id(project_key)
+        if project_id is None:
+            raise RuntimeError('Database did not receive new project')
+
+        return project_id
+
+    def execute(self, query: str, parameters: Sequence[Any],
+                update: bool = False, one: bool = False) -> \
+                Optional[Union[List[Sequence], Sequence]]:
         """
         Perform a selection or update query.
 
@@ -76,7 +88,7 @@ class Database:
 
         return self._cursor.fetchall()
 
-    def execute_many(self, query, parameter_sets):
+    def execute_many(self, query: str, parameter_sets: Sequence[Sequence[Any]]) -> None:
         """
         Execute the same prepared query for all sequences of parameters
         and commit the changes.

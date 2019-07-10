@@ -5,8 +5,11 @@ Module that supports retrieving auxiliary files from a data store.
 from pathlib import Path, PurePath
 import shutil
 import tempfile
+from typing import Callable, Dict, Type
 from zipfile import ZipFile
 import owncloud
+
+S_type = Type['File_Store']
 
 class PathExistenceError(RuntimeError):
     """
@@ -19,15 +22,15 @@ class File_Store:
     File store abstract class.
     """
 
-    _store_types = {}
+    _store_types: Dict[str, S_type] = {}
 
     @classmethod
-    def register(cls, store_type):
+    def register(cls, store_type: str) -> Callable[[S_type], S_type]:
         """
         Decorator method for a class that registers a certain `store_type`.
         """
 
-        def decorator(subject):
+        def decorator(subject: S_type) -> S_type:
             """
             Decorator that registers the class `subject` to the store type.
             """
@@ -39,7 +42,7 @@ class File_Store:
         return decorator
 
     @classmethod
-    def get_type(cls, store_type):
+    def get_type(cls, store_type: str) -> S_type:
         """
         Retrieve the class registered for the given `store_type` string.
         """
@@ -49,7 +52,10 @@ class File_Store:
 
         return cls._store_types[store_type]
 
-    def login(self, username, password):
+    def __init__(self, url: str) -> None:
+        pass
+
+    def login(self, username: str, password: str) -> None:
         """
         Log in to the store, if the store makes use of user- and password-based
         authentication.
@@ -57,7 +63,7 @@ class File_Store:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def get_file(self, remote_file, local_file):
+    def get_file(self, remote_file: str, local_file: str) -> None:
         """
         Retrieve the file from the remote path `remote_file` and store it in the
         local path `local_file`.
@@ -65,7 +71,7 @@ class File_Store:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def get_file_contents(self, remote_file):
+    def get_file_contents(self, remote_file: str) -> str:
         """
         Retrieve the file contents from the remote path `remote_file` without
         storing it in a (presistent) local path.
@@ -73,14 +79,14 @@ class File_Store:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def get_directory(self, remote_path, local_path):
+    def get_directory(self, remote_path: str, local_path: str) -> None:
         """
         Retrieve all files in the direcotry with the remote path `remote_path`
         and store them in the local path `local_path` which does not yet exist.
         """
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def put_file(self, local_file, remote_file):
+    def put_file(self, local_file: str, remote_file: str) -> None:
         """
         Upload the contents of the file from the local path `local_file` to
         the store at the remote path `remote_file`.
@@ -88,7 +94,7 @@ class File_Store:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def put_directory(self, local_path, remote_path):
+    def put_directory(self, local_path: str, remote_path: str) -> None:
         """
         Upload an entire directory and all its subdirectories and files in them
         from the local path `local_path` to the store path `remote_path`.
@@ -102,13 +108,14 @@ class OwnCloud_Store(File_Store):
     File store using an ownCloud backend.
     """
 
-    def __init__(self, url):
+    def __init__(self, url: str) -> None:
+        super().__init__(url)
         self._client = owncloud.Client(url)
 
-    def login(self, username, password):
+    def login(self, username: str, password: str) -> None:
         self._client.login(username, password)
 
-    def get_file(self, remote_file, local_file):
+    def get_file(self, remote_file: str, local_file: str) -> None:
         try:
             self._client.get_file(remote_file, local_file)
         except owncloud.HTTPResponseError as error:
@@ -116,13 +123,13 @@ class OwnCloud_Store(File_Store):
                 raise PathExistenceError(remote_file)
             raise error
 
-    def get_file_contents(self, remote_file):
+    def get_file_contents(self, remote_file: str) -> str:
         return self._client.get_file_contents(remote_file)
 
-    def get_directory(self, remote_path, local_path):
+    def get_directory(self, remote_path: str, local_path: str) -> None:
         # Retrieve the directory as zip file
         with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
-            zip_file_name = tmpfile.name
+            zip_file_name = str(tmpfile.name)
 
         try:
             self._client.get_directory_as_zip(remote_path, zip_file_name)
@@ -139,8 +146,8 @@ class OwnCloud_Store(File_Store):
         full_path = Path(extract_path, zip_inner_path)
         shutil.move(str(full_path), str(local_path))
 
-    def put_file(self, local_file, remote_file):
+    def put_file(self, local_file: str, remote_file: str) -> None:
         self._client.put_file(remote_file, local_file)
 
-    def put_directory(self, local_path, remote_path):
+    def put_directory(self, local_path: str, remote_path: str) -> None:
         self._client.put_directory(remote_path, local_path)

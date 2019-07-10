@@ -2,21 +2,22 @@
 Script to retrieve update tracker files from the database for synchronization.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
+from typing import Optional, Set, Type
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.update import Database_Tracker, SSH_Tracker
+from gatherer.update import Update_Tracker, Database_Tracker, SSH_Tracker
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     config = Configuration.get_settings()
 
-    parser = argparse.ArgumentParser(description='Retrieve the update trackers')
+    parser = ArgumentParser(description='Retrieve the update trackers')
     parser.add_argument('project', help='project key to retrieve for')
     parser.add_argument('--path', default='~/.ssh/id_rsa',
                         help='local path of the private key')
@@ -44,11 +45,12 @@ def parse_args():
 
     return args
 
-def build_tracker(args, project):
+def build_tracker(args: Namespace, project: Project) -> Update_Tracker:
     """
     Build an update tracker source object based on the arguments.
     """
 
+    tracker_class: Type[Update_Tracker] = Update_Tracker
     if args.agent and args.server:
         tracker_class = SSH_Tracker
         options = {
@@ -67,7 +69,7 @@ def build_tracker(args, project):
 
     return tracker_class(project, **options)
 
-def remove_files(files, project):
+def remove_files(files: Optional[Set[str]], project: Project) -> None:
     """
     Remove stale update tracker files that are not used during the scrape.
     """
@@ -78,7 +80,7 @@ def remove_files(files, project):
             if path.exists():
                 path.unlink()
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -88,9 +90,8 @@ def main():
     project.make_export_directory()
 
     # Convert to set for easier file name comparisons in some tracker sources
-    if args.files is None:
-        files = None
-    else:
+    files: Optional[Set[str]] = None
+    if args.files is not None:
         files = set(args.files)
 
     if args.skip:

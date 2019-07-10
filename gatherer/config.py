@@ -2,9 +2,10 @@
 Configuration provider.
 """
 
+from configparser import RawConfigParser
 import os
 import re
-from configparser import RawConfigParser
+from typing import Optional, Pattern
 from urlmatch.urlmatch import parse_match_pattern, BadMatchPattern
 
 class Configuration:
@@ -13,12 +14,12 @@ class Configuration:
     that are stored alongside the repository or elsewhere.
     """
 
-    _settings = None
+    _settings: Optional[RawConfigParser] = None
     _credentials = None
     _url_blacklist = None
 
     @classmethod
-    def get_filename(cls, file_name):
+    def get_filename(cls, file_name: str) -> str:
         """
         Retrieve the file name to be used to retrieve the configuration.
         """
@@ -30,7 +31,7 @@ class Configuration:
         return '{}.cfg'.format(file_name)
 
     @classmethod
-    def get_config(cls, file_name):
+    def get_config(cls, file_name: str) -> RawConfigParser:
         """
         Create a configuration object that is loaded with options from a file.
         """
@@ -41,7 +42,7 @@ class Configuration:
         return config
 
     @classmethod
-    def get_settings(cls):
+    def get_settings(cls) -> RawConfigParser:
         """
         Retrieve the settings configuration object.
         """
@@ -52,7 +53,7 @@ class Configuration:
         return cls._settings
 
     @classmethod
-    def get_credentials(cls):
+    def get_credentials(cls) -> RawConfigParser:
         """
         Retrieve the credentials configuration object.
         """
@@ -63,7 +64,7 @@ class Configuration:
         return cls._credentials
 
     @classmethod
-    def has_value(cls, value):
+    def has_value(cls, value: Optional[str]) -> bool:
         """
         Check whether the value of an option is not set to a falsy value.
 
@@ -75,7 +76,7 @@ class Configuration:
         return value not in ('false', 'no', 'off', '-', '0', '', None)
 
     @classmethod
-    def get_agent_key(cls):
+    def get_agent_key(cls) -> str:
         """
         Retrieve the first configured project key.
         """
@@ -83,7 +84,7 @@ class Configuration:
         return cls.get_settings().items('projects')[0][0].upper()
 
     @classmethod
-    def get_url_blacklist(cls):
+    def get_url_blacklist(cls) -> Pattern:
         """
         Retrieve a regular expression object that matches URLs that should not
         be requested by the gatherer because they are known to be inaccessible.
@@ -100,14 +101,14 @@ class Configuration:
                                                      http_auth_allowed=True)
                                  for pattern in patterns]
                 except BadMatchPattern:
-                    blacklist = False
+                    blacklist = []
                 if blacklist:
                     cls._url_blacklist = re.compile("|".join(blacklist))
 
         return cls._url_blacklist
 
     @classmethod
-    def is_url_blacklisted(cls, url):
+    def is_url_blacklisted(cls, url: str) -> bool:
         """
         Check whether the provided URL should not be requested by the gatherer
         because it is known to be inaccessible.

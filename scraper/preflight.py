@@ -2,26 +2,27 @@
 Perform pre-flight checks for the Docker agent scraper.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 from datetime import datetime
 import json
 import logging
 from pathlib import Path
 import sys
+from typing import Any, Dict, List
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.request import Session
 from gatherer.utils import format_date
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     config = Configuration.get_settings()
 
-    parser = argparse.ArgumentParser(description='Perform pre-flight checks')
+    parser = ArgumentParser(description='Perform pre-flight checks')
     parser.add_argument('project', help='project key to check for')
     parser.add_argument('--secrets', default='secrets.json',
                         help='Path to the secrets file')
@@ -41,7 +42,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def write_configuration(project, response):
+def write_configuration(project: Project, response: Dict[str, Any]) -> None:
     """
     Write an environment file based on the response from the controller.
     """
@@ -51,7 +52,7 @@ def write_configuration(project, response):
         with open(env_filename, 'w') as env_file:
             env_file.write(response['configuration']['contents'])
 
-def check_secrets(path):
+def check_secrets(path: Path) -> bool:
     """
     Check whether the secrets file contains all required options.
     """
@@ -65,15 +66,15 @@ def check_secrets(path):
         logging.critical('Secrets file %s does not contain salts', path)
         return False
 
-def check_controller(host, cert, project):
+def check_controller(host: str, cert: str, project: Project) -> List[str]:
     """
     Check availability of the controller API host and services.
     """
 
     agent_key = Configuration.get_agent_key()
-    url_format = 'https://{}/auth/status.py?project={}&agent={}'
+    url = f'https://{host}/auth/status.py?project={project.jira_key}&agent={agent_key}'
     session = Session(verify=cert)
-    request = session.get(url_format.format(host, project.jira_key, agent_key))
+    request = session.get(url)
 
     try:
         response = json.loads(request.text)
@@ -102,7 +103,7 @@ def check_controller(host, cert, project):
 
     return []
 
-def perform_checks(args, project):
+def perform_checks(args: Namespace, project: Project) -> List[str]:
     """
     Perform pre-flight checks for the agent.
 
@@ -112,7 +113,7 @@ def perform_checks(args, project):
     Returns a list of checks that were not satisfied.
     """
 
-    errors = []
+    errors: List[str] = []
     if args.secrets:
         secrets = Path(args.secrets)
         if not secrets.exists():
@@ -126,7 +127,7 @@ def perform_checks(args, project):
 
     return errors
 
-def main():
+def main() -> int:
     """
     Main entry point.
     """

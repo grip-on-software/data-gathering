@@ -5,10 +5,17 @@ the repository itself.
 """
 
 from abc import abstractmethod
+from datetime import datetime
+from typing import Any, Optional, Tuple, TYPE_CHECKING
 import dateutil.tz
 from ..table import Table, Key_Table, Link_Table
 from ..utils import convert_local_datetime, format_date, get_local_datetime
-from ..version_control.repo import Version_Control_Repository
+from ..version_control.repo import Version_Control_Repository, PathLike, Version, Tables
+if TYPE_CHECKING:
+    from ..domain import Project, Source
+else:
+    Project = object
+    Source = object
 
 class Review_System(Version_Control_Repository):
     """
@@ -23,9 +30,9 @@ class Review_System(Version_Control_Repository):
     AUXILIARY_TABLES = {"merge_request", "merge_request_note", "commit_comment"}
 
     @abstractmethod
-    def __init__(self, source, repo_directory, project=None, **kwargs):
-        super(Review_System, self).__init__(source, repo_directory,
-                                            project=project, **kwargs)
+    def __init__(self, source: Source, repo_directory: PathLike,
+                 project: Optional[Project] = None, **kwargs: Any) -> None:
+        super().__init__(source, repo_directory, project=project, **kwargs)
 
         if self.UPDATE_TRACKER_NAME is None:
             raise NotImplementedError('Review_System subclass must define UPDATE_TRACKER_NAME')
@@ -33,11 +40,12 @@ class Review_System(Version_Control_Repository):
         self._tables.update(self.review_tables)
 
         self._update_trackers[self.UPDATE_TRACKER_NAME] = self.null_timestamp
-        self._tracker_date = None
-        self._latest_date = None
+        self._tracker_date: Optional[datetime] = None
+        self._latest_date: Optional[datetime] = None
 
     @classmethod
-    def get_compare_url(cls, source, first_version, second_version=None):
+    def get_compare_url(cls, source: Source, first_version: Version,
+                        second_version: Optional[Version] = None) -> Optional[str]:
         # pylint: disable=unused-argument
         """
         Create a URL to compare two versions at the remote repository located
@@ -53,7 +61,8 @@ class Review_System(Version_Control_Repository):
         return None
 
     @classmethod
-    def get_tree_url(cls, source, version=None, path=None, line=None):
+    def get_tree_url(cls, source: Source, version: Optional[Version] = None,
+                     path: Optional[str] = None, line: Optional[int] = None) -> Optional[str]:
         # pylint: disable=unused-argument
         """
         Create a URL to show the state of the repository at `source`.
@@ -70,33 +79,40 @@ class Review_System(Version_Control_Repository):
 
         return None
 
-    def set_update_tracker(self, file_name, value):
+    def set_update_tracker(self, file_name: str, value: str) -> None:
         super(Review_System, self).set_update_tracker(file_name, value)
         self._tracker_date = None
         self._latest_date = None
 
-    def set_latest_date(self):
+    def set_latest_date(self) -> None:
         """
         Alter the update tracker to match the latest date found.
         """
+
+        if self.UPDATE_TRACKER_NAME is None:
+            return
 
         if self._latest_date is not None:
             latest_date = format_date(convert_local_datetime(self._latest_date))
             self._update_trackers[self.UPDATE_TRACKER_NAME] = latest_date
 
     @property
-    def tracker_date(self):
+    def tracker_date(self) -> datetime:
         """
         Retrieve the update tracker's timestamp as a datetime object.
         """
 
         if self._tracker_date is None:
-            update_tracker = self._update_trackers[self.UPDATE_TRACKER_NAME]
+            if self.UPDATE_TRACKER_NAME is None:
+                update_tracker = self.null_timestamp
+            else:
+                update_tracker = self._update_trackers[self.UPDATE_TRACKER_NAME]
+
             self._tracker_date = get_local_datetime(update_tracker)
 
         return self._tracker_date
 
-    def _is_newer(self, date):
+    def _is_newer(self, date: datetime) -> bool:
         if self._latest_date is None:
             self._latest_date = self.tracker_date
 
@@ -110,17 +126,17 @@ class Review_System(Version_Control_Repository):
         return False
 
     @staticmethod
-    def build_user_fields(field):
+    def build_user_fields(field: str) -> Tuple[str, str]:
         """
         Retrieve a tuple of fields that are related to a single user field.
         The tuple contains the field itself as well as any personally
         identifiable fields obtainable from the review system API.
         """
 
-        return (field, '{}_username'.format(field))
+        return (field, f'{field}_username')
 
     @property
-    def review_tables(self):
+    def review_tables(self) -> Tables:
         """
         Retrieve the tables that are populated with the review system API result
         information. Subclasses may override this method to add more tables to
@@ -140,7 +156,7 @@ class Review_System(Version_Control_Repository):
         }
 
     @property
-    def null_timestamp(self):
+    def null_timestamp(self) -> str:
         """
         Retrieve a timestamp string to use as a default, when no timestamp is
         known, in contexts where we wish to compare against other timestamps

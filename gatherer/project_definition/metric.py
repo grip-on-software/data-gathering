@@ -3,23 +3,27 @@ Utilities for comparing and analyzing metric options.
 """
 
 import json
+from typing import Dict, List, Optional
+from ..domain import Project
 
 class Metric_Difference:
     """
     Class that determines whether metric options were changed.
     """
 
-    def __init__(self, project, previous_targets=None):
+    def __init__(self, project: Project,
+                 previous_targets: Optional[Dict[str, Dict[str, str]]] = None) -> None:
         self._project_key = project.export_key
         if previous_targets is not None:
             self._previous_metric_targets = previous_targets
         else:
             self._previous_metric_targets = {}
 
-        self._unique_versions = []
-        self._unique_metric_targets = []
+        self._unique_versions: List[Dict[str, str]] = []
+        self._unique_metric_targets: List[Dict[str, str]] = []
 
-    def add_version(self, version, metric_targets):
+    def add_version(self, version: Dict[str, str],
+                    metric_targets: Dict[str, Dict[str, str]]) -> None:
         """
         Check whether this version contains unique changes.
         """
@@ -41,7 +45,7 @@ class Metric_Difference:
 
             self._previous_metric_targets = metric_targets
 
-    def export(self):
+    def export(self) -> None:
         """
         Save the unique data to JSON files.
         """
@@ -53,7 +57,7 @@ class Metric_Difference:
             json.dump(self._unique_metric_targets, out, indent=4)
 
     @property
-    def previous_metric_targets(self):
+    def previous_metric_targets(self) -> Dict[str, Dict[str, str]]:
         """
         Retrieve the previous metric targets, which need to be retained for
         later instances of this class.
@@ -62,7 +66,7 @@ class Metric_Difference:
         return self._previous_metric_targets
 
     @property
-    def unique_versions(self):
+    def unique_versions(self) -> List[Dict[str, str]]:
         """
         Retrieve the unique versions that have changed metric targets.
         """
@@ -70,7 +74,7 @@ class Metric_Difference:
         return self._unique_versions
 
     @property
-    def unique_metric_targets(self):
+    def unique_metric_targets(self) -> List[Dict[str, str]]:
         """
         Retrieve metric targets that changed within revisions.
         """

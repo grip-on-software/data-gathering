@@ -3,7 +3,9 @@ Git source domain object.
 """
 
 import re
-from .types import Source, Source_Types
+from urllib.parse import SplitResult
+from typing import Optional, Tuple, Type
+from .types import Source, Source_Types, Project
 from ...git import Git_Repository
 
 @Source_Types.register('git')
@@ -15,7 +17,7 @@ class Git(Source):
     GIT_URL_REGEX = re.compile(r'(?P<netloc>[^@]+@[^:]+):/?(?P<path>.+)')
 
     @classmethod
-    def _alter_git_url(cls, url):
+    def _alter_git_url(cls, url: str) -> str:
         # Normalize git suffix
         if url.endswith('.git/'):
             url = url.rstrip('/')
@@ -28,11 +30,12 @@ class Git(Source):
 
         return url
 
-    def _update_credentials(self):
+    def _update_credentials(self) -> Tuple[SplitResult, str]:
         self._plain_url = self._alter_git_url(self._plain_url)
         return super(Git, self)._update_credentials()
 
-    def _format_ssh_url(self, hostname, auth, port, path):
+    def _format_ssh_url(self, hostname: str, auth: str, port: Optional[int],
+                        path: str) -> str:
         # Use either short SCP-like URL or long SSH URL
         if port is not None:
             return super(Git, self)._format_ssh_url(hostname, auth, port, path)
@@ -40,11 +43,11 @@ class Git(Source):
         return '{0}:{1}'.format(auth, path)
 
     @property
-    def repository_class(self):
+    def repository_class(self) -> Type[Git_Repository]:
         return Git_Repository
 
     @property
-    def path_name(self):
+    def path_name(self) -> str:
         path_name = self.get_path_name(self.url)
         if path_name is None:
             return super(Git, self).path_name
@@ -52,7 +55,7 @@ class Git(Source):
         return path_name
 
     @classmethod
-    def get_path_name(cls, url):
+    def get_path_name(cls, url: str) -> Optional[str]:
         """
         Retrieve the repository name from a `url` or `None` if not possible.
         """
@@ -70,7 +73,7 @@ class Git(Source):
         return cls.remove_git_suffix(repo)
 
     @staticmethod
-    def remove_git_suffix(repo):
+    def remove_git_suffix(repo: str) -> str:
         """
         Remove the '.git' suffix from a repository name as it frequently
         occurs in the URL slug of that repository.
@@ -81,5 +84,6 @@ class Git(Source):
 
         return repo
 
-    def update_identity(self, project, public_key, dry_run=False):
+    def update_identity(self, project: Project, public_key: str,
+                        dry_run: bool = False) -> None:
         raise RuntimeError('Source does not support updating SSH key')

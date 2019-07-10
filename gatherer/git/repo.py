@@ -2,21 +2,29 @@
 Module that handles access to and remote updates of a Git repository.
 """
 
-import datetime
+from datetime import datetime
 from io import BytesIO
 import logging
 from pathlib import Path
 import re
 import shutil
 import tempfile
-from git import Git, Repo, Blob, Commit, NULL_TREE, \
+from typing import Any, AbstractSet, Dict, Iterator, List, MutableSet, \
+    Optional, Pattern, Sequence, Tuple, Union, TYPE_CHECKING
+from git import Git, Repo, Blob, Commit, DiffIndex, NULL_TREE, \
     InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 from ordered_set import OrderedSet
 from .progress import Git_Progress
 from ..table import Table, Key_Table
 from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
 from ..version_control.repo import Change_Type, Version_Control_Repository, \
-    RepositoryDataException, RepositorySourceException, FileNotFoundException
+    RepositoryDataException, RepositorySourceException, FileNotFoundException, \
+    PathLike, Version
+if TYPE_CHECKING:
+    from ..domain import Project, Source
+else:
+    Project = object
+    Source = object
 
 class Sparse_Checkout_Paths:
     """
@@ -30,11 +38,11 @@ class Sparse_Checkout_Paths:
     # File name of the information file.
     FILE = 'sparse-checkout'
 
-    def __init__(self, repo):
+    def __init__(self, repo: Repo) -> None:
         self._repo = repo
         self._path = Path(self._repo.git_dir, self.PATH, self.FILE)
 
-    def get(self):
+    def get(self) -> MutableSet[str]:
         """
         Retrieve the current list of paths to check out from the sparse checkout
         information file.
@@ -46,11 +54,11 @@ class Sparse_Checkout_Paths:
 
         return OrderedSet()
 
-    def _write(self, paths):
+    def _write(self, paths: AbstractSet[str]) -> None:
         with self._path.open('w') as sparse_file:
             sparse_file.write('\n'.join(paths))
 
-    def set(self, paths, append=True):
+    def set(self, paths: Sequence[str], append: bool = True) -> None:
         """
         Accept paths in the local clone by updating the paths to check out in
         the sparse checkout information file.
@@ -64,9 +72,9 @@ class Sparse_Checkout_Paths:
         else:
             original_paths = OrderedSet()
 
-        self._write(original_paths | paths)
+        self._write(original_paths | set(paths))
 
-    def remove(self, paths):
+    def remove(self, paths: Sequence[str]) -> None:
         """
         Remove paths to check out in the sparse checkout information file.
         """
@@ -92,19 +100,21 @@ class Git_Repository(Version_Control_Repository):
     BATCH_SIZE = 10000
     LOG_SIZE = 1000
 
-    MERGE_PATTERNS = tuple(re.compile(pattern) for pattern in (
-        r".*\bMerge branch '([^']+)'",
-        r".*\bMerge remote-tracking branch '(?:(?:refs/)?remotes)?origin/([^']+)'",
-        r"Merge pull request \d+ from ([^\s]+) into .+",
-        r"([A-Z]{3,}\d+) [Mm]erge",
-        r"(?:Merge )?([^\s]+) >\s?master"
-    ))
+    MERGE_PATTERNS: Tuple[Pattern[str], ...] = \
+        tuple(re.compile(pattern) for pattern in (
+            r".*\bMerge branch '([^']+)'",
+            r".*\bMerge remote-tracking branch '(?:(?:refs/)?remotes)?origin/([^']+)'",
+            r"Merge pull request \d+ from ([^\s]+) into .+",
+            r"([A-Z]{3,}\d+) [Mm]erge",
+            r"(?:Merge )?([^\s]+) >\s?master"
+        ))
 
     AUXILIARY_TABLES = {'change_path', 'tag'}
 
-    def __init__(self, source, repo_directory, progress=None, **kwargs):
-        super(Git_Repository, self).__init__(source, repo_directory, **kwargs)
-        self._repo = None
+    def __init__(self, source: Source, repo_directory: PathLike,
+                 progress: Optional[Union[bool, int]] = None, **kwargs: Any) -> None:
+        super().__init__(source, repo_directory, **kwargs)
+        self._repo: Optional[Repo] = None
         self._from_date = source.get_option('from_date')
         self._tag = source.get_option('tag')
         self._prev_head = NULL_TREE
@@ -113,14 +123,12 @@ class Git_Repository(Version_Control_Repository):
         # the logging output. If `progress` is a nonzero number, then sample
         # from this number of lines. If it is not `False`, then use it as
         # a progress callback function.
+        self._progress: Optional[Git_Progress] = None
         if progress is True:
             self._progress = Git_Progress(update_ratio=self.DEFAULT_UPDATE_RATIO)
         elif isinstance(progress, int) and progress > 0:
             self._progress = Git_Progress(update_ratio=progress)
-        else:
-            self._progress = None
 
-        self._iterator_limiter = None
         self._reset_limiter()
         self._tables.update({
             'change_path': Table('change_path'),
@@ -128,10 +136,11 @@ class Git_Repository(Version_Control_Repository):
                              encrypt_fields=('tagger', 'tagger_email'))
         })
 
-    def _reset_limiter(self):
+    def _reset_limiter(self) -> None:
         self._iterator_limiter = Iterator_Limiter(size=self.BATCH_SIZE)
 
-    def _get_refspec(self, from_revision=None, to_revision=None):
+    def _get_refspec(self, from_revision: Optional[Version] = None,
+                     to_revision: Optional[Version] = None) -> str:
         # Determine special revision ranges from credentials settings.
         # By default, we retrieve all revisions from the default branch, but if
         # the tag defined in the credentials section exists, then we use this
@@ -147,17 +156,18 @@ class Git_Repository(Version_Control_Repository):
         # Format the range as a specifier that git rev-parse can handle.
         if from_revision is not None:
             if to_revision is not None:
-                return '{}...{}'.format(from_revision, to_revision)
+                return f'{from_revision}...{to_revision}'
 
-            return '{}...{}'.format(from_revision, default_to_revision)
+            return f'{from_revision}...{default_to_revision}'
 
         if to_revision is not None:
-            return to_revision
+            return str(to_revision)
 
         return default_to_revision
 
     @classmethod
-    def from_source(cls, source, repo_directory, **kwargs):
+    def from_source(cls, source: Source, repo_directory: PathLike,
+                    **kwargs: Any) -> 'Git_Repository':
         """
         Initialize a Git repository from its `Source` domain object.
 
@@ -228,15 +238,16 @@ class Git_Repository(Version_Control_Repository):
 
         return repository
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         logging.warning('Deleting clone to make way in %s', self.repo_directory)
         try:
             shutil.rmtree(str(self.repo_directory))
         except OSError as error:
             raise RepositorySourceException(str(error))
 
-    def pull(self, shallow=False, shared=False, checkout=True, branch=None,
-             force=False):
+    def pull(self, shallow: bool = False, shared: bool = False,
+             checkout: Union[bool, Sequence[str]] = True,
+             branch: Optional[str] = None, force: bool = False) -> None:
         """
         Pull the latest changes into the existing local repository.
 
@@ -258,10 +269,10 @@ class Git_Repository(Version_Control_Repository):
             if self.is_empty():
                 return
 
-            if isinstance(checkout, list):
-                self.checkout_sparse(checkout, shallow=shallow, branch=branch)
-            else:
+            if isinstance(checkout, bool):
                 self.update(shallow=shallow, checkout=checkout, branch=branch)
+            else:
+                self.checkout_sparse(checkout, shallow=shallow, branch=branch)
         except RepositorySourceException as exception:
             if not force:
                 raise exception
@@ -274,8 +285,9 @@ class Git_Repository(Version_Control_Repository):
                 raise exception
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None,
-                      branch=None):
+    def is_up_to_date(cls, source: Source, latest_version: Version,
+                      update_tracker: Optional[str] = None,
+                      branch: Optional[str] = None) -> bool:
         if branch is None:
             branch = 'master'
 
@@ -288,13 +300,13 @@ class Git_Repository(Version_Control_Repository):
             raise RepositorySourceException(str(error))
 
         head_version = remote_refs.split('\t', 1)[0]
-        if head_version == latest_version:
+        if head_version == str(latest_version):
             return True
 
         return False
 
     @classmethod
-    def get_branches(cls, source):
+    def get_branches(cls, source: Source) -> List[str]:
         git = Git()
         git.update_environment(**cls._create_environment(source, git))
         try:
@@ -309,45 +321,47 @@ class Git_Repository(Version_Control_Repository):
         ]
 
     @property
-    def repo(self):
+    def repo(self) -> Repo:
         if self._repo is None:
             try:
                 # Use property setter so that the environment credentials path
                 # is also updated.
-                self.repo = Repo(str(self._repo_directory))
+                repo = Repo(str(self._repo_directory))
+                self._update_environment(repo)
+                self._repo = repo
             except (InvalidGitRepositoryError, NoSuchPathError) as error:
                 raise RepositorySourceException('Invalid or nonexistent path: {}'.format(error))
 
         return self._repo
 
     @repo.setter
-    def repo(self, repo):
+    def repo(self, repo: Repo) -> None:
         if not isinstance(repo, Repo):
             raise TypeError('Repository must be a gitpython Repo instance')
 
         self._update_environment(repo)
         self._repo = repo
 
-    def _update_environment(self, repo):
+    def _update_environment(self, repo: Repo) -> None:
         environment = self._create_environment(self.source, repo.git)
         repo.git.update_environment(**environment)
 
     @classmethod
-    def _get_ssh_command(cls, source):
+    def _get_ssh_command(cls, source: Source) -> str:
         logging.debug('Using credentials path %s', source.credentials_path)
-        ssh_command = "ssh -i '{}'".format(source.credentials_path)
+        ssh_command = f"ssh -i '{source.credentials_path}'"
         if source.get_option('unsafe_hosts'):
             ssh_command += ' -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
         return ssh_command
 
     @classmethod
-    def _create_environment(cls, source, git=None):
+    def _create_environment(cls, source: Source, git: Optional[Git] = None) -> Dict[str, str]:
         """
         Retrieve the environment variables for the Git subcommands.
         """
 
-        environment = {}
+        environment: Dict[str, str] = {}
 
         if source.credentials_path is not None:
             ssh_command = cls._get_ssh_command(source)
@@ -370,11 +384,11 @@ class Git_Repository(Version_Control_Repository):
         return environment
 
     @property
-    def version_info(self):
+    def version_info(self) -> Tuple[int, ...]:
         return self.repo.git.version_info
 
     @property
-    def default_branch(self):
+    def default_branch(self) -> str:
         """
         Retrieve the working branch from which to collect data and to update.
 
@@ -384,7 +398,7 @@ class Git_Repository(Version_Control_Repository):
         return self.repo.head.ref.name
 
     @property
-    def prev_head(self):
+    def prev_head(self) -> Commit:
         """
         Indicator of the previous head state before a pull, fetch/merge, or
         checkout operation, such as when pulling an existing repository.
@@ -399,13 +413,13 @@ class Git_Repository(Version_Control_Repository):
 
         return self._prev_head
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         try:
             return not self.repo.branches
         except RepositorySourceException:
             return True
 
-    def is_shared(self, shared=True):
+    def is_shared(self, shared: bool = True) -> bool:
         """
         Check whether the repository is shared in the same way as the `shared`
         parameter indicates. A `shared` value of `True` may correspond to
@@ -434,12 +448,13 @@ class Git_Repository(Version_Control_Repository):
         value = config.get_value('core', 'sharedRepository', default=False)
         if value is False:
             value = config.get_value('core', 'sharedrepository', default=False)
-        if value not in shared_mapping:
+        if not isinstance(value, str) or value not in shared_mapping:
             return shared == value
 
         return shared == shared_mapping[value]
 
-    def update(self, shallow=False, checkout=True, branch=None):
+    def update(self, shallow: bool = False, checkout: bool = True,
+               branch: Optional[str] = None) -> None:
         # Update the repository from the origin URL.
         try:
             if branch is None:
@@ -473,19 +488,21 @@ class Git_Repository(Version_Control_Repository):
         except GitCommandError as error:
             raise RepositorySourceException(str(error))
 
-    def checkout(self, paths=None, shallow=False, branch=None):
+    def checkout(self, paths: Optional[Sequence[str]] = None,
+                 shallow: bool = False, branch: Optional[str] = None) -> None:
         self.clone(checkout=paths is None, shallow=shallow, branch=branch)
 
         if paths is not None:
             self.checkout_sparse(paths, shallow=shallow, branch=branch)
 
-    def _checkout_index(self):
+    def _checkout_index(self) -> None:
         try:
             self.repo.git.read_tree(['-m', '-u', 'HEAD'])
         except GitCommandError as error:
             raise RepositorySourceException(str(error))
 
-    def checkout_sparse(self, paths, remove=False, shallow=False, branch=None):
+    def checkout_sparse(self, paths: Sequence[str], remove: bool = False,
+                        shallow: bool = False, branch: Optional[str] = None) -> None:
         self.repo.config_writer().set_value('core', 'sparseCheckout', True)
         sparse = Sparse_Checkout_Paths(self.repo)
 
@@ -500,7 +517,8 @@ class Git_Repository(Version_Control_Repository):
         # Ensure repository is up to date.
         self.update(shallow=shallow, branch=branch)
 
-    def clone(self, checkout=True, shallow=False, shared=False, branch=None):
+    def clone(self, checkout: bool = True, shallow: bool = False,
+              shared: bool = False, branch: Optional[str] = None) -> None:
         """
         Clone the repository, optionally according to a certain checkout
         scheme. If `checkout` is `False`, then do not check out the local files
@@ -522,7 +540,7 @@ class Git_Repository(Version_Control_Repository):
         method may raise a `RepositorySourceException`.
         """
 
-        kwargs = {
+        kwargs: Dict[str, Union[bool, int, str]] = {
             "no_checkout": not checkout
         }
         if shallow:
@@ -535,14 +553,16 @@ class Git_Repository(Version_Control_Repository):
 
         try:
             environment = self._create_environment(self.source)
-            self.repo = Repo.clone_from(self.source.url, self.repo_directory,
+            self.repo = Repo.clone_from(self.source.url,
+                                        str(self.repo_directory),
                                         progress=self._progress,
                                         env=environment,
                                         **kwargs)
         except GitCommandError as error:
             raise RepositorySourceException(str(error))
 
-    def _query(self, refspec, paths='', descending=True):
+    def _query(self, refspec: str, paths: Union[str, Sequence[str]] = '',
+               descending: bool = True) -> Iterator[Commit]:
         try:
             return self.repo.iter_commits(refspec, paths=paths,
                                           max_count=self._iterator_limiter.size,
@@ -551,7 +571,7 @@ class Git_Repository(Version_Control_Repository):
         except GitCommandError as error:
             raise RepositoryDataException(str(error))
 
-    def find_commit(self, committed_date):
+    def find_commit(self, committed_date: datetime) -> Optional[str]:
         """
         Find a commit SHA by its committed date, assuming the date is unique.
 
@@ -565,7 +585,8 @@ class Git_Repository(Version_Control_Repository):
             'max_age': date_epoch
         }
         try:
-            commits = list(self.repo.iter_commits(self.default_branch,
+            commits = list(self.repo.iter_commits(rev=self.default_branch,
+                                                  paths='',
                                                   **rev_list_args))
         except GitCommandError as error:
             raise RepositoryDataException(str(error))
@@ -575,12 +596,16 @@ class Git_Repository(Version_Control_Repository):
 
         return None
 
-    def get_versions(self, filename='', from_revision=None, to_revision=None,
-                     descending=False, **kwargs):
+    def get_versions(self, filename: str = '',
+                     from_revision: Optional[Version] = None,
+                     to_revision: Optional[Version] = None,
+                     descending: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
         refspec = self._get_refspec(from_revision, to_revision)
         return self._parse(refspec, paths=filename, descending=descending, **kwargs)
 
-    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
+    def get_data(self, from_revision: Optional[Version] = None,
+                 to_revision: Optional[Version] = None,
+                 force: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
         versions = super(Git_Repository, self).get_data(from_revision,
                                                         to_revision,
                                                         force=force,
@@ -590,10 +615,11 @@ class Git_Repository(Version_Control_Repository):
 
         return versions
 
-    def _parse(self, refspec, paths='', descending=True, **kwargs):
+    def _parse(self, refspec: str, paths: Union[str, List[str]] = '',
+               descending: bool = True, **kwargs: Any) -> List[Dict[str, str]]:
         self._reset_limiter()
 
-        version_data = []
+        version_data: List[Dict[str, str]] = []
         commits = self._query(refspec, paths=paths, descending=descending)
         had_commits = True
         count = 0
@@ -620,7 +646,8 @@ class Git_Repository(Version_Control_Repository):
 
         return version_data
 
-    def _parse_version(self, commit, stats=True, **kwargs):
+    def _parse_version(self, commit: Commit, stats: bool = True,
+                       **kwargs: Any) -> Dict[str, str]:
         """
         Convert one commit instance to a dictionary of properties.
         """
@@ -656,7 +683,7 @@ class Git_Repository(Version_Control_Repository):
         return git_commit
 
     @staticmethod
-    def _get_diff_stats(commit):
+    def _get_diff_stats(commit: Commit) -> Dict[str, str]:
         cstotal = commit.stats.total
 
         return {
@@ -668,7 +695,7 @@ class Git_Repository(Version_Control_Repository):
             'size': str(commit.size)
         }
 
-    def _get_original_branch(self, commit):
+    def _get_original_branch(self, commit: Commit) -> str:
         try:
             commits = self.repo.iter_commits('{}..HEAD'.format(commit.hexsha),
                                              ancestry_path=True, merges=True,
@@ -692,7 +719,7 @@ class Git_Repository(Version_Control_Repository):
         return str(0)
 
     @staticmethod
-    def _format_replaced_path(old_path, new_path):
+    def _format_replaced_path(old_path: str, new_path: str) -> str:
         # Not implemented: C-style quoted files with non-unicode characters
         # Find common prefix
         prefix_length = 0
@@ -728,7 +755,7 @@ class Git_Repository(Version_Control_Repository):
 
         return mid_name
 
-    def _parse_change_stats(self, commit):
+    def _parse_change_stats(self, commit: Commit) -> None:
         if commit.parents:
             parent_diffs = tuple(commit.diff(parent, R=True) for parent in commit.parents)
         else:
@@ -737,7 +764,7 @@ class Git_Repository(Version_Control_Repository):
         for diffs in parent_diffs:
             self._parse_change_diffs(commit, diffs)
 
-    def _parse_change_diffs(self, commit, diffs):
+    def _parse_change_diffs(self, commit: Commit, diffs: DiffIndex) -> None:
         files = commit.stats.files
         for diff in diffs:
             old_file = diff.a_path
@@ -778,7 +805,7 @@ class Git_Repository(Version_Control_Repository):
             }
             self._tables['change_path'].append(change_data)
 
-    def _parse_tags(self):
+    def _parse_tags(self) -> None:
         for tag_ref in self.repo.tags:
             tag_data = {
                 'repo_name': str(self._repo_name),
@@ -793,7 +820,7 @@ class Git_Repository(Version_Control_Repository):
                 tag_data['message'] = parse_unicode(tag_ref.tag.message)
 
                 tag_timestamp = tag_ref.tag.tagged_date
-                tagged_datetime = datetime.datetime.fromtimestamp(tag_timestamp)
+                tagged_datetime = datetime.fromtimestamp(tag_timestamp)
                 tag_data['tagged_date'] = format_date(tagged_datetime)
 
                 tag_data['tagger'] = parse_unicode(tag_ref.tag.tagger.name)
@@ -801,18 +828,16 @@ class Git_Repository(Version_Control_Repository):
 
             self._tables['tag'].append(tag_data)
 
-    def get_latest_version(self):
+    def get_latest_version(self) -> Version:
         try:
             return self.repo.rev_parse(self.default_branch).hexsha
         except GitCommandError as error:
             raise RepositoryDataException(str(error))
 
-    def get_contents(self, filename, revision=None):
+    def get_contents(self, filename: str, revision: Optional[Version] = None) -> bytes:
         try:
-            if isinstance(revision, Commit):
-                commit = revision
-            elif revision is not None:
-                commit = self.repo.commit(revision)
+            if revision is not None:
+                commit = self.repo.commit(str(revision))
             else:
                 commit = self.repo.commit('HEAD')
         except GitCommandError as error:

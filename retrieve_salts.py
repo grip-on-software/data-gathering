@@ -2,21 +2,21 @@
 Script to retrieve or generate project-specific salts.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.salt import Salt
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     config = Configuration.get_settings()
 
-    parser = argparse.ArgumentParser(description='Retrieve the project salts')
+    parser = ArgumentParser(description='Retrieve the project salts')
     parser.add_argument('project', help='project key to retrieve for')
     parser.add_argument('--user', default=config.get('database', 'username'),
                         help='username to connect to the database with')
@@ -33,7 +33,7 @@ def parse_args():
 
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

@@ -6,26 +6,34 @@ repository version information with merge requests and commit comments.
 import json
 import logging
 from pathlib import Path
-from typing import Collection
-from git import GitCommandError
+from typing import Any, Dict, List, Optional, Type, cast, TYPE_CHECKING
+from git import Commit, GitCommandError
+import gitlab.v4.objects
 from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
 from .repo import Git_Repository, RepositorySourceException
 from ..table import Table, Key_Table
 from ..utils import get_local_datetime, parse_utc_date, parse_unicode
-from ..version_control.repo import Version_Control_Repository
+from ..version_control.repo import Version_Control_Repository, PathLike, Version
 from ..version_control.review import Review_System
+if TYPE_CHECKING:
+    from ..domain import Project, Source
+    from ..domain.source import GitLab
+else:
+    Project = object
+    Source = object
+    GitLab = object
 
 class GitLab_Dropins_Parser:
     """
     Parser for dropins containing an exported version of GitLab API responses.
     """
 
-    def __init__(self, repo: Version_Control_Repository, filename: Path):
+    def __init__(self, repo: Version_Control_Repository, filename: Path) -> None:
         self._repo = repo
         self._filename = filename
 
     @property
-    def repo(self):
+    def repo(self) -> Version_Control_Repository:
         """
         Retrieve the repository that this dropin parser feeds.
         """
@@ -33,14 +41,14 @@ class GitLab_Dropins_Parser:
         return self._repo
 
     @property
-    def filename(self):
+    def filename(self) -> Path:
         """
         Retrieve the path to the dropin file that is parsed.
         """
 
         return self._filename
 
-    def parse(self):
+    def parse(self) -> bool:
         """
         Check whether the dropin file can be found and parse it if so.
 
@@ -59,7 +67,7 @@ class GitLab_Dropins_Parser:
 
         return self._parse(data)
 
-    def _parse(self, data):
+    def _parse(self, data: List[Dict[str, str]]) -> bool:
         raise NotImplementedError('Must be implemented by subclasses')
 
 class GitLab_Table_Dropins_Parser(GitLab_Dropins_Parser):
@@ -68,18 +76,18 @@ class GitLab_Table_Dropins_Parser(GitLab_Dropins_Parser):
     relevant to the current repository.
     """
 
-    def __init__(self, repo, filename):
-        super(GitLab_Table_Dropins_Parser, self).__init__(repo, filename)
+    def __init__(self, repo: Version_Control_Repository, filename: Path) -> None:
+        super().__init__(repo, filename)
 
-        self._table = None
+        self._table: Optional[Table] = None
         basename = self.filename.name
         if basename.startswith('data_') and basename.endswith('.json'):
-            table_name = filename[len('data_'):-len('.json')]
+            table_name = basename[len('data_'):-len('.json')]
             tables = self.repo.tables
             if table_name in tables:
                 self._table = tables[table_name]
 
-    def _parse(self, data: Collection):
+    def _parse(self, data: List[Dict[str, str]]) -> bool:
         if self._table is None:
             logging.warning('Could not deduce dropins table name from file %s',
                             self.filename)
@@ -103,15 +111,12 @@ class GitLab_Repository(Git_Repository, Review_System):
     AUXILIARY_TABLES = Git_Repository.AUXILIARY_TABLES | \
         Review_System.AUXILIARY_TABLES | {'gitlab_repo', 'vcs_event'}
 
-    def __init__(self, source, repo_directory, project=None, **kwargs):
-        super(GitLab_Repository, self).__init__(source, repo_directory,
-                                                project=project, **kwargs)
+    def __init__(self, source: Source, repo_directory: PathLike,
+                 project: Optional[Project] = None, **kwargs: Any) -> None:
+        super().__init__(source, repo_directory, project=project, **kwargs)
         self._repo_project = None
         has_commit_comments = self._source.get_option('has_commit_comments')
-        if has_commit_comments is not None:
-            self._has_commit_comments = has_commit_comments
-        else:
-            self._has_commit_comments = True
+        self._has_commit_comments = has_commit_comments is not None
 
         # List of dropin files that contain table data for GitLab only.
         self._table_dropin_files = tuple([
@@ -119,7 +124,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         ])
 
     @property
-    def review_tables(self):
+    def review_tables(self) -> Dict[str, Table]:
         review_tables = super(GitLab_Repository, self).review_tables
         review_tables.update({
             "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
@@ -128,7 +133,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         })
         return review_tables
 
-    def _check_dropin_files(self, project=None):
+    def _check_dropin_files(self, project: Optional[Project] = None) -> bool:
         if project is None:
             return False
 
@@ -145,7 +150,7 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         return has_dropins
 
-    def _check_update_file(self, project):
+    def _check_update_file(self, project: Project) -> None:
         update_path = Path(project.dropins_key, 'gitlab_update.json')
         if update_path.exists():
             with update_path.open('r') as update_file:
@@ -154,13 +159,15 @@ class GitLab_Repository(Git_Repository, Review_System):
                     update_time = update_times[self.repo_name]
                     self._update_trackers["gitlab_update"] = update_time
 
-    def _check_dropin_file(self, parser_class, filename):
+    def _check_dropin_file(self, parser_class: Type[GitLab_Dropins_Parser],
+                           filename: Path) -> bool:
         parser = parser_class(self, filename)
         return parser.parse()
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None,
-                      branch=None):
+    def is_up_to_date(cls, source: Source, latest_version: Version,
+                      update_tracker: Optional[str] = None,
+                      branch: Optional[str] = None) -> bool:
         if branch is None:
             branch = 'master'
 
@@ -185,7 +192,10 @@ class GitLab_Repository(Git_Repository, Review_System):
         return current_version == latest_version
 
     @classmethod
-    def _get_repo_project(cls, source):
+    def _get_repo_project(cls, source: Source) -> gitlab.v4.objects.Project:
+        if not isinstance(source, GitLab):
+            raise RuntimeError('Source must be a GitLab source')
+
         try:
             repo_project = source.gitlab_api.projects.get(source.gitlab_path)
         except (AttributeError, GitlabAuthenticationError, GitlabGetError):
@@ -194,7 +204,8 @@ class GitLab_Repository(Git_Repository, Review_System):
         return repo_project
 
     @classmethod
-    def get_compare_url(cls, source, first_version, second_version=None):
+    def get_compare_url(cls, source: Source, first_version: Version,
+                        second_version: Optional[Version] = None) -> Optional[str]:
         if second_version is None:
             try:
                 repo_project = cls._get_repo_project(source)
@@ -204,11 +215,11 @@ class GitLab_Repository(Git_Repository, Review_System):
 
             second_version = repo_project.default_branch
 
-        return '{}/compare/{}...{}'.format(source.web_url, first_version,
-                                           second_version)
+        return f'{source.web_url}/compare/{first_version}...{second_version}'
 
     @classmethod
-    def get_tree_url(cls, source, version=None, path=None, line=None):
+    def get_tree_url(cls, source: Source, version: Optional[Version] = None,
+                     path: Optional[str] = None, line: Optional[int] = None) -> Optional[str]:
         if version is None:
             try:
                 repo_project = cls._get_repo_project(source)
@@ -223,16 +234,20 @@ class GitLab_Repository(Git_Repository, Review_System):
                                         '#L{}'.format(line) if line is not None else '')
 
     @property
-    def api(self):
+    def source(self) -> GitLab:
+        return cast(GitLab, self._source)
+
+    @property
+    def api(self) -> gitlab.Gitlab:
         """
         Retrieve an instance of the GitLab API connection for the GitLab
         instance on this host.
         """
 
-        return self._source.gitlab_api
+        return self.source.gitlab_api
 
     @property
-    def repo_project(self):
+    def repo_project(self) -> gitlab.v4.objects.Project:
         """
         Retrieve the project object of this repository from the GitLab API.
 
@@ -248,7 +263,9 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         return self._repo_project
 
-    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
+    def get_data(self, from_revision: Optional[Version] = None,
+                 to_revision: Optional[Version] = None, force: bool = False,
+                 **kwargs: Any) -> List[Dict[str, str]]:
         # Check if we can retrieve the data from legacy dropin files.
         has_dropins = self._check_dropin_files(self.project)
 
@@ -273,7 +290,7 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         return versions
 
-    def fill_repo_table(self, repo_project):
+    def fill_repo_table(self, repo_project: gitlab.v4.objects.Project) -> None:
         """
         Add the repository data from a GitLab API Project object `repo_project`
         to the table for GitLab repositories.
@@ -304,10 +321,12 @@ class GitLab_Repository(Git_Repository, Review_System):
             'star_count': str(repo_project.star_count)
         })
 
-    def add_merge_request(self, request):
+    def add_merge_request(self, request: gitlab.v4.objects.MergeRequest) -> bool:
         """
         Add a merge request described by its GitLab API response object to
         the merge requests table.
+
+        Returns whether the merge request is newer than the most recent update.
         """
 
         updated_date = parse_utc_date(request.updated_at)
@@ -341,7 +360,8 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         return True
 
-    def add_note(self, note, merge_request_id):
+    def add_note(self, note: gitlab.v4.objects.ProjectMergeRequestNote,
+                 merge_request_id: int) -> None:
         """
         Add a note described by its GitLab API response object to the
         merge request notes table.
@@ -359,7 +379,8 @@ class GitLab_Repository(Git_Repository, Review_System):
             'created_at': parse_utc_date(note.created_at)
         })
 
-    def add_commit_comment(self, note, commit_id):
+    def add_commit_comment(self, note: gitlab.v4.objects.ProjectCommitComment,
+                           commit_id: Version) -> None:
         """
         Add a commit comment note dictionary to the commit comments table.
         """
@@ -467,7 +488,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 commit_event['version_id'] = str(commit_id)
                 self._tables["vcs_event"].append(commit_event)
 
-    def _parse_version(self, commit, stats=True, **kwargs):
+    def _parse_version(self, commit: Commit, stats: bool = True, **kwargs: Any) -> Dict[str, str]:
         data = super(GitLab_Repository, self)._parse_version(commit,
                                                              stats=stats,
                                                              **kwargs)

@@ -3,9 +3,13 @@ Internal daemon for handling agent user creation and update requests.
 """
 
 import json
+import os
 from pathlib import Path, PurePath
 import subprocess
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
 import Pyro4
+
+PathLike = Union[str, os.PathLike]
 
 @Pyro4.expose
 class Controller:
@@ -42,42 +46,47 @@ class Controller:
     # agent's home directory.
     HUSH_FILE = '.hushlogin'
 
-    def _create_directory(self, agent_key, directory, user=None,
-                          permissions=None):
+    def _create_directory(self, agent_key: str, directory: PathLike,
+                          user: Optional[str] = None,
+                          permissions: Optional[str] = None) -> None:
         if permissions is None:
             permissions = self.CREATE_PERMISSIONS
 
         subprocess.check_call([
-            'sudo', 'mkdir', '-m', permissions, directory
+            'sudo', 'mkdir', '-m', permissions, str(directory)
         ])
         self._update_owner(agent_key, directory, user=user)
 
-    def _create_file(self, agent_key, path, user=None, permissions=None):
+    def _create_file(self, agent_key: str, path: PathLike,
+                     user: Optional[str] = None,
+                     permissions: Optional[str] = None) -> None:
         if permissions is None:
             permissions = self.FILE_PERMISSIONS
 
         with Path(path).open('w'):
             pass
 
-        subprocess.check_call(['sudo', 'chmod', permissions, path])
+        subprocess.check_call(['sudo', 'chmod', permissions, str(path)])
         self._update_owner(agent_key, path, user=user)
 
-    def _update_owner(self, agent_key, path, user=None):
+    def _update_owner(self, agent_key: str, path: PathLike,
+                      user: Optional[str] = None) -> None:
         if user is None:
             user = self.get_agent_user(agent_key)
 
         subprocess.check_call([
-            'sudo', 'chown', '-R', f'{user}:controller', path
+            'sudo', 'chown', '-R', f'{user}:controller', str(path)
         ])
 
-    def get_home_directory(self, agent_key):
+    def get_home_directory(self, agent_key: str) -> str:
         """
         Retrieve the home directory for a certain project's agent.
         """
 
         return str(PurePath(self.HOME_DIRECTORY, agent_key))
 
-    def get_home_subdirectories(self, project_key, agent_key, subpath=None):
+    def get_home_subdirectories(self, project_key: str, agent_key: str,
+                                subpath: Optional[str] = None) -> Tuple[str, ...]:
         """
         Retrieve the subdirectories of the home directory of a certain project
         which should be created in a clean version of the directory.
@@ -100,14 +109,14 @@ class Controller:
             self.get_home_subdirectories(project_key, agent_key, 'export') + \
             self.get_home_subdirectories(project_key, agent_key, 'update')
 
-    def get_agent_user(self, project_key):
+    def get_agent_user(self, project_key: str) -> str:
         """
         Retrieve the username of the agent for a certain project.
         """
 
         return self.USERNAME.format(project_key)
 
-    def get_ssh_directory(self, project_key):
+    def get_ssh_directory(self, project_key: str) -> str:
         """
         Retrieve the SSH directory for the agent's user of a certain project.
         """
@@ -115,7 +124,7 @@ class Controller:
         return str(PurePath(self.SSH_DIRECTORY,
                             self.get_agent_user(project_key)))
 
-    def get_controller_directory(self, project_key):
+    def get_controller_directory(self, project_key: str) -> str:
         """
         Retrieve the directory that the controller services use to work on the
         agent's data.
@@ -123,7 +132,7 @@ class Controller:
 
         return str(PurePath(self.CONTROLLER_DIRECTORY, project_key))
 
-    def create_agent(self, project_key, agent_key):
+    def create_agent(self, project_key: str, agent_key: str) -> str:
         """
         Create a user for the agent of the given project if it did not yet exist
         and return the username.
@@ -155,9 +164,10 @@ class Controller:
         path = Path(home_directory, self.HUSH_FILE)
         self._create_file(agent_key, path)
 
-        return home_directory
+        return str(home_directory)
 
-    def clean_home_subdirectories(self, project_key, agent_key, paths):
+    def clean_home_subdirectories(self, project_key: str, agent_key: str,
+                                  paths: Sequence[str]) -> None:
         """
         Clean certain subdirectories related to the user of the agent.
         """
@@ -172,7 +182,7 @@ class Controller:
             for subdirectory in subdirectories:
                 self._create_directory(agent_key, subdirectory)
 
-    def update_public_key(self, agent_key, public_key):
+    def update_public_key(self, agent_key: str, public_key: str) -> bool:
         """
         Update authorized public key.
 
@@ -203,7 +213,7 @@ class Controller:
 
         return False
 
-    def update_permissions(self, project_key, agent_key):
+    def update_permissions(self, project_key: str, agent_key: str) -> None:
         """
         Change permissions such that only the agent can access the directories.
         """
@@ -219,7 +229,7 @@ class Controller:
         self._update_owner(agent_key, ssh_directory)
         subprocess.check_call(['sudo', 'chmod', '2700', ssh_directory])
 
-    def create_controller(self, project_key):
+    def create_controller(self, project_key: str) -> None:
         """
         Create directories that the controller services use to work on the
         agent's data.
@@ -230,7 +240,8 @@ class Controller:
             self._create_directory(project_key, controller_path,
                                    user='exporter', permissions='0770')
 
-    def update_status_file(self, project_key, filename, statuses):
+    def update_status_file(self, project_key: str, filename: str,
+                           statuses: Sequence[Mapping[str, Any]]) -> None:
         """
         Update a status logging file for the agent's health monitoring.
         """
@@ -245,7 +256,7 @@ class Controller:
             data_file.write('\n')
 
     @staticmethod
-    def _check_permissions(path, permissions=0o2770):
+    def _check_permissions(path: str, permissions: int = 0o2770) -> bool:
         try:
             mode = Path(path).stat().st_mode
         except OSError:
@@ -256,7 +267,8 @@ class Controller:
 
         return True
 
-    def get_permissions_status(self, project_key, agent_key):
+    def get_permissions_status(self, project_key: str, agent_key: str) \
+            -> Dict[str, Union[bool, str]]:
         """
         Check whether permissions are correct for certain paths.
         """
@@ -277,7 +289,7 @@ class Controller:
 
         return {'ok': True}
 
-def main():
+def main() -> None:
     """
     Main setup and event loop.
     """

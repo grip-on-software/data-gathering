@@ -8,6 +8,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+from typing import Dict, Optional, Union
 from http.server import BaseHTTPRequestHandler
 import psutil
 import etcd3
@@ -15,13 +16,15 @@ import Pyro4
 
 from gatherer.config import Configuration
 
+StatusField = Dict[str, Union[bool, str]]
+
 class Status:
     """
     A status provider.
     """
 
     @property
-    def key(self):
+    def key(self) -> str:
         """
         Retrieve the status provider name which can be used in a dictionary of
         collected status information.
@@ -29,7 +32,7 @@ class Status:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def generate(self):
+    def generate(self) -> StatusField:
         """
         Generate the status dictionary for this provider.
 
@@ -44,15 +47,15 @@ class Database_Status(Status):
     Status provider for the MonetDB database.
     """
 
-    def __init__(self, project_key):
-        super(Database_Status, self).__init__()
+    def __init__(self, project_key: str) -> None:
+        super().__init__()
         self._project_key = project_key
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'database'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         try:
             gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
             return gatherer.get_database_status(self._project_key)
@@ -67,15 +70,15 @@ class Tracker_Status(Status):
     Status provider for the update tracker schedule.
     """
 
-    def __init__(self, project_key):
-        super(Tracker_Status, self).__init__()
+    def __init__(self, project_key: str) -> None:
+        super().__init__()
         self._project_key = project_key
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'tracker'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         try:
             gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
             return gatherer.get_tracker_status(self._project_key)
@@ -90,16 +93,16 @@ class Permissions_Status(Status):
     Status provider for the controller/agent file permissions.
     """
 
-    def __init__(self, project_key, agent_key):
-        super(Permissions_Status, self).__init__()
+    def __init__(self, project_key: str, agent_key: str) -> None:
+        super().__init__()
         self._project_key = project_key
         self._agent_key = agent_key
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'permissions'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         try:
             controller = Pyro4.Proxy("PYRONAME:gros.controller")
             return controller.get_permissions_status(self._project_key,
@@ -115,15 +118,15 @@ class Lock_Status(Status):
     Status provider for the agent lock.
     """
 
-    def __init__(self, project_key):
+    def __init__(self, project_key: str) -> None:
         super(Lock_Status, self).__init__()
         self._project_key = project_key
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'lock'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         try:
             client = etcd3.client(timeout=2)
             lock = client.lock('/agent/{}'.format(self._project_key))
@@ -148,10 +151,10 @@ class Importer_Status(Status):
     """
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'importer'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         for proc in psutil.process_iter(attrs=['name', 'username']):
             if proc.info['username'] == 'exporter' and 'jenkins.sh' in proc.info['name']:
                 return {
@@ -170,10 +173,10 @@ class Daemon_Status(Status):
     REQUIRED = set(['gros.gatherer', 'gros.controller', 'gros.exporter'])
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'daemon'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         try:
             nameserver = Pyro4.locateNS()
         except Pyro4.errors.NamingError as error:
@@ -201,16 +204,16 @@ class Network_Status(Status):
     list of addresses for the project.
     """
 
-    def __init__(self, project_key, address):
-        super(Network_Status, self).__init__()
+    def __init__(self, project_key: str, address: str) -> None:
+        super().__init__()
         self._project_key = project_key
         self._address = address
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'network'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         config = Configuration.get_settings()
         if not config.has_option('network', self._project_key):
             return {
@@ -219,7 +222,7 @@ class Network_Status(Status):
             }
 
         try:
-            address = ipaddress.ip_address(str(self._address))
+            address = ipaddress.ip_address(self._address)
         except ValueError as error:
             return {
                 'ok': False,
@@ -251,15 +254,15 @@ class Configuration_Status(Status):
     provides the configuration to the client.
     """
 
-    def __init__(self, status):
-        super(Configuration_Status, self).__init__()
+    def __init__(self, status: Dict[str, StatusField]) -> None:
+        super().__init__()
         self._status = status
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'configuration'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         env_path = Path(os.getenv('CONTROLLER_ENV_FILE', 'env'))
         if not env_path.exists():
             return {
@@ -284,15 +287,15 @@ class Total_Status(Status):
     Status provider that accumulates the other status information.
     """
 
-    def __init__(self, status):
-        super(Total_Status, self).__init__()
+    def __init__(self, status: Dict[str, StatusField]) -> None:
+        super().__init__()
         self._status = status
 
     @property
-    def key(self):
+    def key(self) -> str:
         return 'total'
 
-    def generate(self):
+    def generate(self) -> StatusField:
         try:
             is_ok = all([part['ok'] for part in self._status.values()])
             message = 'Everything OK' if is_ok else 'Some parts are not OK'
@@ -310,15 +313,15 @@ class StatusError(RuntimeError):
     Exception indicating an error handling the request, including a status code.
     """
 
-    _responses = BaseHTTPRequestHandler.responses.copy()
+    _responses = dict(BaseHTTPRequestHandler.responses).copy()
 
-    def __init__(self, code=400, message=None):
-        super(StatusError, self).__init__(message, code)
+    def __init__(self, code: int = 400, message: Optional[str] = None) -> None:
+        super().__init__(message, code)
         self._message = message
         self._code = code
 
     @property
-    def code(self):
+    def code(self) -> int:
         """
         Retrieve the numeric status code.
         """
@@ -326,7 +329,7 @@ class StatusError(RuntimeError):
         return self._code
 
     @property
-    def status(self):
+    def status(self) -> str:
         """
         Retrieve the HTTP status line.
         """
@@ -337,7 +340,7 @@ class StatusError(RuntimeError):
         return '{} Custom Error'.format(self._code)
 
     @property
-    def message(self):
+    def message(self) -> str:
         """
         Retrieve the human-readable message explaining the error.
         """
@@ -350,14 +353,14 @@ class StatusError(RuntimeError):
 
         return 'Controller error: {}'.format(self._code)
 
-def setup_log():
+def setup_log() -> None:
     """
     Set up logging.
     """
 
     cgitb.enable()
 
-def receive_status(fields, project_key):
+def receive_status(fields: cgi.FieldStorage, project_key: str) -> None:
     """
     Receive and handle a status POST request from the agent.
     """
@@ -399,7 +402,7 @@ def display_status(project_key, agent_key):
         Lock_Status(project_key),
         Importer_Status(),
         Daemon_Status(),
-        Network_Status(project_key, os.getenv('REMOTE_ADDR')),
+        Network_Status(project_key, os.getenv('REMOTE_ADDR', '')),
         Configuration_Status(status),
         Total_Status(status),
     ]
@@ -415,7 +418,8 @@ def display_status(project_key, agent_key):
     print()
     print(json.dumps(status))
 
-def get_project_key(fields, key="project", default=None):
+def get_project_key(fields: cgi.FieldStorage, key: str = "project",
+                    default: Optional[str] = None) -> str:
     """
     Retrieve and validate the project key from a CGI request.
     """
@@ -436,7 +440,7 @@ def get_project_key(fields, key="project", default=None):
 
     return project_key
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

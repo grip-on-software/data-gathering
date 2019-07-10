@@ -3,89 +3,93 @@ Parse XLS worksheets containing sheet counts per project/team, per month to
 a JSON file containing sheet counts per project, per month.
 """
 
-import argparse
-import datetime
+from argparse import ArgumentParser, Namespace
+from datetime import datetime
 import json
 import logging
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Union
 import xlrd
 import yaml
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.table import Key_Table
+from gatherer.table import Key_Table, Row
 from gatherer.utils import format_date
 
-def parse_filename(file_path, config):
+Seats = Dict[datetime, float]
+Teams = Dict[str, Seats]
+
+def parse_filename(file_path: Path, config: Dict[str, Any]) \
+        -> Optional[datetime]:
     """
     Retrieve the forecast date from the filename.
     """
 
     try:
-        forecast_date = datetime.datetime.strptime(file_path.name,
-                                                   config.get('filename'))
+        return datetime.strptime(str(file_path), str(config.get('filename')))
     except ValueError:
         logging.exception('Could not parse filename date format')
         return None
 
-    return forecast_date
-
-def gather_months(workbook, worksheet, forecast_date):
+def gather_months(workbook: xlrd.book.Book, worksheet: xlrd.sheet.Sheet,
+                  forecast_date: Optional[datetime]) -> List[datetime]:
     """
     Retrieve a list of valid month names from the column headers.
 
     This excludes the dates after the forecast date.
     """
 
-    months = []
+    months: List[datetime] = []
     for col in range(1, worksheet.ncols):
         month = xlrd.xldate.xldate_as_datetime(worksheet.cell_value(0, col),
                                                workbook.datemode)
-        if month > forecast_date:
+        if forecast_date is not None and month > forecast_date:
             return months
 
         months.append(month)
 
     return months
 
-def validate_project_name(name, config):
+def validate_project_name(name: str, config: Dict[str, Any]) -> Optional[str]:
     """
     Check whether the given project name is applicable.
 
-    Returns an altered project name, `False` if the name is not relevant or
+    Returns an altered project name, `None` if the name is not relevant or
     raises a `StopIteration` if no names can be found after this one.
     """
 
     if name == '':
-        return False
+        return None
 
-    if any(name.startswith(ignore) for ignore in config.get('ignore')):
+    if any(name.startswith(ignore) for ignore in config['ignore']):
         raise StopIteration
 
-    for prefix in config.get('prefixes'):
+    for prefix in config['prefixes']:
         if name.startswith(prefix):
             return name[len(prefix):]
 
     return name
 
-def get_seats(worksheet, row, col):
+def get_seats(worksheet: xlrd.sheet.Sheet, row: int, col: int) -> float:
     """
     Get the seat count from the worksheet at the coordinates and convert it
     to a float.
     """
 
-    seats = worksheet.cell_value(row, col)
+    seats_value = worksheet.cell_value(row, col)
 
     try:
-        seats = float(seats)
+        seats = float(seats_value)
     except ValueError:
-        if seats != '':
+        if seats_value != '':
             logging.exception('Could not convert value in (%d,%d): %s',
-                              row, col, seats)
+                              row, col, seats_value)
         seats = 0.0
 
     return seats
 
-def fill_teams(worksheet, months, config, teams):
+def fill_teams(worksheet: xlrd.sheet.Sheet, months: Sequence[datetime],
+               config: Dict[str, Any], teams: Teams) -> Teams:
     """
     Fill a dictionary of team names and dictionaries of months and seat
     counts from the worksheet.
@@ -97,7 +101,7 @@ def fill_teams(worksheet, months, config, teams):
         except StopIteration:
             break
 
-        if name is False:
+        if name is None:
             continue
 
         teams.setdefault(name, {})
@@ -107,7 +111,7 @@ def fill_teams(worksheet, months, config, teams):
 
     return teams
 
-def update_table(table, keys, month_seats):
+def update_table(table: Key_Table, keys: Sequence[str], month_seats: Seats) -> None:
     """
     Update a `Key_Table` object with the months and seat counts that are
     applicable to the current project, which is one of the keys that the
@@ -115,31 +119,32 @@ def update_table(table, keys, month_seats):
     """
 
     for month, seats in list(month_seats.items()):
-        row = {
+        row: Row = {
             'month': format_date(month, '%Y-%m'),
-            'seats': seats / len(keys)
+            'seats': str(seats / len(keys))
         }
-        if table.has(row):
-            old_row = table.get_row(row)
-            row['seats'] += old_row['seats']
+        old_row = table.get_row(row)
+        if old_row is not None:
+            row['seats'] = str(float(row['seats']) + float(old_row['seats']))
             table.update(old_row, row)
         else:
             table.append(row)
 
-def format_seats(config, teams, project):
+def format_seats(config: Dict[str, Any], teams: Teams, project: Project) -> Key_Table:
     """
     Convert a dictionary of teams and monthly seat counts into a list of
     records containing months and weighted seat counts for the given project.
     """
 
-    projects = config.get('projects')
+    projects: Dict[str, Union[str, List[str]]] = config['projects']
     output = Key_Table('seats', 'month')
     for name, month_seats in list(teams.items()):
         if name in projects:
-            if isinstance(projects[name], list):
-                keys = projects[name]
+            project_key = projects[name]
+            if isinstance(project_key, str):
+                keys = [project_key]
             else:
-                keys = [projects[name]]
+                keys = project_key
 
             if project.jira_key in keys:
                 update_table(output, keys, month_seats)
@@ -148,13 +153,13 @@ def format_seats(config, teams, project):
 
     return output
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain seat counts from Excel and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('project', help='JIRA project key')
     parser.add_argument('--filename', help='Excel file name(s) or pattern(s)',
                         nargs='+', default='Seats.xls')
@@ -164,7 +169,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -183,7 +188,7 @@ def main():
     with open('seats.yml') as config_file:
         config = yaml.load(config_file)
 
-    teams = {}
+    teams: Teams = {}
     for pattern in args.filename:
         logging.info('Expanding pattern %s', pattern)
         for file_path in Path('.').glob(pattern):

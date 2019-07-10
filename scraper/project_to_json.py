@@ -2,20 +2,20 @@
 Script to obtain attributes and metadata relating to a specific project.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import json
 import logging
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Project_Collector
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain project attributes and metadata"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default=None,
                         help="Repository directory with project definitions")
@@ -28,13 +28,13 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
 
     args = parse_args()
-    project_key = args.project
+    project_key = str(args.project)
     project = Project(project_key)
 
     data = {

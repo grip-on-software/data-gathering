@@ -4,18 +4,24 @@ Type specific parsers that convert field values to correct format.
 
 import logging
 import re
-from .base import Table_Source
+from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING
+from .base import Table_Source, TableKey
+from .query import Query
 from ..utils import parse_date, parse_unicode
+if TYPE_CHECKING:
+    from . import Jira
+else:
+    Jira = object
 
 class Field_Parser(Table_Source):
     """
     Parser for JIRA fields. Different versions for each type exist.
     """
 
-    def __init__(self, jira):
+    def __init__(self, jira: Jira) -> None:
         self.jira = jira
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         """
         Parse an issue field or changelog value.
 
@@ -24,7 +30,8 @@ class Field_Parser(Table_Source):
 
         raise NotImplementedError("Must be overridden in subclass")
 
-    def parse_changelog(self, change, value, diffs):
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
         # pylint: disable=unused-argument,no-self-use
         """
         Parse a changelog item and its parsed value.
@@ -37,11 +44,11 @@ class Field_Parser(Table_Source):
         return value
 
     @property
-    def table_name(self):
+    def table_name(self) -> Optional[str]:
         return None
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return None
 
 class String_Parser(Field_Parser):
@@ -49,7 +56,7 @@ class String_Parser(Field_Parser):
     Parser for string fields.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -62,7 +69,7 @@ class Int_Parser(String_Parser):
     Currently converts the values to strings.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -77,7 +84,7 @@ class ID_Parser(Field_Parser):
     Parser for identifier fields which may be missing.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -88,7 +95,7 @@ class Boolean_Parser(String_Parser):
     Parser for string fields that only have two options: "Yes" or "No".
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value == "Yes":
             return str(1)
         if value == "No":
@@ -98,7 +105,8 @@ class Boolean_Parser(String_Parser):
 
         return value
 
-    def parse_changelog(self, change, value, diffs):
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
         return self.parse(change["fromString"])
 
 class Date_Parser(Field_Parser):
@@ -106,7 +114,7 @@ class Date_Parser(Field_Parser):
     Parser for timestamp fields, including date and time.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -117,7 +125,7 @@ class Unicode_Parser(Field_Parser):
     Parser for fields that may include unicode characters.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -134,11 +142,11 @@ class Sprint_Parser(Field_Parser):
     ID is correct for this issue version.
     """
 
-    def __init__(self, jira):
-        super(Sprint_Parser, self).__init__(jira)
+    def __init__(self, jira: Jira) -> None:
+        super().__init__(jira)
         self.jira.register_prefetcher(self.prefetch)
 
-    def prefetch(self, query):
+    def prefetch(self, query: Query) -> None:
         """
         Retrieve data about all sprints for the project registered
         in Jira using the query API, and store the data in a table.
@@ -157,8 +165,8 @@ class Sprint_Parser(Field_Parser):
                 self._parse_sprint_data(sprint.raw)
 
     @classmethod
-    def _split_sprint(cls, sprint):
-        sprint_data = {}
+    def _split_sprint(cls, sprint: str) -> Dict[str, str]:
+        sprint_data: Dict[str, str] = {}
         sprint_string = parse_unicode(sprint)
         if '[' not in sprint_string:
             return sprint_data
@@ -172,11 +180,11 @@ class Sprint_Parser(Field_Parser):
                 value = pair[1]
                 sprint_data[key] = value
             except IndexError:
-                return False
+                return {}
 
         return sprint_data
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -190,25 +198,25 @@ class Sprint_Parser(Field_Parser):
             if not sprints:
                 return None
 
-            return sprints
+            return ", ".join(sprints)
 
         return self._parse(value)
 
     @staticmethod
-    def _has(sprint_data, key):
+    def _has(sprint_data: Dict[str, str], key: str) -> bool:
         return key in sprint_data and sprint_data[key] != "<null>"
 
-    def _parse(self, sprint):
+    def _parse(self, sprint: Any) -> Optional[str]:
         # Parse an individual sprint, add its data to the table and return the
         # sprint ID as an integer, or `None` if it is not an acceptable
         # sprint format.
-        sprint_data = self._split_sprint(sprint)
+        sprint_data = self._split_sprint(str(sprint))
         if not sprint_data:
             return None
 
-        return self._parse_sprint_data(sprint_data)
+        return str(self._parse_sprint_data(sprint_data))
 
-    def _parse_sprint_data(self, sprint_data):
+    def _parse_sprint_data(self, sprint_data: Dict[str, str]) -> int:
         sprint_id = int(sprint_data["id"])
 
         row = {
@@ -226,26 +234,27 @@ class Sprint_Parser(Field_Parser):
         if self._has(sprint_data, "goal"):
             row["goal"] = parse_unicode(sprint_data["goal"])
         if self._has(sprint_data, "rapidViewId"):
-            row["board_id"] = int(sprint_data["rapidViewId"])
+            row["board_id"] = str(sprint_data["rapidViewId"])
         if self._has(sprint_data, "originBoardId"):
-            row["board_id"] = int(sprint_data["originBoardId"])
+            row["board_id"] = str(sprint_data["originBoardId"])
 
         self.jira.get_table("sprint").append(row)
 
         return sprint_id
 
-    def parse_changelog(self, change, value, diffs):
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
         if change['from'] is None or change['from'] == '':
             return None
 
-        return [int(sprint) for sprint in change['from'].split(', ')]
+        return change['from']
 
     @property
-    def table_name(self):
+    def table_name(self) -> Optional[str]:
         return "sprint"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return "id"
 
 class Decimal_Parser(Field_Parser):
@@ -253,7 +262,7 @@ class Decimal_Parser(Field_Parser):
     Parser for numerical fields with possibly a decimal point in them.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -265,13 +274,13 @@ class Developer_Parser(Field_Parser):
     their account name and usually the display name.
     """
 
-    def __init__(self, jira):
-        super(Developer_Parser, self).__init__(jira)
+    def __init__(self, jira: Jira) -> None:
+        super().__init__(jira)
         self.jira.register_prefetcher(self.prefetch)
 
-    def prefetch(self, query):
+    def prefetch(self, query: Query) -> None:
         """
-        Retrieve data about all fix version releases for the project registered
+        Retrieve data about all developers that are active within a project
         in Jira using the query API, and store the data in a table.
         """
 
@@ -280,7 +289,7 @@ class Developer_Parser(Field_Parser):
         for user in users:
             self.parse(user)
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is not None and hasattr(value, "name"):
             encoded_name = parse_unicode(value.name)
             if value.name is not None and hasattr(value, "displayName"):
@@ -298,11 +307,11 @@ class Developer_Parser(Field_Parser):
         return None
 
     @property
-    def table_name(self):
+    def table_name(self) -> Optional[str]:
         return "developer"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return "name"
 
 class Status_Category_Parser(Field_Parser):
@@ -310,8 +319,8 @@ class Status_Category_Parser(Field_Parser):
     Parser for subfields containing the status category.
     """
 
-    def __init__(self, jira):
-        super(Status_Category_Parser, self).__init__(jira)
+    def __init__(self, jira: Jira) -> None:
+        super().__init__(jira)
         self.jira.register_table({
             "table": {
                 "id": "int",
@@ -321,7 +330,7 @@ class Status_Category_Parser(Field_Parser):
             }
         }, table_source=self)
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is not None:
             self.jira.get_table("status_category").append({
                 "id": value.id,
@@ -334,11 +343,11 @@ class Status_Category_Parser(Field_Parser):
         return None
 
     @property
-    def table_name(self):
+    def table_name(self) -> Optional[str]:
         return "status_category"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return "id"
 
 class ID_List_Parser(Field_Parser):
@@ -347,7 +356,7 @@ class ID_List_Parser(Field_Parser):
     attachments.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> str:
         # Determine the number of items in the list.
         if value is None:
             return str(0)
@@ -359,14 +368,14 @@ class ID_List_Parser(Field_Parser):
         id_list = [item.id for item in value]
         return str(len(id_list))
 
-    def parse_changelog(self, change, value, diffs):
-        change = -1 if value == str(0) else +1
-        if "attachment" in diffs:
-            value = diffs["attachment"] + change
-        else:
-            value = change
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
+        diff = -1 if value == str(0) else +1
+        attachments = diffs.get("attachment", None)
+        if attachments is not None:
+            return str(int(attachments) + diff)
 
-        return value
+        return str(diff)
 
 class Version_Parser(Field_Parser):
     """
@@ -374,11 +383,11 @@ class Version_Parser(Field_Parser):
     which is affected by the issue.
     """
 
-    def __init__(self, jira):
-        super(Version_Parser, self).__init__(jira)
+    def __init__(self, jira: Jira) -> None:
+        super().__init__(jira)
         self.jira.register_prefetcher(self.prefetch)
 
-    def prefetch(self, query):
+    def prefetch(self, query: Query) -> None:
         """
         Retrieve data about all fix version releases for the project registered
         in Jira using the query API, and store the data in a table.
@@ -387,7 +396,7 @@ class Version_Parser(Field_Parser):
         versions = query.api.project_versions(self.jira.project_key)
         self.parse(versions)
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
         if not isinstance(value, list):
@@ -421,11 +430,11 @@ class Version_Parser(Field_Parser):
         return encoded_value
 
     @property
-    def table_name(self):
+    def table_name(self) -> Optional[str]:
         return "fixVersion"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return "id"
 
 class Rank_Parser(Field_Parser):
@@ -434,10 +443,11 @@ class Rank_Parser(Field_Parser):
     higher or lower on the backlog/storyboard.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         return None
 
-    def parse_changelog(self, change, value, diffs):
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
         # Encode the rank change as "-1" or "1".
         if change["toString"] == "Ranked higher":
             return str(1)
@@ -451,7 +461,8 @@ class Issue_Key_Parser(String_Parser):
     Parser for fields that link to another issue.
     """
 
-    def parse_changelog(self, change, value, diffs):
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
         if change["fromString"] is not None:
             return change["fromString"]
 
@@ -462,7 +473,7 @@ class Flag_Parser(Field_Parser):
     Parser for fields that mark the issue when it is set, such as an impediment.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         # Output the flagged state as either "0" or "1".
         if (isinstance(value, list) and value) or value != "":
             return str(1)
@@ -475,7 +486,7 @@ class Ready_Status_Parser(Field_Parser):
     of whether the user story can be moved into a refinement or sprint.
     """
 
-    def _add_to_table(self, encoded_id, html):
+    def _add_to_table(self, encoded_id: str, html: str) -> None:
         match = re.match(r'<font .*><b>(.*)</b></font>', html)
         if match:
             name = match.group(1)
@@ -484,7 +495,7 @@ class Ready_Status_Parser(Field_Parser):
                 "name": name
             })
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -496,7 +507,8 @@ class Ready_Status_Parser(Field_Parser):
 
         return encoded_value
 
-    def parse_changelog(self, change, value, diffs):
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
         if change["from"] is not None:
             value = str(change["from"])
             self._add_to_table(value, change["fromString"])
@@ -504,11 +516,11 @@ class Ready_Status_Parser(Field_Parser):
         return value
 
     @property
-    def table_name(self):
+    def table_name(self) -> Optional[str]:
         return "ready_status"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return "id"
 
 class Labels_Parser(Field_Parser):
@@ -516,7 +528,7 @@ class Labels_Parser(Field_Parser):
     Parser for fields that hold a list of labels.
     """
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         # Count the number of labels.
         if isinstance(value, list):
             return str(len(value))
@@ -530,13 +542,13 @@ class Project_Parser(Field_Parser):
     Parser for fields that hold a project.
     """
 
-    def __init__(self, jira):
-        super(Project_Parser, self).__init__(jira)
+    def __init__(self, jira: Jira) -> None:
+        super().__init__(jira)
 
-        self._projects = {}
+        self._projects: Dict[str, str] = {}
         self.jira.register_prefetcher(self.prefetch)
 
-    def prefetch(self, query):
+    def prefetch(self, query: Query) -> None:
         """
         Retrieve data about all projects known to us and keep a id-to-name
         mapping.
@@ -545,7 +557,7 @@ class Project_Parser(Field_Parser):
         for project in query.api.projects():
             self.parse(project)
 
-    def parse(self, value):
+    def parse(self, value: Any) -> Optional[str]:
         if value is None:
             return None
 
@@ -562,7 +574,8 @@ class Project_Parser(Field_Parser):
 
         return None
 
-    def parse_changelog(self, change, value, diffs):
+    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+                        diffs: Dict[str, Optional[str]]) -> Optional[str]:
         if change["from"] is not None:
             project_id = str(change["from"])
             if project_id in self._projects:

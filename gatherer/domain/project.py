@@ -2,7 +2,9 @@
 Project domain object
 """
 
+from configparser import RawConfigParser
 from pathlib import Path
+from typing import Optional, Union
 from ..config import Configuration
 from .source import Source
 from .source.github import GitHub
@@ -15,17 +17,20 @@ class Project_Meta:
     Class that holds information that may span multiple projects.
     """
 
-    _settings = None
+    _settings: Optional[RawConfigParser] = None
 
-    def __init__(self, export_directory='export', update_directory='update'):
+    def __init__(self, export_directory: str = 'export',
+                 update_directory: str = 'update') -> None:
         self._export_directory = export_directory
         self._update_directory = update_directory
 
     @classmethod
-    def _init_settings(cls):
+    def _init_settings(cls) -> RawConfigParser:
         cls._settings = Configuration.get_settings()
+        return cls._settings
 
-    def get_key_setting(self, section, key, *format_values, **format_args):
+    def get_key_setting(self, section: str, key: str, *format_values: str,
+                        **format_args: Union[str, bool]) -> str:
         """
         Retrieve a setting from a configuration section `section`. The `key`
         is used as the setting key.
@@ -43,18 +48,18 @@ class Project_Meta:
         return value
 
     @property
-    def settings(self):
+    def settings(self) -> RawConfigParser:
         """
         Retrieve the parsed settings of the data gathering pipeline.
         """
 
         if self._settings is None:
-            self._init_settings()
+            self._settings = self._init_settings()
 
         return self._settings
 
     @property
-    def export_directory(self):
+    def export_directory(self) -> str:
         """
         Retrieve the export directory.
         """
@@ -62,14 +67,15 @@ class Project_Meta:
         return self._export_directory
 
     @property
-    def update_directory(self):
+    def update_directory(self) -> str:
         """
         Retrieve the remote update tracker directory.
         """
 
         return self._update_directory
 
-    def make_project_definitions(self, base=False, project_name=None):
+    def make_project_definitions(self, base: bool = False,
+                                 project_name: Optional[str] = None) -> Source:
         """
         Create a `Source` object for a repository containing project definitions
         and metrics history, or other dependency files. If `base` is `True`,
@@ -106,9 +112,11 @@ class Project(Project_Meta):
     can be accessed.
     """
 
-    def __init__(self, project_key, follow_host_change=True,
-                 export_directory='export', update_directory='update'):
-        super(Project, self).__init__(export_directory, update_directory)
+    def __init__(self, project_key: str, follow_host_change: bool = True,
+                 export_directory: str = 'export',
+                 update_directory: str = 'update') -> None:
+        super().__init__(export_directory=export_directory,
+                         update_directory=update_directory)
 
         # JIRA project key
         self._project_key = project_key
@@ -122,13 +130,13 @@ class Project(Project_Meta):
         support = self.get_group_setting('support')
         self._is_support_team = Configuration.has_value(support)
 
-        self._project_definitions = None
+        self._project_definitions: Optional[Source] = None
 
         sources_path = self.export_key / 'data_sources.json'
         self._sources = Sources(sources_path,
                                 follow_host_change=follow_host_change)
 
-    def get_group_setting(self, group):
+    def get_group_setting(self, group: str) -> Optional[str]:
         """
         Retrieve a setting from a configuration section `group`, using the
         project key as setting key. If the setting for this project does not
@@ -140,7 +148,8 @@ class Project(Project_Meta):
 
         return None
 
-    def get_key_setting(self, section, key, *format_values, **format_args):
+    def get_key_setting(self, section: str, key: str, *format_values: str,
+                        **format_args: Union[str, bool]) -> str:
         """
         Retrieve a setting from a configuration section `section`, using the
         `key` as well as the project key, unless `project` is set to `False`.
@@ -162,15 +171,15 @@ class Project(Project_Meta):
                                                     *format_values,
                                                     **format_args)
 
-    def has_source(self, source):
+    def has_source(self, source: Source) -> bool:
         """
         Check whether the project already has a source with the exact same URL
         as the provided `source`.
         """
 
-        return self._sources.has_url(source.url)
+        return source.url is not None and self._sources.has_url(source.url)
 
-    def make_export_directory(self):
+    def make_export_directory(self) -> None:
         """
         Ensure that the export directory exists, or create it if it is missing.
         """
@@ -178,7 +187,7 @@ class Project(Project_Meta):
         if not self.export_key.exists():
             self.export_key.mkdir(parents=True)
 
-    def export_sources(self):
+    def export_sources(self) -> None:
         """
         Export data about all registered sources so that they can be
         reestablished in another process.
@@ -190,7 +199,7 @@ class Project(Project_Meta):
         self._sources.export_environments(environments_path)
 
     @property
-    def sources(self):
+    def sources(self) -> Sources:
         """
         Retrieve all sources of the project.
         """
@@ -198,7 +207,7 @@ class Project(Project_Meta):
         return self._sources
 
     @property
-    def export_key(self):
+    def export_key(self) -> Path:
         """
         Retrieve the directory path used for project data exports.
         """
@@ -206,7 +215,7 @@ class Project(Project_Meta):
         return Path(self.export_directory, self._project_key)
 
     @property
-    def update_key(self):
+    def update_key(self) -> Path:
         """
         Retrieve the remote directory path used for obtaining update trackers
         from a synchronization server.
@@ -215,7 +224,7 @@ class Project(Project_Meta):
         return Path(self.update_directory, self._project_key)
 
     @property
-    def dropins_key(self):
+    def dropins_key(self) -> Path:
         """
         Retrieve the directory path where dropins for this project may be found.
         """
@@ -223,7 +232,7 @@ class Project(Project_Meta):
         return Path('dropins', self._project_key)
 
     @property
-    def key(self):
+    def key(self) -> str:
         """
         Retrieve the key that can be used for identifying data belonging
         to this project.
@@ -232,7 +241,7 @@ class Project(Project_Meta):
         return self._project_key
 
     @property
-    def jira_key(self):
+    def jira_key(self) -> str:
         """
         Retrieve the key used for the JIRA project.
         """
@@ -240,7 +249,7 @@ class Project(Project_Meta):
         return self._project_key
 
     @property
-    def is_support_team(self):
+    def is_support_team(self) -> bool:
         """
         Retrieve whether the project is maintained by a support team.
         """
@@ -248,7 +257,7 @@ class Project(Project_Meta):
         return self._is_support_team
 
     @property
-    def github_team(self):
+    def github_team(self) -> Optional[str]:
         """
         Retrieve the slug of the GitHub team that manages the repositories for
         this project.
@@ -264,7 +273,7 @@ class Project(Project_Meta):
         return self._github_team
 
     @property
-    def gitlab_group_name(self):
+    def gitlab_group_name(self) -> Optional[str]:
         """
         Retrieve the name used for a GitLab group that contains all repositories
         for this project on some GitLab service.
@@ -282,7 +291,7 @@ class Project(Project_Meta):
         return self._project_name
 
     @property
-    def gitlab_source(self):
+    def gitlab_source(self) -> Optional[GitLab]:
         """
         Retrieve a source providing credentials for a GitLab instance.
 
@@ -292,7 +301,7 @@ class Project(Project_Meta):
         return self.sources.find_source_type(GitLab)
 
     @property
-    def tfs_collection(self):
+    def tfs_collection(self) -> Optional[str]:
         """
         Retrieve the path used for a TFS collection that contains all
         repositories for this project on some TFS service.
@@ -310,7 +319,7 @@ class Project(Project_Meta):
         return self._project_key
 
     @property
-    def quality_metrics_name(self):
+    def quality_metrics_name(self) -> Optional[str]:
         """
         Retrieve the name used in the quality metrics project definition.
 
@@ -325,7 +334,7 @@ class Project(Project_Meta):
         return self._project_name
 
     @property
-    def main_project(self):
+    def main_project(self) -> Optional[str]:
         """
         Retrieve the main project for this subproject, or `None` if the project
         has no known hierarchical relation with another project.
@@ -334,7 +343,7 @@ class Project(Project_Meta):
         return self._main_project
 
     @property
-    def project_definitions_source(self):
+    def project_definitions_source(self) -> Optional[Source]:
         """
         Retrieve a `Source` object that describes the project definitions
         version control system. If the project has no definitions, then `None`

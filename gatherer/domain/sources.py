@@ -3,16 +3,21 @@ Collections of sources.
 """
 
 from collections import MutableSet
-import json
 from pathlib import Path
+from typing import Dict, Hashable, Iterator, Optional, List, MutableMapping, \
+    Sequence, Set, Type, TypeVar
+import json
 from .source import Source
+
+S_co = TypeVar('S_co', bound=Source, covariant=True)
 
 class Sources(MutableSet):
     """
     Collection of sources related to a project.
     """
 
-    def __init__(self, sources_path=None, follow_host_change=True):
+    def __init__(self, sources_path: Optional[Path] = None,
+                 follow_host_change: bool = True) -> None:
         # pylint: disable=super-init-not-called
         self._sources_path = sources_path
         self._follow_host_change = follow_host_change
@@ -22,18 +27,17 @@ class Sources(MutableSet):
         if self._sources_path is not None:
             self.load_file(self._sources_path)
 
-    def load_file(self, path):
+    def load_file(self, sources_path: Path) -> None:
         """
         Import a JSON file containing source dictionaries into the collection.
         """
 
-        sources_path = Path(path)
         if sources_path.exists():
             with sources_path.open('r') as sources_file:
                 sources = json.load(sources_file)
                 self.load_sources(sources)
 
-    def load_sources(self, sources_data):
+    def load_sources(self, sources_data: Sequence[MutableMapping[str, str]]) -> None:
         """
         Import a sequence of source dictionaries into the collection.
         """
@@ -45,14 +49,14 @@ class Sources(MutableSet):
                                       **source_data)
             self.add(source)
 
-    def get(self):
+    def get(self) -> Set[Source]:
         """
         Retrieve all sources in the collection.
         """
 
         return self._sources
 
-    def include(self, source):
+    def include(self, source: Source) -> None:
         """
         Add a new source to the collection.
 
@@ -72,7 +76,7 @@ class Sources(MutableSet):
 
         self._source_environments[environment].add(source)
 
-    def delete(self, source):
+    def delete(self, source: Source) -> None:
         """
         Remove an existing source from the project domain.
 
@@ -91,7 +95,7 @@ class Sources(MutableSet):
             if not self._source_environments[environment]:
                 del self._source_environments[environment]
 
-    def replace(self, source):
+    def replace(self, source: Source) -> None:
         """
         Replace an existing source with one that has the exact same URL as
         the one being replaced.
@@ -106,7 +110,7 @@ class Sources(MutableSet):
         self.remove(existing_source)
         self.add(source)
 
-    def has_url(self, url):
+    def has_url(self, url: str) -> bool:
         """
         Check whether there is a source with the exact same URL as the one that
         is provided.
@@ -114,33 +118,33 @@ class Sources(MutableSet):
 
         return url in self._source_urls
 
-    def __contains__(self, source):
+    def __contains__(self, source: object) -> bool:
         return source in self._sources
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Source]:
         return iter(self._sources)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._sources)
 
-    def add(self, value):
-        return self.include(value)
+    def add(self, value: Source) -> None:
+        self.include(value)
 
-    def discard(self, value):
+    def discard(self, value: Source) -> None:
         try:
             self.delete(value)
         except KeyError:
             pass
 
-    def remove(self, value):
+    def remove(self, value: Source) -> None:
         self.delete(value)
 
-    def clear(self):
-        self._sources = set()
-        self._source_urls = {}
-        self._source_environments = {}
+    def clear(self) -> None:
+        self._sources: Set[Source] = set()
+        self._source_urls: Dict[str, Source] = {}
+        self._source_environments: Dict[Hashable, Set[Source]] = {}
 
-    def get_environments(self):
+    def get_environments(self) -> Iterator[Source]:
         """
         Yield Source objects that are distinctive for each environment.
 
@@ -156,7 +160,7 @@ class Sources(MutableSet):
             except StopIteration:
                 return
 
-    def find_source_type(self, source_type):
+    def find_source_type(self, source_type: Type[S_co]) -> Optional[S_co]:
         """
         Retrieve the first found `Source` object for a specific source type,
         or `None` if there is no such object.
@@ -167,7 +171,7 @@ class Sources(MutableSet):
         except StopIteration:
             return None
 
-    def find_sources_by_type(self, source_type):
+    def find_sources_by_type(self, source_type: Type[S_co]) -> Iterator[S_co]:
         """
         Provide a generator with `Source` objects for a specific source type.
         """
@@ -176,7 +180,7 @@ class Sources(MutableSet):
             if isinstance(source, source_type):
                 yield source
 
-    def export(self):
+    def export(self) -> List[Dict[str, str]]:
         """
         Export a list of dictionaries of the sources in the collection,
         such that they can be reestablished in another location or process.
@@ -194,7 +198,7 @@ class Sources(MutableSet):
 
         return sources_data
 
-    def export_environments(self, environments_path):
+    def export_environments(self, environments_path: Path) -> None:
         """
         Export a description of each environment as a JSON list to the file
         located at `environments_path`.
@@ -212,5 +216,5 @@ class Sources(MutableSet):
         with open(environments_path, 'w') as environments_file:
             json.dump(environment_data, environments_file)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return 'Sources({!r})'.format(self._sources)

@@ -2,7 +2,7 @@
 Script to retrieve current details of the state of a BigBoat host.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import json
 import logging
 
@@ -14,7 +14,7 @@ from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.request import Session
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
@@ -22,7 +22,7 @@ def parse_args():
     config = Configuration.get_settings()
 
     description = 'Obtain current state of a BigBoat host'
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('project', help='project key')
     parser.add_argument('--host', help='BigBoat instance URL')
     parser.add_argument('--key', help='BigBoat instance API key')
@@ -38,18 +38,18 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
 
     args = parse_args()
 
-    project_key = args.project
+    project_key = str(args.project)
     project = Project(project_key)
 
     if args.host is not None:
-        host = args.host
+        host = str(args.host)
     else:
         host = project.get_key_setting('bigboat', 'host')
         if not Configuration.has_value(host):
@@ -57,7 +57,7 @@ def main():
             return
 
     if args.key is not None:
-        key = args.key
+        key = str(args.key)
     else:
         key = project.get_key_setting('bigboat', 'key')
         if not Configuration.has_value(key):
@@ -69,16 +69,14 @@ def main():
         output = statuses.export()
 
     if args.ssh:
-        url = 'https://{}/auth/status.py?project={}'.format(args.ssh,
-                                                            project.jira_key)
+        url = f'https://{args.ssh}/auth/status.py?project={project.jira_key}'
         data = {
             'status': json.dumps(output),
             'source': host
         }
         request = Session(verify=args.cert).post(url, data=data)
         if not Session.is_code(request, 'accepted'):
-            raise RuntimeError('HTTP error {}: {}'.format(request.status_code,
-                                                          request.text))
+            raise RuntimeError(f'HTTP error {request.status_code}: {request.text}')
     else:
         data_path = project.export_key / 'data_bigboat.json'
         with data_path.open('w') as data_file:

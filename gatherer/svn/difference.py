@@ -3,9 +3,14 @@ Module for parsing Subversion difference formats.
 """
 
 import logging
+from typing import Dict, Optional, TYPE_CHECKING
 import svn.exception
-from ..version_control.repo import Change_Type
+from ..version_control.repo import Change_Type, Version
 from ..table import Table
+if TYPE_CHECKING:
+    from .repo import Subversion_Repository
+else:
+    Subversion_Repository = object
 
 class Difference_State:
     """
@@ -13,17 +18,17 @@ class Difference_State:
     token updates from the parser.
     """
 
-    def __init__(self, diff):
+    def __init__(self, diff: 'Difference') -> None:
         self._diff = diff
 
-        self._file = None
+        self._file: Optional['Difference_File'] = None
         self._insertions = 0
         self._deletions = 0
         self._number_of_files = 0
         self._size = 0
         self._head = True
 
-    def parse_line(self, line):
+    def parse_line(self, line: bytes) -> None:
         """
         Parse an untokenized line that the parser retrieved.
         """
@@ -34,19 +39,20 @@ class Difference_State:
             self._number_of_files += 1
             self._file = Difference_File(self._diff)
             self._file.parse_index(line)
-        elif self._head:
-            self._head = self._file.parse_head(line)
-        else:
-            self._file.parse_content(line)
+        elif self._file is not None:
+            if self._head:
+                self._head = self._file.parse_head(line)
+            else:
+                self._file.parse_content(line)
 
-    def _update_file(self):
+    def _update_file(self) -> None:
         if self._file is not None:
             self._file.update_table()
             self._insertions += self._file.file_insertions
             self._deletions += self._file.file_deletions
             self._size += self._file.file_size
 
-    def get_data(self):
+    def get_data(self) -> Dict[str, str]:
         """
         Retrieve the final information after processing the diff.
         """
@@ -78,16 +84,16 @@ class Difference_File:
         b'+++': Change_Type.DELETED
     }
 
-    def __init__(self, diff):
+    def __init__(self, diff: 'Difference') -> None:
         self._diff = diff
-        self._filename = None
-        self._change_type = None
+        self._filename = b''
+        self._change_type = Change_Type.MODIFIED
         self._file_insertions = 0
         self._file_deletions = 0
         self._file_size = 0
 
     @property
-    def file_insertions(self):
+    def file_insertions(self) -> int:
         """
         Retrieve the number of added lines in the diff for this file.
         """
@@ -95,7 +101,7 @@ class Difference_File:
         return self._file_insertions
 
     @property
-    def file_deletions(self):
+    def file_deletions(self) -> int:
         """
         Retrieve the number of removed lines in the diff for this file.
         """
@@ -103,14 +109,14 @@ class Difference_File:
         return self._file_deletions
 
     @property
-    def file_size(self):
+    def file_size(self) -> int:
         """
         Retrieve the number of bytes on changed lines in the file.
         """
 
         return self._file_size
 
-    def parse_index(self, line):
+    def parse_index(self, line: bytes) -> None:
         """
         Parse the index line containing the filename for this file.
         """
@@ -118,7 +124,7 @@ class Difference_File:
         self._filename = line[len(b'Index: '):]
         self._change_type = Change_Type.MODIFIED
 
-    def parse_head(self, line):
+    def parse_head(self, line: bytes) -> bool:
         """
         Parse the header in the difference of this file.
 
@@ -137,7 +143,7 @@ class Difference_File:
 
         return True
 
-    def parse_content(self, line):
+    def parse_content(self, line: bytes) -> bool:
         """
         Parse a line with difference content for this file.
 
@@ -154,7 +160,7 @@ class Difference_File:
         self._file_size += len(line) - 1
         return True
 
-    def update_table(self):
+    def update_table(self) -> None:
         """
         Update the table of file-based statistics.
         """
@@ -174,23 +180,24 @@ class Difference:
     Parser for Subversion difference format.
     """
 
-    def __init__(self, repo, path, from_revision=None, to_revision=None):
+    def __init__(self, repo: Subversion_Repository, path: str,
+                 from_revision: Optional[Version] = None,
+                 to_revision: Optional[Version] = None) -> None:
         self._repo = repo
         self._path = path
         self._from_revision = from_revision
         self._to_revision = to_revision
 
-        self._version_id = None
+        self._version_id: Optional[int] = None
         self._change_paths = Table('change_paths')
 
-        if self._from_revision is not None or self._to_revision is not None:
-            if self._from_revision is None:
-                self._from_revision = int(self._to_revision)-1
-                self._version_id = self._to_revision
-            elif self._to_revision is None:
-                self._to_revision = int(self._from_revision)+1
+        if self._to_revision is not None and self._from_revision is None:
+            self._from_revision = int(self._to_revision) - 1
+            self._version_id = int(self._to_revision)
+        elif self._from_revision is not None and self._to_revision is None:
+            self._to_revision = int(self._from_revision) + 1
 
-    def execute(self):
+    def execute(self) -> Dict[str, str]:
         """
         Retrieve statistics from a difference.
         """
@@ -203,7 +210,7 @@ class Difference:
 
         if self._from_revision is not None and self._to_revision is not None:
             args.extend([
-                '-r', '{0}:{1}'.format(self._from_revision, self._to_revision)
+                '-r', f'{self._from_revision}:{self._to_revision}'
             ])
 
         args.append(self._path)
@@ -224,7 +231,7 @@ class Difference:
         return self._parse_diff(diff_result)
 
     @property
-    def repo(self):
+    def repo(self) -> Subversion_Repository:
         """
         Retrieve the repository that this difference parser oprates on.
         """
@@ -232,7 +239,7 @@ class Difference:
         return self._repo
 
     @property
-    def version_id(self):
+    def version_id(self) -> Optional[int]:
         """
         Retrieve the single version for which the differences is retrieved,
         in the case that the diff is made between its prior version and the
@@ -242,14 +249,14 @@ class Difference:
         return self._version_id
 
     @property
-    def change_paths(self):
+    def change_paths(self) -> Table:
         """
         Retrieve the table of file-based statistics retrieved from the diff.
         """
 
         return self._change_paths
 
-    def _parse_diff(self, diff_result):
+    def _parse_diff(self, diff_result: bytes) -> Dict[str, str]:
         state = Difference_State(self)
         for line in diff_result.splitlines():
             state.parse_line(line)

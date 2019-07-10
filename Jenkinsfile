@@ -24,6 +24,10 @@ pipeline {
         aborted {
             updateGitlabCommitStatus name: env.JOB_NAME, state: 'canceled'
         }
+        always {
+            publishHTML([allowMissing: false, alwaysLinkToLastBuild: true, keepAll: false, reportDir: 'mypy-report/', reportFiles: 'index.html', reportName: 'Typing', reportTitles: ''])
+            junit 'mypy-report/junit.xml'
+        }
     }
 
     stages {
@@ -73,9 +77,10 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     withPythonEnv('System-CPython-3') {
-                        pysh 'python -m pip install pylint'
+                        pysh 'python -m pip install pylint mypy'
                         pysh 'python -m pip install -r requirements-jenkins.txt'
                         pysh 'sed -i "1s|.*|#!/usr/bin/env python|" `which pylint`'
+                        pysh 'mypy gatherer scraper controller controller/auth *.py --html-report mypy-report --cobertura-xml-report mypy-report --junit-xml mypy-report/junit.xml --no-incremental --show-traceback || true'
                         pysh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch=$BRANCH_NAME -Dsonar.python.pylint=`which pylint`'
                     }
                 }

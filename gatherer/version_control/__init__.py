@@ -2,4 +2,6 @@
 Data gathering package for abstract version control systems.
 """
 
-__all__ = []
+from typing import List
+
+__all__: List[str] = []

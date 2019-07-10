@@ -2,9 +2,23 @@
 Base module that defines an abstract version control system repository.
 """
 
+from datetime import datetime
 from enum import Enum, unique
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union, TYPE_CHECKING
+from ..table import Table
+from ..utils import Sprint_Data
+if TYPE_CHECKING:
+    from ..domain import Project, Source
+else:
+    Project = object
+    Source = object
+
+PathLike = Union[str, os.PathLike]
+Tables = Dict[str, Table]
+Version = Union[int, str]
 
 class RepositoryDataException(RuntimeError):
     """
@@ -40,7 +54,7 @@ class Change_Type(Enum):
     TYPE_CHANGED = 'T'
 
     @classmethod
-    def from_label(cls, label):
+    def from_label(cls, label: str) -> Enum:
         """
         Retrieve a change type from its shorthand label.
         """
@@ -58,15 +72,17 @@ class Version_Control_Repository:
 
     # A single file name (without the .json extension) used for update tracking
     # of auxiliary data provided by this repository.
-    UPDATE_TRACKER_NAME = None
+    UPDATE_TRACKER_NAME: Optional[str] = None
 
     # Set of table names that this repository type may export in addition to
     # the version control system version commits. This set must be as inclusive
     # as possible.
-    AUXILIARY_TABLES = set()
+    AUXILIARY_TABLES: Set[str] = set()
 
-    def __init__(self, source, repo_directory, sprints=None, project=None,
-                 **kwargs):
+    def __init__(self, source: Source, repo_directory: PathLike,
+                 sprints: Optional[Sprint_Data] = None,
+                 project: Optional[Project] = None,
+                 **kwargs: Any) -> None:
         if kwargs:
             logging.debug('Unused repository arguments: %r', kwargs)
 
@@ -77,11 +93,12 @@ class Version_Control_Repository:
         self._sprints = sprints
         self._project = project
 
-        self._tables = {}
-        self._update_trackers = {}
+        self._tables: Tables = {}
+        self._update_trackers: Dict[str, str] = {}
 
     @classmethod
-    def from_source(cls, source, repo_directory, **kwargs):
+    def from_source(cls, source: Source, repo_directory: PathLike,
+                    **kwargs: Any) -> 'Version_Control_Repository':
         """
         Retrieve a repository handle from a `Source` domain object.
 
@@ -95,8 +112,9 @@ class Version_Control_Repository:
         raise NotImplementedError("Must be implemented by subclass")
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None,
-                      branch=None):
+    def is_up_to_date(cls, source: Source, latest_version: Version,
+                      update_tracker: Optional[str] = None,
+                      branch: Optional[str] = None) -> bool:
         # pylint: disable=unused-argument
         """
         Check whether the local state of the repository pointed at by `source`
@@ -121,7 +139,7 @@ class Version_Control_Repository:
         return False
 
     @classmethod
-    def get_branches(cls, source):
+    def get_branches(cls, source: Source) -> List[str]:
         # pylint: disable=unused-argument
         """
         Check which branches are available at the repository pointed at by
@@ -134,7 +152,7 @@ class Version_Control_Repository:
         return []
 
     @property
-    def repo(self):
+    def repo(self) -> object:
         """
         Property that retrieves the back-end repository interface (lazy-loaded).
 
@@ -145,7 +163,7 @@ class Version_Control_Repository:
         raise NotImplementedError("Must be implemented by subclass")
 
     @repo.setter
-    def repo(self, repo):
+    def repo(self, repo: object) -> None:
         """
         Property that changes the back-end repository interface.
 
@@ -156,7 +174,7 @@ class Version_Control_Repository:
         raise NotImplementedError("Must be implemented by subclass")
 
     @property
-    def repo_name(self):
+    def repo_name(self) -> str:
         """
         Retrieve a descriptive name of the repository.
         """
@@ -164,7 +182,7 @@ class Version_Control_Repository:
         return self._repo_name
 
     @property
-    def repo_directory(self):
+    def repo_directory(self) -> Path:
         """
         Retrieve the repository directory of this version control system.
 
@@ -176,7 +194,7 @@ class Version_Control_Repository:
         return self._repo_directory
 
     @property
-    def source(self):
+    def source(self) -> Source:
         """
         Retrieve the Source object describing the repository.
         """
@@ -184,7 +202,7 @@ class Version_Control_Repository:
         return self._source
 
     @property
-    def project(self):
+    def project(self) -> Optional[Project]:
         """
         Retrieve the `Project` domain object for this repository, in case the
         repository is known to belong to a project. Otherwise, this property
@@ -194,7 +212,7 @@ class Version_Control_Repository:
         return self._project
 
     @property
-    def version_info(self):
+    def version_info(self) -> Tuple[int, ...]:
         """
         Retrieve a tuple of the repository back-end interface used.
 
@@ -204,14 +222,15 @@ class Version_Control_Repository:
 
         raise NotImplementedError("Must be implemented by subclasses")
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Check if the repository has no versions.
         """
 
         raise NotImplementedError("Must be implemented by subclass")
 
-    def update(self, shallow=False, checkout=True, branch=None):
+    def update(self, shallow: bool = False, checkout: bool = True,
+               branch: Optional[str] = None) -> None:
         """
         Update the local state of the repository to its latest upstream state.
 
@@ -234,7 +253,8 @@ class Version_Control_Repository:
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout(self, paths=None, shallow=False, branch=None):
+    def checkout(self, paths: Optional[Sequence[str]] = None,
+                 shallow: bool = False, branch: Optional[str] = None) -> None:
         """
         Create a local state of the repository based on the current uptream
         state or a part of it.
@@ -257,7 +277,8 @@ class Version_Control_Repository:
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def checkout_sparse(self, paths, remove=False, shallow=False, branch=None):
+    def checkout_sparse(self, paths: Sequence[str], remove: bool = False,
+                        shallow: bool = False, branch: Optional[str] = None) -> None:
         """
         Update information and checked out files in the local state of the
         repository such that it also contains the given list of `paths`.
@@ -285,14 +306,14 @@ class Version_Control_Repository:
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """
         Clean up the local state of the repository. The repository may be
         removed as a whole in order to start from a clean slate next time
         the repository is processed.
         """
 
-    def get_latest_version(self):
+    def get_latest_version(self) -> Version:
         """
         Retrieve the identifier of the latest version within the version
         control repository. If the latest version cannot be found, then
@@ -302,7 +323,7 @@ class Version_Control_Repository:
         raise NotImplementedError("Must be implemented by subclass")
 
     @property
-    def tables(self):
+    def tables(self) -> Tables:
         """
         Retrieve additional metadata of the repository that was obtained during
         source initialization or version searches.
@@ -314,7 +335,7 @@ class Version_Control_Repository:
         return self._tables
 
     @property
-    def update_trackers(self):
+    def update_trackers(self) -> Dict[str, str]:
         """
         Retrieve a dictionary of update tracker values.
 
@@ -326,7 +347,7 @@ class Version_Control_Repository:
 
         return self._update_trackers.copy()
 
-    def set_update_tracker(self, file_name, value):
+    def set_update_tracker(self, file_name: str, value: str) -> None:
         """
         Change the current value of an update tracker.
         """
@@ -336,7 +357,7 @@ class Version_Control_Repository:
 
         self._update_trackers[file_name] = value
 
-    def get_contents(self, filename, revision=None):
+    def get_contents(self, filename: str, revision: Version = None) -> bytes:
         """
         Retrieve the contents of a file with path `filename` at the given
         version `revision`, or the current version if not given.
@@ -350,8 +371,10 @@ class Version_Control_Repository:
 
         raise NotImplementedError('Must be implemented by subclass')
 
-    def get_versions(self, filename='', from_revision=None, to_revision=None,
-                     descending=False, **kwargs):
+    def get_versions(self, filename: str = '',
+                     from_revision: Optional[Version] = None,
+                     to_revision: Optional[Version] = None,
+                     descending: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
         """
         Retrieve metadata about each version in the repository, or those that
         change a specific file path `filename`.
@@ -370,7 +393,9 @@ class Version_Control_Repository:
 
         raise NotImplementedError("Must be implemented by subclass")
 
-    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
+    def get_data(self, from_revision: Optional[Version] = None,
+                 to_revision: Optional[Version] = None,
+                 force: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
         """
         Retrieve version and auxiliary data from the repository.
 
@@ -387,7 +412,7 @@ class Version_Control_Repository:
 
             raise
 
-    def _parse_version(self, commit, stats=True, **kwargs):
+    def _parse_version(self, commit: Any, stats: bool = True, **kwargs: Any):
         """
         Internal method to parse information retrieved from the back end into
         a dictionary of version information. `commit` is a generic object with
@@ -398,7 +423,7 @@ class Version_Control_Repository:
 
         raise NotImplementedError("Must be implemented by subclasses")
 
-    def _get_sprint_id(self, commit_datetime):
+    def _get_sprint_id(self, commit_datetime: datetime) -> str:
         if self._sprints is not None:
             sprint_id = self._sprints.find_sprint(commit_datetime)
             if sprint_id is not None:

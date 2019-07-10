@@ -4,12 +4,22 @@ repository version information with pull requests and commit comments.
 """
 
 import re
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast, TYPE_CHECKING
 import dateutil.tz
+import github
 from .repo import Git_Repository
-from ..table import Key_Table, Link_Table
+from ..table import Table, Key_Table, Link_Table
 from ..utils import convert_utc_datetime, format_date, get_local_datetime, \
     convert_local_datetime, parse_unicode
+from ..version_control.repo import PathLike, Version
 from ..version_control.review import Review_System
+if TYPE_CHECKING:
+    from ..domain import Project, Source
+    from ..domain.source import GitHub
+else:
+    Project = object
+    Source = object
+    GitHub = object
 
 class GitHub_Repository(Git_Repository, Review_System):
     """
@@ -27,18 +37,18 @@ class GitHub_Repository(Git_Repository, Review_System):
             "github_issue", "github_issue_note"
         }
 
-    def __init__(self, source, repo_directory, project=None, **kwargs):
-        super(GitHub_Repository, self).__init__(source, repo_directory,
-                                                project=project, **kwargs)
+    def __init__(self, source: GitHub, repo_directory: PathLike,
+                 project: Optional[Project] = None, **kwargs: Any) -> None:
+        super().__init__(source, repo_directory, project=project, **kwargs)
 
         bots = source.get_option('github_bots')
         if bots is None:
-            self._github_bots = set()
+            self._github_bots: Set[str] = set()
         else:
             self._github_bots = {bot.strip() for bot in bots.split(',')}
 
     @property
-    def review_tables(self):
+    def review_tables(self) -> Dict[str, Table]:
         review_tables = super(GitHub_Repository, self).review_tables
         author = self.build_user_fields('author')
         assignee = self.build_user_fields('assignee')
@@ -57,7 +67,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         return review_tables
 
     @property
-    def null_timestamp(self):
+    def null_timestamp(self) -> str:
         # The datetime strftime() methods require year >= 1900.
         # This is used in get_data to retrieve API data since a given date.
         # All API responses have updated dates that stem from GitHub itself
@@ -65,9 +75,10 @@ class GitHub_Repository(Git_Repository, Review_System):
         return "1900-01-01 01:01:01"
 
     @classmethod
-    def is_up_to_date(cls, source, latest_version, update_tracker=None,
-                      branch=None):
-        if update_tracker is None:
+    def is_up_to_date(cls, source: Source, latest_version: Version,
+                      update_tracker: Optional[str] = None,
+                      branch: Optional[str] = None) -> bool:
+        if update_tracker is None or not isinstance(source, GitHub):
             return super(GitHub_Repository, cls).is_up_to_date(source,
                                                                latest_version,
                                                                branch=branch)
@@ -82,23 +93,29 @@ class GitHub_Repository(Git_Repository, Review_System):
         return tracker_date >= repo.updated_at.replace(tzinfo=dateutil.tz.tzutc())
 
     @property
-    def api(self):
+    def source(self) -> GitHub:
+        return cast(GitHub, self._source)
+
+    @property
+    def api(self) -> github.Github:
         """
         Retrieve an instance of the GitHub API connection for this source.
         """
 
-        return self._source.github_api
+        return self.source.github_api
 
-    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
+    def get_data(self, from_revision: Optional[Version] = None,
+                 to_revision: Optional[Version] = None, force: bool = False,
+                 **kwargs: Any) -> List[Dict[str, str]]:
         versions = super(GitHub_Repository, self).get_data(from_revision,
                                                            to_revision,
                                                            force=force,
                                                            **kwargs)
 
-        self.fill_repo_table(self._source.github_repo)
+        self.fill_repo_table(self.source.github_repo)
         self._get_pull_requests()
 
-        for commit_comment in self._source.github_repo.get_comments():
+        for commit_comment in self.source.github_repo.get_comments():
             self.add_commit_comment(commit_comment)
 
         self._get_issues()
@@ -107,8 +124,8 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return versions
 
-    def _get_pull_requests(self):
-        for pull_request in self._source.github_repo.get_pulls(state='all'):
+    def _get_pull_requests(self) -> None:
+        for pull_request in self.source.github_repo.get_pulls(state='all'):
             newer, reviews = self.add_pull_request(pull_request)
             if newer:
                 for issue_comment in pull_request.get_issue_comments():
@@ -118,16 +135,16 @@ class GitHub_Repository(Git_Repository, Review_System):
                 for review in reviews:
                     self.add_review(review, pull_request.number)
 
-    def _get_issues(self):
+    def _get_issues(self) -> None:
         since = convert_utc_datetime(self.tracker_date)
-        for issue in self._source.github_repo.get_issues(state='all',
-                                                         since=since):
+        for issue in self.source.github_repo.get_issues(state='all',
+                                                        since=since):
             newer = self.add_issue(issue)
             if newer:
                 for issue_comment in issue.get_comments(since=since):
                     self.add_issue_comment(issue_comment, issue.number)
 
-    def fill_repo_table(self, repo):
+    def fill_repo_table(self, repo: github.Repository.Repository) -> None:
         """
         Add the repository data from a GitHub API Repository object `repo`
         to the table for GitHub repositories.
@@ -160,13 +177,13 @@ class GitHub_Repository(Git_Repository, Review_System):
         })
 
     @staticmethod
-    def _get_username(part):
+    def _get_username(part: Optional[github.NamedUser.NamedUser]) -> str:
         if part is None:
             return str(0)
 
         return parse_unicode(part.login)
 
-    def _is_bot_user(self, user):
+    def _is_bot_user(self, user: github.NamedUser.NamedUser) -> bool:
         if user.type == "Bot":
             return True
         if user.login in self._github_bots:
@@ -174,7 +191,7 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return False
 
-    def _format_issue(self, issue):
+    def _format_issue(self, issue: github.Issue.Issue) -> Dict[str, str]:
         author_username = self._get_username(issue.user)
         assignee_username = self._get_username(issue.assignee)
         return {
@@ -191,7 +208,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             'updated_at': format_date(convert_local_datetime(issue.updated_at))
         }
 
-    def add_pull_request(self, pull_request):
+    def add_pull_request(self, pull_request: github.PullRequest.PullRequest) \
+            -> Tuple[bool, List[github.PullRequestReview.PullRequestReview]]:
         """
         Add a pull request described by its GitHub API response object to the
         merge requests table. Returns whether the pull request is updated more
@@ -220,9 +238,9 @@ class GitHub_Repository(Git_Repository, Review_System):
         })
         self._tables["merge_request"].append(request)
 
-        return True, reviews
+        return True, list(reviews)
 
-    def add_issue(self, issue):
+    def add_issue(self, issue: github.Issue.Issue) -> bool:
         """
         Add an issue described by its GitHub API response object to the repo
         issues table. Returns whether the issue is updated more recently than
@@ -235,7 +253,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         pull_request_id = 0
         if issue.pull_request is not None:
             pulls_url = re.sub('{/[^}]+}', r'/(\d+)',
-                               self._source.github_repo.pulls_url)
+                               self.source.github_repo.pulls_url)
             match = re.match(pulls_url, issue.pull_request.raw_data['url'])
             if match:
                 pull_request_id = int(match.group(1))
@@ -256,7 +274,11 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def _format_note(self, comment):
+    def _format_note(self,
+                     comment: Union[github.CommitComment.CommitComment,
+                                    github.IssueComment.IssueComment,
+                                    github.PullRequestComment.PullRequestComment]) \
+                     -> Dict[str, str]:
         author = self._get_username(comment.user)
         return {
             'repo_name': str(self._repo_name),
@@ -268,7 +290,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             'updated_at': format_date(convert_local_datetime(comment.updated_at))
         }
 
-    def add_issue_comment(self, comment, issue_id):
+    def add_issue_comment(self, comment: github.IssueComment.IssueComment,
+                          issue_id: int) -> bool:
         """
         Add an issue comment described by its GitHub API response object to the
         issue notes table. Returns whether the issue comment is updated more
@@ -284,7 +307,9 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def add_pull_comment(self, comment, request_id):
+    def add_pull_comment(self,
+                         comment: github.PullRequestComment.PullRequestComment,
+                         request_id: int) -> bool:
         """
         Add a normal pull request comment described by its GitHub API response
         object to the repo merge request notes table. Returns whether the pull
@@ -308,7 +333,8 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def _add_commit_comment(self, comment, **kwargs):
+    def _add_commit_comment(self, comment: github.CommitComment.CommitComment,
+                            **kwargs: Any) -> None:
         note = self._format_note(comment)
         note.update({
             'thread_id': str(0),
@@ -326,7 +352,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         del note['updated_at']
         self._tables["commit_comment"].append(note)
 
-    def add_commit_comment(self, comment):
+    def add_commit_comment(self, comment: github.CommitComment.CommitComment) -> bool:
         """
         Add a commit comment described by its GitHub API response object to the
         commit comments table. Returns whether the commit comment is updated
@@ -343,7 +369,9 @@ class GitHub_Repository(Git_Repository, Review_System):
         self._add_commit_comment(comment, line=line, end_line=line)
         return True
 
-    def add_review_comment(self, comment, request_id=0):
+    def add_review_comment(self,
+                           comment: github.PullRequestComment.PullRequestComment,
+                           request_id: int = 0) -> bool:
         """
         Add a pull request review comment described by its GitHub API response
         object to the commit comments table. Returns whether the comment is
@@ -387,7 +415,8 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def add_review(self, review, request_id):
+    def add_review(self, review: github.PullRequestReview.PullRequestReview,
+                   request_id: int) -> None:
         """
         Add a pull request review described by its GitHub API response object
         to the merge request reviews table.

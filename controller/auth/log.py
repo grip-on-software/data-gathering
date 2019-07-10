@@ -7,14 +7,14 @@ import cgitb
 import Pyro4
 from gatherer.log import Log_Setup
 
-def setup_log():
+def setup_log() -> None:
     """
     Set up logging.
     """
 
     cgitb.enable()
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

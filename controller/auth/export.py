@@ -7,14 +7,14 @@ import cgitb
 import json
 import Pyro4
 
-def setup_log():
+def setup_log() -> None:
     """
     Set up logging.
     """
 
     cgitb.enable()
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -29,7 +29,7 @@ def main():
         if len(projects) != 1:
             raise RuntimeError('Exactly one project must be specified in GET')
 
-        project_key = projects[0]
+        project_key = str(projects[0])
         if not project_key.isupper() or not project_key.isalpha():
             raise RuntimeError('Project key must be all-uppercase, only alphabetic characters')
     except RuntimeError as error:

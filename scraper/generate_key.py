@@ -2,15 +2,15 @@
 Generate a private and public key and distribute it to the correct locations.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
-import os
+from os import devnull
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Optional, Union
+from typing import Dict, Hashable, List, MutableMapping, Optional, Set, Union
 import urllib.parse
 import inform
 try:
@@ -26,14 +26,14 @@ from gatherer.domain import Project
 from gatherer.domain.source import Source, GitLab, GitHub, TFS
 from gatherer.log import Log_Setup
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     config = Configuration.get_settings()
 
-    parser = argparse.ArgumentParser(description='Generate and distribute new public keys')
+    parser = ArgumentParser(description='Generate and distribute new public keys')
     parser.add_argument('project', help='project key to generate keys for')
     parser.add_argument('--path', default='~/.ssh/id_rsa',
                         help='local path to store the main private key at')
@@ -63,7 +63,7 @@ def parse_args():
 
     return args
 
-def get_temp_filename():
+def get_temp_filename() -> str:
     """
     Retrieve a secure (not guessable) temporary file name.
     """
@@ -80,17 +80,17 @@ class Identity:
     """
 
     def __init__(self, project: Project, key_path: Path, known_hosts: Path,
-                 dry_run: bool = False):
+                 dry_run: bool = False) -> None:
         self.project = project
         self.key_path = key_path
         self.known_hosts = known_hosts
         self.dry_run = dry_run
 
-        self._public_key = None
-        self._environments = set()
+        self._public_key: Optional[Union[str, bool]] = None
+        self._environments: Set[Hashable] = set()
 
     @property
-    def public_key(self):
+    def public_key(self) -> Union[str, bool]:
         """
         Retrieve the public key part of the credentials for the purpose of
         publishing it to different sources.
@@ -123,13 +123,13 @@ class Identity:
             'servers': {},
             'clients': {}
         }
-        update = []
+        update: List[str] = []
         key_file = get_temp_filename()
         key = Key(key_file, data, update, {}, False)
         key.generate()
         return key.keyname
 
-    def _store_key(self):
+    def _store_key(self) -> None:
         """
         Check whether the public and private key pair already exists, and if not
         generate the key and store it at the key path location.
@@ -137,11 +137,10 @@ class Identity:
 
         if not self.key_path.exists():
             logging.info('Generating new key pair to %s', self.key_path)
-            if not self.dry_run:
-                temp_key_name = self._generate_key_pair()
+            temp_key_name = self._generate_key_pair()
+            if temp_key_name is not None:
                 shutil.move(temp_key_name, str(self.key_path))
-                shutil.move('{}.pub'.format(temp_key_name),
-                            '{}.pub'.format(self.key_path))
+                shutil.move(f'{temp_key_name}.pub', f'{self.key_path}.pub')
                 self.key_path.chmod(0o600)
         else:
             logging.info('Using existing key pair from %s', self.key_path)
@@ -154,7 +153,7 @@ class Identity:
         with public_key_path.open('r') as public_key_file:
             return public_key_file.read().rstrip('\n')
 
-    def _scan_host(self, url: str):
+    def _scan_host(self, url: str) -> None:
         hostname = urllib.parse.urlsplit(url).hostname
         if hostname is None:
             logging.warning('Cannot extract hostname from source URL %s', url)
@@ -172,7 +171,7 @@ class Identity:
             logging.info('Scanning SSH host %s for keys and appending to %s',
                          hostname, self.known_hosts)
             if not self.dry_run:
-                with open(os.devnull, 'w') as null_file:
+                with open(devnull, 'w') as null_file:
                     lines = subprocess.check_output(['ssh-keyscan', hostname],
                                                     stderr=null_file)
                 with self.known_hosts.open('ab') as known_hosts_file:
@@ -180,7 +179,7 @@ class Identity:
         except subprocess.CalledProcessError:
             logging.exception('Could not scan host %s', hostname)
 
-    def update_source(self, source: Source):
+    def update_source(self, source: Source) -> None:
         """
         Register the SSH public key for this identity to the source, if this is
         possible and necessary for this source, environment, and source type.
@@ -194,12 +193,7 @@ class Identity:
 
             self._environments.add(source.environment)
 
-        if self.public_key is False:
-            # We only have a private key part, e.g., a deploy key.
-            # Log this and still scan the source for host keys.
-            logging.warning('No public key part for key %s to upload to %s',
-                            self.key_path, source.plain_url)
-        else:
+        if isinstance(self.public_key, str):
             try:
                 source.update_identity(self.project, self.public_key,
                                        dry_run=self.dry_run)
@@ -207,10 +201,17 @@ class Identity:
                 logging.exception('Cannot publish public key to %s source %s',
                                   source.type, source.plain_url)
                 return
+        else:
+            # We only have a private key part, e.g., a deploy key.
+            # Log this and still scan the source for host keys.
+            logging.warning('No public key part for key %s to upload to %s',
+                            self.key_path, source.plain_url)
 
         self._scan_host(source.plain_url)
 
-def add_ssh_key(project, identities, source, known_hosts, dry_run=False):
+def add_ssh_key(project: Project, identities: MutableMapping[Path, Identity],
+                source: Optional[Source], known_hosts: Path,
+                dry_run: bool = False) -> None:
     """
     Update the SSH key at the given source based on its credentials path.
     """
@@ -218,18 +219,18 @@ def add_ssh_key(project, identities, source, known_hosts, dry_run=False):
     if source is None:
         return
 
-    key_path = source.credentials_path
-    if key_path is None:
+    if source.credentials_path is None:
         logging.info('Source %s has no SSH key credentials', source.plain_url)
         return
 
+    key_path = Path(source.credentials_path)
     if key_path not in identities:
         identities[key_path] = Identity(project, key_path, known_hosts,
                                         dry_run=dry_run)
 
     identities[key_path].update_source(source)
 
-def make_source(domain):
+def make_source(domain: str) -> Optional[Source]:
     """
     Build a dummy source object based on a credentials domain.
     """
@@ -246,7 +247,29 @@ def make_source(domain):
 
     return None
 
-def main():
+def add_gitlab_key(project: Project, identities: MutableMapping[Path, Identity],
+                   known_hosts: Path, args: Namespace) -> None:
+    """
+    Add additional keys to GitLab hosts, such as project definitions sources
+    and known project GitLab hosts.
+
+    If --gitlab is not provided or it has no remaining arguments, then
+    fall back to a project source and the project definitions source.
+    """
+
+    if not args.gitlab or (args.source and project.gitlab_source is not None):
+        add_ssh_key(project, identities, project.gitlab_source, known_hosts,
+                    dry_run=args.dry_run)
+        add_ssh_key(project, identities, project.project_definitions_source,
+                    known_hosts, dry_run=args.dry_run)
+    else:
+        for gitlab_host in args.gitlab:
+            url = f'http://{gitlab_host}'
+            source = Source.from_type('gitlab', url=url, name='GitLab')
+            add_ssh_key(project, identities, source, known_hosts,
+                        dry_run=args.dry_run)
+
+def main() -> None:
     """
     Main entry point.
     """
@@ -260,7 +283,7 @@ def main():
 
     main_key = Path(args.path).expanduser()
     known_hosts = Path(args.known_hosts).expanduser()
-    identities = {}
+    identities: Dict[Path, Identity] = {}
 
     if args.ssh and Configuration.has_value(args.ssh):
         identity = Identity(project, main_key, known_hosts,
@@ -280,19 +303,7 @@ def main():
                         dry_run=args.dry_run)
 
     if args.gitlab is not False:
-        # If --gitlab is not provided or it has no remaining arguments, then
-        # fall back to a project source and the project definitions source.
-        if not args.gitlab or (args.source and project.gitlab_source is not None):
-            add_ssh_key(project, identities, project.gitlab_source, known_hosts,
-                        dry_run=args.dry_run)
-            add_ssh_key(project, identities, project.project_definitions_source,
-                        known_hosts, dry_run=args.dry_run)
-        else:
-            for gitlab_host in args.gitlab:
-                url = 'http://{}'.format(gitlab_host)
-                source = Source.from_type('gitlab', url=url, name='GitLab')
-                add_ssh_key(project, identities, source, known_hosts,
-                            dry_run=args.dry_run)
+        add_gitlab_key(project, identities, known_hosts, args)
 
 if __name__ == "__main__":
     main()

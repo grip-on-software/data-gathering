@@ -3,12 +3,14 @@ Script to parse default values for targets and low targets from all versions of
 the quality reporting tool.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import ast
+from datetime import datetime
 from distutils.version import LooseVersion
 import json
 import logging
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 # We need to import a normal import of hqlib before we can import from utils
 # pylint: disable=unused-import
 import hqlib.domain
@@ -17,15 +19,17 @@ from gatherer.domain import Source
 from gatherer.git import Git_Repository
 from gatherer.log import Log_Setup
 from gatherer.utils import get_local_datetime
-from gatherer.version_control.repo import FileNotFoundException
+from gatherer.version_control.repo import FileNotFoundException, Version
 
-def parse_args():
+Targets = Dict[str, Union[str, bool, Dict[str, Any]]]
+
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain quality reporting targets"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('--repo', default='quality-report',
                         help='path to the quality reporting Git repository')
     parser.add_argument('--checkout', action='store_true', default=False,
@@ -53,22 +57,22 @@ class Metric_Visitor(ast.NodeVisitor):
         'low_target_factor': 'low_target_value'
     }
 
-    def __init__(self):
-        self._class_name = None
-        self._target_name = None
+    def __init__(self) -> None:
+        self._class_name: Optional[str] = None
+        self._target_name: Optional[str] = None
         self._abstract = False
-        self._targets = {}
-        self._class_targets = {}
+        self._targets: Targets = {}
+        self._class_targets: Dict[str, Targets] = {}
 
     @property
-    def class_targets(self):
+    def class_targets(self) -> Dict[str, Targets]:
         """
         Retrieve the target norms for all classes detected thus far.
         """
 
         return self._class_targets
 
-    def visit_Assign(self, node):
+    def visit_Assign(self, node: ast.Assign) -> None:
         """
         Visit an assignment node in the AST.
         """
@@ -78,16 +82,17 @@ class Metric_Visitor(ast.NodeVisitor):
         self.visit(node.value)
         self._target_name = None
 
-    def visit_AnnAssign(self, node):
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         """
         Visit a type-annotated assignment node in the AST.
         """
 
         self.visit(node.target)
-        self.visit(node.value)
+        if node.value is not None:
+            self.visit(node.value)
         self._target_name = None
 
-    def visit_ClassDef(self, node):
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """
         Visit a class definition in the AST.
         """
@@ -104,17 +109,17 @@ class Metric_Visitor(ast.NodeVisitor):
             self.visit(subnode)
 
         if self._targets:
-            if 'numerical_value_map' in self._targets:
-                value_map = self._targets.pop('numerical_value_map')
+            value_map = self._targets.pop('numerical_value_map')
+            if isinstance(value_map, dict):
                 self._targets = {
-                    key: str(value_map[value]) if value in value_map else value
+                    key: str(value_map[str(value)] if value in value_map else value)
                     for key, value in self._targets.items()
                 }
 
             self._targets['_abstract'] = self._abstract
             self._class_targets[self._class_name] = self._targets
 
-    def _inherit_superclass(self, name):
+    def _inherit_superclass(self, name: str) -> None:
         if self._class_name is not None:
             if name in self._class_targets:
                 self._targets.update(self._class_targets[name])
@@ -124,14 +129,14 @@ class Metric_Visitor(ast.NodeVisitor):
                 elif name.startswith('Higher'):
                     self._targets['direction'] = "1"
 
-    def visit_Attribute(self, node):
+    def visit_Attribute(self, node: ast.Attribute) -> None:
         """
         Visit an attribute name in the AST.
         """
 
         self._inherit_superclass(node.attr)
 
-    def visit_Name(self, node):
+    def visit_Name(self, node: ast.Name) -> None:
         """
         Visit a variable name in the AST.
         """
@@ -144,7 +149,7 @@ class Metric_Visitor(ast.NodeVisitor):
             else:
                 self._inherit_superclass(node.id)
 
-    def visit_Num(self, node):
+    def visit_Num(self, node: ast.Num) -> None:
         """
         Visit a literal number in the AST.
         """
@@ -152,7 +157,7 @@ class Metric_Visitor(ast.NodeVisitor):
         if self._target_name is not None:
             self._targets[self._target_name] = str(node.n)
 
-    def visit_Str(self, node):
+    def visit_Str(self, node: ast.Str) -> None:
         """
         Visit a literal string in the AST.
         """
@@ -162,17 +167,19 @@ class Metric_Visitor(ast.NodeVisitor):
         elif self._target_name is not None:
             self._targets[self._target_name] = str(node.s)
 
-    def visit_Dict(self, node):
+    def visit_Dict(self, node: ast.Dict) -> None:
         """
         Visit a literal dictionary object in the AST.
         """
 
         if self._target_name == 'numerical_value_map':
-            value = dict(zip([key.s for key in node.keys],
-                             [value.n for value in node.values]))
-            self._targets[self._target_name] = value
+            value_map: Dict[str, complex] = {}
+            for key, value in zip(node.keys, node.values):
+                if isinstance(key, ast.Str) and isinstance(value, ast.Num):
+                    value_map[key.s] = value.n
+            self._targets[self._target_name] = value_map
 
-    def visit_Subscript(self, node):
+    def visit_Subscript(self, node: ast.Subscript) -> None:
         """
         Visit a type annotation in the AST.
 
@@ -180,21 +187,22 @@ class Metric_Visitor(ast.NodeVisitor):
         target name and value parsing.
         """
 
-    def visit_Call(self, node):
+    def visit_Call(self, node: ast.Call) -> None:
         """
         Visit a call in the AST.
         """
 
         if self._target_name is not None:
-            if not hasattr(node.func, 'id'):
+            if not isinstance(node.func, ast.Name):
                 logging.warning('Expression in %s for %s: %s', self._class_name,
                                 self._target_name, ast.dump(node.func))
-            elif node.func.id == 'LooseVersion':
+            elif node.func.id == 'LooseVersion' and \
+                isinstance(node.args[0], ast.Str):
                 arg = LooseVersion(node.args[0].s).version
                 number = version_number_to_numerical(arg)
                 self._targets[self._target_name] = str(number)
 
-    def visit_Raise(self, node):
+    def visit_Raise(self, node: ast.Raise) -> None:
         """
         Visit a function definition in the AST.
         """
@@ -209,14 +217,14 @@ class Metric_Target_Tracker:
     Class which keeps track of updates to metric targets.
     """
 
-    def __init__(self, from_revision):
-        self._all_class_targets = {}
-        self._version_targets = []
+    def __init__(self, from_revision: Version) -> None:
+        self._all_class_targets: Dict[str, Targets] = {}
+        self._version_targets: List[Targets] = []
         self._latest_version = from_revision
-        self._latest_date = None
+        self._latest_date: Optional[datetime] = None
 
     @classmethod
-    def get_from_revision(cls):
+    def get_from_revision(cls) -> Optional[Version]:
         """
         Retrieve the revision that was parsed by an earlier run.
         """
@@ -228,7 +236,8 @@ class Metric_Target_Tracker:
         with update_path.open('r') as update_file:
             return json.load(update_file)
 
-    def update(self, version, class_targets):
+    def update(self, version: Dict[str, str],
+               class_targets: Dict[str, Targets]) -> None:
         """
         Update the version targets based on the provided class targets.
 
@@ -242,7 +251,7 @@ class Metric_Target_Tracker:
 
             if class_name not in self._all_class_targets or \
                     self._all_class_targets[class_name] != targets:
-                version_target = {
+                version_target: Targets = {
                     'class_name': class_name,
                     'version_id': version['version_id'],
                     'commit_date': version['commit_date']
@@ -258,7 +267,7 @@ class Metric_Target_Tracker:
             self._latest_date = commit_date
             self._latest_version = version['version_id']
 
-    def export(self):
+    def export(self) -> None:
         """
         Export the version targets to a JSON file.
         """
@@ -268,7 +277,8 @@ class Metric_Target_Tracker:
         with open('hqlib_targets_update.json', 'w') as update_file:
             json.dump(self._latest_version, update_file)
 
-def parse(path, start, repo, tracker):
+def parse(path: str, start: Version, repo: Git_Repository,
+          tracker: Metric_Target_Tracker) -> None:
     """
     Parse all files that are changed in revisions from `start` that exist
     within the `path` in the quality report library repository `repo`, and
@@ -285,7 +295,8 @@ def parse(path, start, repo, tracker):
                 continue
 
             try:
-                contents = repo.get_contents(file_path, revision=commit)
+                contents = repo.get_contents(file_path,
+                                             revision=version['version_id'])
             except FileNotFoundException:
                 logging.exception('Could not find file %s in version %s',
                                   file_path, version['version_id'])
@@ -302,7 +313,7 @@ def parse(path, start, repo, tracker):
 
         tracker.update(version, metric_visitor.class_targets)
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

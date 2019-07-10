@@ -2,7 +2,8 @@
 GitHub source domain object.
 """
 
-import urllib.parse
+from typing import Dict, Hashable, List, Optional, Tuple, Type
+from urllib.parse import urlsplit, SplitResult
 import logging
 import github
 from .types import Source, Source_Types
@@ -11,52 +12,46 @@ from ...git.github import GitHub_Repository
 
 @Source_Types.register('github')
 @Source_Types.register('git',
-                       lambda cls, url=None, **data: \
+                       lambda cls, url='', **data: \
                             cls.is_github_url(url))
 class GitHub(Git):
     """
     GitHub source repository.
     """
 
-    def __init__(self, *args, **kwargs):
-        self._github_url = None
-        self._github_token = None
-        self._github_api = None
-        self._github_api_url = github.MainClass.DEFAULT_BASE_URL
-        self._github_owner = None
-        self._github_repo = kwargs.pop('github_repo', None)
-        self._github_team = kwargs.pop('github_team', None)
+    def __init__(self, source_type: str, name: str = '', url: str = '',
+                 follow_host_change: bool = True, **kwargs: str) -> None:
+        self._github_url: str = ''
+        self._github_token: Optional[str] = None
+        self._github_api: Optional[github.Github] = None
+        self._github_api_url: str = github.MainClass.DEFAULT_BASE_URL
+        self._github_owner: str = ''
+        self._github_repo: Optional[str] = kwargs.pop('github_repo', None)
+        self._github_team: Optional[str] = kwargs.pop('github_team', None)
 
-        super(GitHub, self).__init__(*args, **kwargs)
+        super().__init__(source_type, name=name, url=url,
+                         follow_host_change=follow_host_change)
 
     @classmethod
-    def is_github_url(cls, url):
+    def is_github_url(cls, url: str) -> bool:
         """
         Check whether a given URL is part of a GitHub instance for which we have
         credentials.
         """
 
-        if url is None:
-            return False
-
-        parts = urllib.parse.urlsplit(cls._alter_git_url(url))
+        parts = urlsplit(cls._alter_git_url(url))
         return cls.is_github_host(cls._format_host_section(parts))
 
     @classmethod
-    def is_github_host(cls, host):
+    def is_github_host(cls, host: str) -> bool:
         """
         Check whether a given host (without scheme part) is a GitHub host for
         which we have credentials.
         """
 
-        cls._init_credentials()
-        return cls._has_github_token(host)
-
-    @classmethod
-    def _has_github_token(cls, host):
         return cls.has_option(host, 'github_token')
 
-    def _update_credentials(self):
+    def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super(GitHub, self)._update_credentials()
 
         # Retrieve the owner from the URL of the source.
@@ -67,7 +62,7 @@ class GitHub(Git):
                                         default_scheme='https')
         self._github_url = self._create_url(scheme, host, '', '', '')
 
-        if self._has_github_token(host):
+        if self.is_github_host(host):
             self._github_token = self._credentials.get(host, 'github_token')
         if self.has_option(host, 'github_api_url'):
             self._github_api_url = self._credentials.get(host, 'github_api_url')
@@ -75,28 +70,28 @@ class GitHub(Git):
         return orig_parts, host
 
     @property
-    def repository_class(self):
+    def repository_class(self) -> Type[GitHub_Repository]:
         return GitHub_Repository
 
     @property
-    def environment(self):
+    def environment(self) -> Optional[Hashable]:
         return (self._host, self.github_owner, self.github_team)
 
     @property
-    def environment_type(self):
+    def environment_type(self) -> str:
         return 'github'
 
     @property
-    def environment_url(self):
+    def environment_url(self) -> Optional[str]:
         return self._github_url + '/' + self.github_owner
 
     @property
-    def web_url(self):
+    def web_url(self) -> Optional[str]:
         return '{}/{}/{}'.format(self._github_url, self.github_owner,
                                  self.path_name)
 
     @property
-    def github_token(self):
+    def github_token(self) -> Optional[str]:
         """
         Retrieve the token that is used for authenticating in the GitHub API.
         """
@@ -104,7 +99,7 @@ class GitHub(Git):
         return self._github_token
 
     @property
-    def github_owner(self):
+    def github_owner(self) -> str:
         """
         Retrieve the user or organization which owns source's repository.
         """
@@ -112,7 +107,7 @@ class GitHub(Git):
         return self._github_owner
 
     @property
-    def github_team(self):
+    def github_team(self) -> Optional[str]:
         """
         Retrieve the team that manages this source's repository, or `None` if
         there is no team known.
@@ -121,7 +116,7 @@ class GitHub(Git):
         return self._github_team
 
     @property
-    def github_repo(self):
+    def github_repo(self) -> github.Repository.Repository:
         """
         Retrieve the repository information from the GitHub API for this
         source's repository.
@@ -134,7 +129,7 @@ class GitHub(Git):
         return self._github_repo
 
     @property
-    def github_api(self):
+    def github_api(self) -> github.Github:
         """
         Retrieve an instance of the GitHub API connection.
         """
@@ -148,7 +143,7 @@ class GitHub(Git):
 
         return self._github_api
 
-    def get_sources(self):
+    def get_sources(self) -> List[Source]:
         if self._github_team is None:
             user = self.github_api.get_user(self._github_owner)
             repos = user.get_repos()
@@ -176,8 +171,9 @@ class GitHub(Git):
 
         return sources
 
-    def export(self):
+    def export(self) -> Dict[str, str]:
         data = super(GitHub, self).export()
-        data['github_team'] = self._github_team
+        if self._github_team is not None:
+            data['github_team'] = self._github_team
 
         return data

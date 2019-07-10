@@ -3,12 +3,13 @@ Script for downloading the Java database importer from a URL and extracting it
 such that the Jenkins scraper can run all programs.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import filecmp
 import logging
 from pathlib import Path
 import shutil
 import tempfile
+from typing import Optional, Union
 from zipfile import ZipFile
 # Not-standard imports
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
@@ -18,27 +19,28 @@ from gatherer.jenkins import Jenkins
 from gatherer.log import Log_Setup
 from gatherer.request import Session
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     config = Configuration.get_settings()
 
-    verify = config.get('jenkins', 'verify')
-    if not Configuration.has_value(verify):
+    verify_config = config.get('jenkins', 'verify')
+    verify: Union[str, bool] = verify_config
+    if not Configuration.has_value(verify_config):
         verify = False
-    elif not Path(verify).exists():
+    elif not Path(verify_config).exists():
         verify = True
 
-    username = config.get('jenkins', 'username')
-    password = config.get('jenkins', 'password')
+    username: Optional[str] = config.get('jenkins', 'username')
+    password: Optional[str] = config.get('jenkins', 'password')
     if not Configuration.has_value(username):
         username = None
         password = None
 
     description = 'Retrieve the database importer and auxiliary data'
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('--base', default='.',
                         help='directory to place the importer and libraries in')
     parser.add_argument('--force', action='store_true', default=False,
@@ -91,9 +93,9 @@ def parse_args():
 
     return args
 
-def get_jenkins_url(args):
+def get_jenkins_url(args: Namespace) -> str:
     """
-    Retrieve an URL from Jenkins using the build job API.
+    Retrieve a URL from Jenkins using the build job API.
     """
 
     jenkins = Jenkins(args.jenkins, username=args.jenkins_username,
@@ -118,15 +120,15 @@ def get_jenkins_url(args):
     if build.result not in results:
         raise ValueError('Build result is not {} but {}'.format(' or '.join(results), build.result))
 
-    return build.base_url + 'artifact/' + args.artifact + '/*zip*/dist.zip'
+    return f'{build.base_url}artifact/{args.artifact}/*zip*/dist.zip'
 
-def copy_path(source_path, dest_path):
+def copy_path(source_path: str, destination: str) -> None:
     """
     Copy a distribution directory from a local path.
     """
 
     dist_path = Path(source_path).expanduser() / 'dist'
-    dest_path = Path(dest_path).resolve()
+    dest_path = Path(destination).resolve()
     if not dist_path.exists():
         raise OSError(f'Could not find distribution in {dist_path}')
 
@@ -138,7 +140,7 @@ def copy_path(source_path, dest_path):
 
     shutil.copytree(str(dist_path), str(dest_path))
 
-def download_zip(url, dest_path):
+def download_zip(url: str, destination: str) -> None:
     """
     Download a ZIP archive from an external URL.
     """
@@ -146,7 +148,7 @@ def download_zip(url, dest_path):
     request = Session().get(url)
     request.raise_for_status()
     dist_path = Path('dist.zip')
-    dest_path = Path(dest_path)
+    dest_path = Path(destination)
     with dist_path.open('wb') as output_file:
         for chunk in request.iter_content(chunk_size=128):
             output_file.write(chunk)
@@ -167,10 +169,10 @@ def download_zip(url, dest_path):
 
     shutil.move(str(temp_path / 'dist' / 'importerjson.jar'),
                 str(dest_path / 'importerjson.jar'))
-    shutil.move(str(temp_path / 'dist' / 'lib'), dest_path)
+    shutil.move(str(temp_path / 'dist' / 'lib'), str(dest_path))
     shutil.rmtree(str(temp_path))
 
-def retrieve_files(args):
+def retrieve_files(args: Namespace) -> None:
     """
     Retrieve the distribution files and store then within the dist directory.
     """
@@ -201,7 +203,7 @@ def retrieve_files(args):
         except (ConnectError, HTTPError, Timeout):
             logging.exception('Could not download ZIP file')
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -221,10 +223,11 @@ def main():
         data_path = Path(args.base, data_file)
         # Retrieve the file from the store and write it to a temporary file
         store.get_file(f'import/{data_file}', path)
-        if args.force or not data_path.exists() or filecmp.cmp(data_path, path):
+        if args.force or not data_path.exists() or \
+            filecmp.cmp(str(data_path), path):
             shutil.move(path, str(data_path))
         else:
-            raise RuntimeError('Not overwriting potentially updated file {}'.format(data_file))
+            raise RuntimeError(f'Not overwriting potentially updated file {data_file}')
 
 if __name__ == "__main__":
     main()

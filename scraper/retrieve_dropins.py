@@ -2,7 +2,7 @@
 Script that accesses a file store to retrieve the dropins for a certain project.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 import shutil
 from gatherer.config import Configuration
@@ -10,14 +10,14 @@ from gatherer.domain import Project
 from gatherer.files import File_Store, PathExistenceError
 from gatherer.log import Log_Setup
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     config = Configuration.get_settings()
 
-    parser = argparse.ArgumentParser(description='Retrieve the dropin files')
+    parser = ArgumentParser(description='Retrieve the dropin files')
     parser.add_argument('project', help='project key to retrieve for')
     parser.add_argument('--skip', action='store_true', default=False,
                         help='Do not retrieve dropins but remove local files')
@@ -38,7 +38,7 @@ def parse_args():
 
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -60,7 +60,7 @@ def main():
     store.login(args.username, args.password)
 
     try:
-        store.get_directory(remote_path, project.dropins_key)
+        store.get_directory(remote_path, str(project.dropins_key))
     except PathExistenceError:
         logging.warning('Project %s has no dropin files', args.project)
     else:

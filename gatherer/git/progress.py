@@ -3,27 +3,43 @@ Module that tracks and logs Git command progress output.
 """
 
 import logging
+from typing import NamedTuple, Optional, overload
 from git import RemoteProgress
+
+LogRecord = NamedTuple('LogRecord', [('dropped', bool),
+                                     ('done', bool),
+                                     ('op_code', int),
+                                     ('ratio', float),
+                                     ('cur_count', int)])
 
 class Progress_Filter(logging.Filter):
     """
     Filters git progress logging messages based on their contextual data.
     """
 
-    def __init__(self, update_ratio=1):
-        super(Progress_Filter, self).__init__()
+    def __init__(self, update_ratio: int = 1) -> None:
+        super().__init__()
         self._update_ratio = update_ratio
         self._relevant_op_codes = {RemoteProgress.COUNTING}
 
     @property
-    def update_ratio(self):
+    def update_ratio(self) -> int:
         """
         Retrieve the update ratio parameter of this filter.
         """
 
         return self._update_ratio
 
-    def filter(self, record):
+    # pylint: disable=function-redefined
+    @overload
+    def filter(self, record: LogRecord) -> bool:
+        ...
+
+    @overload
+    def filter(self, record: logging.LogRecord) -> bool:
+        ...
+
+    def filter(self, record) -> bool:
         if hasattr(record, 'dropped') and record.dropped:
             return True
 
@@ -55,12 +71,13 @@ class Git_Progress(RemoteProgress):
         RemoteProgress.CHECKING_OUT: 'Checking out files'
     }
 
-    def __init__(self, update_ratio=1):
-        super(Git_Progress, self).__init__()
+    def __init__(self, update_ratio: int = 1) -> None:
+        super().__init__()
         self._logger = logging.getLogger()
         self._logger.addFilter(Progress_Filter(update_ratio=update_ratio))
 
-    def update(self, op_code, cur_count, max_count=None, message=''):
+    def update(self, op_code: int, cur_count: int,
+               max_count: Optional[int] = None, message: str = '') -> None:
         stage_op = op_code & RemoteProgress.STAGE_MASK
         action_op = op_code & RemoteProgress.OP_MASK
         if action_op in self._op_codes:
@@ -89,5 +106,5 @@ class Git_Progress(RemoteProgress):
             self._logger.warning('Unexpected Git progress opcode: 0x%x',
                                  op_code, extra={'op_code': op_code})
 
-    def line_dropped(self, line):
+    def line_dropped(self, line: str) -> None:
         self._logger.info('Git: %s', line, extra={'dropped': True})

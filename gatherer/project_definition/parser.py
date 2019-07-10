@@ -12,13 +12,18 @@ import inspect
 import logging
 import sys
 import traceback
-from unittest import mock
+from types import ModuleType
+from typing import Any, AnyStr, Dict, Iterator, List, Mapping, Optional, \
+    Sequence, Set, Tuple, Type, Union
+from unittest.mock import Mock, MagicMock, mock_open, patch
 # Non-standard imports
 from hqlib import domain, metric, metric_source
 from .compatibility import Compatibility, COMPACT_HISTORY, JIRA_FILTER, SONAR
 from ..utils import get_datetime, parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
+
+SourceUrl = Optional[Union[str, Tuple[str, Union[Type, str], str]]]
 
 class Project_Definition_Parser:
     """
@@ -32,7 +37,7 @@ class Project_Definition_Parser:
         "hqlib.domain": ["qualitylib.ecosystem"]
     }
 
-    def __init__(self, context_lines=3, file_time=None):
+    def __init__(self, context_lines: int = 3, file_time: Optional[str] = None) -> None:
         self.context_lines = context_lines
 
         if file_time is None:
@@ -40,12 +45,12 @@ class Project_Definition_Parser:
         else:
             self.file_time = get_datetime(file_time, '%Y-%m-%d %H:%M:%S')
 
-        self.data = {}
+        self.data: Dict[str, Any] = {}
 
         self.domain_objects = self.get_mock_domain_objects(domain, self.DOMAIN)
 
     @staticmethod
-    def filter_member(member, module_name):
+    def filter_member(member: Any, module_name: str) -> bool:
         """
         Check whether a given member of a module is within the domain of objects
         that we need to mock or replace to be able to read the project
@@ -57,7 +62,7 @@ class Project_Definition_Parser:
 
         return False
 
-    def get_mock_domain_objects(self, module, module_name):
+    def get_mock_domain_objects(self, module: ModuleType, module_name: str) -> Dict[str, Type]:
         """
         Create a dictionary of class names and their mocks and replacements.
 
@@ -65,7 +70,7 @@ class Project_Definition_Parser:
         or metric_source.
         """
 
-        domain_objects = {}
+        domain_objects: Dict[str, Type] = {}
         module_filter = lambda member: self.filter_member(member, module_name)
         for name, member in inspect.getmembers(module, module_filter):
             replacement = Compatibility.get_replacement(name, member)
@@ -73,7 +78,7 @@ class Project_Definition_Parser:
 
         return domain_objects
 
-    def format_exception(self, contents, emulate_context=True):
+    def format_exception(self, contents: AnyStr, emulate_context: bool = True) -> RuntimeError:
         """
         Wrap a problem that is encountered while parsing the project definition
         `contents`. This method must be called from an exception context.
@@ -89,15 +94,18 @@ class Project_Definition_Parser:
             if emulate_context:
                 line = traceback.extract_tb(trace)[-1][1]
                 if isinstance(contents, bytes):
-                    contents = contents.decode('utf-8')
-                lines = contents.split('\n')
+                    text = contents.decode('utf-8')
+                else:
+                    text = contents
+                lines = text.split('\n')
                 range_start = max(0, line-self.context_lines-1)
                 range_end = min(len(lines), line+self.context_lines)
                 message += "Context:\n" + '\n'.join(lines[range_start:range_end])
 
         return RuntimeError(message.strip())
 
-    def _format_compatibility_modules(self, root_name, module_parts):
+    def _format_compatibility_modules(self, root_name: str,
+                                      module_parts: List[str]) -> Iterator[str]:
         root_names = [root_name]
         if root_name in self._previous_modules:
             root_names.extend(self._previous_modules[root_name])
@@ -105,14 +113,15 @@ class Project_Definition_Parser:
         for root in root_names:
             yield '.'.join([root] + module_parts)
 
-    def get_compatibility_modules(self, module_path, value):
+    def get_compatibility_modules(self, module_path: str, value: ModuleType) \
+            -> Dict[str, ModuleType]:
         """
         Create a dictionary of a module name extracted from the `module_path`
-        stirng of (sub)modules and a given `value`. The dictionary also contains
+        string of (sub)modules and a given `value`. The dictionary also contains
         names of previous versions for the root module.
         """
 
-        modules = {}
+        modules: Dict[str, ModuleType] = {}
         module_parts = module_path.split('.')
         root_name = None
         for index, part in enumerate(module_parts):
@@ -131,7 +140,7 @@ class Project_Definition_Parser:
 
         return modules
 
-    def get_hqlib_submodules(self):
+    def get_hqlib_submodules(self) -> Dict[str, Mock]:
         """
         Retrieve the submodule mocks that are directly imported from hqlib.
 
@@ -140,27 +149,27 @@ class Project_Definition_Parser:
 
         raise NotImplementedError("Must be extended by subclass")
 
-    def get_mock_modules(self):
+    def get_mock_modules(self) -> Dict[str, ModuleType]:
         """
         Get mock objects for all module imports done by project definitions
         to be able to safely read it.
         """
 
-        hqlib = mock.MagicMock(**self.get_hqlib_submodules())
-        hqlib_domain = mock.MagicMock(**self.domain_objects)
+        hqlib = MagicMock(**self.get_hqlib_submodules())
+        hqlib_domain = MagicMock(**self.domain_objects)
 
         # Mock the internal source module (ictu, backwards compatible: isd) and
         # the reporting module (hqlib, backwards compatible: quality_report,
         # qualitylib) as well as the submodules that the project definition
         # imports.
-        modules = {}
+        modules: Dict[str, ModuleType] = {}
         modules.update(self.get_compatibility_modules('hqlib', hqlib))
         modules.update(self.get_compatibility_modules('hqlib.domain',
                                                       hqlib_domain))
 
         return modules
 
-    def load_definition(self, filename, contents):
+    def load_definition(self, filename: str, contents: AnyStr) -> None:
         """
         Safely read the contents of a project definition file.
 
@@ -171,10 +180,10 @@ class Project_Definition_Parser:
 
         modules = self.get_mock_modules()
 
-        open_mock = mock.mock_open()
+        open_mock = mock_open()
 
-        with mock.patch.dict('sys.modules', modules):
-            with mock.patch(self.__class__.__module__ + '.open', open_mock):
+        with patch.dict('sys.modules', modules):
+            with patch(self.__class__.__module__ + '.open', open_mock):
                 # Load the project definition by executing the contents of
                 # the file with altered module definitions. This should be safe
                 # since all relevant modules and context has been patched.
@@ -196,7 +205,7 @@ class Project_Definition_Parser:
                     # context display using traceback extraction.
                     raise self.format_exception(contents)
 
-    def parse(self):
+    def parse(self) -> Dict[str, Any]:
         """
         Retrieve metric targets from the collected domain objects that were
         specified in the project definition.
@@ -209,7 +218,7 @@ class Project_Definition_Parser:
 
         return self.data
 
-    def filter_domain_object(self, mock_object):
+    def filter_domain_object(self, mock_object: Mock) -> bool:
         """
         Filter a given domain object `mock_object` to check whether we want to
         extract data from its initialization call.
@@ -217,7 +226,8 @@ class Project_Definition_Parser:
 
         raise NotImplementedError("Must be extended by subclass")
 
-    def parse_domain_call(self, mock_object, args, keywords):
+    def parse_domain_call(self, mock_object: Mock, args: Sequence[Any],
+                          keywords: Mapping[str, Any]) -> None:
         """
         Extract data from the domain object initialization call from within the
         project definition.
@@ -226,7 +236,7 @@ class Project_Definition_Parser:
         raise NotImplementedError("Must be extened by subclasses")
 
     @staticmethod
-    def get_class_name(class_type):
+    def get_class_name(class_type: Any) -> str:
         """
         Retrieve the class name for a class type variable or object.
 
@@ -234,9 +244,9 @@ class Project_Definition_Parser:
         from it.
         """
 
-        if isinstance(class_type, mock.Mock):
+        if isinstance(class_type, Mock):
             class_name = class_type.name
-            if isinstance(class_name, mock.Mock):
+            if isinstance(class_name, Mock):
                 # pylint: disable=protected-access
                 class_name = class_type._mock_name
         else:
@@ -252,15 +262,15 @@ class Project_Parser(Project_Definition_Parser):
     A project definition parser that retrieves the project name.
     """
 
-    def get_hqlib_submodules(self):
+    def get_hqlib_submodules(self) -> Dict[str, Mock]:
         return {}
 
-    def get_mock_modules(self):
+    def get_mock_modules(self) -> Dict[str, ModuleType]:
         modules = super(Project_Parser, self).get_mock_modules()
 
-        ictu = mock.MagicMock()
-        ictu_convention = mock.MagicMock()
-        ictu_metric_source = mock.MagicMock()
+        ictu = MagicMock()
+        ictu_convention = MagicMock()
+        ictu_metric_source = MagicMock()
 
         modules.update(self.get_compatibility_modules('ictu', ictu))
         modules.update(self.get_compatibility_modules('ictu.convention',
@@ -270,10 +280,11 @@ class Project_Parser(Project_Definition_Parser):
 
         return modules
 
-    def filter_domain_object(self, mock_object):
+    def filter_domain_object(self, mock_object: Mock) -> bool:
         return isinstance(mock_object, domain.Project)
 
-    def parse_domain_call(self, mock_object, args, keywords):
+    def parse_domain_call(self, mock_object: Mock, args: Sequence[Any],
+                          keywords: Mapping[str, Any]) -> None:
         if "name" in keywords:
             name = keywords["name"]
         elif len(args) > 1:
@@ -309,33 +320,34 @@ class Sources_Parser(Project_Definition_Parser):
 
     DUMMY_URLS = (None, 'dummy', '.', '/')
 
-    def __init__(self, path, **kwargs):
-        super(Sources_Parser, self).__init__(**kwargs)
+    def __init__(self, path: str, context_lines: int = 3,
+                 file_time: Optional[str] = None) -> None:
+        super().__init__(context_lines=context_lines, file_time=file_time)
 
-        self.sys_path = str(path)
+        self.sys_path = path
         self.source_objects = self.get_mock_domain_objects(metric_source,
                                                            self.METRIC_SOURCE)
         self.source_objects.update(self.SOURCE_CLASSES)
         self.source_types = tuple(self.SOURCE_CLASSES.values())
 
-    def get_hqlib_submodules(self):
+    def get_hqlib_submodules(self) -> Dict[str, Mock]:
         return {
-            'metric_source': mock.MagicMock(**self.source_objects)
+            'metric_source': MagicMock(**self.source_objects)
         }
 
-    def get_mock_modules(self):
+    def get_mock_modules(self) -> Dict[str, ModuleType]:
         modules = super(Sources_Parser, self).get_mock_modules()
 
-        hqlib_metric_source = mock.MagicMock(**self.source_objects)
+        hqlib_metric_source = MagicMock(**self.source_objects)
         modules.update(self.get_compatibility_modules(self.METRIC_SOURCE,
                                                       hqlib_metric_source))
 
-        with mock.patch.dict('sys.modules', modules):
+        with patch.dict('sys.modules', modules):
             ictu = importlib.import_module('ictu')
-            ictu.person = mock.MagicMock()
+            setattr(ictu, 'person', MagicMock())
             ictu_metric_source = importlib.import_module('ictu.metric_source')
             ictu_convention = importlib.import_module('ictu.convention')
-            ictu.metric_source = ictu_metric_source
+            setattr(ictu, 'metric_source', ictu_metric_source)
             modules.update(self.get_compatibility_modules('ictu', ictu))
             modules.update(self.get_compatibility_modules('ictu.convention',
                                                           ictu_convention))
@@ -344,14 +356,15 @@ class Sources_Parser(Project_Definition_Parser):
 
         return modules
 
-    def load_definition(self, filename, contents):
-        with mock.patch('sys.path', sys.path + [self.sys_path]):
+    def load_definition(self, filename: str, contents: AnyStr) -> None:
+        with patch('sys.path', sys.path + [self.sys_path]):
             super(Sources_Parser, self).load_definition(filename, contents)
 
-    def filter_domain_object(self, mock_object):
+    def filter_domain_object(self, mock_object: Mock) -> bool:
         return isinstance(mock_object, self.DOMAIN_CLASSES)
 
-    def parse_domain_call(self, mock_object, args, keywords):
+    def parse_domain_call(self, mock_object: Mock, args: Sequence[Any],
+                          keywords: Mapping[str, Any]) -> None:
         if "name" in keywords:
             name = keywords["name"]
         elif len(args) > 1:
@@ -372,8 +385,9 @@ class Sources_Parser(Project_Definition_Parser):
                                                    domain_name,
                                                    from_key=False))
 
-    def _parse_sources(self, keywords, keyword, domain_name, from_key=True):
-        sources = {}
+    def _parse_sources(self, keywords: Mapping[str, Any], keyword: str,
+                       domain_name: str, from_key: bool = True) -> Dict[str, Set[SourceUrl]]:
+        sources: Dict[str, Set[SourceUrl]] = {}
         if keyword not in keywords:
             return sources
 
@@ -396,37 +410,45 @@ class Sources_Parser(Project_Definition_Parser):
         return sources
 
     @staticmethod
-    def _get_source_url(source):
-        if isinstance(source, mock.MagicMock):
+    def _get_source_url(source: domain.DomainObject) -> Optional[str]:
+        if isinstance(source, MagicMock):
             return source.call_args_list[0][0][0]
 
         return source.url()
 
-    def _parse_source_value(self, key, value, domain_name, from_key):
+    def _parse_source_value(self, key: Type, value: Union[Type, str],
+                            domain_name: str, from_key: bool) \
+            -> Tuple[Optional[str], SourceUrl]:
         if from_key and isinstance(key, self.source_types):
-            class_name = self.get_class_name(key)
-            source_url = self._get_source_url(key)
-            if source_url in self.DUMMY_URLS or value.startswith(source_url):
-                source_url = value
-            elif class_name in self.SOURCE_ID_SOURCES and \
-                value not in self.DUMMY_URLS:
-                source_url = (source_url, value, domain_name)
-
-            if not isinstance(source_url, tuple) and \
-                domain_name in self.SOURCES_DOMAIN_FILTER:
-                return None, None
-
-            return class_name, source_url
+            return self._parse_source_key(key, value, domain_name)
 
         if not from_key and isinstance(value, self.source_types):
             class_name = self.get_class_name(value)
             logging.debug('Class name: %s', class_name)
 
-            source_value = self._get_source_url(value)
-            if source_value is not None:
-                return class_name, source_value
+            source_url = self._get_source_url(value)
+            if source_url is not None:
+                return class_name, source_url
 
         return None, None
+
+    def _parse_source_key(self, key: Type, value: Union[Type, str],
+                          domain_name: str) \
+            -> Tuple[Optional[str], SourceUrl]:
+        source_url: SourceUrl = None
+        class_name = self.get_class_name(key)
+        url = self._get_source_url(key)
+        if url is None or url in self.DUMMY_URLS or value.startswith(url):
+            source_url = str(value)
+        elif class_name in self.SOURCE_ID_SOURCES and \
+            value not in self.DUMMY_URLS:
+            source_url = (url, value, domain_name)
+            if domain_name in self.SOURCES_DOMAIN_FILTER:
+                return None, None
+        else:
+            source_url = url
+
+        return class_name, source_url
 
 class Metric_Options_Parser(Project_Definition_Parser):
     """
@@ -440,20 +462,20 @@ class Metric_Options_Parser(Project_Definition_Parser):
         'technical_debt_targets': 'debt_target'
     }
 
-    def filter_domain_object(self, mock_object):
+    def filter_domain_object(self, mock_object: Mock) -> bool:
         return isinstance(mock_object, domain.DomainObject)
 
-    def get_hqlib_submodules(self):
+    def get_hqlib_submodules(self) -> Dict[str, Mock]:
         return {
-            "metric": mock.MagicMock(**metric.__dict__)
+            "metric": MagicMock(**metric.__dict__)
         }
 
-    def get_mock_modules(self):
+    def get_mock_modules(self) -> Dict[str, ModuleType]:
         modules = super(Metric_Options_Parser, self).get_mock_modules()
 
-        ictu = mock.MagicMock()
-        ictu_convention = mock.MagicMock()
-        ictu_metric_source = mock.MagicMock()
+        ictu = MagicMock()
+        ictu_convention = MagicMock()
+        ictu_metric_source = MagicMock()
 
         modules.update(self.get_compatibility_modules('ictu', ictu))
         modules.update(self.get_compatibility_modules('ictu.convention',
@@ -463,7 +485,8 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         return modules
 
-    def parse_domain_call(self, mock_object, args, keywords):
+    def parse_domain_call(self, mock_object: Mock, args: Sequence[Any],
+                          keywords: Mapping[str, Any]) -> None:
         """
         Retrieve metric targets from a singular call within the project
         definition, which may have redefined metric options.
@@ -485,8 +508,9 @@ class Metric_Options_Parser(Project_Definition_Parser):
                                       options={new_key: option},
                                       options_type='old_options')
 
-    def parse_metric(self, name, metric_type, options=None,
-                     options_type='metric_options'):
+    def parse_metric(self, name: str, metric_type: Any,
+                     options: Optional[Dict[str, Any]] = None,
+                     options_type: str = 'metric_options'):
         """
         Update the metric targets for a metric specified in the project
         definition.
@@ -504,7 +528,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
         metric_name = class_name + name
         if metric_name in self.data:
             targets = self.data[metric_name]
-        elif isinstance(metric_type, mock.Mock):
+        elif isinstance(metric_type, Mock):
             # No default data available
             targets = {
                 'low_target': '0',
@@ -539,7 +563,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         self.data[metric_name] = targets
 
-    def parse_debt_target(self, options):
+    def parse_debt_target(self, options: Dict[str, Any]) -> Dict[str, str]:
         """
         Retrieve data regarding a technical debt target.
         """
@@ -550,7 +574,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
                 return {}
 
             datetime_args = {'now.return_value': self.file_time}
-            with mock.patch('datetime.datetime', **datetime_args):
+            with patch('datetime.datetime', **datetime_args): # type: ignore
                 try:
                     debt_target = debt.target_value()
                 except TypeError:

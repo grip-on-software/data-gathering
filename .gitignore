@@ -8,8 +8,12 @@ env
 env.*
 *.cfg
 !.isort.cfg
+!setup.cfg
 *.yml
 *.log
+*.xml
+.mypy_cache/
+mypy-report/
 
 # Deployer
 deployment.json

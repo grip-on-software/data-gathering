@@ -3,29 +3,35 @@ Table structures.
 """
 
 import json
+import os
 from pathlib import Path
 import re
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from copy import copy, deepcopy
 from .salt import Salt
+
+PathLike = Union[str, os.PathLike]
+Value = str
+Row = Dict[str, Value]
 
 class Table:
     """
     Data storage for eventual JSON output for the database importer.
     """
 
-    def __init__(self, name, filename=None, merge_update=False,
-                 encrypt_fields=None):
+    def __init__(self, name: str, filename: Optional[str] = None,
+                 merge_update: bool = False,
+                 encrypt_fields: Optional[Sequence[str]] = None) -> None:
         self._name = name
-        self._data = []
+        self._data: List[Row] = []
         self._merge_update = merge_update
         self._encrypt_fields = encrypt_fields
 
         secrets_path = Path('secrets.json')
+        self._secrets: Optional[Dict[str, Any]] = None
         if self._encrypt_fields is not None and secrets_path.exists():
             with secrets_path.open('r') as secrets_file:
                 self._secrets = json.load(secrets_file)
-        else:
-            self._secrets = None
 
         if filename is None:
             self._filename = f'data_{self._name}.json'
@@ -33,14 +39,17 @@ class Table:
             self._filename = filename
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Retrieve the name of the table.
         """
 
         return self._name
 
-    def _convert_username(self, username):
+    def _convert_username(self, username: str) -> str:
+        if self._secrets is None:
+            return username
+
         for search_set in self._secrets['usernames']:
             if 'pattern' in search_set:
                 pattern = search_set['pattern']
@@ -58,7 +67,7 @@ class Table:
 
         return username
 
-    def _encrypt(self, row):
+    def _encrypt(self, row: Row) -> Row:
         if self._encrypt_fields is None:
             return row
 
@@ -86,14 +95,14 @@ class Table:
         row["encrypted"] = str(1)
         return row
 
-    def get(self):
+    def get(self) -> List[Row]:
         """
         Retrieve a copy of the table data.
         """
 
         return deepcopy(self._data)
 
-    def has(self, row):
+    def has(self, row: Row) -> bool:
         """
         Check whether the `row` (or an identifier contained within) already
         exists within the table.
@@ -105,7 +114,7 @@ class Table:
 
         return self._encrypt(row) in self._data
 
-    def _fetch_row(self, row):
+    def _fetch_row(self, row: Row) -> Row:
         """
         Retrieve a row from the table, and return it without copying.
 
@@ -117,7 +126,7 @@ class Table:
         index = self._data.index(self._encrypt(row))
         return self._data[index]
 
-    def get_row(self, row):
+    def get_row(self, row: Row) -> Optional[Row]:
         """
         Retrieve a row from the table.
 
@@ -135,7 +144,7 @@ class Table:
         except (KeyError, ValueError):
             return None
 
-    def append(self, row):
+    def append(self, row: Row) -> bool:
         """
         Insert a row into the table.
         Subclasses may check whether the row (or some identifier in it) already
@@ -146,14 +155,14 @@ class Table:
         self._data.append(self._encrypt(row))
         return True
 
-    def extend(self, rows):
+    def extend(self, rows: Sequence[Row]) -> None:
         """
         Insert multiple rows at once into the table.
         """
 
         self._data.extend([self._encrypt(row) for row in rows])
 
-    def update(self, search_row, update_row):
+    def update(self, search_row: Row, update_row: Row) -> None:
         """
         Search for a given row `search_row` in the table, and update the fields
         in it using `update_row`.
@@ -169,7 +178,7 @@ class Table:
         row = self._fetch_row(search_row)
         row.update(update_row)
 
-    def write(self, folder):
+    def write(self, folder: PathLike) -> None:
         """
         Export the table data into a file in the given `folder`.
         """
@@ -180,7 +189,7 @@ class Table:
         with Path(folder, self._filename).open('w') as outfile:
             json.dump(self._data, outfile, indent=4)
 
-    def load(self, folder):
+    def load(self, folder: PathLike) -> None:
         """
         Read the table data from the exported file in the given `folder`.
 
@@ -203,19 +212,19 @@ class Key_Table(Table):
     accepting a new row with that key
     """
 
-    def __init__(self, name, key, **kwargs):
-        super(Key_Table, self).__init__(name, **kwargs)
+    def __init__(self, name: str, key: str, **kwargs) -> None:
+        super().__init__(name, **kwargs)
         self._key = key
-        self._keys = {}
+        self._keys: Dict[str, Row] = {}
 
-    def has(self, row):
+    def has(self, row: Row) -> bool:
         return row[self._key] in self._keys
 
-    def _fetch_row(self, row):
+    def _fetch_row(self, row: Row) -> Row:
         key = row[self._key]
         return self._keys[key]
 
-    def append(self, row):
+    def append(self, row: Row) -> bool:
         if self.has(row):
             return False
 
@@ -223,11 +232,11 @@ class Key_Table(Table):
         self._keys[key] = row
         return super(Key_Table, self).append(row)
 
-    def extend(self, rows):
+    def extend(self, rows: Sequence[Row]) -> None:
         for row in rows:
             self.append(row)
 
-    def update(self, search_row, update_row):
+    def update(self, search_row: Row, update_row: Row) -> None:
         if self._key in update_row:
             raise KeyError('Key {} may not be provided in update row'.format(self._key))
 
@@ -239,23 +248,23 @@ class Link_Table(Table):
     a primary key.
     """
 
-    def __init__(self, name, link_keys, **kwargs):
-        super(Link_Table, self).__init__(name, **kwargs)
+    def __init__(self, name: str, link_keys: Sequence[str], **kwargs) -> None:
+        super().__init__(name, **kwargs)
         self._link_keys = link_keys
-        self._links = {}
+        self._links: Dict[Tuple[str, ...], Row] = {}
 
-    def _build_key(self, row):
+    def _build_key(self, row: Row) -> Tuple[str, ...]:
         # Link values used in the key must be hashable
         return tuple(row[key] for key in self._link_keys)
 
-    def has(self, row):
+    def has(self, row: Row) -> bool:
         return self._build_key(row) in self._links
 
-    def _fetch_row(self, row):
+    def _fetch_row(self, row: Row) -> Row:
         key = self._build_key(row)
         return self._links[key]
 
-    def append(self, row):
+    def append(self, row: Row) -> bool:
         link_values = self._build_key(row)
         if link_values in self._links:
             return False
@@ -263,11 +272,11 @@ class Link_Table(Table):
         self._links[link_values] = row
         return super(Link_Table, self).append(row)
 
-    def extend(self, rows):
+    def extend(self, rows: Sequence[Row]) -> None:
         for row in rows:
             self.append(row)
 
-    def update(self, search_row, update_row):
+    def update(self, search_row: Row, update_row: Row) -> None:
         disallowed_keys = set(self._link_keys).intersection(update_row.keys())
         if disallowed_keys:
             key_text = 'Key' if len(disallowed_keys) == 1 else 'Keys'

@@ -2,7 +2,7 @@
 Module for initializing logging.
 """
 
-from argparse import ArgumentError
+from argparse import ArgumentParser, ArgumentError, Namespace
 import logging
 from logging.handlers import HTTPHandler
 import os
@@ -26,7 +26,7 @@ class Log_Setup:
     ]
 
     @classmethod
-    def is_ignored(cls, message):
+    def is_ignored(cls, message: str) -> bool:
         """
         Check whether the given log message is ignored with regard to the
         overall status of the action log.
@@ -36,7 +36,7 @@ class Log_Setup:
 
 
     @staticmethod
-    def add_argument(parser, default='WARNING'):
+    def add_argument(parser: ArgumentParser, default: str = 'WARNING') -> None:
         """
         Register a log level argument in an argument parser.
         """
@@ -46,7 +46,7 @@ class Log_Setup:
                             help='log level ({} by default)'.format(default))
 
     @staticmethod
-    def add_upload_arguments(parser):
+    def add_upload_arguments(parser: ArgumentParser) -> None:
         """
         Add additional arguments to configure the transfer of logging data to
         a controller API server. This only applies if the script is running
@@ -72,7 +72,7 @@ class Log_Setup:
             return
 
     @classmethod
-    def parse_args(cls, args):
+    def parse_args(cls, args: Namespace) -> None:
         """
         Retrieve the log level from parsed arguments and configure log packet
         uploading if possible.
@@ -84,7 +84,7 @@ class Log_Setup:
             cls.add_agent_handler(args.ssh, args.cert, args.project)
 
     @staticmethod
-    def init_logging(log_level):
+    def init_logging(log_level: str) -> None:
         """
         Initialize logging for the scraper process.
         """
@@ -93,7 +93,7 @@ class Log_Setup:
                             level=getattr(logging, log_level.upper(), None))
 
     @staticmethod
-    def add_agent_handler(host, cert_file, project_key):
+    def add_agent_handler(host: str, cert_file: str, project_key: str) -> None:
         """
         Create a HTTPS-based logging handler that sends logging messages to
         the controller server.

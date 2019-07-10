@@ -2,7 +2,7 @@
 Script to import dumps of BigBoat health status information into a database.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import json
 import logging
 from pathlib import Path
@@ -13,7 +13,7 @@ from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
@@ -21,7 +21,7 @@ def parse_args():
     config = Configuration.get_settings()
 
     description = 'Import BigBoat status dump into database'
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('project', help='project key to import for')
     parser.add_argument('--path', default=None,
                         help='local path to the JSON file')
@@ -38,7 +38,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
