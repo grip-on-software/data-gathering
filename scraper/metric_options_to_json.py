@@ -3,12 +3,6 @@ Script to parse historical project definitions and extract metric targets from
 these versions into JSON output.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import logging
 

@@ -2,15 +2,9 @@
 Internal daemon for handling update tracking and project salt requests,
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 from datetime import datetime, timedelta
 import json
-import os.path
+from pathlib import Path
 import pymonetdb
 import Pyro4
 from gatherer.bigboat import Statuses
@@ -23,7 +17,7 @@ from gatherer.update import Database_Tracker
 from gatherer.utils import get_datetime
 
 @Pyro4.expose
-class Gatherer(object):
+class Gatherer:
     """
     Object that updates the agent directory and retrieves salts.
     """
@@ -140,7 +134,7 @@ class Gatherer(object):
         """
 
         # Put all update trackers in a separate directory.
-        update_directory = os.path.join(home_directory, 'update')
+        update_directory = Path(home_directory, 'update')
 
         project = Project(project_key,
                           export_directory=update_directory,

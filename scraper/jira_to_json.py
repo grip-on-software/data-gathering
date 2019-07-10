@@ -3,12 +3,6 @@ Script to retrieve JIRA issue data and convert it to JSON format readable by
 the database importer.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 from gatherer.config import Configuration
 from gatherer.jira import Jira, Updated_Time, Update_Tracker

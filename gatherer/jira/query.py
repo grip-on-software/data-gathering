@@ -3,11 +3,10 @@ Module that handles the JIRA API query.
 """
 
 import logging
-from builtins import str, object
 from datetime import datetime
 from ..utils import format_date, Iterator_Limiter
 
-class Query(object):
+class Query:
     """
     Object that handles the JIRA API query using limiting.
     """

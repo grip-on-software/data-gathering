@@ -2,27 +2,15 @@
 Authentication API for external agents.
 """
 
-from __future__ import print_function
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import object
 import cgi
 import cgitb
 import json
 import sys
-import tempfile
-try:
-    import urllib.parse
-except ImportError:
-    raise
+import urllib.parse
 import etcd3
 import Pyro4
 
-class Permissions(object):
+class Permissions:
     """
     Object that updates access and permissions for a project's agent.
     """
@@ -73,7 +61,7 @@ class Permissions(object):
 
         self._controller.update_permissions(self._project_key, self._agent_key)
 
-class Response(object):
+class Response:
     """
     Object that formulates the response and writes additional files.
     """
@@ -104,7 +92,7 @@ class Response(object):
 
         return self._gatherer.get_usernames(self._project_key)
 
-class Parameters(object):
+class Parameters:
     """
     Object that holds GET and POST data from a CGI request.
     """
@@ -142,16 +130,6 @@ class Parameters(object):
             raise RuntimeError('Exactly one public key must be provided in POST')
 
         return self._post_data["public_key"][0]
-
-def get_temp_filename():
-    """
-    Retrieve a secure (not guessable) temporary file name.
-    """
-
-    with tempfile.NamedTemporaryFile() as tmpfile:
-        filename = tmpfile.name
-
-    return filename
 
 def setup_log():
     """

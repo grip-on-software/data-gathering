@@ -2,13 +2,6 @@
 API to collect log packets from an agent.
 """
 
-from __future__ import print_function
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import cgi
 import cgitb
 import Pyro4

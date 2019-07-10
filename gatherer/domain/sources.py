@@ -4,7 +4,7 @@ Collections of sources.
 
 from collections import MutableSet
 import json
-import os
+from pathlib import Path
 from .source import Source
 
 class Sources(MutableSet):
@@ -27,8 +27,9 @@ class Sources(MutableSet):
         Import a JSON file containing source dictionaries into the collection.
         """
 
-        if os.path.exists(path):
-            with open(path, 'r') as sources_file:
+        sources_path = Path(path)
+        if sources_path.exists():
+            with sources_path.open('r') as sources_file:
                 sources = json.load(sources_file)
                 self.load_sources(sources)
 

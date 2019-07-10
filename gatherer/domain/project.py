@@ -2,14 +2,7 @@
 Project domain object
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import object
-import os
+from pathlib import Path
 from ..config import Configuration
 from .source import Source
 from .source.github import GitHub
@@ -17,7 +10,7 @@ from .source.gitlab import GitLab
 from .source.tfs import TFS
 from .sources import Sources
 
-class Project_Meta(object):
+class Project_Meta:
     """
     Class that holds information that may span multiple projects.
     """
@@ -131,7 +124,7 @@ class Project(Project_Meta):
 
         self._project_definitions = None
 
-        sources_path = os.path.join(self.export_key, 'data_sources.json')
+        sources_path = self.export_key / 'data_sources.json'
         self._sources = Sources(sources_path,
                                 follow_host_change=follow_host_change)
 
@@ -182,8 +175,8 @@ class Project(Project_Meta):
         Ensure that the export directory exists, or create it if it is missing.
         """
 
-        if not os.path.exists(self.export_key):
-            os.makedirs(self.export_key)
+        if not self.export_key.exists():
+            self.export_key.mkdir(parents=True)
 
     def export_sources(self):
         """
@@ -193,8 +186,7 @@ class Project(Project_Meta):
 
         self.make_export_directory()
         self._sources.export()
-        environments_path = os.path.join(self.export_key,
-                                         'data_environments.json')
+        environments_path = self.export_key / 'data_environments.json'
         self._sources.export_environments(environments_path)
 
     @property
@@ -211,7 +203,7 @@ class Project(Project_Meta):
         Retrieve the directory path used for project data exports.
         """
 
-        return os.path.join(self.export_directory, self._project_key)
+        return Path(self.export_directory, self._project_key)
 
     @property
     def update_key(self):
@@ -220,7 +212,7 @@ class Project(Project_Meta):
         from a synchronization server.
         """
 
-        return os.path.join(self.update_directory, self._project_key)
+        return Path(self.update_directory, self._project_key)
 
     @property
     def dropins_key(self):
@@ -228,7 +220,7 @@ class Project(Project_Meta):
         Retrieve the directory path where dropins for this project may be found.
         """
 
-        return os.path.join('dropins', self._project_key)
+        return Path('dropins', self._project_key)
 
     @property
     def key(self):

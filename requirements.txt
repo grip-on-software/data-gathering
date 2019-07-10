@@ -14,20 +14,14 @@ requests
 requests_ntlm
 ordered-set
 # gatherer.project_definition
-mock
 git+https://github.com/wekan/wekan-python-api-client.git@master#egg=wekanapi&subdirectory=src
-quality_report<=1.79.3; python_version < '3.0'
-quality_report>=2.84.2; python_version >= '3.0'
-enum34; python_version < '3.4'
+quality_report>=2.84.2
 # gatherer.database
 pymonetdb
 # gatherer.files
 pyocclient
 # gatherer.salt
 bcrypt
-# Python compatibility
-future
-configparser
 # bigboat_to_json.py
 bigboat
 # generate_key.py

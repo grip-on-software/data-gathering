@@ -2,11 +2,10 @@
 Updated time trackers
 """
 
-from builtins import object
-import os
+from pathlib import Path
 from ..utils import get_datetime
 
-class Updated_Time(object):
+class Updated_Time:
     """
     Tracker for the latest update time from which we query for newly updated
     issues.
@@ -43,7 +42,7 @@ class Updated_Time(object):
 
         return self._date
 
-class Update_Tracker(object):
+class Update_Tracker:
     """
     Tracker for the update time which controls the storage of this timestamp.
     """
@@ -55,7 +54,7 @@ class Update_Tracker(object):
 
     def __init__(self, project, updated_since=None):
         self.updated_since = updated_since
-        self.filename = os.path.join(project.export_key, 'jira-updated.txt')
+        self.filename = Path(project.export_key, 'jira-updated.txt')
 
     def get_updated_since(self):
         """
@@ -63,8 +62,8 @@ class Update_Tracker(object):
         """
 
         if self.updated_since is None:
-            if os.path.exists(self.filename):
-                with open(self.filename, 'r') as update_file:
+            if self.filename.exists():
+                with self.filename.open('r') as update_file:
                     self.updated_since = update_file.read().strip()
             else:
                 self.updated_since = self.NULL_TIMESTAMP
@@ -76,5 +75,5 @@ class Update_Tracker(object):
         Store a new latest update time for later reuse.
         """
 
-        with open(self.filename, 'w') as update_file:
+        with self.filename.open('w') as update_file:
             update_file.write(new_updated_since)

@@ -2,19 +2,12 @@
 API to track dashboard status (on POST) or provide controller status (on GET).
 """
 
-from __future__ import print_function
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import str
 import cgi
 import cgitb
 import ipaddress
 import json
 import os
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler
 import psutil
 import etcd3
@@ -22,7 +15,7 @@ import Pyro4
 
 from gatherer.config import Configuration
 
-class Status(object):
+class Status:
     """
     A status provider.
     """
@@ -267,8 +260,8 @@ class Configuration_Status(Status):
         return 'configuration'
 
     def generate(self):
-        env_filename = os.getenv('CONTROLLER_ENV_FILE', 'env')
-        if not os.path.exists(env_filename):
+        env_path = Path(os.getenv('CONTROLLER_ENV_FILE', 'env'))
+        if not env_path.exists():
             return {
                 'ok': False,
                 'message': 'Agent environment configuration is missing'
@@ -280,7 +273,7 @@ class Configuration_Status(Status):
                 'message': 'Cannot look up environment due to other problems'
             }
 
-        with open(env_filename) as env_file:
+        with env_path.open('r') as env_file:
             return {
                 'ok': True,
                 'contents': env_file.read()

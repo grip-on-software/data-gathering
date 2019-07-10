@@ -3,30 +3,24 @@ Module that handles access to a GitLab-based repository, augmenting the usual
 repository version information with merge requests and commit comments.
 """
 
-from __future__ import absolute_import
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import str
 import json
 import logging
-import os
+from pathlib import Path
+from typing import Collection
 from git import GitCommandError
 from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
 from .repo import Git_Repository, RepositorySourceException
 from ..table import Table, Key_Table
 from ..utils import get_local_datetime, parse_utc_date, parse_unicode
+from ..version_control.repo import Version_Control_Repository
 from ..version_control.review import Review_System
 
-class GitLab_Dropins_Parser(object):
+class GitLab_Dropins_Parser:
     """
     Parser for dropins containing an exported version of GitLab API responses.
     """
 
-    def __init__(self, repo, filename):
+    def __init__(self, repo: Version_Control_Repository, filename: Path):
         self._repo = repo
         self._filename = filename
 
@@ -56,11 +50,11 @@ class GitLab_Dropins_Parser(object):
 
         logging.info('Repository %s: Checking dropin file %s',
                      self.repo.repo_name, self._filename)
-        if not os.path.exists(self._filename):
+        if not self._filename.exists():
             logging.info('Dropin file %s does not exist', self._filename)
             return False
 
-        with open(self._filename, 'r') as dropin_file:
+        with self._filename.open('r') as dropin_file:
             data = json.load(dropin_file)
 
         return self._parse(data)
@@ -78,14 +72,14 @@ class GitLab_Table_Dropins_Parser(GitLab_Dropins_Parser):
         super(GitLab_Table_Dropins_Parser, self).__init__(repo, filename)
 
         self._table = None
-        basename = os.path.basename(self.filename)
+        basename = self.filename.name
         if basename.startswith('data_') and basename.endswith('.json'):
             table_name = filename[len('data_'):-len('.json')]
             tables = self.repo.tables
             if table_name in tables:
                 self._table = tables[table_name]
 
-    def _parse(self, data):
+    def _parse(self, data: Collection):
         if self._table is None:
             logging.warning('Could not deduce dropins table name from file %s',
                             self.filename)
@@ -141,7 +135,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         has_dropins = False
         has_table_dropins = False
         for table_dropin_file in self._table_dropin_files:
-            filename = os.path.join(project.dropins_key, table_dropin_file)
+            filename = Path(project.dropins_key, table_dropin_file)
             if self._check_dropin_file(GitLab_Table_Dropins_Parser, filename):
                 has_table_dropins = True
 
@@ -152,9 +146,9 @@ class GitLab_Repository(Git_Repository, Review_System):
         return has_dropins
 
     def _check_update_file(self, project):
-        update_path = os.path.join(project.dropins_key, 'gitlab_update.json')
-        if os.path.exists(update_path):
-            with open(update_path) as update_file:
+        update_path = Path(project.dropins_key, 'gitlab_update.json')
+        if update_path.exists():
+            with update_path.open('r') as update_file:
                 update_times = json.load(update_file)
                 if self.repo_name in update_times:
                     update_time = update_times[self.repo_name]

@@ -6,7 +6,7 @@ import argparse
 from datetime import datetime
 import json
 import logging
-import os
+from pathlib import Path
 import sys
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -47,23 +47,22 @@ def write_configuration(project, response):
     """
 
     if 'configuration' in response and 'contents' in response['configuration']:
-        env_filename = os.path.join(project.export_key, 'preflight_env')
+        env_filename = project.export_key / 'preflight_env'
         with open(env_filename, 'w') as env_file:
             env_file.write(response['configuration']['contents'])
 
-def check_secrets(filename):
+def check_secrets(path):
     """
     Check whether the secrets file contains all required options.
     """
 
-    with open(filename) as secrets_file:
+    with path.open('r') as secrets_file:
         secrets = json.load(secrets_file)
         if 'salts' in secrets and \
             'salt' in secrets['salts'] and 'pepper' in secrets['salts']:
             return True
 
-        logging.critical('Secrets file %s does not contain salt and pepper',
-                         filename)
+        logging.critical('Secrets file %s does not contain salts', path)
         return False
 
 def check_controller(host, cert, project):
@@ -115,11 +114,11 @@ def perform_checks(args, project):
 
     errors = []
     if args.secrets:
-        if not os.path.exists(args.secrets):
-            logging.critical('Secrets file %s is not available',
-                             args.secrets)
+        secrets = Path(args.secrets)
+        if not secrets.exists():
+            logging.critical('Secrets file %s is not available', secrets)
             errors.append('secrets-missing')
-        elif not check_secrets(args.secrets):
+        elif not check_secrets(secrets):
             errors.append('secrets-format')
 
     if args.ssh:
@@ -141,8 +140,8 @@ def main():
     if errors and not args.skip:
         return 1
 
-    date_filename = os.path.join(project.export_key, 'preflight_date.txt')
-    with open(date_filename, 'w') as date_file:
+    date_path = project.export_key / 'preflight_date.txt'
+    with date_path.open('w') as date_file:
         date_file.write(format_date(datetime.now()))
 
     return 0

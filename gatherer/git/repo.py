@@ -2,11 +2,10 @@
 Module that handles access to and remote updates of a Git repository.
 """
 
-from builtins import str
 import datetime
 from io import BytesIO
 import logging
-import os
+from pathlib import Path
 import re
 import shutil
 import tempfile
@@ -19,7 +18,7 @@ from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator
 from ..version_control.repo import Change_Type, Version_Control_Repository, \
     RepositoryDataException, RepositorySourceException, FileNotFoundException
 
-class Sparse_Checkout_Paths(object):
+class Sparse_Checkout_Paths:
     """
     Reader and writer for the sparse checkout information file that tracks which
     paths should be checked out in a sparse checkout of the repository.
@@ -33,7 +32,7 @@ class Sparse_Checkout_Paths(object):
 
     def __init__(self, repo):
         self._repo = repo
-        self._path = os.path.join(self._repo.git_dir, self.PATH, self.FILE)
+        self._path = Path(self._repo.git_dir, self.PATH, self.FILE)
 
     def get(self):
         """
@@ -41,14 +40,14 @@ class Sparse_Checkout_Paths(object):
         information file.
         """
 
-        if os.path.exists(self._path):
-            with open(self._path) as sparse_file:
+        if self._path.exists():
+            with self._path.open('r') as sparse_file:
                 return OrderedSet(sparse_file.read().split('\n'))
 
         return OrderedSet()
 
     def _write(self, paths):
-        with open(self._path, 'w') as sparse_file:
+        with self._path.open('w') as sparse_file:
             sparse_file.write('\n'.join(paths))
 
     def set(self, paths, append=True):
@@ -206,7 +205,7 @@ class Git_Repository(Version_Control_Repository):
         pull = kwargs.pop('pull', False)
 
         repository = cls(source, repo_directory, **kwargs)
-        if os.path.exists(repo_directory):
+        if repository.repo_directory.exists():
             if not pull:
                 return repository
 
@@ -232,7 +231,7 @@ class Git_Repository(Version_Control_Repository):
     def _cleanup(self):
         logging.warning('Deleting clone to make way in %s', self.repo_directory)
         try:
-            shutil.rmtree(self.repo_directory)
+            shutil.rmtree(str(self.repo_directory))
         except OSError as error:
             raise RepositorySourceException(str(error))
 
@@ -315,7 +314,7 @@ class Git_Repository(Version_Control_Repository):
             try:
                 # Use property setter so that the environment credentials path
                 # is also updated.
-                self.repo = Repo(self._repo_directory)
+                self.repo = Repo(str(self._repo_directory))
             except (InvalidGitRepositoryError, NoSuchPathError) as error:
                 raise RepositorySourceException('Invalid or nonexistent path: {}'.format(error))
 
@@ -362,7 +361,7 @@ class Git_Repository(Version_Control_Repository):
                     tmpfile.write('{} $*'.format(ssh_command).encode('utf-8'))
                     command_filename = tmpfile.name
 
-                os.chmod(command_filename, 0o700)
+                Path(command_filename).chmod(0o700)
                 environment['GIT_SSH'] = command_filename
                 logging.debug('Command filename: %s', command_filename)
             else:

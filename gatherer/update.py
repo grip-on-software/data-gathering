@@ -2,15 +2,15 @@
 Module for synchronizing update tracker files.
 """
 
-from builtins import object
 import datetime
 import logging
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 from .database import Database
 
-class Update_Tracker(object):
+class Update_Tracker:
     """
     Abstract source with update tracker files.
     """
@@ -56,10 +56,10 @@ class Update_Tracker(object):
 
         logging.debug('Filename: %s, remote updated: %s', filename, update_date)
 
-        path = os.path.join(self._project.export_key, filename)
+        path = Path(self._project.export_key, filename)
         update = True
-        if os.path.exists(path):
-            file_date = datetime.datetime.fromtimestamp(os.path.getmtime(path))
+        if path.exists():
+            file_date = datetime.datetime.fromtimestamp(path.stat().st_mtime)
             logging.debug('FS updated: %s', file_date)
             if file_date >= update_date:
                 logging.info('Update tracker %s: Already up to date.', filename)
@@ -67,7 +67,7 @@ class Update_Tracker(object):
 
         if update:
             logging.info('Updating file %s from remote tracker file', filename)
-            with open(path, 'w') as tracker_file:
+            with path.open('w') as tracker_file:
                 tracker_file.write(contents)
 
             times = (datetime.datetime.now(), update_date)

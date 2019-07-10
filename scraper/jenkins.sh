@@ -263,6 +263,7 @@ if [ -z "$SKIP_REQUIREMENTS" ]; then
 	log_info "Installing Python dependencies"
 	pip install -r requirements-jenkins.txt
 	python setup.py install
+	pip install -I python-gitlab
 fi
 
 # Retrieve Java importer

@@ -2,14 +2,8 @@
 SonarQube code quality inspection system source domain object.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import logging
-from requests.exceptions import ConnectionError, HTTPError, Timeout
+from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from ...config import Configuration
 from ...request import Session
 from .types import Source, Source_Types
@@ -46,6 +40,6 @@ class Sonar(Source):
             url = '{}/api/server/version'.format(self.url.rstrip('/'))
             response = session.get(url, timeout=3)
             return response.text
-        except (ConnectionError, HTTPError, Timeout):
+        except (ConnectError, HTTPError, Timeout):
             self._blacklisted = True
             return ''

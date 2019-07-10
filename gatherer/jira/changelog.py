@@ -2,13 +2,12 @@
 Module that handles issue changelog data.
 """
 
-from builtins import str, object
 import logging
 
 from .base import Base_Changelog_Field
 from .field import Changelog_Primary_Field, Changelog_Field
 
-class Changelog(object):
+class Changelog:
     """
     Changelog parser.
     """

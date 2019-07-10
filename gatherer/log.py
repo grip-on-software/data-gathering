@@ -3,7 +3,6 @@ Module for initializing logging.
 """
 
 from argparse import ArgumentError
-from builtins import object
 import logging
 from logging.handlers import HTTPHandler
 import os
@@ -11,7 +10,7 @@ import re
 import ssl
 from .config import Configuration
 
-class Log_Setup(object):
+class Log_Setup:
     """
     Utility class that initializes and registers logging options.
     """

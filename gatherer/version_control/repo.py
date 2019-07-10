@@ -2,9 +2,8 @@
 Base module that defines an abstract version control system repository.
 """
 
-from builtins import str
-from builtins import object
 from enum import Enum, unique
+from pathlib import Path
 import logging
 
 class RepositoryDataException(RuntimeError):
@@ -14,23 +13,17 @@ class RepositoryDataException(RuntimeError):
     to the input of unexpected parameters.
     """
 
-    pass
-
 class RepositorySourceException(RuntimeError):
     """
     Exception that indicates that a call that updates the local states of the
     repository from its source has failed due to source problems.
     """
 
-    pass
-
 class FileNotFoundException(RuntimeError):
     """
     Exception that indicates that a `Version_Control_Repository.get_contents`
     call failed due to an invalid or missing file.
     """
-
-    pass
 
 @unique
 class Change_Type(Enum):
@@ -58,7 +51,7 @@ class Change_Type(Enum):
 
         raise ValueError('Label {} is not a valid change type'.format(label))
 
-class Version_Control_Repository(object):
+class Version_Control_Repository:
     """
     Abstract repository interface for a version control system.
     """
@@ -79,7 +72,7 @@ class Version_Control_Repository(object):
 
         self._source = source
         self._repo_name = source.name
-        self._repo_directory = repo_directory
+        self._repo_directory = Path(repo_directory)
 
         self._sprints = sprints
         self._project = project
@@ -176,6 +169,8 @@ class Version_Control_Repository(object):
         Retrieve the repository directory of this version control system.
 
         The directory may be a local checkout or data store of the repository.
+
+        The directory is returned as a `Path` object.
         """
 
         return self._repo_directory
@@ -292,12 +287,10 @@ class Version_Control_Repository(object):
 
     def _cleanup(self):
         """
-        Clean up the local state of the repository. The repository may be removed
-        as a whole in order to start from a clean slate next time the repository
-        is processed.
+        Clean up the local state of the repository. The repository may be
+        removed as a whole in order to start from a clean slate next time
+        the repository is processed.
         """
-
-        pass
 
     def get_latest_version(self):
         """

@@ -2,13 +2,6 @@
 API to perform an export of collected agent data.
 """
 
-from __future__ import print_function
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import cgi
 import cgitb
 import json

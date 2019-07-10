@@ -2,17 +2,7 @@
 Jira issue tracker source domain object.
 """
 
-from __future__ import absolute_import
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-try:
-    import urllib.parse
-except ImportError:
-    raise
+import urllib.parse
 from jira import JIRA
 from jira.exceptions import JIRAError
 from .types import Source, Source_Types

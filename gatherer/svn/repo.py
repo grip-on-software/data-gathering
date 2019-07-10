@@ -2,9 +2,8 @@
 Module that handles access to and remote updates of a Subversion repository.
 """
 
-from builtins import str
 import logging
-import os.path
+from pathlib import Path
 # Non-standard imports
 import dateutil.tz
 import svn.common
@@ -99,9 +98,9 @@ class Subversion_Repository(Version_Control_Repository):
     @property
     def repo(self):
         if self._repo is None:
-            path = os.path.expanduser(self._repo_directory)
+            path = Path(self._repo_directory).expanduser()
             env = self._create_environment(self.source)
-            self._repo = svn.local.LocalClient(path, **env)
+            self._repo = svn.local.LocalClient(str(path), **env)
 
         return self._repo
 

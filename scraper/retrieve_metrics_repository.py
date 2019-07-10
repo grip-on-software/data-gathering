@@ -5,7 +5,7 @@ with quality metrics.
 
 import argparse
 import logging
-import os
+from pathlib import Path
 import shutil
 from gatherer.domain import Project
 from gatherer.domain.source.git import Git
@@ -46,10 +46,9 @@ def delete_repository(source, repo_path, paths=None):
         repo_class = source.repository_class
         repository = repo_class(source, repo_path)
         repository.checkout_sparse(paths, remove=True)
-        return
-    elif os.path.exists(repo_path):
+    elif repo_path.exists():
         logging.info('Deleting quality metrics repository %s', repo_path)
-        shutil.rmtree(repo_path)
+        shutil.rmtree(str(repo_path))
     else:
         logging.warning('Local quality metrics repository %s did not exist',
                         repo_path)
@@ -66,7 +65,7 @@ def retrieve_repository(source, repo_path, paths=True, force=False):
         logging.info('Pulling quality metrics repository %s', repo_path)
         repository = repo_class.from_source(source, repo_path, checkout=paths,
                                             force=force)
-    elif os.path.exists(repo_path):
+    elif repo_path.exists():
         logging.info('Updating quality metrics repository %s', repo_path)
         repository = repo_class(source, repo_path)
         repository.checkout_sparse(paths)
@@ -81,8 +80,8 @@ def cleanup_repository(source, repo_path):
     in it.
     """
 
-    git_directory = os.path.join(repo_path, '.git')
-    if os.path.exists(repo_path) and not os.path.exists(git_directory):
+    git_path = repo_path / '.git'
+    if repo_path.exists() and not git_path.exists():
         # The sparse clone has not yet been created (no .git directory)
         # but it must be placed in the root directory of the clones.
         # The other clones must be removed before the clone operation.
@@ -106,9 +105,9 @@ def main():
     default_repo_path = project.get_key_setting('definitions', 'path',
                                                 project.quality_metrics_name)
     if args.repo is not None:
-        repo_path = args.repo
+        repo_path = Path(args.repo)
     else:
-        repo_path = default_repo_path
+        repo_path = Path(default_repo_path)
 
     required_paths = project.get_key_setting('definitions', 'required_paths')
     if required_paths:
@@ -129,8 +128,8 @@ def main():
         paths = True
 
     base = project.get_key_setting('definitions', 'base')
-    base_path = project.get_key_setting('definitions', 'path', base,
-                                        project=False)
+    base_path = Path(project.get_key_setting('definitions', 'path', base,
+                                             project=False))
     base_source = project.make_project_definitions(base=True)
 
     if args.delete:

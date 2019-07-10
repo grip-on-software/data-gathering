@@ -6,7 +6,7 @@ import pymonetdb
 from .database import Database
 from .utils import convert_local_datetime, format_date, get_utc_datetime, parse_date
 
-class Statuses(object):
+class Statuses:
     """
     Conversion of BigBoat status items to event records suitable for MonetDB.
     """

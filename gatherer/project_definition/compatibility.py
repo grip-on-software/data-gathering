@@ -3,13 +3,12 @@ Module that increases compatibility with earlier project definitions by
 augmenting the hqlib module with replacement domain objects.
 """
 
-from builtins import object
-import mock
-from hqlib import domain, metric_source
+from unittest.mock import Mock, MagicMock
+from hqlib import domain
 
 # Define some classes that are backward compatible with earlier versions of
 # hqlib (quality_report, qualitylib). This suppresses argument exceptions.
-class Compatibility(object):
+class Compatibility:
     """
     Handler for classes that are backward compatible with earlier versions
     of those classes in distributed modules.
@@ -43,7 +42,7 @@ class Compatibility(object):
         if member in cls.replacements:
             return cls.replacements[member]
 
-        replacement = mock.Mock(name=name, spec_set=member)
+        replacement = Mock(name=name, spec_set=member)
 
         configuration = {
             'name': name,
@@ -82,7 +81,7 @@ def produce_mock(name):
     """
 
     def __new__(cls, *args, **kwargs):
-        obj = mock.MagicMock(spec=cls)
+        obj = MagicMock(spec=cls)
         obj.name = cls.__name__
         obj(*args, **kwargs)
         return obj

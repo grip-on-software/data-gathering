@@ -14,9 +14,7 @@ objects with properties.
 
 ## Installation
 
-The data gathering scripts and modules require Python version 2.7.x or 3.6+. 
-Certain webservice daemons only work on Python 2.7.x due to dependencies, while 
-some gathering scripts only work on Python 3 for similar reasons.
+The data gathering scripts and modules require Python version 3.6+.
 
 The scripts and modules are two separate concepts with regard to installation: 
 the data gathering module `gatherer` must be installed so that the scripts can 
@@ -61,7 +59,7 @@ gatherer can use:
     - Azure DevOps: Tested with TFS versions 2015, 2017 and 2018.
   - Subversion: Tested with server version 1.6 and later and client version 1.7 
     and later.
-- Quality report: Works with 1.79 on Python 2 and 2.21 or later on Python 3.
+- Quality report: Works with 2.21 or later on Python 3.
 - SonarQube: Works with version 7 and later.
 - BigBoat: Works with BigBoat version 5.0 and later.
 

@@ -2,18 +2,9 @@
 Data source domain object
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import object
 import os
-try:
-    import urllib.parse
-except ImportError:
-    raise
+from pathlib import Path
+import urllib.parse
 from ...config import Configuration
 
 class Source_Type_Error(ValueError):
@@ -21,7 +12,7 @@ class Source_Type_Error(ValueError):
     An error that the source type is not supported.
     """
 
-class Source_Types(object):
+class Source_Types:
     """
     Holder for source type registration
     """
@@ -74,7 +65,7 @@ class Source_Types(object):
 
         return source_class(source_type, **source_data)
 
-class Source(object):
+class Source:
     """
     Interface for source information about various types of data sources.
     """
@@ -206,7 +197,7 @@ class Source(object):
         # If 'env' is given, set a credentials path to an identity key.
         if self.has_option(host, 'env'):
             credentials_env = self._credentials.get(host, 'env')
-            self._credentials_path = os.getenv(credentials_env)
+            self.credentials_path = os.getenv(credentials_env)
 
         auth = username + '@' + hostname
         path = orig_parts.path
@@ -374,18 +365,6 @@ class Source(object):
         return None
 
     @property
-    def credentials_path(self):
-        """
-        Retrieve a path to a file that contains credentials for this source.
-
-        The file may be a SSH private key, depending on the source type.
-        If there is no such file configured for this source, then this property
-        returns `None`.
-        """
-
-        return self._credentials_path
-
-    @property
     def version(self):
         """
         Retrieve relevant version information as a string for this source.
@@ -396,6 +375,18 @@ class Source(object):
 
         return ''
 
+    @property
+    def credentials_path(self):
+        """
+        Retrieve a path to a file that contains credentials for this source.
+
+        The file may be a SSH private key, depending on the source type. The
+        path is returned as a `Path` object. If there is no such file
+        configured for this source, then this property returns `None`.
+        """
+
+        return self._credentials_path
+
     @credentials_path.setter
     def credentials_path(self, value):
         """
@@ -405,7 +396,10 @@ class Source(object):
         not using SSH.
         """
 
-        self._credentials_path = value
+        if value is None:
+            self._credentials_path = None
+        else:
+            self._credentials_path = Path(value)
 
     def get_option(self, option):
         """

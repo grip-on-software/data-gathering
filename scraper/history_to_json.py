@@ -3,14 +3,6 @@ Script to obtain a metrics history file and convert it to a JSON format
 readable by the database importer.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import str
-from past.builtins import basestring
 import argparse
 from contextlib import contextmanager
 import ast
@@ -19,7 +11,7 @@ import io
 import itertools
 import json
 import logging
-import os
+from pathlib import Path, PurePath
 import shutil
 # Non-standard imports
 from gatherer.config import Configuration
@@ -140,7 +132,7 @@ def check_sparse_base(export_path):
     a repository containing multiple project's histories are cloned to.
     """
 
-    return '/' not in export_path.rstrip('/')
+    return '/' not in str(export_path).rstrip('/')
 
 def get_gitlab_url(project, args):
     """
@@ -180,6 +172,7 @@ def get_gitlab_path(project, args):
     export_path = get_setting(args.export_path, 'path', project)
     if not Configuration.has_value(export_path):
         return None, None
+    export_path = Path(export_path)
 
     gitlab_url = get_setting(args.url, 'url', project)
     if not Configuration.has_value(gitlab_url):
@@ -188,20 +181,20 @@ def get_gitlab_path(project, args):
         return export_path, None
 
     delete = get_setting(args.delete, 'delete', project, boolean=True)
-    if delete and os.path.exists(export_path):
+    if delete and export_path.exists():
         logging.info('Removing old history clone %s', export_path)
-        shutil.rmtree(export_path)
+        shutil.rmtree(str(export_path))
 
     if check_sparse_base(export_path):
         paths = [project.quality_metrics_name]
-        clone_path = os.path.join(export_path, project.quality_metrics_name)
-        git_path = os.path.join(export_path, '.git')
-        if os.path.exists(export_path) and not os.path.exists(git_path):
+        clone_path = export_path / project.quality_metrics_name
+        git_path = export_path / '.git'
+        if export_path.exists() and not git_path.exists():
             # The sparse clone has not yet been created (no .git directory)
             # but it must be placed in the root directory of the clones.
             # The other clones must be removed before the clone operation.
             logging.info('Making way to clone into %s', export_path)
-            shutil.rmtree(export_path)
+            shutil.rmtree(str(export_path))
     else:
         paths = None
         clone_path = export_path
@@ -215,14 +208,14 @@ def get_gitlab_path(project, args):
                            shallow=True, progress=True)
     return clone_path, gitlab_url
 
-class Location(object):
+class Location:
     """
     Location of a history file.
     """
 
     def __init__(self, parts, filename=None, compression=False):
-        if isinstance(parts, basestring):
-            parts = (parts,)
+        if isinstance(parts, (PurePath, str)):
+            parts = (str(parts),)
 
         if filename is not None:
             parts = tuple(parts) + (filename,)
@@ -268,7 +261,7 @@ class Location(object):
     def __str__(self):
         return self._location
 
-class Path(Location):
+class File(Location):
     """
     Local filesystem path to a history file.
     """
@@ -286,7 +279,7 @@ class Url(Location):
     def local(self):
         return False
 
-class Data_Source(object):
+class Data_Source:
     """
     Object holding properties, path/URL, and possibly open file descriptor
     for one or more history data sources.
@@ -296,7 +289,7 @@ class Data_Source(object):
         self._sources = sources
         if isinstance(locations, Location):
             self._locations = (locations,)
-        elif len(locations) < 1:
+        elif not locations:
             raise ValueError('At least one location is required')
         else:
             self._locations = tuple(locations)
@@ -372,7 +365,7 @@ def get_filename_compression(project, sources, args):
 
     filename = get_filename(project, sources, args)
     compression = get_setting(args.compression, 'compression', project)
-    if compression and os.path.splitext(filename)[1] != compression:
+    if compression and PurePath(filename).suffix[1:] != compression:
         filename += "." + compression
 
     return filename, compression
@@ -416,8 +409,8 @@ def get_data_source(project, args):
         # contains it in its root or possibly in a subdirectory matching the
         # quality dashboard name.
         export_path, gitlab_url = get_gitlab_path(project, args)
-        if export_path is not None and os.path.exists(export_path):
-            locations = [Path(export_path, filename, compression)]
+        if export_path is not None and export_path.exists():
+            locations = [File(export_path, filename, compression)]
             if gitlab_url is not None:
                 locations.append(Url(gitlab_url, compression=compression))
             logging.info('Found metrics history path: %s', locations[0])
@@ -425,7 +418,7 @@ def get_data_source(project, args):
             return
     elif args.path is not None:
         # Path to a directory with a local file that can be opened.
-        path = Path(args.path, filename, compression)
+        path = File(args.path, filename, compression)
         opener = get_file_opener(compression)
         yield Data_Source(sources, path, open_file=opener(path, 'r'))
         return
@@ -463,11 +456,13 @@ def get_tracker_start(args):
     if args.start_from is not None:
         return args.start_from
 
-    start_filenames = ['history_record_time.txt', 'history_line_count.txt']
+    start_paths = [
+        Path('history_record_time.txt'), Path('history_line_count.txt')
+    ]
     start_from = 0
-    for filename in start_filenames:
-        if os.path.exists(filename):
-            with open(filename, 'r') as start_file:
+    for path in start_paths:
+        if path.exists():
+            with path.open('r') as start_file:
                 start_from = int(start_file.read())
 
             break
@@ -544,16 +539,16 @@ def main():
             else:
                 metric_data, line_count = read_project_file(data.file,
                                                             int(start_from))
-                line_filename = os.path.join(project.export_key, 'history_line_count.txt')
-                with open(line_filename, 'w') as line_file:
+                line_path = project.export_key / 'history_line_count.txt'
+                with line_path.open('w') as line_file:
                     line_file.write(str(start_from + line_count))
     except RuntimeError as error:
         logging.warning('Skipping quality metrics history import for %s: %s',
                         project_key, str(error))
         return
 
-    output_filename = os.path.join(project.export_key, 'data_metrics.json')
-    with open(output_filename, 'w') as outfile:
+    output_path = project.export_key / 'data_metrics.json'
+    with output_path.open('w') as outfile:
         json.dump(metric_data, outfile, indent=4)
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ import yaml
 from gatherer.log import Log_Setup
 from gatherer.utils import format_date
 
-class Schema(object):
+class Schema:
     """
     Base schema object.
     """

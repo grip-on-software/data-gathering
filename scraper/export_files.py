@@ -2,12 +2,6 @@
 Script to export the export and update files to the controller server.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import json
 import logging
@@ -51,7 +45,7 @@ def parse_args():
 
     return args
 
-class Exporter(object):
+class Exporter:
     """
     Export data collected for one project to the controller.
     """

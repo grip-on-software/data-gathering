@@ -3,15 +3,9 @@ Script used for initializing projects on a GitLab in order to prepare an import
 of filtered source code into the projects.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import logging
-import os
+from pathlib import Path
 import subprocess
 import gitlab
 from gitlab.exceptions import GitlabError
@@ -82,7 +76,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-class Repository_Archive(object):
+class Repository_Archive:
     """
     Class that provides different actions that can be taken on an archiveable
     repository.
@@ -261,8 +255,7 @@ class Repository_Archive(object):
 
         logging.info('Bundle repository %s for agent upload', self.repo_path)
         bundle_name = '{}.bundle'.format(self.repo_name)
-        bundle_path = os.path.abspath(os.path.join(self._project.export_key,
-                                                   bundle_name))
+        bundle_path = Path(self._project.export_key, bundle_name).resolve()
         self._repo.repo.git.bundle(['create', bundle_path, '--all'])
 
         if not self._dry_run:
@@ -282,7 +275,7 @@ def get_git_repositories(project, repo_directory, repo_names=None):
     found_names = set()
     for source in project.sources:
         if repo_names is None or source.path_name in repo_names:
-            path = os.path.join(repo_directory, source.path_name)
+            path = repo_directory / source.path_name
             repo = Git_Repository.from_source(source, path, project=project)
             if not repo.is_empty():
                 repos.append(repo)
@@ -312,7 +305,7 @@ def main():
     if args.dry_run:
         logging.info('Dry run: No actions are actually performed')
 
-    repo_directory = os.path.join('project-git-repos', project_key)
+    repo_directory = Path('project-git-repos', project_key)
     project_repos = get_git_repositories(project, repo_directory, args.repos)
 
     logging.info('%s: %s (%d repos)',
@@ -326,9 +319,8 @@ def main():
     for repo in project_repos:
         logging.info('Processing repository %s', repo.repo_name)
         repo_name = repo.repo_name.lower().replace('/', '-')
-        repo_path = os.path.join(repo_directory, repo_name)
-        git_url = '{0}{1}/{2}.git'.format(args.url, project.gitlab_group_name,
-                                          repo_name)
+        repo_path = repo_directory / repo_name
+        git_url = f'{args.url}{project.gitlab_group_name}/{repo_name}.git'
         source = Source.from_type('git', name=repo_name, url=git_url)
         git_repo = Git_Repository(source, repo_path)
 

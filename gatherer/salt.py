@@ -2,12 +2,11 @@
 Module for securely storing and retrieving project-specific encryption salts.
 """
 
-from builtins import object
 import hashlib
 import bcrypt
 from .database import Database
 
-class Salt(object):
+class Salt:
     """
     Encryption salt storage.
     """

@@ -2,18 +2,10 @@
 Script to convert a Topdesk dump CSV file to JSON.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-from builtins import object
 import argparse
 import csv
 import json
 import logging
-import os
 import regex
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -39,7 +31,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-class Topdesk_Parser(object):
+class Topdesk_Parser:
     """
     Topdesk CSV dump reader and reservations exporter.
     """
@@ -132,7 +124,7 @@ class Topdesk_Parser(object):
         return whitelisted
 
     def _parse_reservation(self, line, whitelist_only):
-        fields = dict([(key, line[name]) for key, name in self._names])
+        fields = {key: line[name] for key, name in self._names}
         if self._blacklist.search(fields['description']):
             logging.debug('Blacklisted: %s', fields['description'])
             return None
@@ -183,8 +175,8 @@ def main():
 
     logging.info('Project %s: %d reservations', project_key, len(reservations))
 
-    export_filename = os.path.join(project.export_key, 'data_reservations.json')
-    with open(export_filename, 'w') as export_file:
+    export_path = project.export_key / 'data_reservations.json'
+    with export_path.open('w') as export_file:
         json.dump(reservations, export_file, indent=4)
 
 if __name__ == "__main__":

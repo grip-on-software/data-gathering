@@ -2,17 +2,8 @@
 Jenkins build system source domain object.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
-try:
-    import urllib.parse
-except ImportError:
-    raise
-from requests.exceptions import ConnectionError, HTTPError, Timeout
+import urllib.parse
+from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from ...config import Configuration
 from ...jenkins import Jenkins as JenkinsAPI
 from .types import Source, Source_Types
@@ -43,7 +34,7 @@ class Jenkins(Source):
         try:
             self.jenkins_api.timeout = 3
             return self.jenkins_api.version
-        except (RuntimeError, ConnectionError, HTTPError, Timeout):
+        except (RuntimeError, ConnectError, HTTPError, Timeout):
             return ''
         finally:
             if self._jenkins_api is not None:

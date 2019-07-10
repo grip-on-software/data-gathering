@@ -2,7 +2,6 @@
 Package for classes and utilities related to extracting data from the JIRA API.
 """
 
-from builtins import object
 import json
 import logging
 import os
@@ -21,11 +20,11 @@ from .query import Query
 from .special_field import Special_Field
 from .update import Updated_Time, Update_Tracker
 from ..table import Table, Key_Table, Link_Table
-from ..domain.source import Source, Jira
+from ..domain import source
 
 __all__ = ["Jira"]
 
-class Jira(object):
+class Jira:
     """
     JIRA parser and extraction tool.
 
@@ -321,34 +320,35 @@ class Jira(object):
         for table in self._tables.values():
             table.write(self._project.export_key)
 
-    def process(self, source, query=None):
+    def process(self, jira_source, query=None):
         """
         Perform all steps to export the issues, fields and additional data
         gathered from a JIRA search. Return the update time of the query.
         """
 
-        query = Query(self, source, query)
+        query = Query(self, jira_source, query)
         for prefetcher in self._search_options['prefetchers']:
             prefetcher(query)
 
         self.search_issues(query)
 
-        if not self.project.sources.find_source_type(Jira):
-            self._add_source(source, query.api)
+        if not self.project.sources.find_source_type(source.Jira):
+            self._add_source(jira_source, query.api)
 
         self.write_tables()
         return query.latest_update
 
-    def _add_source(self, source, api):
+    def _add_source(self, jira_source, api):
         # Replace the source URL with the one provided by the API if possible
         myself = api.myself()
         regex = api.JIRA_BASE_URL.replace('{', '(?P<').replace('}', '>.*?)')
         match = re.match(regex, myself['self'])
         if match:
-            source = Source.from_type('jira', name=self._project.key,
-                                      url=match.group('server'))
+            jira_source = source.Source.from_type('jira',
+                                                  name=self._project.key,
+                                                  url=match.group('server'))
         else:
             logging.warning('Could not extract JIRA base URL from API')
 
-        self.project.sources.add(source)
+        self.project.sources.add(jira_source)
         self.project.export_sources()

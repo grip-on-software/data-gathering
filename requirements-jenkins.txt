@@ -6,5 +6,4 @@ xlrd
 # topdesk_to_json.py
 regex
 # ldap_to_json.py
-python-ldap; python_version < '3.0'
-python-ldap>=3.0.0b4; python_version >= '3.0'
+python-ldap>=3.0.0b4

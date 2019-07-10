@@ -8,7 +8,7 @@ import ast
 from distutils.version import LooseVersion
 import json
 import logging
-import os.path
+from pathlib import Path
 # We need to import a normal import of hqlib before we can import from utils
 # pylint: disable=unused-import
 import hqlib.domain
@@ -106,11 +106,10 @@ class Metric_Visitor(ast.NodeVisitor):
         if self._targets:
             if 'numerical_value_map' in self._targets:
                 value_map = self._targets.pop('numerical_value_map')
-                self._targets = dict([
-                    (key, str(value_map[value]))
-                    if value in value_map else (key, value)
+                self._targets = {
+                    key: str(value_map[value]) if value in value_map else value
                     for key, value in self._targets.items()
-                ])
+                }
 
             self._targets['_abstract'] = self._abstract
             self._class_targets[self._class_name] = self._targets
@@ -181,8 +180,6 @@ class Metric_Visitor(ast.NodeVisitor):
         target name and value parsing.
         """
 
-        pass
-
     def visit_Call(self, node):
         """
         Visit a call in the AST.
@@ -207,7 +204,7 @@ class Metric_Visitor(ast.NodeVisitor):
             node.exc.id == 'NotImplementedError':
             self._abstract = True
 
-class Metric_Target_Tracker(object):
+class Metric_Target_Tracker:
     """
     Class which keeps track of updates to metric targets.
     """
@@ -224,11 +221,11 @@ class Metric_Target_Tracker(object):
         Retrieve the revision that was parsed by an earlier run.
         """
 
-        filename = 'hqlib_targets_update.json'
-        if not os.path.exists(filename):
+        update_path = Path('hqlib_targets_update.json')
+        if not update_path.exists():
             return None
 
-        with open(filename) as update_file:
+        with update_path.open('r') as update_file:
             return json.load(update_file)
 
     def update(self, version, class_targets):
@@ -315,7 +312,7 @@ def main():
         'python/qualitylib', 'qualitylib', 'quality_report', 'hqlib',
         'backend/hqlib'
     )
-    paths = tuple(os.path.join(mod, 'metric') for mod in modules)
+    paths = tuple(str(Path(mod, 'metric')) for mod in modules)
 
     source = Source.from_type('git', name='quality-report',
                               url='https://github.com/ICTU/quality-report.git')

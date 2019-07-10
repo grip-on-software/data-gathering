@@ -2,15 +2,8 @@
 Script to retrieve update tracker files from the database for synchronization.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import logging
-import os
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -81,9 +74,9 @@ def remove_files(files, project):
 
     if files is not None:
         for filename in files:
-            path = os.path.join(project.export_key, filename)
-            if os.path.exists(path):
-                os.remove(path)
+            path = project.export_key / filename
+            if path.exists():
+                path.unlink()
 
 def main():
     """
@@ -92,6 +85,7 @@ def main():
 
     args = parse_args()
     project = Project(args.project)
+    project.make_export_directory()
 
     # Convert to set for easier file name comparisons in some tracker sources
     if args.files is None:

@@ -2,7 +2,6 @@
 Special field parsers.
 """
 
-from builtins import str
 import logging
 from .base import Base_Jira_Field, Base_Changelog_Field
 from ..utils import get_local_datetime, parse_unicode
@@ -54,8 +53,6 @@ class Special_Field(Base_Jira_Field):
             field = getattr(issue.fields, self.name)
             if field is not None:
                 self.collect(issue, field)
-
-        return None
 
     def collect(self, issue, field):
         """
@@ -158,8 +155,6 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
         self.check_changelog(data, diffs, issue, 'to')
         self.check_changelog(data, diffs, issue, 'from')
 
-        return None
-
     def check_changelog(self, data, diffs, issue, entry_field):
         """
         Check whether a changelog entry ('from' or 'to') provides useful data
@@ -200,7 +195,7 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
                 logging.info("Older %s end date in %s: %s, %s", self.table_name,
                              key, diffs['updated'], found_row[update_field])
                 return
-            elif not older and update_field == "start_date":
+            if not older and update_field == "start_date":
                 logging.info("Newer %s start date in %s: %s, %s",
                              self.table_name, key, diffs["updated"],
                              found_row[update_field])

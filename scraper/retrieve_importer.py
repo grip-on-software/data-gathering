@@ -3,21 +3,15 @@ Script for downloading the Java database importer from a URL and extracting it
 such that the Jenkins scraper can run all programs.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import argparse
 import filecmp
 import logging
-import os
+from pathlib import Path
 import shutil
 import tempfile
 from zipfile import ZipFile
 # Not-standard imports
-from requests.exceptions import ConnectionError, HTTPError, Timeout
+from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from gatherer.config import Configuration
 from gatherer.files import File_Store
 from gatherer.jenkins import Jenkins
@@ -34,7 +28,7 @@ def parse_args():
     verify = config.get('jenkins', 'verify')
     if not Configuration.has_value(verify):
         verify = False
-    elif not os.path.exists(verify):
+    elif not Path(verify).exists():
         verify = True
 
     username = config.get('jenkins', 'username')
@@ -131,17 +125,18 @@ def copy_path(source_path, dest_path):
     Copy a distribution directory from a local path.
     """
 
-    dist_path = os.path.join(os.path.expanduser(source_path), 'dist/')
-    if not os.path.exists(dist_path):
-        raise OSError('Could not find distribution in {}'.format(dist_path))
+    dist_path = Path(source_path).expanduser() / 'dist'
+    dest_path = Path(dest_path).resolve()
+    if not dist_path.exists():
+        raise OSError(f'Could not find distribution in {dist_path}')
 
-    if os.path.exists(dest_path):
-        if dest_path == '.':
+    if dest_path.exists():
+        if dest_path.samefile('.'):
             raise OSError('Refusing to delete the current working directory')
 
-        shutil.rmtree(dest_path)
+        shutil.rmtree(str(dest_path))
 
-    shutil.copytree(dist_path, dest_path)
+    shutil.copytree(str(dist_path), str(dest_path))
 
 def download_zip(url, dest_path):
     """
@@ -150,27 +145,30 @@ def download_zip(url, dest_path):
 
     request = Session().get(url)
     request.raise_for_status()
-    with open('dist.zip', 'wb') as output_file:
+    dist_path = Path('dist.zip')
+    dest_path = Path(dest_path)
+    with dist_path.open('wb') as output_file:
         for chunk in request.iter_content(chunk_size=128):
             output_file.write(chunk)
 
-    temp_dir = tempfile.mkdtemp()
-    with ZipFile('dist.zip', 'r') as dist_zip:
-        dist_zip.extractall(path=temp_dir)
+    temp_path = Path(tempfile.mkdtemp())
+    with ZipFile(dist_path, 'r') as dist_zip:
+        dist_zip.extractall(path=temp_path)
 
     try:
-        if os.path.exists('dist.zip'):
-            os.remove('dist.zip')
+        if dist_path.exists():
+            dist_path.unlink()
     except OSError:
         logging.exception('Could not remove distribution ZIP archive')
 
-    if os.path.exists(os.path.join(dest_path, 'lib')):
-        shutil.rmtree(os.path.join(dest_path, 'lib'))
+    lib_path = dest_path / 'lib'
+    if lib_path.exists():
+        shutil.rmtree(str(lib_path))
 
-    shutil.move(os.path.join(temp_dir, 'dist/importerjson.jar'),
-                os.path.join(dest_path, 'importerjson.jar'))
-    shutil.move(os.path.join(temp_dir, 'dist/lib/'), dest_path)
-    shutil.rmtree(temp_dir)
+    shutil.move(str(temp_path / 'dist' / 'importerjson.jar'),
+                str(dest_path / 'importerjson.jar'))
+    shutil.move(str(temp_path / 'dist' / 'lib'), dest_path)
+    shutil.rmtree(str(temp_path))
 
 def retrieve_files(args):
     """
@@ -200,7 +198,7 @@ def retrieve_files(args):
         logging.info('Downloading distribution from %s', url)
         try:
             download_zip(url, args.base)
-        except (ConnectionError, HTTPError, Timeout):
+        except (ConnectError, HTTPError, Timeout):
             logging.exception('Could not download ZIP file')
 
 def main():
@@ -220,10 +218,11 @@ def main():
             path = tmpfile.name
 
         data_file = 'data_vcsdev_to_dev.json'
-        data_path = os.path.join(args.base, data_file)
-        store.get_file('import/{}'.format(data_file), path)
-        if args.force or not os.path.exists(data_path) or filecmp.cmp(data_path, path):
-            shutil.move(path, data_path)
+        data_path = Path(args.base, data_file)
+        # Retrieve the file from the store and write it to a temporary file
+        store.get_file(f'import/{data_file}', path)
+        if args.force or not data_path.exists() or filecmp.cmp(data_path, path):
+            shutil.move(path, str(data_path))
         else:
             raise RuntimeError('Not overwriting potentially updated file {}'.format(data_file))
 

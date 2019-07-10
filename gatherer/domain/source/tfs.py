@@ -2,18 +2,9 @@
 Team Foundation Server domain object.
 """
 
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except ImportError:
-    raise
-
 import logging
-try:
-    import urllib.parse
-except ImportError:
-    raise
-
+import urllib.parse
+from requests.exceptions import ConnectionError as ConnectError, Timeout
 from .types import Source, Source_Types
 from .git import Git
 from ...git.tfs import TFS_Repository, TFS_Project, TFVC_Project
@@ -188,8 +179,13 @@ class TFS(Git):
         return '/'.join(self._tfs_collections).lower().startswith(tfs_collection.lower())
 
     def get_sources(self):
-        repositories = self.tfs_api.repositories()
         sources = []
+        try:
+            repositories = self.tfs_api.repositories()
+        except (RuntimeError, ConnectError, Timeout):
+            logging.exception('Could not set up TFS API')
+            return sources
+
         for repository in repositories:
             url = self._format_url(repository['remoteUrl'])
             source = Source.from_type('tfs', name=repository['name'], url=url,
@@ -233,6 +229,9 @@ class TFVC(TFS):
         on this host.
         """
 
+        if Configuration.is_url_blacklisted(self._tfs_host):
+            raise RuntimeError('TFS API for {} is blacklisted'.format(self._tfs_host))
+
         if self._tfs_api is None:
             logging.info('Setting up API for %s', self._tfs_host)
             self._tfs_api = TFVC_Project(self._tfs_host, self._tfs_collections,
@@ -247,8 +246,13 @@ class TFVC(TFS):
             '/'.join(part for part in self._tfs_collections if part != '')
 
     def get_sources(self):
-        projects = self.tfs_api.projects()
         sources = []
+        try:
+            projects = self.tfs_api.projects()
+        except (RuntimeError, ConnectError, Timeout):
+            logging.exception('Could not set up TFVC API')
+            return sources
+
         for project in projects:
             url = '{}/{}{}{}'.format(self._tfs_host,
                                      self._tfs_collections[0],
