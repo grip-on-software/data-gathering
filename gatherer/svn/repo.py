@@ -2,8 +2,10 @@
 Module that handles access to and remote updates of a Subversion repository.
 """
 
+from datetime import datetime
 import logging
-from pathlib import Path
+from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Sequence, \
+    Tuple, TYPE_CHECKING
 # Non-standard imports
 import dateutil.tz
 import svn.common
@@ -15,7 +17,18 @@ from .difference import Difference
 from ..table import Table, Key_Table
 from ..utils import format_date, parse_unicode, Iterator_Limiter
 from ..version_control.repo import Version_Control_Repository, \
-    RepositoryDataException, RepositorySourceException, FileNotFoundException
+    RepositoryDataException, RepositorySourceException, FileNotFoundException, \
+    PathLike, Version
+if TYPE_CHECKING:
+    from ..domain import Source
+else:
+    Source = object
+
+LogEntry = NamedTuple('LogEntry', [('date', datetime),
+                                   ('msg', str),
+                                   ('revision', int),
+                                   ('author', str),
+                                   ('changelist', List[Tuple[str, str]])])
 
 class UnsafeRemoteClient(svn.remote.RemoteClient):
     """
@@ -23,7 +36,7 @@ class UnsafeRemoteClient(svn.remote.RemoteClient):
     if it has other verification failures than a self-signed certificate.
     """
 
-    def run_command(self, subcommand, args, **kwargs):
+    def run_command(self, subcommand: str, args: List[str], **kwargs: Any):
         failures = 'unknown-ca,cn-mismatch,expired,not-yet-valid,other'
         args.append('--trust-server-cert-failures={}'.format(failures))
         return super(UnsafeRemoteClient, self).run_command(subcommand,
@@ -37,11 +50,10 @@ class Subversion_Repository(Version_Control_Repository):
 
     AUXILIARY_TABLES = {'change_path', 'tag'}
 
-    def __init__(self, source, repo_directory, **kwargs):
+    def __init__(self, source: Source, repo_directory: PathLike, **kwargs: Any):
         super(Subversion_Repository, self).__init__(source, repo_directory, **kwargs)
-        self._repo = None
-        self._version_info = None
-        self._iterator_limiter = None
+        self._repo: Optional[svn.common.CommonClient] = None
+        self._version_info: Optional[Tuple[int, ...]] = None
         self._reset_limiter()
         self._tables.update({
             'change_path': Table('change_path'),
@@ -49,12 +61,12 @@ class Subversion_Repository(Version_Control_Repository):
                              encrypt_fields=('tagger', 'tagger_email'))
         })
 
-    def _reset_limiter(self):
+    def _reset_limiter(self) -> None:
         self._iterator_limiter = Iterator_Limiter()
 
     @classmethod
-    def _create_environment(cls, source):
-        env = {}
+    def _create_environment(cls, source: Source) -> Dict[str, Any]:
+        env: Dict[str, Any] = {}
         if source.get_option('unsafe_hosts'):
             env['trust_cert'] = True
             env['username'] = source.get_option('username')
@@ -63,7 +75,7 @@ class Subversion_Repository(Version_Control_Repository):
         return env
 
     @classmethod
-    def _create_remote_repo(cls, source):
+    def _create_remote_repo(cls, source: Source) -> svn.remote.RemoteClient:
         env = cls._create_environment(source)
         if source.get_option('unsafe_hosts'):
             # Do not pass username and password as authority part of an URL to
@@ -75,7 +87,8 @@ class Subversion_Repository(Version_Control_Repository):
         return svn.remote.RemoteClient(source.url, **env)
 
     @classmethod
-    def from_source(cls, source, repo_directory, **kwargs):
+    def from_source(cls, source: Source, repo_directory: PathLike,
+                    **kwargs: Any) -> 'Subversion_Repository':
         """
         Initialize a Subversion repository from its `Source` domain object.
 
@@ -88,7 +101,7 @@ class Subversion_Repository(Version_Control_Repository):
         return repository
 
     @classmethod
-    def get_branches(cls, source):
+    def get_branches(cls, source: Source) -> List[str]:
         repo = cls._create_remote_repo(source)
         try:
             return [path.rstrip('/') for path in repo.list(rel_path='branches')]
@@ -96,23 +109,23 @@ class Subversion_Repository(Version_Control_Repository):
             raise RepositorySourceException(str(error))
 
     @property
-    def repo(self):
+    def repo(self) -> svn.common.CommonClient:
         if self._repo is None:
-            path = Path(self._repo_directory).expanduser()
+            path = self._repo_directory.expanduser()
             env = self._create_environment(self.source)
             self._repo = svn.local.LocalClient(str(path), **env)
 
         return self._repo
 
     @repo.setter
-    def repo(self, repo):
+    def repo(self, repo: svn.common.CommonClient) -> None:
         if not isinstance(repo, svn.common.CommonClient):
             raise TypeError('Repository must be a PySvn Client instance')
 
         self._repo = repo
 
     @property
-    def version_info(self):
+    def version_info(self) -> Tuple[int, ...]:
         if self._version_info is None:
             version = self.repo.run_command('--version', ['--quiet'])[0]
             self._version_info = tuple(
@@ -121,7 +134,7 @@ class Subversion_Repository(Version_Control_Repository):
 
         return self._version_info
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         try:
             self.repo.info()
         except svn.exception.SvnException:
@@ -129,7 +142,8 @@ class Subversion_Repository(Version_Control_Repository):
         else:
             return False
 
-    def update(self, shallow=False, checkout=True, branch=None):
+    def update(self, shallow: bool = False, checkout: bool = True,
+               branch: Optional[str] = None) -> None:
         # pylint: disable=no-member
         if not isinstance(self.repo, svn.local.LocalClient):
             raise TypeError('Repository has no local client, check out the repository first')
@@ -141,12 +155,13 @@ class Subversion_Repository(Version_Control_Repository):
         except svn.exception.SvnException as error:
             raise RepositorySourceException(str(error))
 
-    def checkout(self, paths=None, shallow=False, branch=None):
+    def checkout(self, paths: Optional[Sequence[str]] = None,
+                 shallow: bool = False, branch: Optional[str] = None) -> None:
         if not isinstance(self.repo, svn.remote.RemoteClient):
             raise TypeError('Repository is already local, update the repository instead')
 
         # Check out trunk directory
-        args = [self.repo.url + '/trunk', self._repo_directory]
+        args = [self.repo.url + '/trunk', str(self._repo_directory)]
         if paths is not None:
             args.extend(['--depth', 'immediates'])
 
@@ -162,14 +177,15 @@ class Subversion_Repository(Version_Control_Repository):
         if paths is not None:
             self.checkout_sparse(paths)
 
-    def checkout_sparse(self, paths, remove=False, shallow=False, branch=None):
+    def checkout_sparse(self, paths: Sequence[str], remove: bool = False,
+                        shallow: bool = False, branch: Optional[str] = None) -> None:
         if remove:
             depth = 'empty'
         else:
             depth = 'infinity'
 
         for path in paths:
-            full_path = '{0}/{1}'.format(self._repo_directory, path)
+            full_path = str(self._repo_directory / path)
             try:
                 self.repo.run_command('update',
                                       ['--set-depth', depth, full_path])
@@ -177,7 +193,7 @@ class Subversion_Repository(Version_Control_Repository):
                 raise RepositorySourceException(str(error))
 
     @staticmethod
-    def parse_svn_revision(rev, default):
+    def parse_svn_revision(rev: Optional[Version], default: str) -> str:
         """
         Convert a Subversion revision `rev` to a supported revision. Removes the
         leading 'r' if it is present. 'HEAD' is also allowed. If `rev` is
@@ -197,7 +213,8 @@ class Subversion_Repository(Version_Control_Repository):
 
         return str(int(rev))
 
-    def _query(self, filename, from_revision, to_revision):
+    def _query(self, filename: str, from_revision: Version,
+               to_revision: Version) -> Iterator[LogEntry]:
         try:
             return self.repo.log_default(rel_filepath=filename,
                                          revision_from=from_revision,
@@ -206,7 +223,9 @@ class Subversion_Repository(Version_Control_Repository):
         except svn.exception.SvnException as error:
             raise RepositoryDataException(str(error))
 
-    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
+    def get_data(self, from_revision: Optional[Version] = None,
+                 to_revision: Optional[Version] = None, force: bool = False,
+                 **kwargs: Any) -> List[Dict[str, str]]:
         versions = super(Subversion_Repository, self).get_data(from_revision,
                                                                to_revision,
                                                                force=force,
@@ -216,8 +235,10 @@ class Subversion_Repository(Version_Control_Repository):
 
         return versions
 
-    def get_versions(self, filename='trunk', from_revision=None,
-                     to_revision=None, descending=False, **kwargs):
+    def get_versions(self, filename: str = 'trunk',
+                     from_revision: Optional[Version] = None,
+                     to_revision: Optional[Version] = None,
+                     descending: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
         """
         Retrieve data about each version of a specific file path `filename`.
 
@@ -275,7 +296,8 @@ class Subversion_Repository(Version_Control_Repository):
         return sorted(versions, key=lambda version: version['version_id'],
                       reverse=descending)
 
-    def _parse_version(self, commit, stats=True, **kwargs):
+    def _parse_version(self, commit: LogEntry, stats: bool = True,
+                       **kwargs: Any) -> Dict[str, str]:
         # Convert to local timestamp
         commit_date = commit.date.replace(tzinfo=dateutil.tz.tzutc())
         commit_datetime = commit_date.astimezone(dateutil.tz.tzlocal())
@@ -302,7 +324,9 @@ class Subversion_Repository(Version_Control_Repository):
 
         return version
 
-    def get_diff_stats(self, filename='', from_revision=None, to_revision=None):
+    def get_diff_stats(self, filename: str = '',
+                       from_revision: Optional[Version] = None,
+                       to_revision: Optional[Version] = None) -> Dict[str, str]:
         """
         Retrieve statistics about the difference between two revisions.
 
@@ -313,7 +337,7 @@ class Subversion_Repository(Version_Control_Repository):
         if isinstance(self.repo, svn.remote.RemoteClient):
             path = self.repo.url + '/' + filename
         else:
-            path = self._repo_directory + '/' + filename
+            path = str(self._repo_directory / filename)
 
         diff = Difference(self, path, from_revision=from_revision,
                           to_revision=to_revision)
@@ -323,7 +347,7 @@ class Subversion_Repository(Version_Control_Repository):
 
         return stats
 
-    def _parse_tags(self):
+    def _parse_tags(self) -> None:
         try:
             for tag in self.repo.list(extended=True, rel_path='tags'):
                 # Convert to local timestamp
@@ -342,7 +366,7 @@ class Subversion_Repository(Version_Control_Repository):
         except svn.exception.SvnException:
             logging.exception('Could not retrieve tags')
 
-    def get_contents(self, filename, revision=None):
+    def get_contents(self, filename: str, revision: Optional[Version] = None) -> bytes:
         """
         Retrieve the contents of a file with path `filename` at the given
         `revision`, or the currently checked out revision if not given.
@@ -353,6 +377,6 @@ class Subversion_Repository(Version_Control_Repository):
         except svn.exception.SvnException as error:
             raise FileNotFoundException(str(error))
 
-    def get_latest_version(self):
+    def get_latest_version(self) -> int:
         info = self.repo.info()
         return info['entry_revision']

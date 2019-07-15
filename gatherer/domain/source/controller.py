@@ -4,9 +4,10 @@ Agent controller source domain object.
 
 import logging
 import json
+from typing import Any, Dict, Hashable, Optional, Union
 from ...config import Configuration
 from ...request import Session
-from .types import Source, Source_Types
+from .types import Source, Source_Types, Project
 
 @Source_Types.register('controller')
 class Controller(Source):
@@ -14,27 +15,30 @@ class Controller(Source):
     Agent controller source.
     """
 
-    def __init__(self, *args, **kwargs):
-        if 'certificate' in kwargs:
-            self._certificate = kwargs.pop('certificate')
-        else:
-            self._certificate = None
-
-        super(Controller, self).__init__(*args, **kwargs)
+    def __init__(self, source_type: str, name: str = '', url: str = '',
+                 follow_host_change: bool = True,
+                 certificate: Union[str, bool] = True) -> None:
+        super().__init__(source_type, name=name, url=url,
+                         follow_host_change=follow_host_change)
+        self._certificate = certificate
 
     @property
-    def environment(self):
+    def environment(self) -> Optional[Hashable]:
         return self.url.rstrip('/')
 
     @property
-    def certificate(self):
+    def certificate(self) -> Union[str, bool]:
         """
         Retrieve the local path to the certificate to verify the source against.
+
+        If no certificate was passed, then certificate verification is enabled
+        with the default certificate bundle.
         """
 
         return self._certificate
 
-    def update_identity(self, project, public_key, dry_run=False):
+    def update_identity(self, project: Project, public_key: str,
+                        dry_run: bool = False) -> None:
         agent_key = Configuration.get_agent_key()
         url = '{}/agent.py?project={}&agent={}'.format(self.url.rstrip('/'),
                                                        project.key,
@@ -61,7 +65,7 @@ class Controller(Source):
         self._export_secrets(response)
 
     @staticmethod
-    def _export_secrets(secrets):
+    def _export_secrets(secrets: Dict[str, Any]) -> None:
         """
         Write a JSON file with secrets according to a dictionary structure
         received from the controller API.

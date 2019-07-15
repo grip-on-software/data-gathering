@@ -3,34 +3,37 @@ Module for accessing Jenkins build information and starting jobs.
 """
 
 from abc import ABCMeta
-from collections import Mapping, Sequence
+from configparser import RawConfigParser
 import json
 from pathlib import Path
-import urllib.parse
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
+from urllib.parse import quote, urlencode
 from requests.auth import HTTPBasicAuth
-from requests.utils import quote
+from requests.models import Response
 from .config import Configuration
 from .request import Session
 
-class NoneMapping(Mapping): # pylint: disable=no-init
+BaseUrl = Optional[Union[str, Dict[str, str]]]
+
+class NoneMapping(Mapping[str, None]): # pylint: disable=no-init
     """
     An empty mapping that returns `None` for all key lookups.
     """
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> None:
         return None
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         while False:
-            yield None
+            yield
 
-    def __len__(self):
+    def __len__(self) -> int:
         return 0
 
-    def __contains__(self, key):
+    def __contains__(self, key: object) -> bool:
         return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return 'NoneMapping()'
 
 class Base(metaclass=ABCMeta):
@@ -38,32 +41,33 @@ class Base(metaclass=ABCMeta):
     Base Jenkins object.
     """
 
-    DELETE_URL = None
+    DELETE_URL: Optional[str] = None
 
-    def __init__(self, instance, base_url, exists=True):
+    def __init__(self, instance: 'Jenkins', base_url: BaseUrl,
+                 exists: Optional[bool] = True) -> None:
         self._instance = instance
 
         # Allow API query parameters such as 'tree' and 'depth' to be passed
         # as a dict. The base URL should be in the parameter 'url', which is
         # removed from the query. Subclasses may also provide a default base
         # URL afterward.
-        query = {}
+        query: Dict[str, str] = {}
         if isinstance(base_url, dict):
             query = base_url.copy()
             base_url = query.pop('url', None)
 
-        if base_url is not None and not base_url.endswith('/'):
+        if isinstance(base_url, str) and not base_url.endswith('/'):
             base_url += '/'
 
         self._base_url = base_url
         self._query = query
-        self._data = None
+        self._data: Mapping = {}
         self._has_data = False
         self._exists = exists
-        self._version = None
+        self._version: Optional[str] = None
 
     @property
-    def base_url(self):
+    def base_url(self) -> str:
         """
         Retrieve the base (HTML) URL of this Jenkins object.
         """
@@ -71,10 +75,10 @@ class Base(metaclass=ABCMeta):
         if self._base_url is None:
             raise ValueError('API URL unknown for this Jenkins object')
 
-        return self._base_url
+        return str(self._base_url)
 
     @property
-    def query(self):
+    def query(self) -> Dict[str, str]:
         """
         Retrieve the query used to retrieve data for this Jenkins object.
 
@@ -84,15 +88,15 @@ class Base(metaclass=ABCMeta):
         return self._query
 
     @query.setter
-    def query(self, query):
+    def query(self, query: Dict[str, str]) -> None:
         """
         Replace the query used to retrieve data for this Jenkins object.
         """
 
         self._query = query
 
-    def _retrieve(self):
-        query = urllib.parse.urlencode(self._query)
+    def _retrieve(self) -> None:
+        query = urlencode(self._query)
         url = '{}api/json?{}'.format(self.base_url, query)
         request = self.instance.session.get(url, timeout=self.instance.timeout)
         self._version = request.headers.get('X-Jenkins', '')
@@ -105,7 +109,7 @@ class Base(metaclass=ABCMeta):
             self._exists = True
 
     @property
-    def data(self):
+    def data(self) -> Mapping:
         """
         Retrieve the raw data from the API. The API is accessed if the data has
         not been retrieved before since the last invalidation or since the
@@ -118,7 +122,7 @@ class Base(metaclass=ABCMeta):
         return self._data
 
     @property
-    def has_data(self):
+    def has_data(self) -> bool:
         """
         Retrieve a boolean indicating whether we fetched data for the object.
         Returns `True` if and only if the current data is from the object's API
@@ -130,31 +134,33 @@ class Base(metaclass=ABCMeta):
         return self._has_data
 
     @property
-    def version(self):
+    def version(self) -> str:
         """
         Retrieve the version number of the Jenkins instance.
+
+        If the version is not provided, then this is the empty string.
         """
 
         if self._version is None:
             if self._instance == self:
+                self._version = ''
                 self._retrieve()
-                return self._version
-
-            return self._instance.version
+            else:
+                return self._instance.version
 
         return self._version
 
-    def invalidate(self):
+    def invalidate(self) -> None:
         """
         Ensure that we refresh the data for this object on next lookup.
         """
 
         self._has_data = False
-        self._data = None
+        self._data = {}
         self._version = None
 
     @property
-    def instance(self):
+    def instance(self) -> 'Jenkins':
         """
         Retrieve the Jenkins instance to which this object belongs.
         """
@@ -162,17 +168,18 @@ class Base(metaclass=ABCMeta):
         return self._instance
 
     @property
-    def exists(self):
+    def exists(self) -> bool:
         """
         Retrieve whether this object exists on the Jenkins instance.
         """
 
         if self._exists is None:
+            self._exists = False
             self._retrieve()
 
         return self._exists
 
-    def delete(self):
+    def delete(self) -> None:
         """
         Delete the object from the Jenkins instance if possible.
 
@@ -187,22 +194,22 @@ class Base(metaclass=ABCMeta):
                                              timeout=self.instance.timeout)
         request.raise_for_status()
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Base):
             return self.base_url == other.base_url
 
         return False
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return not self.__eq__(other)
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self.exists
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.instance, self.base_url))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '{}({!r})'.format(self.__class__.__name__, self.base_url)
 
 class Jenkins(Base):
@@ -210,41 +217,44 @@ class Jenkins(Base):
     Jenkins instance.
     """
 
-    def __init__(self, host, username=None, password=None, verify=True):
-        super(Jenkins, self).__init__(self, host)
+    def __init__(self, host: str, username: Optional[str] = None,
+                 password: Optional[str] = None,
+                 verify: Union[bool, str] = True) -> None:
+        super().__init__(self, host)
 
         if username is not None:
-            auth = HTTPBasicAuth(username, password)
+            auth: Optional[HTTPBasicAuth] = HTTPBasicAuth(username, password)
         else:
             auth = None
 
         self._session = Session(verify=verify, auth=auth)
-        self.timeout = None
+        self.timeout: Optional[int] = None
 
         self._add_crumb_header()
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config: RawConfigParser) -> 'Jenkins':
         """
         Create a Jenkins instance based on a settings from a 'jenkins' section
         that has been read by the configuration parser `config`.
         """
 
         host = config.get('jenkins', 'host')
-        username = config.get('jenkins', 'username')
-        password = config.get('jenkins', 'password')
-        verify = config.get('jenkins', 'verify')
+        username: Optional[str] = config.get('jenkins', 'username')
+        password: Optional[str] = config.get('jenkins', 'password')
+        verify_config: str = config.get('jenkins', 'verify')
+        verify: Union[bool, str] = verify_config
         if not Configuration.has_value(username):
             username = None
             password = None
-        if not Configuration.has_value(verify):
+        if not Configuration.has_value(verify_config):
             verify = False
-        elif not Path(verify).exists():
+        elif not Path(verify_config).exists():
             verify = True
 
         return cls(host, username=username, password=password, verify=verify)
 
-    def _add_crumb_header(self):
+    def _add_crumb_header(self) -> None:
         request = self._session.get(self.base_url + 'crumbIssuer/api/json',
                                     timeout=3)
         if Session.is_code(request, 'not_found'):
@@ -256,11 +266,11 @@ class Jenkins(Base):
         self._session.headers.update(headers)
 
     @property
-    def instance(self):
+    def instance(self) -> 'Jenkins':
         return self
 
     @property
-    def session(self):
+    def session(self) -> Session:
         """
         Retrieve the (authenticated) requests session.
         """
@@ -268,7 +278,7 @@ class Jenkins(Base):
         return self._session
 
     @property
-    def nodes(self):
+    def nodes(self) -> 'Nodes':
         """
         Retrieve the nodes linked to the Jenkins instance.
         """
@@ -276,22 +286,22 @@ class Jenkins(Base):
         return Nodes(self)
 
     @property
-    def jobs(self):
+    def jobs(self) -> List['Job']:
         """
-        Retrieve the jobs on the Jenkins instance.
+        Retrieve a list of jobs on the Jenkins instance.
         """
 
         return [Job(self, **job) for job in self.data['jobs']]
 
     @property
-    def views(self):
+    def views(self) -> List['View']:
         """
-        Retrieve the views on the Jenkins instance.
+        Retrieve a list of views on the Jenkins instance.
         """
 
         return [View(self, **view) for view in self.data['views']]
 
-    def get_job(self, name, url=None):
+    def get_job(self, name: str, url: Optional[str] = None) -> 'Job':
         """
         Retrieve a job from the Jenkins instance by its name.
 
@@ -307,35 +317,35 @@ class Jenkins(Base):
 
         return Job(self, name=name, url=url, exists=None)
 
-    def get_view(self, name):
+    def get_view(self, name: str) -> 'View':
         """
         Retrieve a view from the Jenkins instance by its name.
         """
 
         return View(self, name=name, exists=None)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Jenkins):
             return self.base_url == other.base_url
 
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.base_url)
 
-class Nodes(Base, Sequence):
+class Nodes(Base, Sequence['Node']):
     """
     Collection of nodes linked to the Jenkins instance.
     """
 
-    def __init__(self, instance):
-        url = '{}computer/'.format(instance.base_url)
-        super(Nodes, self).__init__(instance, url, exists=True)
+    def __init__(self, instance: Jenkins) -> None:
+        url = f'{instance.base_url}computer/'
+        super().__init__(instance, url, exists=True)
         self.instance.session.headers.update({'Accept-Language': 'en'})
-        self._nodes = None
+        self._nodes: Optional[List['Node']] = None
 
     @property
-    def nodes(self):
+    def nodes(self) -> List['Node']:
         """
         Retrieve all the linked nodes.
         """
@@ -347,13 +357,13 @@ class Nodes(Base, Sequence):
 
         return self._nodes
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Nodes):
             return self.base_url == other.base_url
 
         return False
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: Any) -> Any:
         return self.nodes[index]
 
     def __len__(self):
@@ -364,31 +374,31 @@ class Node(Base):
     Computer node linked to a Jenkins instance.
     """
 
-    def __init__(self, instance, **kwargs):
+    def __init__(self, instance: Jenkins, **kwargs: Any) -> None:
         try:
             display_name = kwargs.pop('displayName')
         except KeyError:
             raise ValueError('Display name must be provided')
 
         if display_name == "master":
-            name = "({})".format(display_name)
+            name = f"({display_name})"
         else:
             name = display_name
 
         url = '{}computer/{}'.format(instance.base_url, quote(name))
-        super(Node, self).__init__(instance, url, exists=True)
+        super().__init__(instance, url, exists=True)
         self._name = name
         self._data = kwargs
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Retrieve the name of the node.
         """
 
         return self._name
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Node):
             return self.instance == other.instance and self.name == other.name
 
@@ -401,11 +411,12 @@ class View(Base):
 
     DELETE_URL = 'doDelete'
 
-    def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
-        if name is None:
+    def __init__(self, instance: Jenkins, name: str = '', url: BaseUrl = None,
+                 exists: Optional[bool] = True, **kwargs: Any) -> None:
+        if name == '':
             raise ValueError('Name must be provided')
 
-        super(View, self).__init__(instance, url, exists=exists)
+        super().__init__(instance, url, exists=exists)
         if self._base_url is None:
             self._base_url = '{}view/{}'.format(instance.base_url, quote(name))
 
@@ -413,7 +424,7 @@ class View(Base):
         self._data = kwargs
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Retrieve the name of the view.
         """
@@ -421,14 +432,14 @@ class View(Base):
         return self._name
 
     @property
-    def jobs(self):
+    def jobs(self) -> List['Job']:
         """
         Retrieve the jobs in this view.
         """
 
         return [Job(self.instance, **job) for job in self.data['jobs']]
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, View):
             return self.instance == other.instance and self.name == other.name
 
@@ -441,8 +452,10 @@ class Job(Base):
 
     DELETE_URL = 'doDelete'
 
-    def __init__(self, instance, name=None, url=None, exists=True, **kwargs):
-        if name is None:
+    def __init__(self, instance: Union[Jenkins, 'Job'], name: str = '',
+                 url: BaseUrl = None, exists: Optional[bool] = True,
+                 **kwargs: Any) -> None:
+        if name == '':
             raise ValueError('Name must be provided')
 
         # Collect actual instance for multibranch workflow jobs
@@ -450,16 +463,16 @@ class Job(Base):
         if isinstance(instance, Job):
             instance = instance.instance
 
-        super(Job, self).__init__(instance, url, exists=exists)
+        super().__init__(instance, url, exists=exists)
         if self._base_url is None:
             self._base_url = '{}job/{}/'.format(base.base_url, quote(name))
 
         self._name = name
         self._data = kwargs
-        self._last_builds = {}
+        self._last_builds: Dict[str, Build] = {}
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Retrieve the job name.
         """
@@ -467,7 +480,7 @@ class Job(Base):
         return self._name
 
     @property
-    def builds(self):
+    def builds(self) -> List['Build']:
         """
         Retrieve the builds.
         """
@@ -478,7 +491,7 @@ class Job(Base):
         return [Build(self, **build) for build in self.data['builds']]
 
     @property
-    def jobs(self):
+    def jobs(self) -> List['Job']:
         """
         Retrieve the jobs of a multibranch pipeline workflow.
 
@@ -491,7 +504,7 @@ class Job(Base):
 
         return [Job(self, **job) for job in self.data['jobs']]
 
-    def get_job(self, name, url=None):
+    def get_job(self, name: str, url: BaseUrl = None) -> 'Job':
         """
         Retrieve a job of a multibranch pipeline workflow by its pipeline name.
 
@@ -501,7 +514,7 @@ class Job(Base):
 
         return Job(self, name=name, url=url, exists=None)
 
-    def _make_last_build(self, name):
+    def _make_last_build(self, name: str) -> 'Build':
         if name not in self._last_builds:
             if self.has_data and name in self.data:
                 if self.data[name] is None:
@@ -515,7 +528,7 @@ class Job(Base):
         return self._last_builds[name]
 
     @property
-    def last_build(self):
+    def last_build(self) -> 'Build':
         """
         Retrieve the last build.
         """
@@ -523,7 +536,7 @@ class Job(Base):
         return self._make_last_build('lastBuild')
 
     @property
-    def last_completed_build(self):
+    def last_completed_build(self) -> 'Build':
         """
         Retrieve the last completed build.
         """
@@ -531,7 +544,7 @@ class Job(Base):
         return self._make_last_build('lastCompletedBuild')
 
     @property
-    def last_failed_build(self):
+    def last_failed_build(self) -> 'Build':
         """
         Retrieve the last failed build.
         """
@@ -539,7 +552,7 @@ class Job(Base):
         return self._make_last_build('lastFailedBuild')
 
     @property
-    def last_stable_build(self):
+    def last_stable_build(self) -> 'Build':
         """
         Retrieve the last stable build.
         """
@@ -547,7 +560,7 @@ class Job(Base):
         return self._make_last_build('lastStableBuild')
 
     @property
-    def last_successful_build(self):
+    def last_successful_build(self) -> 'Build':
         """
         Retrieve the last successful build.
         """
@@ -555,7 +568,7 @@ class Job(Base):
         return self._make_last_build('lastSuccessfulBuild')
 
     @property
-    def last_unstable_build(self):
+    def last_unstable_build(self) -> 'Build':
         """
         Retrieve the last unstable build.
         """
@@ -563,7 +576,7 @@ class Job(Base):
         return self._make_last_build('lastUnstableBuild')
 
     @property
-    def last_unsuccessful_build(self):
+    def last_unsuccessful_build(self) -> 'Build':
         """
         Retrieve the last unsuccessful build.
         """
@@ -571,27 +584,27 @@ class Job(Base):
         return self._make_last_build('lastUnsuccessfulBuild')
 
     @property
-    def next_build_number(self):
+    def next_build_number(self) -> int:
         """
         Retrieve the next build number.
         """
 
         return self.data['nextBuildNumber']
 
-    def get_build(self, number):
+    def get_build(self, number: int) -> 'Build':
         """
         Retrieve a previous build based on its number.
         """
 
+        exists: Optional[bool] = None
         if self.has_data:
             numbers = [build['number'] for build in self.data['builds']]
             exists = number in numbers
-        else:
-            exists = None
 
         return Build(self, number=number, exists=exists)
 
-    def get_last_branch_build(self, branch):
+    def get_last_branch_build(self, branch: str) -> \
+            Tuple[Optional['Build'], Optional[Dict[str, Any]]]:
         """
         Retrieve the latest build of this job for the given `branch`.
 
@@ -627,7 +640,8 @@ class Job(Base):
 
         return None, None
 
-    def build(self, parameters=None, token=None):
+    def build(self, parameters: Optional[Union[List[Dict[str, str]], Dict[str, str]]] = None,
+              token: Optional[str] = None) -> Response:
         """
         Build the job. The given `parameters` may be a list of dictionaries
         containing parameter attributes, or a dictionary of parameter key-value
@@ -653,7 +667,7 @@ class Job(Base):
         return self.instance.session.post(url, params=params, data=data,
                                           timeout=self.instance.timeout)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Job):
             return self.instance == other.instance and self.name == other.name
 
@@ -666,17 +680,19 @@ class Build(Base):
 
     DELETE_URL = 'doDelete'
 
-    def __init__(self, job, number=None, url=None, exists=True, **kwargs):
-        super(Build, self).__init__(job.instance, url, exists=exists)
+    def __init__(self, job: Job, number: Optional[int] = None,
+                 url: BaseUrl = None, exists: Optional[bool] = True,
+                 **kwargs: Any) -> None:
+        super().__init__(job.instance, url, exists=exists)
         if self._base_url is None:
-            self._base_url = '{}{}/'.format(job.base_url, number)
+            self._base_url = f'{job.base_url}{number}/'
 
         self._job = job
         self._number = number
         self._data = kwargs
 
     @property
-    def job(self):
+    def job(self) -> Job:
         """
         Retrieve the job for this build.
         """
@@ -684,18 +700,20 @@ class Build(Base):
         return self._job
 
     @property
-    def number(self):
+    def number(self) -> int:
         """
         Retrieve the build number.
         """
 
         if self._number is None:
             self._number = self.data['number']
+            if self._number is None:
+                return 0
 
         return self._number
 
     @property
-    def result(self):
+    def result(self) -> Optional[str]:
         """
         Retrieve the build result.
         """
@@ -703,50 +721,50 @@ class Build(Base):
         return self.data['result']
 
     @property
-    def building(self):
+    def building(self) -> Optional[bool]:
         """
         Retrieve whether this build is currently building.
         """
 
         return self.data['building']
 
-    def _related(self, other):
+    def _related(self, other: 'Build') -> bool:
+        return self.exists and other.exists and self.job == other.job
+
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Build):
-            return self.exists and other.exists and self.job == other.job
+            return self._related(other) and self.number == other.number
 
         return False
 
-    def __eq__(self, other):
-        return self._related(other) and self.number == other.number
-
-    def __lt__(self, other):
-        if self._related(other):
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, Build) and self._related(other):
             return self.number < other.number
 
         return NotImplemented
 
-    def __gt__(self, other):
-        if self._related(other):
+    def __gt__(self, other: object) -> bool:
+        if isinstance(other, Build) and self._related(other):
             return self.number > other.number
 
         return NotImplemented
 
-    def __lte__(self, other):
-        if self._related(other):
+    def __lte__(self, other: object) -> bool:
+        if isinstance(other, Build) and self._related(other):
             return self.number <= other.number
 
         return NotImplemented
 
-    def __gte__(self, other):
-        if self._related(other):
+    def __gte__(self, other: object) -> bool:
+        if isinstance(other, Build) and self._related(other):
             return self.number >= other.number
 
         return NotImplemented
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.job, self.number))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.exists and self.has_data:
             return 'Build({!r}, number={!r})'.format(self.job, self.number)
 

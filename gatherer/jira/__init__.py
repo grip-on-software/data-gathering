@@ -7,20 +7,27 @@ import logging
 import os
 import re
 from copy import copy
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
-from .base import Base_Jira_Field
+from jira import Issue, JIRA
+from .base import Base_Jira_Field, Table_Source
 from .changelog import Changelog
 from .field import Jira_Field, Primary_Field, Payload_Field, Property_Field
-from .parser import Int_Parser, String_Parser, Boolean_Parser, Date_Parser, \
-    Unicode_Parser, Sprint_Parser, Developer_Parser, Decimal_Parser, \
-    ID_Parser, ID_List_Parser, Version_Parser, Rank_Parser, Issue_Key_Parser, \
-    Flag_Parser, Ready_Status_Parser, Labels_Parser, Project_Parser, \
-    Status_Category_Parser
+from .parser import Field_Parser, Int_Parser, String_Parser, Boolean_Parser, \
+    Date_Parser, Unicode_Parser, Sprint_Parser, Developer_Parser, \
+    Decimal_Parser, ID_Parser, ID_List_Parser, Version_Parser, Rank_Parser, \
+    Issue_Key_Parser, Flag_Parser, Ready_Status_Parser, Labels_Parser, \
+    Project_Parser, Status_Category_Parser
 from .query import Query
 from .special_field import Special_Field
 from .update import Updated_Time, Update_Tracker
 from ..table import Table, Key_Table, Link_Table
-from ..domain import source
+from ..domain import Project, source
+
+Data = Dict[str, str]
+FieldValue = Union[str, List[str], Dict[str, Union[str, bool]]]
+Field = Dict[str, FieldValue]
+Prefetcher = Callable[[Query], None]
 
 __all__ = ["Jira"]
 
@@ -76,21 +83,20 @@ class Jira:
 
     # JIRA field specification keys and their associated field parsers.
     # The fields are tried in order to determine the best fit parser.
-    FIELD_PARSERS = [
+    FIELD_PARSERS: List[Tuple[str, Type[Base_Jira_Field]]] = [
         ("primary", Primary_Field),
         ("property", Property_Field),
-        ("field", Payload_Field),
-        ("special_parser", Special_Field.get_field_class)
+        ("field", Payload_Field)
     ]
 
-    def __init__(self, project, updated_since):
+    def __init__(self, project: Project, updated_since: str) -> None:
         self._project = project
         self._updated_since = Updated_Time(updated_since)
 
         self._changelog = Changelog(self)
 
-        self._issue_fields = {}
-        self._search_options = {
+        self._issue_fields: Dict[str, Base_Jira_Field] = {}
+        self._search_options: Dict[str, Union[str, List[Prefetcher]]] = {
             'fields': '',
             'prefetchers': []
         }
@@ -123,23 +129,22 @@ class Jira:
 
         self._import_field_specifications()
 
-    def _make_issue_field(self, name, data):
+    def _make_issue_field(self, name: str, data: Field) \
+            -> Optional[Base_Jira_Field]:
         if "property" in data and "field" not in data:
-            raise KeyError("Field '{}' must not have property without field name".format(name))
+            raise KeyError(f"Field '{name}' must not have property without field name")
 
         for key, field in self.FIELD_PARSERS:
             if key in data:
-                if issubclass(field, Base_Jira_Field):
-                    return field(self, name, **data)
-                if callable(field):
-                    specialization = field(name)
-                    return specialization(self, name, **data)
+                return field(self, name, **data)
 
-                raise ValueError("Invalid field parser for {} key".format(key))
+        if "special_parser" in data:
+            specialization = Special_Field.get_field_class(name)
+            return specialization(self, name, **data)
 
         return None
 
-    def _import_field_specifications(self):
+    def _import_field_specifications(self) -> None:
         # Parse the JIRA field specifications and create field objects,
         # as well as the search fields string.
         jira_fields = []
@@ -162,7 +167,7 @@ class Jira:
         jira_fields.append(self._changelog.search_field)
         self._search_options['fields'] = ','.join(jira_fields)
 
-    def register_table(self, data, table_source=None):
+    def register_table(self, data: Field, table_source: Table_Source) -> None:
         """
         Create a new table storage according to a specification.
 
@@ -176,7 +181,7 @@ class Jira:
         The `data` "table" key can also be a dictionary, which is used by some
         table sources for specifying which fields they are going to extract and
         parse. The type cast parser is retrieved from the "type" key of `data`
-        if it exists. A `data` "table_key" key may register a table key.
+        if it exists.
 
         The `table_source` may additionally provide a table key, which can be
         `None`, a string or a tuple, which causes this method to register
@@ -194,27 +199,27 @@ class Jira:
         if "table" not in data:
             return
 
-        table_name = None
+        table_name: Optional[str] = None
         key = None
         if "type" in data:
-            datatype = data["type"]
+            datatype = str(data["type"])
             table_name = self._type_casts[datatype].table_name
             key = self._type_casts[datatype].table_key
 
-        if table_source is not None:
-            if table_name is None:
-                table_name = table_source.table_name
-            if key is None:
-                key = table_source.table_key
+        if table_name is None:
+            table_name = table_source.table_name
+        if key is None:
+            key = table_source.table_key
 
-        if not isinstance(data["table"], dict):
+        if isinstance(data["table"], str):
             table_name = data["table"]
-        if "table_key" in data:
-            key = data["table_key"]
 
-        table_options = {}
-        if "table_options" in data:
+        table_options: Dict[str, Any] = {}
+        if "table_options" in data and isinstance(data["table_options"], dict):
             table_options = data["table_options"]
+
+        if table_name is None:
+            return
 
         if key is None:
             self._tables[table_name] = Table(table_name, **table_options)
@@ -225,23 +230,25 @@ class Jira:
             self._tables[table_name] = Key_Table(table_name, key,
                                                  **table_options)
 
-    def register_prefetcher(self, method):
+    def register_prefetcher(self, method: Prefetcher) -> None:
         """
         Register a method that is to be called with the `Query` object before
         issues are collected. This allows additional data gathering by fields
         or type cast parsers if they need the data to operate effectively.
         """
 
-        self._search_options['prefetchers'].append(method)
+        prefetchers = self._search_options['prefetchers']
+        if isinstance(prefetchers, list):
+            prefetchers.append(method)
 
-    def get_table(self, name):
+    def get_table(self, name: str) -> Table:
         """
         Retrieve a table registered under `name`.
         """
 
         return self._tables[name]
 
-    def get_type_cast(self, datatype):
+    def get_type_cast(self, datatype: str) -> Field_Parser:
         """
         Retrieve a type cast parser registered under the key `datatype`.
         """
@@ -249,7 +256,7 @@ class Jira:
         return self._type_casts[datatype]
 
     @property
-    def project(self):
+    def project(self) -> Project:
         """
         Retrieve the Project domain object.
         """
@@ -257,7 +264,7 @@ class Jira:
         return self._project
 
     @property
-    def project_key(self):
+    def project_key(self) -> str:
         """
         Retrieve the JIRA project key.
         """
@@ -265,7 +272,7 @@ class Jira:
         return self._project.jira_key
 
     @property
-    def updated_since(self):
+    def updated_since(self) -> Updated_Time:
         """
         Retrieve the `Updated_Time` object indicating the last time the data
         was updated.
@@ -274,14 +281,14 @@ class Jira:
         return self._updated_since
 
     @property
-    def search_fields(self):
+    def search_fields(self) -> str:
         """
         Retrieve the comma-separated search fields to be used in the query.
         """
 
-        return self._search_options['fields']
+        return str(self._search_options['fields'])
 
-    def search_issues(self, query):
+    def search_issues(self, query: Query) -> None:
         """
         Search for issues in batches and extract field data from them.
         """
@@ -299,12 +306,12 @@ class Jira:
             query.update()
             issues = query.perform_batched_query(had_issues)
 
-    def collect_fields(self, issue):
+    def collect_fields(self, issue: Issue) -> Data:
         """
         Extract simple field data from one issue.
         """
 
-        data = {}
+        data: Data = {}
         for name, field in self._issue_fields.items():
             result = field.parse(issue)
             if result is not None:
@@ -312,7 +319,7 @@ class Jira:
 
         return data
 
-    def write_tables(self):
+    def write_tables(self) -> None:
         """
         Export all data to separate table-based JSON output files.
         """
@@ -320,25 +327,26 @@ class Jira:
         for table in self._tables.values():
             table.write(self._project.export_key)
 
-    def process(self, jira_source, query=None):
+    def process(self, jira_source: source.Jira, query: Optional[str] = None) -> str:
         """
         Perform all steps to export the issues, fields and additional data
         gathered from a JIRA search. Return the update time of the query.
         """
 
-        query = Query(self, jira_source, query)
-        for prefetcher in self._search_options['prefetchers']:
-            prefetcher(query)
+        query_api = Query(self, jira_source, query)
+        if isinstance(self._search_options['prefetchers'], list):
+            for prefetcher in self._search_options['prefetchers']:
+                prefetcher(query_api)
 
-        self.search_issues(query)
+        self.search_issues(query_api)
 
         if not self.project.sources.find_source_type(source.Jira):
-            self._add_source(jira_source, query.api)
+            self._add_source(jira_source, query_api.api)
 
         self.write_tables()
-        return query.latest_update
+        return query_api.latest_update
 
-    def _add_source(self, jira_source, api):
+    def _add_source(self, jira_source: source.Source, api: JIRA) -> None:
         # Replace the source URL with the one provided by the API if possible
         myself = api.myself()
         regex = api.JIRA_BASE_URL.replace('{', '(?P<').replace('}', '>.*?)')

@@ -8,14 +8,14 @@ import json
 import sys
 import Pyro4
 
-def setup_log():
+def setup_log() -> None:
     """
     Set up logging.
     """
 
     cgitb.enable()
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

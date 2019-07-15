@@ -18,25 +18,25 @@ class Exporter:
     AGENT_DIRECTORY = '/agents'
     CONTROLLER_DIRECTORY = '/controller'
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._config = Configuration.get_settings()
 
-    def export_data(self, project_key, agent_key):
+    def export_data(self, project_key: str, agent_key: str) -> None:
         """
         Export the agent data and import it into the database.
         """
 
-        directory = Path(self.AGENT_DIRECTORY, agent_key)
+        directory = str(Path(self.AGENT_DIRECTORY, agent_key))
 
         environment = os.environ.copy()
         environment.update({
-            'USER': os.getenv('USER'),
+            'USER': os.getenv('USER', ''),
             'CLEANUP_EXPORT': '1'
         })
         args = ['/bin/bash', 'controller-export.sh', directory, project_key]
         subprocess.Popen(args, stdout=None, stderr=None, env=environment)
 
-    def start_scrape(self, project_key):
+    def start_scrape(self, project_key: str) -> None:
         """
         Request a Jenkins instance to start a scrape job for the remaining data.
         """
@@ -63,7 +63,7 @@ class Exporter:
         ]
         job.build(parameters=parameters, token=token)
 
-    def write_agent_status(self, project_key, agent_status):
+    def write_agent_status(self, project_key: str, agent_status: str) -> None:
         """
         Write status information about the agent configuration to a file in
         the controller directory.
@@ -73,7 +73,7 @@ class Exporter:
         with path.open('w') as agent_file:
             agent_file.write(agent_status)
 
-def main():
+def main() -> None:
     """
     Main setup and event loop.
     """

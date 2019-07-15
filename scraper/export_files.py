@@ -2,25 +2,26 @@
 Script to export the export and update files to the controller server.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import json
 import logging
 import socket
 import subprocess
 import sys
+from typing import Optional, Sequence
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.request import Session
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     config = Configuration.get_settings()
 
-    parser = argparse.ArgumentParser(description='Export data and update files')
+    parser = ArgumentParser(description='Export data and update files')
     parser.add_argument('project', help='project key to export')
     parser.add_argument('--path', default='~/.ssh/id_rsa',
                         help='local path of the private key')
@@ -50,13 +51,15 @@ class Exporter:
     Export data collected for one project to the controller.
     """
 
-    def __init__(self, project, host, agent, dry_run=False):
+    def __init__(self, project: Project, host: str, agent: str,
+                 dry_run: bool = False) -> None:
         self.project = project
         self.host = host
         self.agent = agent
         self.dry_run = dry_run
 
-    def export_files(self, key_path, filenames, paths):
+    def export_files(self, key_path: str, filenames: Sequence[str],
+                     paths: Sequence[str]):
         """
         Upload the export data files `filenames` for the project from the
         export directory for the project to a remote SCP directory indicated
@@ -68,17 +71,22 @@ class Exporter:
         """
 
         auth = self.agent + '@' + self.host
-        export_path = '{}:~/{}/'.format(auth, self.project.export_key)
+        export_path = f'{auth}:~/{self.project.export_key}/'
 
         args = ['scp', '-i', key_path] + [
-            '{}/{}'.format(self.project.export_key, filename) for filename in filenames
-        ] + paths + [export_path]
+            f'{self.project.export_key}/{filename}' for filename in filenames
+        ]
+        args.extend(list(paths))
+        args.append(export_path)
         if self.dry_run:
             logging.info('Dry run: Would execute %s', ' '.join(args))
         else:
             subprocess.call(args)
 
-    def update_controller(self, cert, export=None, update=None, other=None):
+    def update_controller(self, cert: str,
+                          export: Optional[Sequence[str]] = None,
+                          update: Optional[Sequence[str]] = None,
+                          other: Optional[Sequence[str]] = None) -> None:
         """
         Indicate to the controller API that we are done with exporting
         the current state of the gatherer for the project.
@@ -92,8 +100,7 @@ class Exporter:
         '202 Accepted', then a `RuntimeError` is raised.
         """
 
-        url = 'https://{}/auth/export.py?project={}'.format(self.host,
-                                                            self.project.jira_key)
+        url = f'https://{self.host}/auth/export.py?project={self.project.jira_key}'
         if self.dry_run:
             logging.info('Dry run: Would send a POST request to %s', url)
             return
@@ -118,7 +125,7 @@ class Exporter:
         if not Session.is_code(request, 'accepted'):
             raise RuntimeError('HTTP error {}: {}'.format(request.status_code, request.text))
 
-def main():
+def main() -> int:
     """
     Main entry point.
     """

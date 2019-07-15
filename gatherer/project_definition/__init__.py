@@ -6,4 +6,6 @@ such as projects, products and teams. Additionally, they specify options for
 quality metrics, namely custom targets.
 """
 
-__all__ = []
+from typing import List
+
+__all__: List[str] = []

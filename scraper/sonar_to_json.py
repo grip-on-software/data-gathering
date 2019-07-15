@@ -3,14 +3,16 @@ Retrieve historical data from Sonar and output it in a format similar to that
 of the quality reporting dashboard history.
 """
 
-import argparse
-import datetime
+from argparse import ArgumentParser, Namespace
+from datetime import datetime
 import itertools
 import json
 import logging
 import os
 from pathlib import Path
 import ssl
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple, \
+    Type, Union
 import urllib
 from hqlib import domain
 from hqlib.metric_source import Sonar, Sonar7
@@ -21,8 +23,9 @@ except ImportError:
     raise ImportError('Cannot import CompactHistory: quality_reporting 2.3.0+ required')
 from hqlib.requirement import CodeQuality, ViolationsByType
 from hqlib.metric_source.url_opener import UrlOpener
-from hqlib.domain import LowerIsBetterMetric
+from hqlib.domain import Metric, LowerIsBetterMetric
 from hqlib.metric.metric_source_mixin import SonarMetric
+from hqlib.typing import MetricValue, Number
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.domain import source
@@ -38,30 +41,35 @@ class Custom_Metric(SonarMetric, LowerIsBetterMetric):
     low_target_value = 100
 
     @classmethod
-    def build_name(cls, name):
+    def build_name(cls, name: str) -> str:
         """
         Format a metric class name for stable IDs from a Sonar metric name.
         """
 
         return ''.join(part.title() for part in name.split('_'))
 
-    def __init__(self, name, subject=None, project=None):
+    def __init__(self, name: str, subject: Optional[Any] = None,
+                 project: Optional[domain.Project] = None) -> None:
         self._metric_name = name
-        super(Custom_Metric, self).__init__(subject, project)
+        super().__init__(subject, project)
 
-    def get_name(self):
+    def get_name(self) -> str:
         """
         Retrieve the custom metric name.
         """
 
         return self.build_name(self._metric_name)
 
-    def stable_id(self):
+    def stable_id(self) -> str:
         name = self.get_name()
-        name += self._subject.name()
+        try:
+            name += self._subject.name()
+        except AttributeError:
+            name += str(self._subject)
+
         return name
 
-    def value(self):
+    def value(self) -> MetricValue:
         if self._metric_source:
             val = self._metric_source.custom(self._sonar_id(),
                                              metric_name=self._metric_name)
@@ -75,23 +83,31 @@ class Sonar_Time_Machine(Sonar7):
     Sonar instance with time machine history search support.
     """
 
-    def __init__(self, sonar_url, from_date, *args, **kwargs):
-        super(Sonar_Time_Machine, self).__init__(sonar_url, *args, **kwargs)
+    def __init__(self, sonar_url: str, from_date: Optional[str], *args: Any,
+                 **kwargs: Any) -> None:
+        super().__init__(sonar_url, *args, **kwargs)
         setattr(self, '__class__', Sonar_Time_Machine)
 
-        self.__current_datetime = None
-        self.__end_datetime = None
-        self.__next_datetime = None
-        self.__failed_urls = set()
-        self.__iterator = None
-        self.__has_next_page = False
+        self.__failed_urls: Set[str] = set()
         if from_date is not None:
             self.__from_datetime = get_datetime(from_date)
         else:
-            self.__from_datetime = datetime.datetime(1, 1, 1)
-        self.reset_datetime()
+            self.__from_datetime = datetime(1, 1, 1)
 
-    def set_datetime(self, date=None):
+        self.__current_datetime = self.__from_datetime
+        self.__end_datetime = datetime.now()
+        self.__next_datetime: Optional[datetime] = None
+        self.__has_next_page = False
+        self._reset()
+
+    def _reset(self) -> None:
+        self.__current_datetime = self.__from_datetime
+        self.__end_datetime = datetime.now()
+        self.__next_datetime = None
+        self.__iterator = Iterator_Limiter(size=100, maximum=100000)
+        self.__has_next_page = False
+
+    def set_datetime(self, date: Optional[datetime] = None):
         """
         Alter the moment in time at which to check the Sonar state.
         """
@@ -108,18 +124,14 @@ class Sonar_Time_Machine(Sonar7):
 
         self.__current_datetime = date
 
-    def reset_datetime(self):
+    def reset_datetime(self) -> None:
         """
         Alter the moment in time to the full initial range.
         """
 
-        self.__current_datetime = self.__from_datetime
-        self.__end_datetime = datetime.datetime.now()
-        self.__next_datetime = None
-        self.__iterator = Iterator_Limiter(size=100, maximum=100000)
-        self.__has_next_page = False
+        self._reset()
 
-    def get_datetime(self):
+    def get_datetime(self) -> Optional[datetime]:
         """
         Retrieve the moment in time at which to check the Sonar state.
         """
@@ -127,14 +139,15 @@ class Sonar_Time_Machine(Sonar7):
         return self.__next_datetime
 
     @staticmethod
-    def __make_datetime(date):
+    def __make_datetime(date: str) -> datetime:
         return get_datetime(date[:-5], '%Y-%m-%dT%H:%M:%S')
 
-    def __parse_measures(self, data, keys):
+    def __parse_measures(self, data: Sequence[Mapping[str, Any]],
+                         keys: Tuple[str, str]) -> Number:
         date_key, value_key = keys
 
         if data:
-            self.__end_datetime = self.__make_datetime(data[-1][date_key])
+            self.__end_datetime = self.__make_datetime(str(data[-1][date_key]))
 
         for metric in data:
             date = self.__make_datetime(metric[date_key])
@@ -154,12 +167,12 @@ class Sonar_Time_Machine(Sonar7):
                         self.__current_datetime, self.__end_datetime)
         return -1
 
-    def _update_page(self, data):
-        size = self.__iterator.skip + data['paging']['pageSize']
-        has_content = data['paging']['total'] > size
+    def _update_page(self, data: Mapping[str, Any]) -> None:
+        size = self.__iterator.skip + int(data['paging']['pageSize'])
+        has_content = int(data['paging']['total']) > size
         self.__has_next_page = self.__iterator.check(has_content)
 
-    def _metric(self, product, metric_name, branch):
+    def _metric(self, product: str, metric_name: str, branch: str) -> Number:
         if not self._has_project(product, branch):
             return -1
 
@@ -195,7 +208,8 @@ class Sonar_Time_Machine(Sonar7):
                         metric_name, product)
         return -1
 
-    def __count_issues(self, url, closed=False, default=-1, **url_params):
+    def __count_issues(self, url: str, closed: bool = False,
+                       default: Number = -1, **url_params: str) -> int:
         count = 0
         has_content = True
         iterator_limiter = Iterator_Limiter(size=100, maximum=100000)
@@ -216,7 +230,8 @@ class Sonar_Time_Machine(Sonar7):
 
         return count
 
-    def __count_issue_data(self, issues, closed):
+    def __count_issue_data(self, issues: Sequence[Mapping[str, Any]],
+                           closed: bool) -> int:
         count = 0
         for issue in issues:
             creation_date = self.__make_datetime(issue['creationDate'])
@@ -234,7 +249,8 @@ class Sonar_Time_Machine(Sonar7):
 
         return count
 
-    def _rule_violation(self, product, rule_name, default=0, branch=None):
+    def _rule_violation(self, product: str, rule_name: str, default: int = 0,
+                        branch: Optional[str] = None) -> int:
         if not self._has_project(product, branch):
             return -1
 
@@ -246,7 +262,7 @@ class Sonar_Time_Machine(Sonar7):
                                    component=product, rule=rule_name,
                                    default=default)
 
-    def _false_positives(self, product, default=0, branch=None):
+    def _false_positives(self, product: str, branch: str) -> int:
         if not self._has_project(product, branch):
             return -1
 
@@ -256,41 +272,42 @@ class Sonar_Time_Machine(Sonar7):
         false_positives_url = self._add_branch_param_to_url(false_positives_url,
                                                             branch)
         return self.__count_issues(false_positives_url, closed=True,
-                                   default=default, component=product)
+                                   default=0, component=product)
 
     _issues_by_type_api_url = 'api/issues/search?' + \
         'componentRoots={component}&types={type}&p={p}&ps={ps}'
 
     @extract_branch_decorator
-    def maintainability_bugs(self, product, branch):
+    def maintainability_bugs(self, product: str, branch: str) -> int:
         bugs_url = self.url() + 'api/issues/search?' + \
             'componentRoots={component}&types=BUG&p={p}&ps={ps}'
         return self.__count_issues(bugs_url, closed=False, default=0,
                                    component=product)
 
     @extract_branch_decorator
-    def vulnerabilities(self, product, branch):
+    def vulnerabilities(self, product: str, branch: str) -> int:
         vulnerabilities_url = self.url() + 'api/issues/search?' + \
             'componentRoots={component}&types=VULNERABILITY&p={p}&ps={ps}'
         return self.__count_issues(vulnerabilities_url, closed=False, default=0,
                                    component=product)
 
     @extract_branch_decorator
-    def code_smells(self, product, branch):
+    def code_smells(self, product: str, branch: str) -> int:
         code_smells_url = self.url() + 'api/issues/search?' + \
             'componentRoots={component}&types=CODE_SMELL&p={p}&ps={ps}'
         return self.__count_issues(code_smells_url, closed=False, default=0,
                                    component=product)
 
     @extract_branch_decorator
-    def custom(self, product, branch, metric_name=None):
+    def custom(self, product: str, branch: str, metric_name: str = '') -> int:
         """
         Retrieve a custom metric.
         """
 
         return int(self._metric(product, metric_name, branch))
 
-def retrieve(sonar, project, products, metrics=None):
+def retrieve(sonar: Sonar_Time_Machine, project: domain.Project,
+             products: Sequence[str], metrics: Sequence[Metric]) -> Set[str]:
     """
     Retrieve Sonar metrics from the instance at `url`, of the project `name`,
     and for the component names in the list `products`.
@@ -311,7 +328,9 @@ def retrieve(sonar, project, products, metrics=None):
 
     return metric_names
 
-def retrieve_product(sonar, history, project, product, include_metrics):
+def retrieve_product(sonar: Sonar_Time_Machine, history: CompactHistory,
+                     project: domain.Project, product: str,
+                     include_metrics: Sequence[Metric]) -> Set[str]:
     """
     Retrieve Sonar metrics from the instance described by the domain object
     `sonar`, of the project `project`, and for the component name `product`.
@@ -355,7 +374,10 @@ def retrieve_product(sonar, history, project, product, include_metrics):
 
     return metric_names
 
-def get_metrics(metric_classes, include_metrics, component=None, project=None):
+def get_metrics(metric_classes: Sequence[Type[Metric]],
+                include_metrics: Sequence[Metric],
+                component: Optional[str] = None,
+                project: Optional[str] = None) -> Tuple[List[Metric], Set[str]]:
     """
     Retrieve metric objects that we wish to collect from the Sonar source, based
     upon `metric_classes`, a list of required metric classes, and
@@ -387,7 +409,7 @@ def get_metrics(metric_classes, include_metrics, component=None, project=None):
 
     return metrics, metric_names
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
@@ -395,21 +417,22 @@ def parse_args():
     config = Configuration.get_settings()
     if config.has_section('sonar'):
         sonar = dict(config.items('sonar'))
-        verify = config.get('sonar', 'verify')
-        if not Configuration.has_value(verify):
+        verify_config = config.get('sonar', 'verify')
+        verify: Union[bool, str] = verify_config
+        if not Configuration.has_value(verify_config):
             verify = False
-        elif not Path(verify).exists():
+        elif not Path(verify_config).exists():
             verify = True
     else:
         sonar = {
-            'host': None,
+            'host': '',
             'username': '',
             'password': ''
         }
         verify = True
 
     description = "Obtain sonar history and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('project', help='Project key')
     parser.add_argument('--url', help='Sonar URL', default=sonar['host'])
     parser.add_argument('--no-url', action='store_const', const='', dest='url',
@@ -435,18 +458,18 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def adjust_verify(verify):
+def adjust_verify(verify: Union[bool, str]) -> None:
     """
     Adjust SSL certificate verification for the Sonar source.
     """
 
     if verify is False:
         logging.critical('SSL certificate verification cannot be disabled for Sonar export')
-    elif verify is not True:
+    elif isinstance(verify, str):
         cafile_env = ssl.get_default_verify_paths().openssl_cafile_env
         os.environ[cafile_env] = verify
 
-def get_products(products, project):
+def get_products(products: Optional[Sequence[str]], project: Project) -> List[str]:
     """
     Retrieve a list of product components to collect for the project.
     """
@@ -464,9 +487,9 @@ def get_products(products, project):
                 if product.get("source_type", "sonar") == "sonar"
             ]
 
-    return products
+    return list(products)
 
-def update_metric_names(filename, metric_names):
+def update_metric_names(filename: str, metric_names: Set[str]) -> None:
     """
     Update a JSON file with metric base names to contain the collected base
     names.
@@ -480,7 +503,7 @@ def update_metric_names(filename, metric_names):
     with path.open('w') as output_file:
         json.dump(list(metric_names), output_file)
 
-def get_sonar_url(project):
+def get_sonar_url(project: Project) -> str:
     """
     Retrieve the URL to the Sonar instance of the project, from project
     sources, or return an empty string if the source is unavailable or its
@@ -499,7 +522,7 @@ def get_sonar_url(project):
 
     return sonar_source.url
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -533,7 +556,7 @@ def main():
 
     update_filename = project.export_key / 'history_update.json'
     from_date = args.from_date
-    dates = {}
+    dates: Dict[str, str] = {}
     if update_filename.exists():
         with update_filename.open('r') as update_file:
             dates = json.load(update_file)
@@ -547,7 +570,7 @@ def main():
     metric_names = retrieve(sonar, project, products, args.metrics)
 
     for metric in args.metrics:
-        dates[metric] = format_date(datetime.datetime.now())
+        dates[metric] = format_date(datetime.now())
 
     with update_filename.open('w') as update_file:
         json.dump(dates, update_file)

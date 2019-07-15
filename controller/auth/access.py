@@ -7,10 +7,10 @@ import cgitb
 import ipaddress
 import json
 import os
-
+from typing import List
 from gatherer.config import Configuration
 
-def is_in_networks(address, nets):
+def is_in_networks(address: str, nets: str) -> bool:
     """
     Check if an IP address object `address` is part of any of the networks
     defined by their CIDR ranges in the comma-separated `nets` string.
@@ -19,7 +19,7 @@ def is_in_networks(address, nets):
     networks = set(ipaddress.ip_network(net.strip()) for net in nets.split(','))
     return any(address in network for network in networks)
 
-def get_accessible_projects():
+def get_accessible_projects() -> List[str]:
     """
     Retrieve a list of projects that the user is allowed to access. The list
     contains the special value '*' if access to all projects is allowed or if
@@ -48,14 +48,14 @@ def get_accessible_projects():
 
     return projects
 
-def setup_log():
+def setup_log() -> None:
     """
     Set up logging.
     """
 
     cgitb.enable()
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

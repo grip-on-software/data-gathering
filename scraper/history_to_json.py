@@ -3,7 +3,7 @@ Script to obtain a metrics history file and convert it to a JSON format
 readable by the database importer.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 from contextlib import contextmanager
 import ast
 import gzip
@@ -11,8 +11,12 @@ import io
 import itertools
 import json
 import logging
+import os
 from pathlib import Path, PurePath
 import shutil
+from types import TracebackType
+from typing import Any, Dict, Generator, List, Optional, Sequence, Set, \
+    Tuple, Type, Union
 # Non-standard imports
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -23,13 +27,18 @@ from gatherer.log import Log_Setup
 from gatherer.utils import parse_date
 from gatherer.request import Session
 
-def parse_args():
+MetricRow = Dict[str, Union[str, Tuple[str, str, str]]]
+OpenFile = Union[io.FileIO, gzip.GzipFile]
+IOLike = Union[OpenFile, io.StringIO]
+PathLike = Union[str, os.PathLike]
+
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain a metrics history file and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--start-from", dest="start_from",
                         default=None, help="record to start reading from")
@@ -67,7 +76,8 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def read_project_file(data_file, start_from=0):
+def read_project_file(data_file: IOLike, start_from: int = 0) \
+        -> Tuple[List[Dict[str, str]], int]:
     """
     Read metric data from a project history file.
 
@@ -79,13 +89,14 @@ def read_project_file(data_file, start_from=0):
     metric_data = []
     line_count = 0
 
-    for row in itertools.islice(data_file, start_from, None):
+    for line in itertools.islice(data_file, start_from, None):
+        row = str(line)
         line_count += 1
         if row.strip() == "":
             continue
 
-        metric_row = ast.literal_eval(row)
-        date = parse_date(metric_row["date"])
+        metric_row: MetricRow = ast.literal_eval(row)
+        date = parse_date(str(metric_row["date"]))
         for metric in metric_row:
             if isinstance(metric_row[metric], tuple):
                 metric_row_data = {
@@ -101,7 +112,7 @@ def read_project_file(data_file, start_from=0):
     logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
 
-def get_setting(arg, key, project, boolean=False):
+def get_setting(arg: Any, key: str, project: Project, boolean: bool = False) -> Any:
     """
     Retrieve a configuration setting from the history section using the `key`
     as well as the project key for the option name, using multiple variants.
@@ -126,7 +137,7 @@ def get_setting(arg, key, project, boolean=False):
 
     return arg
 
-def check_sparse_base(export_path):
+def check_sparse_base(export_path: PathLike) -> bool:
     """
     Determine whether the export directory is a sparse base directory, where
     a repository containing multiple project's histories are cloned to.
@@ -134,7 +145,7 @@ def check_sparse_base(export_path):
 
     return '/' not in str(export_path).rstrip('/')
 
-def get_gitlab_url(project, args):
+def get_gitlab_url(project: Project, args: Namespace) -> Optional[Tuple[str, ...]]:
     """
     Check whether the provided export URL and if so, whether the repository
     would be cloned to a sparse base directory. Return a URL that can be
@@ -149,15 +160,17 @@ def get_gitlab_url(project, args):
     if not GitLab.is_gitlab_url(export_url):
         return (export_url,)
 
-    parts = [export_url, "raw/master"]
+    parts = [str(export_url), "raw/master"]
 
     repo_path = get_setting(args.export_path, 'path', project)
-    if Configuration.has_value(repo_path) and check_sparse_base(repo_path):
+    if Configuration.has_value(repo_path) and check_sparse_base(repo_path) and \
+        project.quality_metrics_name is not None:
         parts.append(project.quality_metrics_name)
 
-    return parts
+    return tuple(parts)
 
-def get_gitlab_path(project, args):
+def get_gitlab_path(project: Project, args: Namespace) \
+        -> Tuple[Optional[Path], Optional[str]]:
     """
     Check if the arguments or settings have a GitLab URL. If so, clone the
     repository containing the metrics history from there.
@@ -185,7 +198,9 @@ def get_gitlab_path(project, args):
         logging.info('Removing old history clone %s', export_path)
         shutil.rmtree(str(export_path))
 
-    if check_sparse_base(export_path):
+    paths: Optional[List[str]] = None
+    clone_path = export_path
+    if check_sparse_base(export_path) and project.quality_metrics_name is not None:
         paths = [project.quality_metrics_name]
         clone_path = export_path / project.quality_metrics_name
         git_path = export_path / '.git'
@@ -195,14 +210,10 @@ def get_gitlab_path(project, args):
             # The other clones must be removed before the clone operation.
             logging.info('Making way to clone into %s', export_path)
             shutil.rmtree(str(export_path))
-    else:
-        paths = None
-        clone_path = export_path
 
     logging.info('Pulling quality metrics history repository to %s',
                  export_path)
-    source = Source.from_type('gitlab', name='quality-report-history',
-                              url=gitlab_url)
+    source = GitLab('gitlab', name='quality-report-history', url=gitlab_url)
     repo_class = source.repository_class
     repo_class.from_source(source, export_path, checkout=paths,
                            shallow=True, progress=True)
@@ -213,8 +224,10 @@ class Location:
     Location of a history file.
     """
 
-    def __init__(self, parts, filename=None, compression=False):
-        if isinstance(parts, (PurePath, str)):
+    def __init__(self, parts: Union[PathLike, Tuple[str, ...]],
+                 filename: Optional[str] = None,
+                 compression: Union[bool, str] = False) -> None:
+        if isinstance(parts, (os.PathLike, str)):
             parts = (str(parts),)
 
         if filename is not None:
@@ -224,7 +237,7 @@ class Location:
         self._compression = compression
 
     @property
-    def parts(self):
+    def parts(self) -> Tuple[str, ...]:
         """
         Retrieve the parts of the path or URL that were used to find the
         location of the history file.
@@ -233,7 +246,7 @@ class Location:
         return self._parts
 
     @property
-    def location(self):
+    def location(self) -> str:
         """
         Retrieve the path or URL to the history file.
         """
@@ -241,7 +254,7 @@ class Location:
         return self._location
 
     @property
-    def local(self):
+    def local(self) -> bool:
         """
         Retrieve whether the history file location is a local path. If this is
         `False`, the location is instead a networked URL.
@@ -250,7 +263,7 @@ class Location:
         raise NotImplementedError('Must be implemented by subclass')
 
     @property
-    def compression(self):
+    def compression(self) -> Union[bool, str]:
         """
         Retrieve the compression used of the file or a falsy value if the file
         has no compression.
@@ -258,7 +271,7 @@ class Location:
 
         return self._compression
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._location
 
 class File(Location):
@@ -267,7 +280,7 @@ class File(Location):
     """
 
     @property
-    def local(self):
+    def local(self) -> bool:
         return True
 
 class Url(Location):
@@ -276,7 +289,7 @@ class Url(Location):
     """
 
     @property
-    def local(self):
+    def local(self) -> bool:
         return False
 
 class Data_Source:
@@ -285,10 +298,12 @@ class Data_Source:
     for one or more history data sources.
     """
 
-    def __init__(self, sources, locations, open_file=None):
+    def __init__(self, sources: Set[History],
+                 locations: Union[Location, Sequence[Location]],
+                 open_file: Optional[IOLike] = None) -> None:
         self._sources = sources
         if isinstance(locations, Location):
-            self._locations = (locations,)
+            self._locations: Tuple[Location, ...] = (locations,)
         elif not locations:
             raise ValueError('At least one location is required')
         else:
@@ -297,7 +312,7 @@ class Data_Source:
         self._file = open_file
 
     @property
-    def sources(self):
+    def sources(self) -> Set[History]:
         """
         Retrieve the `History` source objects which were involved in locating
         the history file, or an empty list if there are no such source objects.
@@ -306,7 +321,7 @@ class Data_Source:
         return self._sources
 
     @property
-    def locations(self):
+    def locations(self) -> Tuple[Location, ...]:
         """
         Retrieve a sequence of `Location` objects that provide some sort of
         access to the history file.
@@ -315,7 +330,7 @@ class Data_Source:
         return self._locations
 
     @property
-    def location(self):
+    def location(self) -> Location:
         """
         Retrieve the primary `Location` object from which the history file
         can be accessed.
@@ -324,7 +339,7 @@ class Data_Source:
         return self._locations[0]
 
     @property
-    def file(self):
+    def file(self) -> Optional[IOLike]:
         """
         Retrieve an open file descriptor for the history file, or `None` if
         the file is not opened.
@@ -332,15 +347,17 @@ class Data_Source:
 
         return self._file
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         pass
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
         if self._file is not None:
             self._file.close()
             self._file = None
 
-def get_filename(project, sources, args):
+def get_filename(project: Project, sources: Set[History], args: Namespace) -> str:
     """
     Retrieve the file name of the history file. This name, without any preceding
     paths, may be set from a command line argument, the history sources, or the
@@ -348,15 +365,16 @@ def get_filename(project, sources, args):
     """
 
     if args.filename is not None:
-        return args.filename
+        return str(args.filename)
 
     for source in sources:
         if source.file_name is not None:
-            return source.file_name
+            return str(source.file_name)
 
     return project.get_key_setting('history', 'filename')
 
-def get_filename_compression(project, sources, args):
+def get_filename_compression(project: Project, sources: Set[History],
+                             args: Namespace) -> Tuple[str, str]:
     """
     Retrieve the file name of the history file and the compression to be used
     to read the file. The file name is adjusted to contain the compression
@@ -370,26 +388,41 @@ def get_filename_compression(project, sources, args):
 
     return filename, compression
 
-def get_file_opener(compression):
+def get_file_opener(compression: Union[bool, str]) -> Type[OpenFile]:
     """
     Retrieve a method or class that, when called, returns an open file object
-    applicable for the given `compression`, which may be `None` or `False` to
-    indicate no compression. The returned callable object can be called with
+    applicable for the given `compression`, which may be `False` to
+    indicate no compression. The returned class can be constructed with
     a filename and a mode argument, in that order, or when `compression` is
-    not `None`, an open file object through keyword argument `fileobj`.
+    not `False`, an open file object through keyword argument `fileobj`
+    in the constructor.
 
     Raises a `ValueError` if the compression is not supported.
     """
 
     if not compression:
-        return open
+        return io.FileIO
     if compression == "gz":
         return gzip.GzipFile
 
     raise ValueError("Compression '{}' is not supported".format(compression))
 
+def get_stream(compression: Union[bool, str], url: Url) -> IOLike:
+    """
+    Create a file descriptor for a URL source. Based on the compression,
+    the open file may be a binary/compressed reader or string buffer.
+    """
+
+    response = Session().get(str(url))
+    opener = get_file_opener(compression)
+    if compression and isinstance(opener, gzip.GzipFile):
+        return opener(mode='r', fileobj=io.BytesIO(response.content))
+
+    return io.StringIO(response.text)
+
 @contextmanager
-def get_data_source(project, args):
+def get_data_source(project: Project, args: Namespace) \
+        -> Generator[Data_Source, None, None]:
     """
     Yield a path, URL or a read-only opened file containing the historical
     metric values of the project. When used as a context manager in a 'with'
@@ -400,7 +433,7 @@ def get_data_source(project, args):
     # environment settings. See `get_filename` for details. We adjust the
     # filename to contain the compression extension if it did not have one;
     # note that we do not remove extensions if compression is disabled.
-    sources = set(project.sources.find_sources_by_type(History))
+    sources: Set[History] = set(project.sources.find_sources_by_type(History))
     filename, compression = get_filename_compression(project, sources, args)
 
     if args.export_path is not None:
@@ -410,7 +443,8 @@ def get_data_source(project, args):
         # quality dashboard name.
         export_path, gitlab_url = get_gitlab_path(project, args)
         if export_path is not None and export_path.exists():
-            locations = [File(export_path, filename, compression)]
+            locations: List[Location] = []
+            locations.append(File(export_path, filename, compression))
             if gitlab_url is not None:
                 locations.append(Url(gitlab_url, compression=compression))
             logging.info('Found metrics history path: %s', locations[0])
@@ -420,7 +454,7 @@ def get_data_source(project, args):
         # Path to a directory with a local file that can be opened.
         path = File(args.path, filename, compression)
         opener = get_file_opener(compression)
-        yield Data_Source(sources, path, open_file=opener(path, 'r'))
+        yield Data_Source(sources, path, open_file=opener(str(path), 'r'))
         return
 
     if args.export_url is not None:
@@ -436,25 +470,19 @@ def get_data_source(project, args):
         # URL prefix to a specific download location.
         url_prefix = get_setting(args.url, 'url', project)
         url = Url(url_prefix, filename, compression)
-        stream = io.BytesIO(Session().get(url).content)
-        if compression:
-            opener = get_file_opener(compression)
-            open_file = opener(mode='r', fileobj=stream)
-        else:
-            open_file = stream
 
-        yield Data_Source(sources, url, open_file=open_file)
+        yield Data_Source(sources, url, open_file=get_stream(compression, url))
         return
 
     raise RuntimeError('No valid metrics history source defined')
 
-def get_tracker_start(args):
+def get_tracker_start(args: Namespace) -> int:
     """
     Retrieve an indicator of where to start reading from in the history file.
     """
 
     if args.start_from is not None:
-        return args.start_from
+        return int(args.start_from)
 
     start_paths = [
         Path('history_record_time.txt'), Path('history_line_count.txt')
@@ -469,7 +497,7 @@ def get_tracker_start(args):
 
     return start_from
 
-def update_source(project, data):
+def update_source(project: Project, data: Data_Source) -> None:
     """
     Replace the `History` source domain object in the project sources with
     another source which uses the full URL of the data source location, if
@@ -497,7 +525,7 @@ def update_source(project, data):
 
             break
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -509,6 +537,7 @@ def main():
 
     # Check most recent history format tracker first
     start_from = get_tracker_start(args)
+    metric_data: Union[str, List[Dict[str, str]]] = ''
 
     try:
         with get_data_source(project, args) as data:

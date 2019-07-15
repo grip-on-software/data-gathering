@@ -3,8 +3,20 @@ Special field parsers.
 """
 
 import logging
-from .base import Base_Jira_Field, Base_Changelog_Field
+from typing import Any, Callable, Dict, Optional, Tuple, Type, cast, TYPE_CHECKING
+from jira import Issue
+from .base import Base_Jira_Field, Base_Changelog_Field, Table_Source, TableKey
+from .query import Query
+from ..table import Table
 from ..utils import get_local_datetime, parse_unicode
+if TYPE_CHECKING:
+    from . import Jira, FieldValue
+else:
+    Jira = object
+    FieldValue = object
+
+S_type = Type['Special_Field']
+SearchRows = Tuple[Optional[Dict[str, str]], Optional[Dict[str, str]]]
 
 class Special_Field(Base_Jira_Field):
     """
@@ -12,15 +24,15 @@ class Special_Field(Base_Jira_Field):
     ways and is likely stored in a separate table.
     """
 
-    _fields = {}
+    _fields: Dict[str, S_type] = {}
 
     @classmethod
-    def register(cls, field_name):
+    def register(cls, field_name: str) -> Callable[[S_type], S_type]:
         """
         Decorator method for a special parser field class.
         """
 
-        def decorator(subject):
+        def decorator(subject: S_type) -> S_type:
             """
             Decorator that registers the class `subject` to the field name.
             """
@@ -31,19 +43,14 @@ class Special_Field(Base_Jira_Field):
         return decorator
 
     @classmethod
-    def get_field_class(cls, field_name):
+    def get_field_class(cls, field_name: str) -> S_type:
         """
         Retrieve a special field parser class for the given `field_name`.
         """
 
         return cls._fields[field_name]
 
-    def __init__(self, jira, name, **info):
-        self.jira = jira
-        self.name = name
-        self.info = info
-
-    def parse(self, issue):
+    def parse(self, issue: Any):
         """
         Retrieve the field from an issue and collect relevant data within
         appropriate data storage.
@@ -54,7 +61,7 @@ class Special_Field(Base_Jira_Field):
             if field is not None:
                 self.collect(issue, field)
 
-    def collect(self, issue, field):
+    def collect(self, issue: Any, field: Any) -> None:
         """
         Retrieve relevant data from the field belonging to the issue,
         and store the data where appropriate.
@@ -63,7 +70,11 @@ class Special_Field(Base_Jira_Field):
         raise NotImplementedError("Subclasses must override this method")
 
     @property
-    def search_field(self):
+    def table_name(self) -> str:
+        raise NotImplementedError("Subclasses must override this property")
+
+    @property
+    def search_field(self) -> Optional[str]:
         return self.name
 
 @Special_Field.register("comment")
@@ -72,26 +83,33 @@ class Comment_Field(Special_Field):
     Field parser for the comments of a JIRA issue.
     """
 
-    def collect(self, issue, field):
+    def __init__(self, jira: Jira, name: str, **info: FieldValue) -> None:
+        super().__init__(jira, name, **info)
+        self._table = cast(Dict[str, str], self.data.get("table", {}))
+        self._comment_fields = cast(Dict[str, str], self.data.get("fields", {}))
+
+    def collect(self, issue: Any, field: Any) -> None:
         if not hasattr(field, 'comments'):
             return
 
         for comment in field.comments:
             self._collect_comment(issue, comment)
 
-    def _collect_comment(self, issue, comment):
-        row = {}
+    def _collect_comment(self, issue: Any, comment: Any) -> None:
+        row: Dict[str, str] = {}
         is_newer = False
-        for subfield, datatype in self.info["table"].items():
-            if subfield in self.info["fields"]:
-                fieldname = self.info["fields"][subfield]
+        for subfield, datatype in self._table.items():
+            if subfield in self._comment_fields:
+                fieldname = self._comment_fields[subfield]
             else:
                 fieldname = subfield
 
             if hasattr(comment, fieldname):
                 prop = getattr(comment, fieldname)
                 parser = self.jira.get_type_cast(datatype)
-                row[subfield] = parser.parse(prop)
+                value = parser.parse(prop)
+            if value is not None:
+                row[subfield] = value
             else:
                 row[subfield] = str(0)
 
@@ -103,11 +121,11 @@ class Comment_Field(Special_Field):
             self.jira.get_table("comments").append(row)
 
     @property
-    def table_name(self):
+    def table_name(self) -> str:
         return "comments"
 
     @property
-    def table_key(self):
+    def table_key(self) -> Optional[str]:
         return "id"
 
 class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
@@ -123,7 +141,7 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
     }
 
     @property
-    def table(self):
+    def table(self) -> Table:
         """
         Retrieve a table used by this field to store its values.
 
@@ -133,7 +151,8 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
 
         return self.jira.get_table(self.table_name)
 
-    def search_row(self, data, issue, entry_field):
+    def search_row(self, data: Dict[str, Optional[str]], issue: Issue,
+                   entry_field: str) -> SearchRows:
         """
         Find a row that was collected for this issue prior that matches the
         properties of this version, to determine whether the value has existed
@@ -150,12 +169,15 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def parse_changelog(self, entry, diffs, issue):
+    def parse_changelog(self, entry: Any, diffs: Dict[str, Optional[str]],
+                        issue: Issue):
         data = entry.__dict__
         self.check_changelog(data, diffs, issue, 'to')
         self.check_changelog(data, diffs, issue, 'from')
 
-    def check_changelog(self, data, diffs, issue, entry_field):
+    def check_changelog(self, data: Dict[str, Optional[str]],
+                        diffs: Dict[str, Optional[str]], issue: Issue,
+                        entry_field: str) -> None:
         """
         Check whether a changelog entry ('from' or 'to') provides useful data
         and update or append the data to the table.
@@ -163,7 +185,7 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
 
         # If the changelog item is missing to/from entries, then ignore that
         # part silently.
-        if data[entry_field] is None:
+        if data[entry_field] is None or diffs["updated"] is None:
             return
 
         # Search for the row
@@ -204,22 +226,36 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
         # Update the row to contain the new date.
         self.table.update(match_row, {update_field: diffs["updated"]})
 
+class Component_Table(Table_Source):
+    """
+    Source definition for an additional components table.
+    """
+
+    @property
+    def table_key(self) -> TableKey:
+        return "id"
+
+    @property
+    def table_name(self) -> Optional[str]:
+        return "component"
+
 @Special_Field.register("components")
 class Component_Field(Special_Changelog_Field):
     """
     Field parser for the components related to an issue.
     """
 
-    def __init__(self, jira, name, **info):
-        super(Component_Field, self).__init__(jira, name, **info)
-        self._relations = {}
+    def __init__(self, jira: Jira, name: str, **info: FieldValue) -> None:
+        super().__init__(jira, name, **info)
         self.jira.register_table({
-            "table": "component",
-            "table_key": "id"
-        })
+            "table": {
+                "name": "unicode",
+                "description": "unicode"
+            },
+        }, table_source=Component_Table())
         self.jira.register_prefetcher(self.prefetch)
 
-    def prefetch(self, query):
+    def prefetch(self, query: Query) -> None:
         """
         Retrieve all components from the query API.
         """
@@ -228,7 +264,7 @@ class Component_Field(Special_Changelog_Field):
         for component in components:
             self._add_component(component)
 
-    def _add_component(self, component):
+    def _add_component(self, component: Any) -> None:
         if hasattr(component, "description"):
             description = parse_unicode(component.description)
         else:
@@ -240,7 +276,7 @@ class Component_Field(Special_Changelog_Field):
             "description": description
         })
 
-    def collect(self, issue, field):
+    def collect(self, issue: Any, field: Any) -> None:
         for component in field:
             self._add_component(component)
             self.table.append({
@@ -250,7 +286,8 @@ class Component_Field(Special_Changelog_Field):
                 "end_date": str(0),
             })
 
-    def search_row(self, data, issue, entry_field):
+    def search_row(self, data: Dict[str, Optional[str]], issue: Issue,
+                   entry_field: str) -> SearchRows:
         match_row = {
             "issue_id": str(issue.id),
             "component_id": str(data[entry_field])
@@ -260,11 +297,11 @@ class Component_Field(Special_Changelog_Field):
         return match_row, found_row
 
     @property
-    def table_name(self):
+    def table_name(self) -> str:
         return "issue_component"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return ("issue_id", "component_id")
 
 @Special_Field.register("issuelinks")
@@ -273,12 +310,12 @@ class Issue_Link_Field(Special_Changelog_Field):
     Field parser for the issue links related to an issue.
     """
 
-    def __init__(self, jira, name, **info):
-        super(Issue_Link_Field, self).__init__(jira, name, **info)
-        self._relations = {}
+    def __init__(self, jira: Jira, name: str, **info: FieldValue) -> None:
+        super().__init__(jira, name, **info)
+        self._relations: Dict[str, Dict[str, str]] = {}
         self.jira.register_prefetcher(self.prefetch)
 
-    def prefetch(self, query):
+    def prefetch(self, query: Query) -> None:
         """
         Retrieve all relationship types from the query API.
         """
@@ -304,7 +341,7 @@ class Issue_Link_Field(Special_Changelog_Field):
                 'outward': outward
             })
 
-    def collect(self, issue, field):
+    def collect(self, issue: Any, field: Any) -> None:
         for issuelink in field:
             if not hasattr(issuelink, 'type') or not hasattr(issuelink.type, 'id'):
                 continue
@@ -313,7 +350,7 @@ class Issue_Link_Field(Special_Changelog_Field):
             self._check_link(issue, issuelink, outward=True)
             self._check_link(issue, issuelink, outward=False)
 
-    def _check_link(self, issue, issuelink, outward=True):
+    def _check_link(self, issue: Any, issuelink: Any, outward: bool = True) -> None:
         if outward:
             attr = 'outwardIssue'
             direction = str(1)
@@ -334,14 +371,18 @@ class Issue_Link_Field(Special_Changelog_Field):
                 'end_date': str(0)
             })
 
-    def search_row(self, data, issue, entry_field):
+    def search_row(self, data: Dict[str, Optional[str]], issue: Issue,
+                   entry_field: str) -> SearchRows:
         from_key = str(issue.key)
         text = data['{}String'.format(entry_field)]
+        if text is None:
+            return None, None
+
         search_row = {
             'from_key': from_key,
             'to_key': str(data[entry_field])
         }
-        match_row = {}
+        match_row: Dict[str, str] = {}
         row = None
         for relation, candidate in self._relations.items():
             if relation in text:
@@ -367,11 +408,11 @@ class Issue_Link_Field(Special_Changelog_Field):
         return match_row, row
 
     @property
-    def table_name(self):
+    def table_name(self) -> str:
         return "issuelinks"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return ('from_key', 'to_key', 'relationshiptype', 'outward')
 
 @Special_Field.register("subtasks")
@@ -380,7 +421,7 @@ class Subtask_Field(Special_Field):
     Field parser for the subtasks related to an issue.
     """
 
-    def collect(self, issue, field):
+    def collect(self, issue: Any, field: Any) -> None:
         for subtask in field:
             self.jira.get_table("subtasks").append({
                 'from_id': str(issue.id),
@@ -388,9 +429,9 @@ class Subtask_Field(Special_Field):
             })
 
     @property
-    def table_name(self):
+    def table_name(self) -> str:
         return "subtasks"
 
     @property
-    def table_key(self):
+    def table_key(self) -> TableKey:
         return ('from_id', 'to_id')

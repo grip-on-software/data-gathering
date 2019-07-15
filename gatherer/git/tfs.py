@@ -8,41 +8,58 @@ import json
 import logging
 from pathlib import Path
 import re
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple, \
+    Union, cast, TYPE_CHECKING
 from git import Commit
-from requests.auth import HTTPBasicAuth
+from requests.auth import HTTPBasicAuth, AuthBase
 from requests.exceptions import HTTPError
+from requests.models import Response
 from requests_ntlm import HttpNtlmAuth
 from .repo import Git_Repository
 from ..request import Session
 from ..table import Table, Key_Table, Link_Table
-from ..vsts.parser import String_Parser, Int_Parser, Date_Parser, \
-    Unicode_Parser, Decimal_Parser, Tags_Parser, Developer_Parser
+from ..vsts.parser import Field_Parser, String_Parser, Int_Parser, \
+    Date_Parser, Unicode_Parser, Decimal_Parser, Tags_Parser, Developer_Parser
 from ..utils import get_local_datetime, parse_utc_date, parse_unicode, \
     Iterator_Limiter
 from ..version_control.review import Review_System
+from ..version_control.repo import PathLike, Version
+if TYPE_CHECKING:
+    from ..domain import Project, Source
+    from ..domain.source.tfs import TFS, TFVC, TFS_Collection
+else:
+    Project = object
+    Source = object
+    TFS = object
+    TFVC = object
+    TFS_Collection = tuple
+
+Project_Collection = Optional[Union[str, bool]]
+Work_Item_Fields = Dict[str, Dict[str, Union[str, List[str]]]]
 
 class TFS_Project:
     """
     A project using Git on a TFS or VSTS server.
     """
 
-    def __init__(self, host, collections, username, password):
+    def __init__(self, host: str, collections: TFS_Collection,
+                 username: str, password: str) -> None:
         self._host = host
         self._collection = collections[0]
 
+        self._project: Optional[str] = None
         if len(collections) > 1:
             self._project = collections[1]
-        else:
-            self._project = None
 
         self._session = Session(auth=self._make_auth(username, password))
-        self._url = '{}/{}'.format(self._host, self._collection)
+        self._url = f'{self._host}/{self._collection}'
 
     @classmethod
-    def _make_auth(cls, username, password):
+    def _make_auth(cls, username: str, password: str) -> AuthBase:
         return HttpNtlmAuth(username, password)
 
-    def _perform_request(self, url, params):
+    def _perform_request(self, url: str, params: Dict[str, str]) \
+            -> Tuple[Optional[Dict[str, Any]], Optional[Exception]]:
         try:
             request = self._session.get(url, params=params)
             self._validate_request(request)
@@ -52,7 +69,7 @@ class TFS_Project:
             return None, error
 
     @classmethod
-    def _validate_request(cls, request):
+    def _validate_request(cls, request: Response) -> None:
         if not Session.is_code(request, 'ok'):
             try:
                 data = request.json()
@@ -69,15 +86,17 @@ class TFS_Project:
             except ValueError:
                 request.raise_for_status()
 
-    def _get_url_candidates(self, area, path, project_collection=False):
+    def _get_url_candidates(self, area: str, path: str,
+                            project_collection: Project_Collection = False) \
+                            -> List[Tuple[str, ...]]:
         if self._project is None or project_collection is None:
-            if project_collection not in (None, True, False):
+            if isinstance(project_collection, str):
                 return [(self._url, project_collection, '_apis', area, path)]
 
             return [(self._url, '_apis', area, path)]
         if project_collection is True:
             return [(self._url, self._project, '_apis', area, path)]
-        if project_collection is not False:
+        if isinstance(project_collection, str):
             return [(self._url, project_collection, '_apis', area, path)]
 
         return [
@@ -85,8 +104,8 @@ class TFS_Project:
             (self._url, '_apis', area, self._project, path) # TFS 2015
         ]
 
-    def _get(self, area, path, api_version='1.0', project_collection=False,
-             **kw):
+    def _get(self, area: str, path: str, api_version: str = '1.0',
+             project_collection: Project_Collection = False, **kw: str) -> Dict[str, Any]:
         params = kw.copy()
         params['api-version'] = api_version
 
@@ -103,21 +122,28 @@ class TFS_Project:
         # pylint: disable=raising-bad-type
         raise RuntimeError('Cannot find a suitable API URL: {}'.format(error))
 
-    def _get_iterator(self, area, path, api_version='1.0', options=None, **kw):
+    def _get_iterator(self, area: str, path: str, api_version: str = '1.0',
+                      options: Optional[Union[str, Dict[str, Any]]] = None,
+                      project_collection: Project_Collection = False,
+                      **kw: str) -> Iterator[Dict[str, Any]]:
         if options is None:
             options = {}
+        elif isinstance(options, str):
+            options = {options: True}
 
         params = kw.copy()
         limiter = Iterator_Limiter(size=options.get('size', 100))
         had_value = True
         while limiter.check(had_value):
             had_value = False
-            params['$skip'] = limiter.skip
-            params['$top'] = limiter.size
+            params['$skip'] = str(limiter.skip)
+            params['$top'] = str(limiter.size)
 
             try:
                 result = self._get(area, path,
-                                   api_version=api_version, **params)
+                                   api_version=api_version,
+                                   project_collection=project_collection,
+                                   **params)
             except RuntimeError:
                 if options.get('empty_on_error', False):
                     # The TFS API sometimes returns an error for empty results.
@@ -132,7 +158,8 @@ class TFS_Project:
 
             limiter.update()
 
-    def _get_continuation(self, area, path, api_version='3.0', **kw):
+    def _get_continuation(self, area: str, path: str, api_version: str = '3.0',
+                          **kw: str) -> Iterator[Dict[str, Any]]:
         params = kw.copy()
         params['api-version'] = api_version
 
@@ -149,7 +176,7 @@ class TFS_Project:
             for value in result['values']:
                 yield value
 
-    def repositories(self):
+    def repositories(self) -> List[Dict[str, Any]]:
         """
         Retrieve the repositories that exist in the collection or project.
         """
@@ -157,7 +184,7 @@ class TFS_Project:
         repositories = self._get('git', 'repositories')
         return repositories['value']
 
-    def get_project_id(self, repository):
+    def get_project_id(self, repository: str) -> str:
         """
         Determine the TFS project UUID that the given repository name
         belongs in.
@@ -170,7 +197,7 @@ class TFS_Project:
 
         raise ValueError("Repository '{}' cannot be found".format(repository))
 
-    def get_repository_id(self, repository):
+    def get_repository_id(self, repository: str) -> str:
         """
         Determine the TFS repository UUID for the given repository name.
         """
@@ -182,7 +209,7 @@ class TFS_Project:
 
         raise ValueError("Repository '{}' cannot be found".format(repository))
 
-    def _update_push_refs(self, path, push):
+    def _update_push_refs(self, path: str, push: Dict[str, Any]) -> Dict[str, Any]:
         push_details = self._get('git',
                                  '{}/{}'.format(path, push['pushId']))
         push['pushedBy']['uniqueName'] = push['pushedBy']['displayName']
@@ -195,15 +222,21 @@ class TFS_Project:
 
         return push
 
-    def pushes(self, repository, from_date=None, refs=True):
+    def pushes(self, repository: str, from_date: Optional[str] = None,
+               refs: bool = True) -> Iterator[Dict[str, Any]]:
         """
         Retrieve information about Git pushes to a certain repository in the
         project. The push data is provided as an iterator.
         """
 
         path = 'repositories/{}/pushes'.format(repository)
-        pushes = self._get_iterator('git', path, fromDate=from_date,
-                                    includeRefUpdates=str(refs))
+        params: Dict[str, str] = {
+            'includeRefUpdates': str(refs)
+        }
+        if from_date is not None:
+            params['fromDate'] = from_date
+
+        pushes = self._get_iterator('git', path, **params)
 
         try:
             first_push = next(pushes)
@@ -217,7 +250,7 @@ class TFS_Project:
 
         return chain
 
-    def pull_requests(self, repository=None, status='All'):
+    def pull_requests(self, repository: Optional[str] = None, status: str = 'All') -> Iterator:
         """
         Retrieve information about pull requests from a repository or from
         the entire collection or project. The pull request data is returned as
@@ -242,11 +275,14 @@ class TFS_Project:
 
         return self._pull_requests(path, status, project_collection=True)
 
-    def _pull_requests(self, path, status, **kw):
+    def _pull_requests(self, path: str, status: str,
+                       project_collection: Project_Collection = False,
+                       **kw: str) -> Iterator:
         return self._get_iterator('git', path, status=status,
-                                  options={'empty_on_error': True}, **kw)
+                                  options={'empty_on_error': True},
+                                  project_collection=project_collection, **kw)
 
-    def pull_request(self, repository, request_id):
+    def pull_request(self, repository: str, request_id: str) -> Dict[str, Any]:
         """
         Retrieve information about a single pull request.
         """
@@ -254,7 +290,7 @@ class TFS_Project:
         path = 'repositories/{}/pullRequests/{}'.format(repository, request_id)
         return self._get('git', path)
 
-    def pull_request_comments(self, project_id, request_id):
+    def pull_request_comments(self, project_id: str, request_id: str) -> List[Dict[str, Any]]:
         """
         Retrieve infromation about code review comments in a pull request.
         """
@@ -265,7 +301,7 @@ class TFS_Project:
                              api_version='3.0-preview.1', artifactUri=artifact)
         return comments['value']
 
-    def teams(self, project):
+    def teams(self, project: str) -> Iterator[Dict[str, Any]]:
         """
         Retrieve information about teams in a project.
 
@@ -275,7 +311,7 @@ class TFS_Project:
         return self._get_iterator('projects', '{}/teams'.format(project),
                                   project_collection=None)
 
-    def team_members(self, project, team):
+    def team_members(self, project: str, team: str) -> Iterator[Dict[str, Any]]:
         """
         Retrieve information about teams in a project's team.
 
@@ -286,7 +322,7 @@ class TFS_Project:
                                   '{}/teams/{}/members'.format(project, team),
                                   project_collection=None)
 
-    def sprints(self, project, team=None):
+    def sprints(self, project: str, team: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Retrieve information about sprints for a project or a project's team.
 
@@ -302,14 +338,17 @@ class TFS_Project:
                          project_collection=project_collection,
                          api_version='3.0')['value']
 
-    def work_item_revisions(self, ids=None, fields=None, from_date=None):
+    def work_item_revisions(self, ids: Optional[Sequence[int]] = None,
+                            fields: Optional[Sequence[str]] = None,
+                            from_date: Optional[str] = None) \
+                            -> Iterator[Dict[str, Any]]:
         """
         Retrieve information about work items.
 
         The work item data is returned as an iterator.
         """
 
-        params = {}
+        params: Dict[str, str] = {}
         if fields is not None:
             params['fields'] = ','.join(fields)
         if from_date is not None:
@@ -335,10 +374,10 @@ class TFVC_Project(TFS_Project):
     """
 
     @classmethod
-    def _make_auth(cls, username, password):
+    def _make_auth(cls, username: str, password: str) -> AuthBase:
         return HTTPBasicAuth(username, password)
 
-    def projects(self):
+    def projects(self) -> List[Dict[str, Any]]:
         """
         Retrieve the projects that exist on the server.
         """
@@ -346,7 +385,7 @@ class TFVC_Project(TFS_Project):
         projects = self._get('projects', '', project_collection=None)
         return projects['value']
 
-    def branches(self):
+    def branches(self) -> List[Dict[str, Any]]:
         """
         Retrieve the branches that exist for the project.
         """
@@ -354,7 +393,10 @@ class TFVC_Project(TFS_Project):
         branches = self._get('tfvc', 'branches')
         return branches['value']
 
-    def get_project_id(self, repository):
+    def get_project_id(self, repository: str) -> str:
+        if self._project is None:
+            raise ValueError('No project collection provided in URL')
+
         try:
             project = self._get('projects', self._project,
                                 project_collection=None)
@@ -375,14 +417,14 @@ class TFS_Repository(Git_Repository, Review_System):
     AUXILIARY_TABLES = Git_Repository.AUXILIARY_TABLES | \
         Review_System.AUXILIARY_TABLES | {"merge_request_review", "vcs_event"}
 
-    def __init__(self, source, repo_directory, project=None, **kwargs):
-        super(TFS_Repository, self).__init__(source, repo_directory,
-                                             project=project, **kwargs)
+    def __init__(self, source: Source, repo_directory: PathLike,
+                 project: Optional[Project] = None, **kwargs: Any) -> None:
+        super().__init__(source, repo_directory, project=project, **kwargs)
 
-        self._project_id = None
+        self._project_id: Optional[str] = None
 
     @property
-    def review_tables(self):
+    def review_tables(self) -> Dict[str, Table]:
         review_tables = super(TFS_Repository, self).review_tables
         review_fields = self.build_user_fields('reviewer')
         review_tables.update({
@@ -407,46 +449,55 @@ class TFS_Repository(Git_Repository, Review_System):
         return review_tables
 
     @property
-    def null_timestamp(self):
+    def null_timestamp(self) -> str:
         # Timestamp to use as a default for the update tracker. This timestamp
         # must be within the valid range of TFS DateTime fields, which must not
         # be earlier than the year 1753 due to the Gregorian calendar.
         return "1900-01-01 01:01:01"
 
     @property
-    def api(self):
+    def source(self) -> TFS:
+        return cast(TFS, self._source)
+
+    @property
+    def api(self) -> TFS_Project:
         """
         Retrieve an instance of the TFS API connection for the TFS collection
         on this host.
         """
 
-        return self._source.tfs_api
+        return self.source.tfs_api
 
     @property
-    def project_id(self):
+    def project_id(self) -> str:
         """
         Retrieve the UUID of the project that contains this repository.
         """
 
+        if self.source.tfs_repo is None:
+            raise ValueError('No project collection repository provided in URL')
+
         if self._project_id is None:
-            self._project_id = self.api.get_project_id(self._source.tfs_repo)
+            self._project_id = self.api.get_project_id(self.source.tfs_repo)
 
         return self._project_id
 
     @classmethod
-    def _get_ssh_command(cls, source):
+    def _get_ssh_command(cls, source: Source) -> str:
         ssh_command = super(TFS_Repository, cls)._get_ssh_command(source)
         ssh_command += ' -c +aes256-cbc,aes192-cbc,aes128-cbc'
 
         return ssh_command
 
-    def get_data(self, from_revision=None, to_revision=None, force=False, **kwargs):
+    def get_data(self, from_revision: Optional[Version] = None,
+                 to_revision: Optional[Version] = None, force: bool = False,
+                 **kwargs: Any) -> List[Dict[str, Any]]:
         versions = super(TFS_Repository, self).get_data(from_revision,
                                                         to_revision,
                                                         force=force,
                                                         **kwargs)
 
-        if self._source.tfs_repo is not None:
+        if self.source.tfs_repo is not None:
             self._get_repo_data()
 
         for team in self.api.teams(self.project_id):
@@ -458,12 +509,16 @@ class TFS_Repository(Git_Repository, Review_System):
 
         return versions
 
-    def _get_repo_data(self):
+    def _get_repo_data(self) -> None:
+        if self.source.tfs_repo is None:
+            logging.warning('No project collection repository provided in URL')
+            return
+
         try:
-            repository_id = self.api.get_repository_id(self._source.tfs_repo)
+            repository_id = self.api.get_repository_id(self.source.tfs_repo)
         except (RuntimeError, ValueError):
             logging.exception('Could not retrieve repository ID for %s',
-                              self._source.tfs_repo)
+                              self.source.tfs_repo)
             return
 
         events = self.api.pushes(repository_id, refs=True,
@@ -474,7 +529,8 @@ class TFS_Repository(Git_Repository, Review_System):
         for pull_request in self.api.pull_requests(repository_id):
             self.add_pull_request(repository_id, pull_request)
 
-    def add_pull_request(self, repository_id, pull_request):
+    def add_pull_request(self, repository_id: str,
+                         pull_request: Dict[str, Any]) -> None:
         """
         Add a pull request described by its TFS API response object to the
         merge requests table.
@@ -533,7 +589,8 @@ class TFS_Repository(Git_Repository, Review_System):
             self.add_thread_comments(request_id, thread)
 
     @staticmethod
-    def _is_container_account(author, display_name):
+    def _is_container_account(author: Union[Dict[str, Any], str],
+                              display_name: str) -> bool:
         if isinstance(author, dict) and 'isContainer' in author:
             return author['isContainer']
 
@@ -543,7 +600,7 @@ class TFS_Repository(Git_Repository, Review_System):
 
         return False
 
-    def add_review(self, request_id, reviewer):
+    def add_review(self, request_id: str, reviewer: Dict[str, Any]) -> None:
         """
         Add a pull request review described by its TFS API response object to
         the merge request reviews table.
@@ -559,7 +616,7 @@ class TFS_Repository(Git_Repository, Review_System):
                 'vote': str(reviewer['vote'])
             })
 
-    def add_thread_comments(self, request_id, thread):
+    def add_thread_comments(self, request_id: str, thread: Dict[str, Any]) -> None:
         """
         Add comments from a pull request code review comment thread described
         by its TFS API response object to the merge request notes or commit
@@ -572,7 +629,8 @@ class TFS_Repository(Git_Repository, Review_System):
         for comment in thread['comments']:
             self.add_thread_comment(comment, request_id, thread)
 
-    def add_thread_comment(self, comment, request_id, thread):
+    def add_thread_comment(self, comment: Dict[str, Any], request_id: str,
+                           thread: Dict[str, Any]) -> None:
         """
         Add a pull request code review comment described by its TFS API
         response object to the merge request notes or commit comments table.
@@ -625,7 +683,7 @@ class TFS_Repository(Git_Repository, Review_System):
         else:
             self._tables["merge_request_note"].append(note)
 
-    def add_commit_comment(self, note, properties):
+    def add_commit_comment(self, note: Dict[str, str], properties: Dict[str, Any]) -> None:
         """
         Add a pull request code review file comment described by its incomplete
         note dictionary and the thread properties from the TFS API response
@@ -665,7 +723,7 @@ class TFS_Repository(Git_Repository, Review_System):
         del note['updated_at']
         self._tables["commit_comment"].append(note)
 
-    def add_event(self, event):
+    def add_event(self, event: Dict[str, Any]) -> None:
         """
         Add a push event from the TFS API to the VCS events table.
         """
@@ -706,7 +764,7 @@ class TFS_Repository(Git_Repository, Review_System):
                 'date': event_date
             })
 
-    def add_team(self, team):
+    def add_team(self, team: Dict[str, Any]) -> None:
         """
         Add team and team member data from the API to the associated tables.
         """
@@ -745,7 +803,7 @@ class TFS_Repository(Git_Repository, Review_System):
                 'end_date': end_date,
             })
 
-    def add_work_item_revisions(self):
+    def add_work_item_revisions(self) -> None:
         """
         Add work item revision data from the API.
         """
@@ -763,14 +821,15 @@ class TFS_Repository(Git_Repository, Review_System):
         types = dict((parser.type, parser) for parser in parsers)
 
         with vsts_fields_path.open('r') as vsts_fields_file:
-            work_item_fields = json.load(vsts_fields_file)
+            work_item_fields: Work_Item_Fields = json.load(vsts_fields_file)
 
         for properties in work_item_fields.values():
-            if "field" in properties:
+            if "field" in properties and isinstance(properties["field"], str):
                 properties["fields"] = [properties["field"]]
 
-        fields = set(prop for props in work_item_fields.values() for prop in props["fields"])
-        fields.discard(None)
+        fields: Set[str] = {
+            prop for props in work_item_fields.values() for prop in props["fields"]
+        }
 
         from_date = self._update_trackers['tfs_update']
         work_item_revisions = self.api.work_item_revisions(fields=list(fields),
@@ -779,13 +838,15 @@ class TFS_Repository(Git_Repository, Review_System):
         for revision in work_item_revisions:
             self._add_work_item_revision(revision, work_item_fields, types)
 
-    def _add_work_item_revision(self, revision, work_item_fields, types):
+    def _add_work_item_revision(self, revision: Dict[str, Any],
+                                work_item_fields: Work_Item_Fields,
+                                types: Dict[str, Field_Parser]) -> None:
         row = {
             "issue_id": str(revision["id"]),
             "changelog_id": str(revision["rev"])
         }
         for target, properties in work_item_fields.items():
-            parser = types[properties["type"]]
+            parser = types[str(properties["type"])]
             for field in properties["fields"]:
                 if field in revision["fields"]:
                     value = parser.parse(revision["fields"][field])

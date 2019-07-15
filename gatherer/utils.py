@@ -8,8 +8,13 @@ import logging
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 import dateutil.parser
 import dateutil.tz
+if TYPE_CHECKING:
+    from .domain import Project
+else:
+    Project = object
 
 class Iterator_Limiter:
     """
@@ -17,13 +22,13 @@ class Iterator_Limiter:
     count, in order to limit batch processing.
     """
 
-    def __init__(self, size=1000, maximum=10000000):
+    def __init__(self, size: int = 1000, maximum: int = 10000000) -> None:
         self._skip = 0
         self._page = 1
         self._size = size
         self._max = maximum
 
-    def check(self, had_content):
+    def check(self, had_content: bool) -> bool:
         """
         Check whether a loop condition to continue retrieving iterator data
         should still evaluate to true.
@@ -34,7 +39,7 @@ class Iterator_Limiter:
 
         return False
 
-    def reached_limit(self):
+    def reached_limit(self) -> bool:
         """
         Check whether the hard limit of the iterator limiter has been reached.
         """
@@ -44,7 +49,7 @@ class Iterator_Limiter:
 
         return False
 
-    def update(self):
+    def update(self) -> None:
         """
         Update the iterator counter after a batch, to prepare the next query.
         """
@@ -55,7 +60,7 @@ class Iterator_Limiter:
             self._size = self._max - self._skip
 
     @property
-    def size(self):
+    def size(self) -> int:
         """
         Retrieve the size of the next batch query.
         """
@@ -63,7 +68,7 @@ class Iterator_Limiter:
         return self._size
 
     @property
-    def page(self):
+    def page(self) -> int:
         """
         Retrieve the 1-indexed page number which the iterator is to obtain next.
         """
@@ -71,7 +76,7 @@ class Iterator_Limiter:
         return self._page
 
     @property
-    def skip(self):
+    def skip(self) -> int:
         """
         Retrieve the current iterator counter.
         """
@@ -87,15 +92,16 @@ class Sprint_Data:
     a `sprints` argument is provided.
     """
 
-    def __init__(self, project, sprints=None):
+    def __init__(self, project: Project,
+                 sprints: Optional[Sequence[Dict[str, str]]] = None) -> None:
         if sprints is not None:
             self._data = deepcopy(sprints)
         else:
             self._data = self._import_sprints(project)
 
-        self._sprint_ids = []
-        self._start_dates = []
-        self._end_dates = []
+        self._sprint_ids: List[int] = []
+        self._start_dates: List[datetime] = []
+        self._end_dates: List[datetime] = []
 
         for sprint in self.get_sorted_sprints():
             self._sprint_ids.append(int(sprint['id']))
@@ -103,7 +109,7 @@ class Sprint_Data:
             self._end_dates.append(get_local_datetime(sprint['end_date']))
 
     @staticmethod
-    def _import_sprints(project):
+    def _import_sprints(project: Project) -> List[Dict[str, str]]:
         sprint_filename = Path(project.export_key, 'data_sprint.json')
 
         if sprint_filename.exists():
@@ -113,14 +119,15 @@ class Sprint_Data:
             logging.warning('Could not load sprint data, no sprint matching possible.')
             return []
 
-    def get_sorted_sprints(self):
+    def get_sorted_sprints(self) -> List[Dict[str, str]]:
         """
         Retrieve the list of sprints sorted on start date.
         """
 
         return sorted(self._data, key=lambda sprint: sprint['start_date'])
 
-    def find_sprint(self, time, sprint_ids=None):
+    def find_sprint(self, time: datetime,
+                    sprint_ids: Optional[Sequence[int]] = None) -> Optional[int]:
         """
         Retrieve a sprint ID of a sprint that encompasses the given `time`,
         which is a `datetime` object or a date string in standard
@@ -139,7 +146,9 @@ class Sprint_Data:
 
         return self._bisect(time, sprint_ids=sprint_ids, overlap=True)
 
-    def _bisect(self, time, sprint_ids=None, overlap=False, end=None):
+    def _bisect(self, time: datetime,
+                sprint_ids: Optional[Sequence[int]] = None,
+                overlap: bool = False, end: Optional[int] = None) -> Optional[int]:
         if end is None:
             end = len(self._start_dates)
 
@@ -176,7 +185,7 @@ class Sprint_Data:
         # Return the suitable sprint ID.
         return sprint_id
 
-def get_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
+def get_datetime(date: str, date_format: str = '%Y-%m-%d %H:%M:%S') -> datetime:
     """
     Convert a date string to a `datetime` object without a timezone.
 
@@ -187,7 +196,7 @@ def get_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
 
     return datetime.strptime(date, date_format)
 
-def get_local_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
+def get_local_datetime(date: str, date_format: str = '%Y-%m-%d %H:%M:%S') -> datetime:
     """
     Convert a date string to a `datetime` object with the local timezone.
 
@@ -198,7 +207,7 @@ def get_local_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
     parsed_date = get_datetime(date, date_format)
     return parsed_date.replace(tzinfo=dateutil.tz.tzlocal())
 
-def get_utc_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
+def get_utc_datetime(date: str, date_format: str = '%Y-%m-%d %H:%M:%S') -> datetime:
     """
     Convert a date string to a `datetime` object with the UTC timezone.
 
@@ -209,7 +218,7 @@ def get_utc_datetime(date, date_format='%Y-%m-%d %H:%M:%S'):
     parsed_date = get_datetime(date, date_format)
     return parsed_date.replace(tzinfo=dateutil.tz.tzutc())
 
-def convert_local_datetime(date):
+def convert_local_datetime(date: datetime) -> datetime:
     """
     Convert a timezone-aware datetime object `date` to one that is in the local
     timezone.
@@ -217,7 +226,7 @@ def convert_local_datetime(date):
 
     return date.astimezone(dateutil.tz.tzlocal())
 
-def convert_utc_datetime(date):
+def convert_utc_datetime(date: datetime) -> datetime:
     """
     Convert a timezone-aware datetime object `date` to one that is in the UTC
     timezone.
@@ -225,15 +234,15 @@ def convert_utc_datetime(date):
 
     return date.astimezone(dateutil.tz.tzutc())
 
-def format_date(date, date_format='%Y-%m-%d %H:%M:%S'):
+def format_date(date: datetime, date_format: str = '%Y-%m-%d %H:%M:%S') -> str:
     """
     Format a datetime object in a standard YYYY-MM-DD HH:MM:SS format or
     another applicable `date_format`.
     """
 
-    return datetime.strftime(date, date_format)
+    return date.strftime(date_format)
 
-def parse_utc_date(date):
+def parse_utc_date(date: str) -> str:
     """
     Convert a ISO8601 date string to a standard date string.
     The date string must have a zone identifier.
@@ -244,7 +253,7 @@ def parse_utc_date(date):
     zone_date = dateutil.parser.parse(date)
     return format_date(convert_local_datetime(zone_date))
 
-def parse_date(date):
+def parse_date(date: str) -> str:
     """
     Convert a date string from sources like JIRA to a standard date string,
     excluding milliseconds and zone information, and using spaces to
@@ -265,13 +274,10 @@ def parse_date(date):
 
     return date_string.rstrip('Z')
 
-def parse_unicode(text):
+def parse_unicode(text: str) -> str:
     """
     Convert unicode `text` to a string without invalid unicode characters.
     """
 
-    try:
-        data = text.encode('utf-8', 'replace')
-        return data.decode('utf-8', 'replace')
-    except UnicodeDecodeError:
-        return str(text.decode('utf-8', 'replace'))
+    data = text.encode('utf-8', 'replace')
+    return data.decode('utf-8', 'replace')

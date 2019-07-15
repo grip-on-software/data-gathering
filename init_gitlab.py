@@ -3,18 +3,20 @@ Script used for initializing projects on a GitLab in order to prepare an import
 of filtered source code into the projects.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 from pathlib import Path
 import subprocess
+from typing import List, Optional, Sequence
 import gitlab
+import gitlab.v4.objects
 from gitlab.exceptions import GitlabError
 from gatherer.config import Configuration
 from gatherer.domain import Project, Source
 from gatherer.git import Git_Repository
 from gatherer.log import Log_Setup
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
@@ -22,7 +24,7 @@ def parse_args():
     config = Configuration.get_settings()
 
     description = "Initialize repositories for filtered or archived source code storage"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
 
     parser.add_argument("--repos", default=None, nargs='*',
@@ -82,7 +84,9 @@ class Repository_Archive:
     repository.
     """
 
-    def __init__(self, project, git_repo, gitlab_api=None, dry_run=False):
+    def __init__(self, project: Project, git_repo: Git_Repository,
+                 gitlab_api: Optional[gitlab.Gitlab] = None,
+                 dry_run: bool = False) -> None:
         self._project = project
         self._repo = git_repo
 
@@ -96,7 +100,7 @@ class Repository_Archive:
             self._dry_run_log = ''
 
     @property
-    def repo_url(self):
+    def repo_url(self) -> str:
         """
         Retrieve the URL to which the repository is archived.
         """
@@ -104,7 +108,7 @@ class Repository_Archive:
         return self._repo.source.url
 
     @property
-    def repo_path(self):
+    def repo_path(self) -> Path:
         """
         Retrieve the path to the directory in which the repository is cloned.
         """
@@ -112,7 +116,7 @@ class Repository_Archive:
         return self._repo.repo_directory
 
     @property
-    def repo_name(self):
+    def repo_name(self) -> str:
         """
         Retrieve the GitLab project name that is used to archive the repository
         under.
@@ -121,7 +125,7 @@ class Repository_Archive:
         return self._repo.source.name
 
     @property
-    def api(self):
+    def api(self) -> gitlab.Gitlab:
         """
         Retrieve an API connection to the GitLab archive location.
         """
@@ -132,7 +136,7 @@ class Repository_Archive:
         return self._api
 
     @property
-    def group(self):
+    def group(self) -> gitlab.v4.objects.Group:
         """
         Retrieve a GitLab API instance for the project's archive location.
         """
@@ -147,7 +151,7 @@ class Repository_Archive:
 
         return self._group
 
-    def delete(self):
+    def delete(self) -> None:
         """
         Delete an existing repository from GitLab if it exists.
         """
@@ -163,7 +167,7 @@ class Repository_Archive:
         except GitlabError:
             logging.warning('Could not find repository %s', path)
 
-    def create(self):
+    def create(self) -> None:
         """
         Create a new repository in GitLab if it did not already exist.
         """
@@ -184,7 +188,7 @@ class Repository_Archive:
         except GitlabError:
             logging.warning('Repository for %s could not be created', path)
 
-    def upload(self):
+    def upload(self) -> None:
         """
         Upload a local repository to the archived repository.
         """
@@ -199,7 +203,7 @@ class Repository_Archive:
             logging.info('%sUploaded local repository to %s', self._dry_run_log,
                          self.repo_url)
 
-    def update_user(self, user_name, level):
+    def update_user(self, user_name: str, level: int) -> None:
         """
         Add a user with the correct access level to the group membership.
         """
@@ -229,7 +233,7 @@ class Repository_Archive:
             logging.info('%sAdded user to the group membership',
                          self._dry_run_log)
 
-    def filter_sourcecode(self, bfg_path, filter_path):
+    def filter_sourcecode(self, bfg_path: str, filter_path: str) -> None:
         """
         Use BFG to filter the source code in each revision of the repository
         cloned at `repo_path`.
@@ -241,14 +245,14 @@ class Repository_Archive:
             try:
                 output = subprocess.check_output([
                     'java', '-jar', bfg_path, '--replace-text', filter_path,
-                    '--no-blob-protection', self.repo_path
+                    '--no-blob-protection', str(self.repo_path)
                 ], stderr=subprocess.STDOUT)
                 logging.info(output)
             except subprocess.CalledProcessError as error:
                 logging.error(error.output)
                 raise
 
-    def upload_agent(self, agent, ssh, key_path):
+    def upload_agent(self, agent: str, ssh: str, key_path: str) -> None:
         """
         Upload the repository to the controller server for later archival.
         """
@@ -260,12 +264,14 @@ class Repository_Archive:
 
         if not self._dry_run:
             auth = agent + '@' + ssh
-            path = '{}:~/{}'.format(auth, self._project.export_key)
+            path = f'{auth}:~/{self._project.export_key}'
             subprocess.call(['scp', '-i', key_path, bundle_path, path])
 
         logging.info('%sUploaded bundle to controller', self._dry_run_log)
 
-def get_git_repositories(project, repo_directory, repo_names=None):
+def get_git_repositories(project: Project, repo_directory: Path,
+                         repo_names: Optional[Sequence[str]] = None) \
+        -> List[Git_Repository]:
     """
     Retrieve all immediate directories containing non-empty Git repositories
     as well as all non-empty Git repositories in subdirectories.
@@ -289,7 +295,7 @@ def get_git_repositories(project, repo_directory, repo_names=None):
 
     return repos
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

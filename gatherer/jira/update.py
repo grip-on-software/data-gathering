@@ -2,8 +2,11 @@
 Updated time trackers
 """
 
+from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from ..utils import get_datetime
+from ..domain import Project
 
 class Updated_Time:
     """
@@ -11,11 +14,12 @@ class Updated_Time:
     issues.
     """
 
-    def __init__(self, timestamp):
+    def __init__(self, timestamp: str) -> None:
         self._timestamp = timestamp
         self._date = get_datetime(self._timestamp, '%Y-%m-%d %H:%M')
 
-    def is_newer(self, timestamp, timestamp_format='%Y-%m-%d %H:%M:%S'):
+    def is_newer(self, timestamp: str,
+                 timestamp_format: str = '%Y-%m-%d %H:%M:%S') -> bool:
         """
         Check whether a given `timestamp`, a string which is formatted according
         to `timestamp_format`, is newer than the update date.
@@ -27,7 +31,7 @@ class Updated_Time:
         return False
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> str:
         """
         Retrieve the timestamp string of the latest update.
         """
@@ -35,7 +39,7 @@ class Updated_Time:
         return self._timestamp
 
     @property
-    def date(self):
+    def date(self) -> datetime:
         """
         Return the datetime object of the latest update.
         """
@@ -52,11 +56,11 @@ class Update_Tracker:
     # strftime function, to ensure compatibility.
     NULL_TIMESTAMP = "1900-01-01 01:01"
 
-    def __init__(self, project, updated_since=None):
+    def __init__(self, project: Project, updated_since: Optional[str] = None) -> None:
         self.updated_since = updated_since
         self.filename = Path(project.export_key, 'jira-updated.txt')
 
-    def get_updated_since(self):
+    def get_updated_since(self) -> str:
         """
         Retrieve the latest update timestamp from a previous run.
         """
@@ -70,7 +74,7 @@ class Update_Tracker:
 
         return self.updated_since
 
-    def save_updated_since(self, new_updated_since):
+    def save_updated_since(self, new_updated_since: str) -> None:
         """
         Store a new latest update time for later reuse.
         """

@@ -4,7 +4,10 @@ Utilities for tracking updates between versions of a project definition.
 
 import json
 import os
+from typing import Any, Dict, Optional
+from ..domain import Project
 from ..domain.sources import Sources
+from ..version_control.repo import Version
 
 class Update_Tracker:
     """
@@ -12,7 +15,10 @@ class Update_Tracker:
     update, so that the data gatherer can resume from a previous known state.
     """
 
-    def __init__(self, project, target='metric_options'):
+    def __init__(self, project: Project, target: str = 'metric_options') -> None:
+        if project.project_definitions_source is None:
+            raise RuntimeError(f'No project definitions source for {project.key}')
+
         self._project = project
         self._source = project.project_definitions_source
 
@@ -21,9 +27,9 @@ class Update_Tracker:
         self._file_loaded = False
         self._previous_data = None
         self._sources = Sources()
-        self._versions = {}
+        self._versions: Dict[str, Version] = {}
 
-    def get_start_revision(self, from_revision=None):
+    def get_start_revision(self, from_revision: Optional[Version] = None) -> Optional[Version]:
         """
         Retrieve the revision from which we should retrieve new versions from.
 
@@ -41,7 +47,7 @@ class Update_Tracker:
 
         return None
 
-    def get_previous_data(self):
+    def get_previous_data(self) -> Dict[str, Any]:
         """
         Retrieve the metadata retrieved from the latest unique revision that was
         parsed previously.
@@ -54,7 +60,7 @@ class Update_Tracker:
 
         return self._previous_data
 
-    def _read(self):
+    def _read(self) -> None:
         if self._file_loaded:
             return
 
@@ -69,7 +75,8 @@ class Update_Tracker:
 
         self._file_loaded = True
 
-    def set_end(self, end_revision, previous_data):
+    def set_end(self, end_revision: Optional[Version],
+                previous_data: Optional[Dict[str, Any]]) -> None:
         """
         Store the new current state of the data retrieval from the project
         definitions from the source. `end_revision` is the latest revision

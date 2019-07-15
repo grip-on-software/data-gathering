@@ -6,7 +6,7 @@ Package setup script.
 from setuptools import setup, find_packages
 from gatherer import __version__
 
-def main():
+def main() -> None:
     """
     Setup the package.
     """

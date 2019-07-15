@@ -5,6 +5,7 @@ Internal daemon for handling update tracking and project salt requests,
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
+from typing import Any, Dict, List, Mapping, Union, Sequence, Tuple
 import pymonetdb
 import Pyro4
 from gatherer.bigboat import Statuses
@@ -22,7 +23,7 @@ class Gatherer:
     Object that updates the agent directory and retrieves salts.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._config = Configuration.get_settings()
         self._options = {
             'user': self._config.get('database', 'username'),
@@ -31,7 +32,7 @@ class Gatherer:
             'database': self._config.get('database', 'name')
         }
 
-    def get_database_status(self, project_key):
+    def get_database_status(self, project_key: str) -> Dict[str, Union[bool, str]]:
         """
         Retrieve status information from the database related to its
         availability and acceptance of new results.
@@ -52,7 +53,7 @@ class Gatherer:
                 'message': str(error)
             }
 
-    def _calculate_drift(self, project_key, today):
+    def _calculate_drift(self, project_key: str, today: datetime) -> timedelta:
         # Schedule drift: Next agent scrape may only occur after
         # $SCHEDULE_DAYS days, plus or minus a number of drift minutes.
         # Absolute value of drift minutes is up to $SCHEDULE_DRIFT minutes.
@@ -67,7 +68,7 @@ class Gatherer:
 
         return timedelta(days=days, minutes=offset)
 
-    def get_tracker_schedule(self, project_key):
+    def get_tracker_schedule(self, project_key: str) -> timedelta:
         """
         Retrieve the scheduled time of the given project.
         This uses the update tracker file 'preflight_date.txt' to compare
@@ -127,7 +128,7 @@ class Gatherer:
             'message': 'Next scheduled gather moment is in {}'.format(delta)
         }
 
-    def get_update_trackers(self, project_key, home_directory):
+    def get_update_trackers(self, project_key: str, home_directory: str) -> None:
         """
         Retrieve update tracking files and store them in the agent's update
         directory.
@@ -137,12 +138,12 @@ class Gatherer:
         update_directory = Path(home_directory, 'update')
 
         project = Project(project_key,
-                          export_directory=update_directory,
-                          update_directory=update_directory)
+                          export_directory=str(update_directory),
+                          update_directory=str(update_directory))
         track = Database_Tracker(project, **self._options)
         track.retrieve()
 
-    def get_salts(self, project_key):
+    def get_salts(self, project_key: str) -> Tuple[str, str]:
         """
         Retrieve project-specific encryption salts, or the global salt if
         `project_key` is the empty string.
@@ -156,7 +157,7 @@ class Gatherer:
         with Salt(project=project, **self._options) as salt:
             return salt.execute()
 
-    def encrypt(self, project_key, value):
+    def encrypt(self, project_key: str, value: str) -> str:
         """
         Retrieve an encrypted representation of the text value using the salt
         pair of the project `project_key` or the global salt if it is the empty
@@ -177,7 +178,7 @@ class Gatherer:
             return store.encrypt(value.encode('utf-8'), salt.encode('utf-8'),
                                  pepper.encode('utf-8'))
 
-    def get_usernames(self, project_key):
+    def get_usernames(self, project_key: str) -> List[Dict[str, str]]:
         """
         Retrieve username patterns that need to be replaced before encryption.
         """
@@ -198,7 +199,9 @@ class Gatherer:
 
         return usernames
 
-    def add_bigboat_status(self, project_key, statuses, source):
+    def add_bigboat_status(self, project_key: str,
+                           statuses: Sequence[Mapping[str, Any]],
+                           source: str) -> bool:
         """
         Add rows containing health status information from BigBoat for the
         given project to the database. Returns whether the rows could be added
@@ -209,7 +212,7 @@ class Gatherer:
         with Statuses(project, statuses, source, **self._options) as status:
             return status.update()
 
-def main():
+def main() -> None:
     """
     Main setup and event loop.
     """

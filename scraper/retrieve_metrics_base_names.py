@@ -2,16 +2,17 @@
 Script to obtain the base names of all metrics used in HQ.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import json
 import logging
+from typing import Any, Dict, List
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.request import Session
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
@@ -19,7 +20,7 @@ def parse_args():
     config = Configuration.get_settings()
 
     description = 'Obtain quality metrics base names'
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('--project', default=None,
                         help='Project to retrieve HQ metrics for')
     parser.add_argument('--host', default=config.get("metrics", "host"),
@@ -35,27 +36,27 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def parse_meta_data(data):
+def parse_meta_data(data: Dict[str, Any]) -> List[str]:
     """
     Retrieve metric base names from metadata.
     """
 
     return [metric["id"] for metric in data["metrics"]]
 
-def parse_metrics(data):
+def parse_metrics(data: Dict[str, Any]) -> List[str]:
     """
     Retrieve metric base names from metrics.
     """
 
-    return list(set(metric["metric_class"] for metric in data["metrics"]))
+    return list({metric["metric_class"] for metric in data["metrics"]})
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
 
     args = parse_args()
-    url = args.url
+    url = str(args.url)
     meta_data = True
 
     if args.project is not None:

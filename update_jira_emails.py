@@ -2,16 +2,16 @@
 Script to update old dropin files with fresh developer data, including emails.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import json
 import logging
 from gatherer.config import Configuration
 from gatherer.jira import Jira, Update_Tracker
 from gatherer.jira.query import Query
 from gatherer.log import Log_Setup
-from gatherer.domain import Project, Source
+from gatherer.domain import Project, source
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
@@ -19,7 +19,7 @@ def parse_args():
     config = Configuration.get_settings()
 
     description = "Update email addresses in dropin developer data from JIRA"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="JIRA project key")
     parser.add_argument("--username", default=config.get("jira", "username"),
                         help="JIRA username")
@@ -34,7 +34,7 @@ def parse_args():
 
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -50,9 +50,9 @@ def main():
         developers = json.load(data_file)
 
     jira = Jira(project, Update_Tracker.NULL_TIMESTAMP)
-    source = Source.from_type('jira', url=args.server, name=args.project,
+    jira_source = source.Jira('jira', url=args.server, name=args.project,
                               username=args.username, password=args.password)
-    query = Query(jira, source)
+    query = Query(jira, jira_source)
     parser = jira.get_type_cast("developer")
     api = query.api
 

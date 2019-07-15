@@ -3,35 +3,40 @@ Module for securely storing and retrieving project-specific encryption salts.
 """
 
 import hashlib
+from typing import Any, Optional, Tuple, TYPE_CHECKING
 import bcrypt
 from .database import Database
+if TYPE_CHECKING:
+    from .domain import Project
+else:
+    Project = object
 
 class Salt:
     """
     Encryption salt storage.
     """
 
-    def __init__(self, project=None, **options):
+    def __init__(self, project: Optional[Project] = None, **options: Any) -> None:
         self._project = project
-        self._project_id = None
-        self._database = None
+        self._project_id: Optional[int] = None
+        self._database: Optional[Database] = None
         self._options = options
 
     @staticmethod
-    def encrypt(value, salt, pepper):
+    def encrypt(value: bytes, salt: bytes, pepper: bytes) -> str:
         """
         Encode the string `value` using the provided `salt` and `pepper` hashes.
         """
 
         return hashlib.sha256(salt + value + pepper).hexdigest()
 
-    def __enter__(self):
+    def __enter__(self) -> 'Salt':
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         """
         Close the database connection.
         """
@@ -41,7 +46,7 @@ class Salt:
             self._database = None
 
     @property
-    def database(self):
+    def database(self) -> Database:
         """
         Retrieve the database connection.
         """
@@ -52,7 +57,7 @@ class Salt:
         return self._database
 
     @property
-    def project_id(self):
+    def project_id(self) -> int:
         """
         Retrieve the project ID for which we perform encryption.
         """
@@ -66,12 +71,11 @@ class Salt:
 
         self._project_id = self.database.get_project_id(self._project.key)
         if self._project_id is None:
-            self.database.set_project_id(self._project.key)
-            self._project_id = self.database.get_project_id(self._project.key)
+            self._project_id = self.database.set_project_id(self._project.key)
 
         return self._project_id
 
-    def execute(self):
+    def execute(self) -> Tuple[str, str]:
         """
         Retrieve or generate and update the project-specific salts.
         """
@@ -85,31 +89,35 @@ class Salt:
 
         return salt, pepper
 
-    def get(self):
+    def get(self) -> Tuple[str, str]:
         """
         Retrieve the project-specific salts.
         """
 
         result = self.database.execute('''SELECT salt, pepper
                                           FROM gros.project_salt
-                                          WHERE project_id=%s''',
-                                       parameters=[self.project_id], one=True)
+                                          WHERE project_id=%d''',
+                                       parameters=[self.project_id],
+                                       one=True)
 
-        return result
+        if result is None:
+            raise TypeError('Unexpected result')
 
-    def update(self):
+        return str(result[0]), str(result[1])
+
+    def update(self) -> Tuple[str, str]:
         """
         Generate and update the project-specific salts.
         """
 
-        salt = bcrypt.gensalt()
-        pepper = bcrypt.gensalt()
+        salt = bcrypt.gensalt().decode('utf-8')
+        pepper = bcrypt.gensalt().decode('utf-8')
         self._update(salt, pepper)
 
         return salt, pepper
 
-    def _update(self, salt, pepper):
+    def _update(self, salt: str, pepper: str) -> None:
         self.database.execute('''INSERT INTO gros.project_salt(project_id,salt,pepper)
-                                 VALUES (%s,%s,%s)''',
+                                 VALUES (%d,%s,%s)''',
                               parameters=[self.project_id, salt, pepper],
                               update=True)

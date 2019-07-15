@@ -2,9 +2,16 @@
 Module that handles the JIRA API query.
 """
 
-import logging
 from datetime import datetime
+import logging
+from typing import Iterable, Optional, TYPE_CHECKING
+from jira import Issue, JIRA
+from ..domain import source
 from ..utils import format_date, Iterator_Limiter
+if TYPE_CHECKING:
+    from . import Jira
+else:
+    Jira = object
 
 class Query:
     """
@@ -15,9 +22,10 @@ class Query:
     QUERY_FORMAT = 'project={0} AND updated > "{1}"'
 
 
-    def __init__(self, jira, source, query=None):
+    def __init__(self, jira: Jira, jira_source: source.Jira,
+                 query: Optional[str] = None) -> None:
         self._jira = jira
-        self._api = source.jira_api
+        self._api = jira_source.jira_api
 
         updated_since = format_date(self._jira.updated_since.date,
                                     date_format=self.DATE_FORMAT)
@@ -33,14 +41,14 @@ class Query:
 
         self._iterator_limiter = Iterator_Limiter(size=100, maximum=100000)
 
-    def update(self):
+    def update(self) -> None:
         """
         Update the internal iteration tracker after processing a query.
         """
 
         self._iterator_limiter.update()
 
-    def perform_batched_query(self, had_issues):
+    def perform_batched_query(self, had_issues: bool) -> Iterable[Issue]:
         """
         Retrieve a batch of issue results from the JIRA API.
         """
@@ -57,7 +65,7 @@ class Query:
                                        fields=self._search_fields)
 
     @property
-    def api(self):
+    def api(self) -> JIRA:
         """
         Retrieve the Jira API connection.
         """
@@ -65,7 +73,7 @@ class Query:
         return self._api
 
     @property
-    def latest_update(self):
+    def latest_update(self) -> str:
         """
         Retrieve the latest time that the query retrieved data.
         """

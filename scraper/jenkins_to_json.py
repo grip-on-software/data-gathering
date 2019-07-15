@@ -2,10 +2,12 @@
 Script to obtain statistics from a Jenkins instance.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
+from configparser import RawConfigParser
 import json
 import logging
 from pathlib import Path
+from typing import Optional, Union
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -13,25 +15,26 @@ from gatherer.domain import source
 from gatherer.jenkins import Jenkins
 from gatherer.log import Log_Setup
 
-def parse_args(config):
+def parse_args(config: RawConfigParser) -> Namespace:
     """
     Parse command line arguments.
     """
 
-    verify = config.get('jenkins', 'verify')
-    if not Configuration.has_value(verify):
+    verify_config = config.get('jenkins', 'verify')
+    verify: Union[str, bool] = verify_config
+    if not Configuration.has_value(verify_config):
         verify = False
-    elif not Path(verify).exists():
+    elif not Path(verify_config).exists():
         verify = True
 
-    username = config.get('jenkins', 'username')
-    password = config.get('jenkins', 'password')
+    username: Optional[str] = config.get('jenkins', 'username')
+    password: Optional[str] = config.get('jenkins', 'password')
     if not Configuration.has_value(username):
         username = None
         password = None
 
     description = "Obtain Jenkins usage statistics"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument('--host', default=config.get('jenkins', 'host'),
                         help='Base URL of the Jenkins instance')
@@ -49,7 +52,7 @@ def parse_args(config):
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

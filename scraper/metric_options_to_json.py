@@ -3,20 +3,20 @@ Script to parse historical project definitions and extract metric targets from
 these versions into JSON output.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Metric_Options_Collector
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain quality metric project definition and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default=None,
                         help="Repository path with project definitions")
@@ -32,7 +32,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

@@ -3,10 +3,11 @@ SonarQube code quality inspection system source domain object.
 """
 
 import logging
+from typing import Hashable, Optional
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from ...config import Configuration
 from ...request import Session
-from .types import Source, Source_Types
+from .types import Source, Source_Types, Project
 
 @Source_Types.register('sonar')
 class Sonar(Source):
@@ -14,23 +15,26 @@ class Sonar(Source):
     SonarQube source.
     """
 
-    def __init__(self, *args, **kwargs):
-        super(Sonar, self).__init__(*args, **kwargs)
+    def __init__(self, source_type: str, name: str = '', url: str = '',
+                 follow_host_change: bool = True) -> None:
+        super().__init__(source_type, name=name, url=url,
+                         follow_host_change=follow_host_change)
         self._blacklisted = Configuration.is_url_blacklisted(self.url)
 
     @property
-    def environment(self):
+    def environment(self) -> Optional[Hashable]:
         return self.url
 
     @property
-    def environment_url(self):
+    def environment_url(self) -> Optional[str]:
         return self.url
 
-    def update_identity(self, project, public_key, dry_run=False):
+    def update_identity(self, project: Project, public_key: str,
+                        dry_run: bool = False) -> None:
         raise RuntimeError('Source does not support updating SSH key')
 
     @property
-    def version(self):
+    def version(self) -> str:
         if self._blacklisted:
             return ''
 

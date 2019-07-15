@@ -3,7 +3,7 @@ Script to parse current project definitions and extract metric sources from
 the products and components.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 import os
 
@@ -11,13 +11,13 @@ from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Sources_Collector
 from gatherer.domain import Project
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain project sources definition"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default=None,
                         help="Repository directory with project definitions")
@@ -36,13 +36,13 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
 
     args = parse_args()
-    project_key = args.project
+    project_key = str(args.project)
     project = Project(project_key)
 
     # Clear the existing project sources such that we only take the ones that

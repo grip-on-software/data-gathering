@@ -3,8 +3,13 @@ Module that increases compatibility with earlier project definitions by
 augmenting the hqlib module with replacement domain objects.
 """
 
+from typing import Any, Callable, Dict, Type
 from unittest.mock import Mock, MagicMock
-from hqlib import domain
+from hqlib.domain import DomainObject, TechnicalDebtTarget, \
+    DynamicTechnicalDebtTarget
+from hqlib.typing import DateTime, MetricValue
+
+DomainType = Type[DomainObject]
 
 # Define some classes that are backward compatible with earlier versions of
 # hqlib (quality_report, qualitylib). This suppresses argument exceptions.
@@ -14,15 +19,15 @@ class Compatibility:
     of those classes in distributed modules.
     """
 
-    replacements = {}
+    replacements: Dict[DomainType, DomainType] = {}
 
     @classmethod
-    def replaces(cls, target):
+    def replaces(cls, target: DomainType) -> Callable[[DomainType], DomainType]:
         """
         Decorator method for a class that replaces another class `target`.
         """
 
-        def decorator(subject):
+        def decorator(subject: DomainType) -> DomainType:
             """
             Decorator that registers the class `subject` as a replacement.
             """
@@ -33,7 +38,7 @@ class Compatibility:
         return decorator
 
     @classmethod
-    def get_replacement(cls, name, member):
+    def get_replacement(cls, name: str, member: DomainType) -> DomainType:
         """
         Find a suitable replacement for a class whose interface should be
         mostly adhered, but its functionality should not be executed.
@@ -56,23 +61,24 @@ class Compatibility:
 
         return replacement
 
-@Compatibility.replaces(domain.TechnicalDebtTarget)
-class TechnicalDebtTarget(domain.TechnicalDebtTarget):
+@Compatibility.replaces(TechnicalDebtTarget)
+class TechnicalDebtTargetCompat(TechnicalDebtTarget):
     # pylint: disable=missing-docstring,too-few-public-methods,unused-argument
-    def __init__(self, target_value, explanation='', unit=''):
-        super(TechnicalDebtTarget, self).__init__(target_value, explanation)
+    def __init__(self, target_value: MetricValue, explanation: str = '',
+                 **kwargs: str) -> None:
+        super().__init__(target_value, explanation)
 
-@Compatibility.replaces(domain.DynamicTechnicalDebtTarget)
-class DynamicTechnicalDebtTarget(domain.DynamicTechnicalDebtTarget):
+@Compatibility.replaces(DynamicTechnicalDebtTarget)
+class DynamicTechnicalDebtTargetCompat(DynamicTechnicalDebtTarget):
     # pylint: disable=missing-docstring,too-few-public-methods,unused-argument
-    # pylint: disable=too-many-arguments
-    def __init__(self, initial_target_value, initial_datetime,
-                 end_target_value, end_datetime, explanation='', unit=''):
-        parent = super(DynamicTechnicalDebtTarget, self)
-        parent.__init__(initial_target_value, initial_datetime,
-                        end_target_value, end_datetime, explanation)
+    def __init__(self, initial_target_value: MetricValue,
+                 initial_datetime: DateTime, end_target_value: MetricValue,
+                 end_datetime: DateTime, explanation: str = '',
+                 **kwargs: str) -> None:
+        super().__init__(initial_target_value, initial_datetime,
+                         end_target_value, end_datetime, explanation)
 
-def produce_mock(name):
+def produce_mock(name: str) -> Type:
     """
     Method which produces a dynamic class, which in turn produces a magic
     mock object upon instantiation. The dynamic class is given the name.
@@ -80,7 +86,7 @@ def produce_mock(name):
     This can be used to pass isinstance checks against this class.
     """
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> MagicMock:
         obj = MagicMock(spec=cls)
         obj.name = cls.__name__
         obj(*args, **kwargs)

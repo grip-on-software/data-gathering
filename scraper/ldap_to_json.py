@@ -2,24 +2,29 @@
 Script to obtain user details from an LDAP server.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
+from configparser import RawConfigParser
 import json
 import logging
+from typing import Dict, List, TYPE_CHECKING
 try:
     import ldap
+    from ldap.ldapobject import LDAPObject
 except ImportError:
-    ldap = None
+    if not TYPE_CHECKING:
+        ldap = None
+        LDAPObject = object
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 
-def parse_args(config):
+def parse_args(config: RawConfigParser) -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain repository versions and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="Project key")
     parser.add_argument("--group", default=None, help="Group name")
     parser.add_argument("--server", default=config.get('ldap', 'server'),
@@ -51,7 +56,7 @@ def parse_args(config):
     Log_Setup.parse_args(args)
     return args
 
-def get_groups(client, args):
+def get_groups(client: LDAPObject, args: Namespace) -> List[str]:
     """
     Retrieve a list of group names from LDAP.
     """
@@ -60,7 +65,8 @@ def get_groups(client, args):
                              'objectClass=posixgroup', ['cn'])
     return [group['cn'][0].decode('utf-8') for _, group in groups]
 
-def get_members(client, name, args):
+def get_members(client: LDAPObject, name: str, args: Namespace) \
+        -> List[Dict[str, str]]:
     """
     Retrieve group members and their properties.
 
@@ -68,9 +74,9 @@ def get_members(client, name, args):
     email.
     """
 
-    data = []
+    data: List[Dict[str, str]] = []
     group = client.search_s(args.root, ldap.SCOPE_SUBTREE,
-                            'cn={}'.format(name), [str(args.group_attr)])[0][1]
+                            f'cn={name}', [str(args.group_attr)])[0][1]
     if args.group_attr not in group:
         logging.warning('Group %s contains no members', name)
         return data
@@ -97,7 +103,7 @@ def get_members(client, name, args):
 
     return data
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
@@ -115,7 +121,7 @@ def main():
 
     project = Project(args.project)
     if args.group is not None:
-        group = args.group
+        group = str(args.group)
     elif config.has_option('groups', project.key):
         group = config.get('groups', project.key)
     else:

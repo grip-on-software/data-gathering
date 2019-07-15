@@ -3,29 +3,38 @@ Module that handles issue changelog data.
 """
 
 import logging
-
-from .base import Base_Changelog_Field
+from typing import Dict, List, Mapping, MutableMapping, Optional, Type, TYPE_CHECKING
+from jira import Issue
+from .base import Base_Jira_Field, Base_Changelog_Field
 from .field import Changelog_Primary_Field, Changelog_Field
+if TYPE_CHECKING:
+    from . import Jira, Field
+else:
+    Jira = object
+    Field = object
 
 class Changelog:
     """
     Changelog parser.
     """
 
-    def __init__(self, jira):
+    def __init__(self, jira: Jira) -> None:
         self._jira = jira
         self._updated_since = self._jira.updated_since
 
-        self._changelog_fields = {}
-        self._changelog_primary_fields = {}
+        self._changelog_fields: Dict[str, Base_Changelog_Field] = {}
+        self._changelog_primary_fields: Dict[str, Base_Changelog_Field] = {}
 
-    def _create_field(self, changelog_class, name, data, field=None):
+    def _create_field(self, changelog_class: Type[Base_Changelog_Field],
+                      name: str, data: Field,
+                      field: Optional[Base_Jira_Field] = None) -> Base_Changelog_Field:
         if field is not None and isinstance(field, Base_Changelog_Field):
             return field
 
         return changelog_class(self._jira, name, **data)
 
-    def import_field_specification(self, name, data, field=None):
+    def import_field_specification(self, name: str, data: Field,
+                                   field: Optional[Base_Jira_Field] = None) -> None:
         """
         Import a JIRA field specification for a single field.
 
@@ -33,17 +42,17 @@ class Changelog:
         """
 
         if "changelog_primary" in data:
-            changelog_name = data["changelog_primary"]
+            changelog_name = str(data["changelog_primary"])
             primary_field = self._create_field(Changelog_Primary_Field, name,
                                                data, field=field)
             self._changelog_primary_fields[changelog_name] = primary_field
         elif "changelog_name" in data:
-            changelog_name = data["changelog_name"]
+            changelog_name = str(data["changelog_name"])
             changelog_field = self._create_field(Changelog_Field, name, data,
                                                  field=field)
             self._changelog_fields[changelog_name] = changelog_field
 
-    def fetch_changelog(self, issue):
+    def fetch_changelog(self, issue: Issue) -> Dict[str, Dict[str, Optional[str]]]:
         """
         Extract fields from the changelog of one issue. The resulting dictionary
         holds the differences of one change and is keyed by the update time,
@@ -51,9 +60,9 @@ class Changelog:
         """
 
         changelog = issue.changelog.histories
-        issue_diffs = {}
+        issue_diffs: Dict[str, Dict[str, Optional[str]]] = {}
         for changes in changelog:
-            diffs = {}
+            diffs: Dict[str, Optional[str]] = {}
 
             for field in self._changelog_primary_fields.values():
                 value = field.parse_changelog(changes, diffs, issue)
@@ -61,7 +70,8 @@ class Changelog:
 
             # Updated date is required for changelog sorting, as well as
             # issuelinks special field parser
-            if "updated" not in diffs:
+            updated = diffs.get("updated", None)
+            if updated is None:
                 logging.warning('Changelog entry has no updated date: %s',
                                 repr(diffs))
                 continue
@@ -73,7 +83,6 @@ class Changelog:
                     value = field.parse_changelog(item, diffs, issue)
                     diffs[field.name] = value
 
-            updated = diffs["updated"]
             if updated in issue_diffs:
                 issue_diffs[updated].update(diffs)
             else:
@@ -82,7 +91,8 @@ class Changelog:
         return issue_diffs
 
     @classmethod
-    def _create_change_transition(cls, source_data, diffs):
+    def _create_change_transition(cls, source_data: Mapping[str, Optional[str]],
+                                  diffs: MutableMapping[str, Optional[str]]) -> Dict[str, str]:
         """
         Returns a copy of `source_data`, updated with the new key-value pairs
         in `diffs`.
@@ -92,18 +102,23 @@ class Changelog:
         result = dict(source_data)
 
         # Count attachments
-        if "attachment" in diffs:
-            total = int(result["attachment"]) + diffs["attachment"]
+        attachments = diffs.pop("attachment", None)
+        if attachments is not None and result["attachment"] is not None:
+            total = int(result["attachment"]) + int(attachments)
             result["attachment"] = str(max(0, total))
-            diffs.pop("attachment")
 
         result.update(diffs)
-        return dict(
-            (key, value) for key, value in result.items() if value is not None
-        )
+        return cls._cleanup_data(result)
 
     @classmethod
-    def _update_field(cls, new_data, old_data, field):
+    def _cleanup_data(cls, data: Dict[str, Optional[str]]) -> Dict[str, str]:
+        return {
+            key: value for key, value in data.items() if value is not None
+        }
+
+    @classmethod
+    def _update_field(cls, new_data: MutableMapping[str, Optional[str]],
+                      old_data: MutableMapping[str, Optional[str]], field: str) -> None:
         # Match the new_data field with the existence and the value of the same
         # field in old_data. This means that the field is deleted from new_data
         # if it did not exist in old_data.
@@ -113,7 +128,8 @@ class Changelog:
             new_data[field] = None
 
     @classmethod
-    def _alter_change_metadata(cls, data, diffs):
+    def _alter_change_metadata(cls, data: MutableMapping[str, Optional[str]],
+                               diffs: MutableMapping[str, Optional[str]]) -> None:
         # Data is either a full changelog entry or a difference entry that is
         # applied to it after this call. Diffs is a difference entry with data
         # that may be partially for this change, but after this call it only
@@ -125,13 +141,16 @@ class Changelog:
         cls._update_field(data, diffs, "updated_by")
         cls._update_field(data, diffs, "rank_change")
 
-        if "sprint" in data and isinstance(data["sprint"], list):
+        sprint = data.get("sprint", None)
+        if sprint is not None and ", " in sprint:
             # Always take one of the sprints, even if they cannot be
             # matched to a sprint (due to start/end mismatch).
             # Prefer the latest sprint added.
-            data["sprint"] = str(data["sprint"][-1])
+            data["sprint"] = sprint.split(", ")[-1]
 
-    def _create_first_version(self, issue, prev_data, prev_diffs):
+    def _create_first_version(self, issue: Issue,
+                              prev_data: MutableMapping[str, Optional[str]],
+                              prev_diffs: MutableMapping[str, Optional[str]]) -> Dict[str, str]:
         self._update_field(prev_diffs, prev_data, "updated")
         self._update_field(prev_diffs, prev_data, "sprint")
         parser = self._jira.get_type_cast("developer")
@@ -144,7 +163,8 @@ class Changelog:
         new_data["changelog_id"] = str(0)
         return new_data
 
-    def get_versions(self, issue, data):
+    def get_versions(self, issue: Issue,
+                     data: Dict[str, str]) -> List[Dict[str, str]]:
         """
         Fetch the versions of the issue based on changelog data as well as
         the current version of the issue.
@@ -153,9 +173,9 @@ class Changelog:
         issue_diffs = self.fetch_changelog(issue)
 
         changelog_count = len(issue_diffs)
-        prev_diffs = {}
-        prev_data = data
-        versions = []
+        prev_diffs: Dict[str, Optional[str]] = {}
+        prev_data: Dict[str, Optional[str]] = dict(data)
+        versions: List[Dict[str, str]] = []
 
         # reestablish issue data from differences
         sorted_diffs = sorted(issue_diffs.keys(), reverse=True)
@@ -166,8 +186,9 @@ class Changelog:
             diffs = issue_diffs[updated]
             if not prev_diffs:
                 # Prepare difference between latest version and earlier one
-                data["changelog_id"] = str(changelog_count)
-                self._alter_change_metadata(data, diffs)
+                prev_data["changelog_id"] = str(changelog_count)
+                self._alter_change_metadata(prev_data, diffs)
+                data = self._cleanup_data(prev_data)
                 versions.append(data)
                 prev_diffs = diffs
                 changelog_count -= 1
@@ -178,7 +199,8 @@ class Changelog:
                                                           prev_diffs)
                 old_data["changelog_id"] = str(changelog_count)
                 versions.append(old_data)
-                prev_data = old_data
+                prev_data = {}
+                prev_data.update(old_data)
                 prev_diffs = diffs
                 changelog_count -= 1
 
@@ -191,7 +213,7 @@ class Changelog:
         return versions
 
     @property
-    def search_field(self):
+    def search_field(self) -> str:
         """
         Retrieve the field name necessary for changelog parsing.
         """

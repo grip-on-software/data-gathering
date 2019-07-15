@@ -3,6 +3,15 @@ Abstract base classes that other objects inherit.
 """
 
 from abc import ABCMeta, abstractproperty
+from typing import Any, Dict, Optional, Tuple, Union, TYPE_CHECKING
+from jira import Issue
+if TYPE_CHECKING:
+    from . import Jira, FieldValue
+else:
+    Jira = object
+    FieldValue = object
+
+TableKey = Optional[Union[str, Tuple[str, ...]]]
 
 class Table_Source(metaclass=ABCMeta):
     """
@@ -11,7 +20,7 @@ class Table_Source(metaclass=ABCMeta):
     """
 
     @abstractproperty
-    def table_key(self):
+    def table_key(self) -> TableKey:
         """
         Key to use for assigning unique rows to a table with parsed values of
         this type, or `None` if there are no keys in the table for this type.
@@ -23,7 +32,7 @@ class Table_Source(metaclass=ABCMeta):
         return None
 
     @abstractproperty
-    def table_name(self):
+    def table_name(self) -> Optional[str]:
         """
         Name to be used for the table where rows can be assigned to.
 
@@ -40,7 +49,12 @@ class Base_Jira_Field(Table_Source):
     Abstract base class with the minimal required interface from Jira fields.
     """
 
-    def parse(self, issue):
+    def __init__(self, jira: Jira, name: str, **data: FieldValue) -> None:
+        self.jira = jira
+        self.name = name
+        self.data = data
+
+    def parse(self, issue: Any) -> Optional[str]:
         """
         Retrieve the field from the issue and parse it. Parsing can include
         type casting using field parsers, or it may perform more intricate
@@ -54,7 +68,7 @@ class Base_Jira_Field(Table_Source):
         raise NotImplementedError("Must be implemented by subclass")
 
     @property
-    def search_field(self):
+    def search_field(self) -> Optional[str]:
         """
         JIRA field name to be added to the search query, or `None` if this
         field is always available within the result.
@@ -68,7 +82,8 @@ class Base_Changelog_Field(Base_Jira_Field):
     changelog fields from Jira API responses.
     """
 
-    def parse_changelog(self, entry, diffs, issue):
+    def parse_changelog(self, entry: Any, diffs: Dict[str, Optional[str]],
+                        issue: Issue) -> Optional[str]:
         """
         Parse changelog information from a changelog entry.
 

@@ -3,21 +3,22 @@ Script to checkout or update the repository that contains project definitions
 with quality metrics.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 from pathlib import Path
 import shutil
-from gatherer.domain import Project
-from gatherer.domain.source.git import Git
+from typing import List, Optional, Tuple
+from gatherer.domain import Project, Source
+from gatherer.git.repo import Git_Repository
 from gatherer.log import Log_Setup
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = 'Obtain quality metrics definitions repository'
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument('project', help='project key')
     parser.add_argument('--repo', default=None,
                         help='Directory to check out the repository to')
@@ -34,16 +35,17 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def delete_repository(source, repo_path, paths=None):
+def delete_repository(source: Source, repo_path: Path,
+                      paths: Optional[List[str]] = None) -> None:
     """
     Delete a local version of a project definition metrics repository.
     """
 
-    if isinstance(paths, list):
+    repo_class = source.repository_class
+    if repo_class is not None and paths is not None:
         # Remove repository from sparse checkout
         logging.info('Removing paths from sparse checkout of %s: %s',
                      repo_path, ', '.join(paths))
-        repo_class = source.repository_class
         repository = repo_class(source, repo_path)
         repository.checkout_sparse(paths, remove=True)
     elif repo_path.exists():
@@ -53,28 +55,37 @@ def delete_repository(source, repo_path, paths=None):
         logging.warning('Local quality metrics repository %s did not exist',
                         repo_path)
 
-def retrieve_repository(source, repo_path, paths=True, force=False):
+def retrieve_repository(source: Source, repo_path: Path,
+                        paths: Optional[List[str]] = None,
+                        force: bool = False) -> None:
     """
     Retrieve a project definition metrics repository from the `source` and
-    make it available in `repo_path`. If `paths` is not `True`, then a subset
+    make it available in `repo_path`. If `paths` is not `None`, then a subset
     of paths are checked out into the working tree.
     """
 
     repo_class = source.repository_class
-    if isinstance(source, Git):
+    if repo_class is None:
+        raise RuntimeError('Quality metrics repository has no version control')
+
+    if issubclass(repo_class, Git_Repository):
         logging.info('Pulling quality metrics repository %s', repo_path)
-        repository = repo_class.from_source(source, repo_path, checkout=paths,
-                                            force=force)
+        repo_class.from_source(source, repo_path,
+                               checkout=paths if paths is not None else True,
+                               force=force)
     elif repo_path.exists():
         logging.info('Updating quality metrics repository %s', repo_path)
         repository = repo_class(source, repo_path)
-        repository.checkout_sparse(paths)
+        if paths is None:
+            repository.update()
+        else:
+            repository.checkout_sparse(paths)
     else:
         logging.info('Checking out quality metrics repository to %s', repo_path)
         repository = repo_class.from_source(source, repo_path)
         repository.checkout(paths=paths)
 
-def cleanup_repository(source, repo_path):
+def cleanup_repository(source: Source, repo_path: Path) -> None:
     """
     Make sure that the repository path is clean such that we can pull or clone
     in it.
@@ -88,44 +99,43 @@ def cleanup_repository(source, repo_path):
         logging.info('Making way to clone into %s', repo_path)
         delete_repository(source, repo_path)
 
-def main():
+def check_paths(project: Project) -> Tuple[List[str], bool]:
     """
-    Main entry point.
+    Check which paths should be checked out for the repository if specified.
     """
 
-    args = parse_args()
-    project = Project(args.project)
-
+    paths: List[str] = []
     if project.quality_metrics_name is None:
-        logging.warning('Project %s has no quality metrics definitions',
-                        project.key)
-        return
+        return paths, False
 
-    source = project.project_definitions_source
     default_repo_path = project.get_key_setting('definitions', 'path',
                                                 project.quality_metrics_name)
-    if args.repo is not None:
-        repo_path = Path(args.repo)
-    else:
-        repo_path = Path(default_repo_path)
-
     required_paths = project.get_key_setting('definitions', 'required_paths')
+
     if required_paths:
         paths = required_paths.split(',')
-    else:
-        paths = []
 
     is_sparse_base = '/' not in default_repo_path.rstrip('/')
     if is_sparse_base:
         paths.append(project.quality_metrics_name)
 
-        if not args.delete:
-            # In order to retrieve the Git repository, we need to check if
-            # we can actually clone/pull in the directory
-            cleanup_repository(source, repo_path)
+    return paths, is_sparse_base
 
+def perform(project: Project, source: Source, repo_path: Path,
+            args: Namespace) -> None:
+    """
+    Perform updates to the metrics repository, such as pull and cleanup.
+    """
+
+    all_paths, is_sparse_base = check_paths(project)
+    if is_sparse_base and not args.delete:
+        # In order to retrieve the Git repository, we need to check if
+        # we can actually clone/pull in the directory
+        cleanup_repository(source, repo_path)
+
+    paths: Optional[List[str]] = all_paths
     if args.all or not paths:
-        paths = True
+        paths = None
 
     base = project.get_key_setting('definitions', 'base')
     base_path = Path(project.get_key_setting('definitions', 'path', base,
@@ -144,6 +154,33 @@ def main():
 
     retrieve_repository(source, repo_path, paths=paths, force=args.force)
     retrieve_repository(base_source, base_path, force=args.force)
+
+def main() -> None:
+    """
+    Main entry point.
+    """
+
+    args = parse_args()
+    project = Project(args.project)
+
+    if project.quality_metrics_name is None:
+        logging.warning('Project %s has no quality metrics definitions',
+                        project.key)
+        return
+
+    source = project.project_definitions_source
+    if source is None:
+        logging.warning('Project %s has no definitions source', project.key)
+        return
+
+    default_repo_path = project.get_key_setting('definitions', 'path',
+                                                project.quality_metrics_name)
+    if args.repo is not None:
+        repo_path = Path(args.repo)
+    else:
+        repo_path = Path(default_repo_path)
+
+    perform(project, source, repo_path, args)
 
 if __name__ == '__main__':
     main()

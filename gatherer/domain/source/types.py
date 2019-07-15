@@ -4,29 +4,42 @@ Data source domain object
 
 import os
 from pathlib import Path
-import urllib.parse
+from typing import Any, AnyStr, Callable, ClassVar, Dict, Hashable, List, \
+    Optional, Tuple, Type, Union, TYPE_CHECKING
+from urllib.parse import quote, urlsplit, urlunsplit, SplitResult
 from ...config import Configuration
+from ...version_control.repo import Version_Control_Repository
+if TYPE_CHECKING:
+    from ..project import Project
+else:
+    Project = object
+
+PathLike = Union[str, os.PathLike]
 
 class Source_Type_Error(ValueError):
     """
     An error that the source type is not supported.
     """
 
+Validator = Callable[..., bool]
+S_type = Type['Source']
+
 class Source_Types:
     """
     Holder for source type registration
     """
 
-    _validated_types = {}
-    _types = {}
+    _validated_types: ClassVar[Dict[str, List[Tuple[S_type, Validator]]]] = {}
+    _types: ClassVar[Dict[str, S_type]] = {}
 
     @classmethod
-    def register(cls, source_type, validator=None):
+    def register(cls, source_type: str,
+                 validator: Optional[Validator] = None) -> Callable[[S_type], S_type]:
         """
         Decorator method for a class that registers a certain `source_type`.
         """
 
-        def decorator(subject):
+        def decorator(subject: S_type) -> S_type:
             """
             Decorator that registers the class `subject` to the source type.
             """
@@ -44,7 +57,7 @@ class Source_Types:
         return decorator
 
     @classmethod
-    def get_source(cls, source_type, **source_data):
+    def get_source(cls, source_type: str, **source_data: Any) -> 'Source':
         """
         Retrieve an object that represents a fully-instantiated source with
         a certain type.
@@ -73,29 +86,21 @@ class Source:
     HTTP_PROTOCOLS = ('http', 'https')
     SSH_PROTOCOL = 'ssh'
 
-    _credentials = None
+    _credentials = Configuration.get_credentials()
 
-    def __init__(self, source_type, name=None, url=None, follow_host_change=True):
-        self._init_credentials()
+    def __init__(self, source_type: str, name: str = '', url: str = '',
+                 follow_host_change: bool = True) -> None:
         self._name = name
         self._plain_url = url
         self._type = source_type
         self._follow_host_change = follow_host_change
-        self._credentials_path = None
+        self._credentials_path: Optional[PathLike] = None
 
-        self._url = None
-        if self._plain_url is None:
-            self._host = None
-        else:
-            self._host = self._update_credentials()[1]
+        self._url = url
+        self._host = self._update_credentials()[1]
 
     @classmethod
-    def _init_credentials(cls):
-        if cls._credentials is None:
-            cls._credentials = Configuration.get_credentials()
-
-    @classmethod
-    def from_type(cls, source_type, **kwargs):
+    def from_type(cls, source_type: str, **kwargs: Any) -> 'Source':
         """
         Create a fully-instantiated source object from its source type.
 
@@ -105,16 +110,17 @@ class Source:
         return Source_Types.get_source(source_type, **kwargs)
 
     @classmethod
-    def _get_changed_host(cls, host):
+    def _get_changed_host(cls, host: str) -> str:
         # Retrieve the changed host in the credentials configuration.
         if cls.has_option(host, 'host'):
             return cls._credentials.get(host, 'host')
 
         return host
 
-    def _get_host_parts(self, host, parts):
+    def _get_host_parts(self, host: str, parts: SplitResult) -> Tuple[str, Optional[int]]:
         # Retrieve the changed host in the credentials configuration
         # Split the host into hostname and port if necessary.
+        port: Optional[int] = None
         if self._follow_host_change and self.has_option(host, 'host'):
             host = self._credentials.get(host, 'host')
             split_host = host.split(':', 1)
@@ -122,13 +128,13 @@ class Source:
             try:
                 port = int(split_host[1])
             except (IndexError, ValueError):
-                port = None
+                pass
         else:
             hostname = parts.hostname
             try:
                 port = parts.port
             except ValueError:
-                port = None
+                pass
 
         if self.has_option(host, 'port'):
             port = int(self._credentials.get(host, 'port'))
@@ -136,11 +142,12 @@ class Source:
         return hostname, port
 
     @staticmethod
-    def _create_url(*parts):
+    def _create_url(*parts: AnyStr) -> str:
         # Cast to string to ensure that all parts have the same type.
-        return urllib.parse.urlunsplit(tuple(str(part) for part in parts))
+        return urlunsplit(tuple(str(part) for part in parts))
 
-    def _get_web_protocol(self, host, scheme, default_scheme='http'):
+    def _get_web_protocol(self, host: str, scheme: str,
+                          default_scheme: str = 'http') -> str:
         # Retrieve the protocol to use to send requests to the source.
         # This must be either HTTP or HTTPS.
         if self.has_option(host, 'protocol'):
@@ -150,22 +157,23 @@ class Source:
 
         return scheme
 
-    def _format_ssh_url(self, hostname, auth, port, path):
+    def _format_ssh_url(self, hostname: str, auth: str, port: Optional[int],
+                        path: str) -> str:
         if hostname.startswith('-'):
             raise ValueError('Long SSH host may not begin with dash')
 
         netloc = '{0}{1}'.format(auth,
-                                 ':{0}'.format(port) if port is not None else '')
+                                 f':{port}' if port is not None else '')
         return '{0}://{1}{2}'.format(self.SSH_PROTOCOL, netloc, path)
 
     @classmethod
-    def _format_host_section(cls, parts):
+    def _format_host_section(cls, parts: SplitResult) -> str:
         if parts.port is None:
             return parts.hostname
 
         return '{0}:{1}'.format(parts.hostname, parts.port)
 
-    def _get_username(self, protocol, host, orig_parts):
+    def _get_username(self, protocol: str, host: str, orig_parts: SplitResult) -> Optional[str]:
         # Order of preference:
         # - Protocol-specific username configured in credentials for the host
         # - Username configured in credentials for the host
@@ -174,7 +182,7 @@ class Source:
         # the configuration), but it has a falsy value, then the original
         # username is used.
         key = 'username.{}'.format(protocol)
-        username = None
+        username: Optional[str] = None
         if self._credentials.has_option(host, key):
             username = self._credentials.get(host, key)
         elif self._credentials.has_option(host, 'username'):
@@ -185,7 +193,7 @@ class Source:
 
         return username
 
-    def _update_ssh_credentials(self, host, orig_parts):
+    def _update_ssh_credentials(self, host: str, orig_parts: SplitResult) -> None:
         # Use SSH (ssh://user@host:port/path).
         username = self._get_username('ssh', host, orig_parts)
         if username is None:
@@ -213,7 +221,7 @@ class Source:
 
         self._url = self._format_ssh_url(hostname, auth, port, path)
 
-    def _update_http_credentials(self, host, orig_parts):
+    def _update_http_credentials(self, host: str, orig_parts: SplitResult) -> None:
         # Use HTTP(s) (http://username:password@host:port/path).
         username = self._get_username('http', host, orig_parts)
         if username is None:
@@ -223,23 +231,21 @@ class Source:
         hostname, port = self._get_host_parts(host, orig_parts)
 
         # Add a password to the URL for basic authentication.
-        password = urllib.parse.quote(self._credentials.get(host,
-                                                            'password'))
+        password = quote(self._credentials.get(host, 'password'))
 
-        auth = '{0}:{1}'.format(username, password)
+        auth = f'{username}:{password}'
         full_host = auth + '@' + hostname
         if port is not None:
-            full_host += ':{0}'.format(port)
+            full_host += f':{port}'
 
         self._url = self._create_url(orig_parts.scheme, full_host,
                                      orig_parts.path, orig_parts.query,
                                      orig_parts.fragment)
 
-    def _update_credentials(self):
+    def _update_credentials(self) -> Tuple[SplitResult, str]:
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
-        self._url = self._plain_url
-        orig_parts = urllib.parse.urlsplit(self._plain_url)
+        orig_parts = urlsplit(self._plain_url)
         host = self._format_host_section(orig_parts)
 
         if self._credentials.has_section(host):
@@ -252,7 +258,7 @@ class Source:
         return orig_parts, host
 
     @property
-    def plain_url(self):
+    def plain_url(self) -> str:
         """
         Retrieve the URL as it is defined for the source.
 
@@ -262,7 +268,7 @@ class Source:
         return self._plain_url
 
     @property
-    def web_url(self):
+    def web_url(self) -> Optional[str]:
         """
         Retrieve the URL for the source containing a human-readable site
         describing this specific source.
@@ -273,7 +279,7 @@ class Source:
         return None
 
     @property
-    def type(self):
+    def type(self) -> str:
         """
         Retrieve the literal type of the source, as it was initially defined.
         Note that some source classes register themselves for more than one type
@@ -283,7 +289,7 @@ class Source:
         return self._type
 
     @property
-    def url(self):
+    def url(self) -> str:
         """
         Retrieve the final URL, after following host changes and including
         credentials where applicable
@@ -292,7 +298,7 @@ class Source:
         return self._url
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Retrieve the name of the source.
 
@@ -304,7 +310,7 @@ class Source:
         return self._name
 
     @property
-    def environment(self):
+    def environment(self) -> Optional[Hashable]:
         """
         Retrieve an indicator of the environment that the source lives in.
 
@@ -318,7 +324,7 @@ class Source:
         return None
 
     @property
-    def environment_type(self):
+    def environment_type(self) -> str:
         """
         Retrieve a type name for the environment of the source.
 
@@ -332,7 +338,7 @@ class Source:
         return self.type
 
     @property
-    def environment_url(self):
+    def environment_url(self) -> Optional[str]:
         """
         Retrieve a URL for the environment that the source lives in.
 
@@ -344,7 +350,7 @@ class Source:
         return None
 
     @property
-    def path_name(self):
+    def path_name(self) -> str:
         """
         Retrieve an identifier of the source that can be used as a path name.
 
@@ -354,7 +360,7 @@ class Source:
         return self.name
 
     @property
-    def repository_class(self):
+    def repository_class(self) -> Optional[Type[Version_Control_Repository]]:
         """
         Retrieve the class that implements a version control repository pointing
         to this source.
@@ -365,7 +371,7 @@ class Source:
         return None
 
     @property
-    def version(self):
+    def version(self) -> str:
         """
         Retrieve relevant version information as a string for this source.
 
@@ -376,7 +382,7 @@ class Source:
         return ''
 
     @property
-    def credentials_path(self):
+    def credentials_path(self) -> Optional[PathLike]:
         """
         Retrieve a path to a file that contains credentials for this source.
 
@@ -388,7 +394,7 @@ class Source:
         return self._credentials_path
 
     @credentials_path.setter
-    def credentials_path(self, value):
+    def credentials_path(self, value: Optional[PathLike]) -> None:
         """
         Update the credentials path to another location.
 
@@ -401,7 +407,7 @@ class Source:
         else:
             self._credentials_path = Path(value)
 
-    def get_option(self, option):
+    def get_option(self, option: str) -> Optional[str]:
         """
         Retrieve an option from the credentials configuration of the host of
         this source.
@@ -410,13 +416,13 @@ class Source:
         or the empty string, then `None` is returned.
         """
 
-        if not self.has_option(self._host, option):
+        if self._host is None or not self.has_option(self._host, option):
             return None
 
         return self._credentials.get(self._host, option)
 
     @classmethod
-    def has_option(cls, host, option):
+    def has_option(cls, host: str, option: str) -> bool:
         """
         Check whether an option from the credentials configuration of the host
         of this source is available and not set to a falsy value.
@@ -432,7 +438,7 @@ class Source:
         value = cls._credentials.get(host, option)
         return Configuration.has_value(value)
 
-    def check_credentials_environment(self):
+    def check_credentials_environment(self) -> bool:
         """
         Check whether this source's environment is within the restrictions of
         the credential settings for the source domain. This can be used to check
@@ -447,7 +453,7 @@ class Source:
 
         return bool(self._host)
 
-    def get_sources(self):
+    def get_sources(self) -> List['Source']:
         """
         Retrieve information about additional data sources from the source.
 
@@ -459,7 +465,8 @@ class Source:
 
         return [self]
 
-    def update_identity(self, project, public_key, dry_run=False):
+    def update_identity(self, project: Project,
+                        public_key: str, dry_run: bool = False) -> None:
         """
         Update the source to accept a public key as an identity for obtaining
         access to information or perform actions on the source.
@@ -480,32 +487,32 @@ class Source:
 
         raise NotImplementedError('Cannot update SSH key for this source type')
 
-    def export(self):
+    def export(self) -> Dict[str, str]:
         """
         Retrieve a dictionary that can be exported to JSON with data about
         the current source.
         """
 
         return {
+            'type': self._type,
             'name': self._name,
-            'url': self._plain_url,
-            'type': self._type
+            'url': self._plain_url
         }
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr(self.export())
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         data = self.export()
         keys = sorted(data.keys())
         values = tuple(data[key] for key in keys)
         return hash(values)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Source):
             return False
 
         return self.export() == other.export()
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return not self.__eq__(other)

@@ -6,7 +6,8 @@ import cgi
 import cgitb
 import json
 import sys
-import urllib.parse
+from typing import Dict, List, Optional, Tuple
+from urllib.parse import parse_qs
 import etcd3
 import Pyro4
 
@@ -15,19 +16,19 @@ class Permissions:
     Object that updates access and permissions for a project's agent.
     """
 
-    def __init__(self, project_key, agent_key):
+    def __init__(self, project_key: str, agent_key: str) -> None:
         self._controller = Pyro4.Proxy("PYRONAME:gros.controller")
         self._project_key = project_key
         self._agent_key = agent_key
 
-    def get_home_directory(self):
+    def get_home_directory(self) -> str:
         """
         Retrieve the home directory of the agent user.
         """
 
         return self._controller.get_home_directory(self._agent_key)
 
-    def update_user(self, full=True):
+    def update_user(self, full: bool = True) -> None:
         """
         Update agent home directory.
 
@@ -44,7 +45,7 @@ class Permissions:
                                                        self._agent_key,
                                                        ('export', 'update',))
 
-    def update_public_key(self, public_key):
+    def update_public_key(self, public_key: str) -> bool:
         """
         Update authorized public key.
 
@@ -54,7 +55,7 @@ class Permissions:
 
         return self._controller.update_public_key(self._agent_key, public_key)
 
-    def update_permissions(self):
+    def update_permissions(self) -> None:
         """
         Change permissions such that only the agent can access the directories.
         """
@@ -66,11 +67,11 @@ class Response:
     Object that formulates the response and writes additional files.
     """
 
-    def __init__(self, project_key):
+    def __init__(self, project_key: str) -> None:
         self._gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
         self._project_key = project_key
 
-    def get_update_trackers(self, home_directory):
+    def get_update_trackers(self, home_directory: str) -> None:
         """
         Retrieve update tracking files and store them in the agent's update
         directory.
@@ -78,14 +79,14 @@ class Response:
 
         self._gatherer.get_update_trackers(self._project_key, home_directory)
 
-    def get_salts(self):
+    def get_salts(self) -> Tuple[str, str]:
         """
         Retrieve project-specific encryption salts.
         """
 
         return self._gatherer.get_salts(self._project_key)
 
-    def get_usernames(self):
+    def get_usernames(self) -> List[Dict[str, str]]:
         """
         Retrieve username patterns that need to be replaced before encryption.
         """
@@ -97,12 +98,13 @@ class Parameters:
     Object that holds GET and POST data from a CGI request.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         post_query = sys.stdin.read()
-        self._post_data = urllib.parse.parse_qs(post_query)
+        self._post_data = parse_qs(post_query)
         self._get_data = cgi.FieldStorage()
 
-    def get_project_key(self, key="project", default=None):
+    def get_project_key(self, key: str = "project",
+                        default: Optional[str] = None) -> str:
         """Retrieve and validate the project key from a CGI request."""
 
         if key not in self._get_data:
@@ -121,7 +123,7 @@ class Parameters:
 
         return project_key
 
-    def get_public_key(self):
+    def get_public_key(self) -> str:
         """Retrieve the public key that must be POSTed in the request."""
 
         if "public_key" not in self._post_data:
@@ -131,14 +133,14 @@ class Parameters:
 
         return self._post_data["public_key"][0]
 
-def setup_log():
+def setup_log() -> None:
     """
     Set up logging.
     """
 
     cgitb.enable()
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

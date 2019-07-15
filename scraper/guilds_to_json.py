@@ -3,9 +3,10 @@ Parse schemas containing guild topics and dates to a JSON file containing
 guild information.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 from datetime import datetime
 import json
+from typing import Any, Dict, List, Optional, Union
 import xlrd
 import yaml
 from gatherer.log import Log_Setup
@@ -16,7 +17,7 @@ class Schema:
     Base schema object.
     """
 
-    def __init__(self, config, path):
+    def __init__(self, config: Dict[str, Any], path: str) -> None:
         self._config = config
         self._path = path
         try:
@@ -24,9 +25,11 @@ class Schema:
         except ValueError:
             self._year = datetime.now().year
 
-    def _validate_date(self, guild_date):
-        if "date" in guild_date:
-            return guild_date["date"]
+    def _validate_date(self, guild_date: Dict[str, Union[str, int, datetime]]) \
+            -> Optional[datetime]:
+        found_date = guild_date.get("date")
+        if isinstance(found_date, datetime):
+            return found_date
 
         if "weekday" in guild_date and "week" in guild_date:
             date = '{weekday} {week} {year}'.format(year=self._year, **guild_date)
@@ -35,14 +38,14 @@ class Schema:
         return None
 
     @classmethod
-    def add_arguments(cls, parser):
+    def add_arguments(cls, parser: ArgumentParser) -> None:
         """
         Add command-line arguments to the parser.
         """
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def parse(self):
+    def parse(self) -> List[Dict[str, Any]]:
         """
         Parse the schema.
         """
@@ -57,15 +60,15 @@ class Excel_Schema(Schema):
     SKIP_ROWS = 2
     SKIP_COLUMNS = 1
 
-    def __init__(self, config, path):
-        super(Excel_Schema, self).__init__(config, path)
+    def __init__(self, config: Dict[str, Any], path: str) -> None:
+        super().__init__(config, path)
         self._workbook = xlrd.open_workbook(path)
         self._worksheet = self._workbook.sheet_by_index(0)
-        self._placeholders = self._config.get('placeholders')
+        self._placeholders: Dict[str, List[str]] = self._config['placeholders']
 
-    def _find_types(self):
-        columns = self._config.get('columns')
-        types = {}
+    def _find_types(self) -> Dict[int, str]:
+        columns: Dict[str, str] = self._config['columns']
+        types: Dict[int, str] = {}
         for col in range(self.SKIP_COLUMNS, self._worksheet.ncols):
             value = self._worksheet.cell_value(self.SKIP_ROWS, col)
             if value in columns:
@@ -73,7 +76,8 @@ class Excel_Schema(Schema):
 
         return types
 
-    def _set_date(self, guild_date, col_type, value):
+    def _set_date(self, guild_date: Dict[str, Union[str, int, datetime]],
+                  col_type: Dict[str, str], value: str) -> None:
         if "value" in col_type and value != '':
             guild_date[col_type["type"]] = col_type["value"]
         if col_type["type"] == "week":
@@ -87,7 +91,7 @@ class Excel_Schema(Schema):
             except ValueError:
                 pass
 
-    def _check_placeholder(self, col_type, value):
+    def _check_placeholder(self, col_type: str, value: str) -> Optional[str]:
         for placeholder in self._placeholders.get(col_type, []):
             if placeholder in value:
                 value = ''
@@ -97,20 +101,20 @@ class Excel_Schema(Schema):
 
         return value.strip()
 
-    def _get_guild(self, row, types):
-        guild_date = {}
-        guild = {}
+    def _get_guild(self, row: int, types: Dict[int, str]) -> Optional[Dict[str, Any]]:
+        guild_date: Dict[str, Union[str, int, datetime]] = {}
+        guild: Dict[str, Any] = {}
         for col, col_type in types.items():
             value = self._worksheet.cell_value(row, col)
 
             if isinstance(col_type, dict):
                 self._set_date(guild_date, col_type, value)
             else:
-                value = self._check_placeholder(col_type, value)
-                if value is None:
+                placeholder_value = self._check_placeholder(col_type, value)
+                if placeholder_value is None:
                     return None
 
-                guild[col_type] = value
+                guild[col_type] = placeholder_value
 
         date = self._validate_date(guild_date)
         if date is None:
@@ -120,13 +124,13 @@ class Excel_Schema(Schema):
         return guild
 
     @classmethod
-    def add_arguments(cls, parser):
+    def add_arguments(cls, parser: ArgumentParser) -> None:
         group = parser.add_argument_group('Excel', 'Excel parser')
         group.add_argument('--filename', help='Excel file name',
                            default='Guilds.xls')
 
-    def parse(self):
-        guilds = []
+    def parse(self) -> List[Dict[str, Any]]:
+        guilds: List[Dict[str, Any]] = []
 
         types = self._find_types()
         for row in range(self.SKIP_ROWS + 1, self._worksheet.nrows):
@@ -136,13 +140,13 @@ class Excel_Schema(Schema):
 
         return guilds
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Obtain guild dates from Excel and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     Excel_Schema.add_arguments(parser)
 
     Log_Setup.add_argument(parser)
@@ -150,7 +154,7 @@ def parse_args():
     Log_Setup.parse_args(args)
     return args
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """

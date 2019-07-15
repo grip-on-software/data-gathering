@@ -2,23 +2,24 @@
 Script to convert a Topdesk dump CSV file to JSON.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import csv
 import json
 import logging
+from typing import Dict, Hashable, List, Optional, Pattern, TextIO, Tuple
 import regex
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.utils import get_local_datetime, format_date
+from gatherer.utils import get_local_datetime, format_date, parse_unicode
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
     description = "Parse a Topdesk data dump and output JSON"
-    parser = argparse.ArgumentParser(description=description)
+    parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--file", default='topdesk-reservations.csv',
                         help="File name of dump to read")
@@ -46,19 +47,18 @@ class Topdesk_Parser:
         _full_name + r')?$'
     _name_regex = regex.compile(_name, flags=regex.UNICODE)
 
-    def __init__(self, project):
+    def __init__(self, project: Project) -> None:
         self._project = project
         self._project_key = project.key
 
         self._config = Configuration.get_config('topdesk')
 
+        self._project_pass: Optional[str] = None
         if self._config.has_option('projects', self._project_key):
             self._project_pass = self._config.get('projects', self._project_key)
-        else:
-            self._project_pass = None
 
         self._names = [
-            (key, name.decode('string-escape'))
+            (key, name.encode('utf-8').decode('unicode_escape'))
             for (key, name) in self._config.items('names')
         ]
         whitelist = [
@@ -69,7 +69,7 @@ class Topdesk_Parser:
         blacklist = self._config.get('blacklist', 'all')
         self._blacklist = regex.compile(blacklist, flags=regex.IGNORECASE)
 
-    def _sort_whitelist(self, pair):
+    def _sort_whitelist(self, pair: Tuple[str, Pattern]) -> Hashable:
         if pair[0] == self.PROJECT_ALL.upper():
             # Sort last
             return (True,)
@@ -82,7 +82,7 @@ class Topdesk_Parser:
         return pair[0]
 
     @staticmethod
-    def parse_date(date):
+    def parse_date(date: str) -> str:
         """
         Parse a date and time from the Topdesk data.
         """
@@ -90,14 +90,15 @@ class Topdesk_Parser:
         local_date = get_local_datetime(date, date_format='%Y-%m-%d %H:%M')
         return format_date(local_date)
 
-    def get_reservations(self, input_file, whitelist_only=False):
+    def get_reservations(self, input_file: TextIO,
+                         whitelist_only: bool = False) -> List[Dict[str, str]]:
         """
         Retrieve all relevant reservations belonging to the project from
         the input file, excluding the reservations that are blacklisted or
         belong to a different project.
         """
 
-        reservations = []
+        reservations: List[Dict[str, str]] = []
         if self._project_pass is None and \
             all(self._project_key != key for key, whitelist in self._whitelist):
             return reservations
@@ -110,7 +111,7 @@ class Topdesk_Parser:
 
         return reservations
 
-    def _check_whitelist(self, fields):
+    def _check_whitelist(self, fields: Dict[str, str]) -> bool:
         whitelisted = False
         for project_key, whitelist in self._whitelist:
             if whitelist.search(fields['description']):
@@ -123,7 +124,8 @@ class Topdesk_Parser:
 
         return whitelisted
 
-    def _parse_reservation(self, line, whitelist_only):
+    def _parse_reservation(self, line: Dict[str, str], whitelist_only: bool) \
+            -> Optional[Dict[str, str]]:
         fields = {key: line[name] for key, name in self._names}
         if self._blacklist.search(fields['description']):
             logging.debug('Blacklisted: %s', fields['description'])
@@ -141,7 +143,7 @@ class Topdesk_Parser:
                 logging.debug('Not whitelisted: %s', fields['description'])
                 return None
 
-            unicode_description = fields['description'].decode('utf-8')
+            unicode_description = parse_unicode(fields['description'])
             if self._name_regex.match(unicode_description):
                 logging.debug('Name: %s', fields['description'])
                 return None
@@ -160,7 +162,7 @@ class Topdesk_Parser:
 
         return None
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
