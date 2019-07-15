@@ -25,8 +25,8 @@ pipeline {
             updateGitlabCommitStatus name: env.JOB_NAME, state: 'canceled'
         }
         always {
-            publishHTML([allowMissing: false, alwaysLinkToLastBuild: true, keepAll: false, reportDir: 'mypy-report/', reportFiles: 'index.html', reportName: 'Typing', reportTitles: ''])
-            junit 'mypy-report/junit.xml'
+            publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: false, reportDir: 'mypy-report/', reportFiles: 'index.html', reportName: 'Typing', reportTitles: ''])
+            junit allowEmptyResults: true, testResults: 'mypy-report/junit.xml'
         }
     }
 
