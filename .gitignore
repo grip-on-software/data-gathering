@@ -14,6 +14,7 @@ env.*
 *.xml
 .mypy_cache/
 mypy-report/
+pylint-report.txt
 
 # Deployer
 deployment.json

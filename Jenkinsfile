@@ -75,14 +75,14 @@ pipeline {
                 }
             }
             steps {
+                withPythonEnv('System-CPython-3') {
+                    pysh 'python -m pip install pylint mypy'
+                    pysh 'python -m pip install -r requirements-jenkins.txt'
+                    pysh 'mypy gatherer scraper controller controller/auth *.py --html-report mypy-report --cobertura-xml-report mypy-report --junit-xml mypy-report/junit.xml --no-incremental --show-traceback || true'
+                    pysh 'python -m pylint gatherer scraper --reports=n --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" -d duplicate-code > pylint-report.txt'
+                }
                 withSonarQubeEnv('SonarQube') {
-                    withPythonEnv('System-CPython-3') {
-                        pysh 'python -m pip install pylint mypy'
-                        pysh 'python -m pip install -r requirements-jenkins.txt'
-                        pysh 'sed -i "1s|.*|#!/usr/bin/env python|" `which pylint`'
-                        pysh 'mypy gatherer scraper controller controller/auth *.py --html-report mypy-report --cobertura-xml-report mypy-report --junit-xml mypy-report/junit.xml --no-incremental --show-traceback || true'
-                        pysh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch=$BRANCH_NAME -Dsonar.python.pylint=`which pylint`'
-                    }
+                    sh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch.name=$BRANCH_NAME'
                 }
             }
         }
