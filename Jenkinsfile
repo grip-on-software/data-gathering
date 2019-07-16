@@ -79,7 +79,7 @@ pipeline {
                     pysh 'python -m pip install pylint mypy'
                     pysh 'python -m pip install -r requirements-jenkins.txt'
                     pysh 'mypy gatherer scraper controller controller/auth *.py --html-report mypy-report --cobertura-xml-report mypy-report --junit-xml mypy-report/junit.xml --no-incremental --show-traceback || true'
-                    pysh 'python -m pylint gatherer scraper --reports=n --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" -d duplicate-code > pylint-report.txt'
+                    pysh 'python -m pylint gatherer scraper --exit-zero --reports=n --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" -d duplicate-code > pylint-report.txt'
                 }
                 withSonarQubeEnv('SonarQube') {
                     sh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.branch.name=$BRANCH_NAME'
