@@ -71,6 +71,7 @@ def retrieve_repository(source: Source, repo_path: Path,
     if issubclass(repo_class, Git_Repository):
         logging.info('Pulling quality metrics repository %s', repo_path)
         repo_class.from_source(source, repo_path,
+                               pull=True,
                                checkout=paths if paths is not None else True,
                                force=force)
     elif repo_path.exists():
