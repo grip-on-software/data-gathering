@@ -216,7 +216,7 @@ def get_gitlab_path(project: Project, args: Namespace) \
     source = GitLab('gitlab', name='quality-report-history', url=gitlab_url)
     repo_class = source.repository_class
     repo_class.from_source(source, export_path, checkout=paths,
-                           shallow=True, progress=True)
+                           shallow=True, pull=True, progress=True)
     return clone_path, gitlab_url
 
 class Location:
@@ -545,10 +545,8 @@ def main() -> None:
 
             if args.compact is not None:
                 is_compact = args.compact
-            elif any(source.is_compact for source in data.sources):
-                is_compact = True
             else:
-                is_compact = False
+                is_compact = any(source.is_compact for source in data.sources)
 
             if data.file is None:
                 flags = [str(start_from)]
