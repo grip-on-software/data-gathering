@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union, TYPE_
 from ..table import Table
 from ..utils import Sprint_Data
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from ..domain import Project, Source
 else:
     Project = object

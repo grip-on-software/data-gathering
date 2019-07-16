@@ -21,6 +21,7 @@ from ..version_control.repo import Change_Type, Version_Control_Repository, \
     RepositoryDataException, RepositorySourceException, FileNotFoundException, \
     PathLike, Version
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from ..domain import Project, Source
 else:
     Project = object

@@ -7,6 +7,7 @@ from typing import Any, Optional, Tuple, TYPE_CHECKING
 import bcrypt
 from .database import Database
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from .domain import Project
 else:
     Project = object

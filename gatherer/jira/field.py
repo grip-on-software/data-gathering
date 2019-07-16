@@ -7,6 +7,7 @@ from jira import Issue
 from .base import Base_Jira_Field, Base_Changelog_Field, TableKey
 from .parser import Field_Parser
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from . import Jira, FieldValue
 else:
     Jira = object

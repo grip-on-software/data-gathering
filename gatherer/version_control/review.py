@@ -12,6 +12,7 @@ from ..table import Table, Key_Table, Link_Table
 from ..utils import convert_local_datetime, format_date, get_local_datetime
 from ..version_control.repo import Version_Control_Repository, PathLike, Version, Tables
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from ..domain import Project, Source
 else:
     Project = object

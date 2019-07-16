@@ -8,6 +8,7 @@ from jira import Issue
 from .base import Base_Jira_Field, Base_Changelog_Field
 from .field import Changelog_Primary_Field, Changelog_Field
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from . import Jira, Field
 else:
     Jira = object

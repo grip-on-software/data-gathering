@@ -14,6 +14,7 @@ from ..utils import convert_utc_datetime, format_date, get_local_datetime, \
 from ..version_control.repo import PathLike, Version
 from ..version_control.review import Review_System
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from ..domain import Project, Source
     from ..domain.source import GitHub
 else:

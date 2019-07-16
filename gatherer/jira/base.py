@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractproperty
 from typing import Any, Dict, Optional, Tuple, Union, TYPE_CHECKING
 from jira import Issue
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from . import Jira, FieldValue
 else:
     Jira = object

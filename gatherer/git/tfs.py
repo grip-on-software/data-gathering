@@ -25,6 +25,7 @@ from ..utils import get_local_datetime, parse_utc_date, parse_unicode, \
 from ..version_control.review import Review_System
 from ..version_control.repo import PathLike, Version
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from ..domain import Project, Source
     from ..domain.source.tfs import TFS, TFVC, TFS_Collection
 else:

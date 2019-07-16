@@ -9,6 +9,7 @@ from jira import Issue, JIRA
 from ..domain import source
 from ..utils import format_date, Iterator_Limiter
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from . import Jira
 else:
     Jira = object

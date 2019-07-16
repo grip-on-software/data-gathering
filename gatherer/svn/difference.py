@@ -8,6 +8,7 @@ import svn.exception
 from ..version_control.repo import Change_Type, Version
 from ..table import Table
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from .repo import Subversion_Repository
 else:
     Subversion_Repository = object

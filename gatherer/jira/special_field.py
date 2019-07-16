@@ -10,6 +10,7 @@ from .query import Query
 from ..table import Table
 from ..utils import get_local_datetime, parse_unicode
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from . import Jira, FieldValue
 else:
     Jira = object

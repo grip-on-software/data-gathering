@@ -10,6 +10,7 @@ from urllib.parse import quote, urlsplit, urlunsplit, SplitResult
 from ...config import Configuration
 from ...version_control.repo import Version_Control_Repository
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from ..project import Project
 else:
     Project = object

@@ -9,6 +9,7 @@ from .base import Table_Source, TableKey
 from .query import Query
 from ..utils import parse_date, parse_unicode
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from . import Jira
 else:
     Jira = object
