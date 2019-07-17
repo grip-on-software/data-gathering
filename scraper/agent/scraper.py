@@ -3,14 +3,17 @@ Listener server which starts a Docker-based scrape job when a request is made
 to the server.
 """
 
-import argparse
+from argparse import ArgumentParser, Namespace
 import json
 import os
 from pathlib import Path
 import subprocess
 import time
+from typing import Dict, Optional, Union
 import cherrypy
 import gatherer
+
+Status = Dict[str, Union[bool, str]]
 
 class Scraper:
     # pylint: disable=no-self-use
@@ -18,11 +21,11 @@ class Scraper:
     Scraper listener.
     """
 
-    def __init__(self, domain=None):
+    def __init__(self, domain: Optional[str] = None) -> None:
         self._domain = domain
 
     @staticmethod
-    def _is_running():
+    def _is_running() -> bool:
         try:
             subprocess.check_call([
                 'pgrep', '-f', '/home/agent/scraper/agent/run.sh',
@@ -32,7 +35,7 @@ class Scraper:
         else:
             return True
 
-    def _check_host(self):
+    def _check_host(self) -> None:
         if self._domain is not None:
             host = cherrypy.request.headers.get('Host', '')
             if host != self._domain:
@@ -40,7 +43,7 @@ class Scraper:
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def status(self):
+    def status(self) -> Status:
         """
         Check the status of the scrape process.
         """
@@ -59,7 +62,7 @@ class Scraper:
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def scrape(self):
+    def scrape(self) -> Status:
         """
         Handle scrape request.
         """
@@ -94,7 +97,7 @@ class Scraper:
         return {'ok': True}
 
     @classmethod
-    def json_error(cls, status, message, traceback, version):
+    def json_error(cls, status: str, message: str, traceback: str, version: str) -> str:
         """
         Handle HTTP errors by formatting the exception details as JSON.
         """
@@ -118,12 +121,12 @@ class Scraper:
             }
         })
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command line arguments.
     """
 
-    parser = argparse.ArgumentParser(description='Run scraper listener')
+    parser = ArgumentParser(description='Run scraper listener')
     parser.add_argument('--debug', action='store_true', default=False,
                         help='Output traces on web')
     parser.add_argument('--listen', default=None,
@@ -134,7 +137,7 @@ def parse_args():
                         help='Host name and port to validate in headers')
     return parser.parse_args()
 
-def main():
+def main() -> None:
     """
     Main entry point.
     """
