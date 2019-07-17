@@ -3,7 +3,7 @@ Module that tracks and logs Git command progress output.
 """
 
 import logging
-from typing import NamedTuple, Optional, overload
+from typing import Dict, NamedTuple, Optional, Set, overload
 from git import RemoteProgress
 
 LogRecord = NamedTuple('LogRecord', [('dropped', bool),
@@ -20,7 +20,7 @@ class Progress_Filter(logging.Filter):
     def __init__(self, update_ratio: int = 1) -> None:
         super().__init__()
         self._update_ratio = update_ratio
-        self._relevant_op_codes = {RemoteProgress.COUNTING}
+        self._relevant_op_codes: Set[int] = {RemoteProgress.COUNTING}
 
     @property
     def update_ratio(self) -> int:
@@ -61,7 +61,7 @@ class Git_Progress(RemoteProgress):
     Progress delegate which outputs Git progress to logging.
     """
 
-    _op_codes = {
+    _op_codes: Dict[int, str] = {
         RemoteProgress.COUNTING: 'Counting objects',
         RemoteProgress.COMPRESSING: 'Compressing objects',
         RemoteProgress.WRITING: 'Writing objects',
@@ -95,10 +95,9 @@ class Git_Progress(RemoteProgress):
             else:
                 count = '{0:.0f}'.format(cur_count)
 
+            token = ''
             if stage_op == RemoteProgress.END:
                 token = RemoteProgress.TOKEN_SEPARATOR + RemoteProgress.DONE_TOKEN
-            else:
-                token = ''
 
             line = '{0}: {1}{2}'.format(self._op_codes[action_op], count, token)
             self._logger.info('Git: %s', line, extra=log_extra)

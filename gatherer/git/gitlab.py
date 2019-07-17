@@ -155,7 +155,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         update_path = Path(project.dropins_key, 'gitlab_update.json')
         if update_path.exists():
             with update_path.open('r') as update_file:
-                update_times = json.load(update_file)
+                update_times: Dict[str, str] = json.load(update_file)
                 if self.repo_name in update_times:
                     update_time = update_times[self.repo_name]
                     self._update_trackers["gitlab_update"] = update_time
@@ -186,7 +186,7 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         # Use the API to fetch the latest commit of the branch
         try:
-            current_version = project.commits.get(branch).id
+            current_version = str(project.commits.get(branch).id)
         except GitlabGetError:
             return False
 
@@ -214,7 +214,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 # Cannot connect to API to retrieve web URL
                 return None
 
-            second_version = repo_project.default_branch
+            second_version = str(repo_project.default_branch)
 
         return f'{source.web_url}/compare/{first_version}...{second_version}'
 
@@ -228,7 +228,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 # Cannot connect to API to retrieve web URL
                 return None
 
-            version = repo_project.default_branch
+            version = str(repo_project.default_branch)
 
         return '{}/tree/{}/{}{}'.format(source.web_url, version,
                                         path if path is not None else '',
@@ -298,7 +298,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         """
 
         if repo_project.description is not None:
-            description = repo_project.description
+            description = parse_unicode(repo_project.description)
         else:
             description = str(0)
 
@@ -346,9 +346,9 @@ class GitLab_Repository(Git_Repository, Review_System):
             'id': str(request.id),
             'title': parse_unicode(request.title),
             'description': parse_unicode(request.description),
-            'status': request.state,
-            'source_branch': request.source_branch,
-            'target_branch': request.target_branch,
+            'status': str(request.state),
+            'source_branch': str(request.source_branch),
+            'target_branch': str(request.target_branch),
             'author': parse_unicode(request.author['name']),
             'author_username': parse_unicode(request.author['username']),
             'assignee': assignee,
@@ -403,7 +403,8 @@ class GitLab_Repository(Git_Repository, Review_System):
         })
 
     @staticmethod
-    def _parse_legacy_push_event(event, event_data):
+    def _parse_legacy_push_event(event: gitlab.v4.objects.ProjectEvent,
+                                 event_data: Dict[str, str]) -> List[str]:
         event_data.update({
             'kind': str(event.data['object_kind']) if 'object_kind' in event.data else 'push',
             'ref': str(event.data['ref'])
@@ -422,7 +423,8 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         return [commit['id'] for commit in event.data['commits']]
 
-    def _parse_push_event(self, event, event_data):
+    def _parse_push_event(self, event: gitlab.v4.objects.ProjectEvent,
+                          event_data: Dict[str, str]) -> List[str]:
         event_data.update({
             'kind': str(event.push_data['ref_type']),
             'ref': str(event.push_data['ref']),
@@ -457,7 +459,7 @@ class GitLab_Repository(Git_Repository, Review_System):
             logging.warning('Cannot find commit range %s: %s', refspec, error)
             return []
 
-    def add_event(self, event):
+    def add_event(self, event: gitlab.v4.objects.ProjectEvent) -> None:
         """
         Add an event from the GitLab API. Only relevant events are actually
         added to the events table.
@@ -494,7 +496,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                                                              stats=stats,
                                                              **kwargs)
 
-        if self._has_commit_comments and 'comments' in kwargs and kwargs['comments']:
+        if self._has_commit_comments and kwargs.get('comments'):
             project_commit = self.repo_project.commit(commit.hexsha, lazy=True)
             for comment in project_commit.comments.list(as_list=False):
                 self.add_commit_comment(comment, commit.hexsha)
