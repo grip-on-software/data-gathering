@@ -3,7 +3,8 @@ Module for securely storing and retrieving project-specific encryption salts.
 """
 
 import hashlib
-from typing import Any, Optional, Tuple, TYPE_CHECKING
+from types import TracebackType
+from typing import Any, Optional, Tuple, Type, TYPE_CHECKING
 import bcrypt
 from .database import Database
 if TYPE_CHECKING:
@@ -34,7 +35,9 @@ class Salt:
     def __enter__(self) -> 'Salt':
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
         self.close()
 
     def close(self) -> None:
@@ -81,8 +84,9 @@ class Salt:
         Retrieve or generate and update the project-specific salts.
         """
 
-        result = self.get()
-        if not result:
+        try:
+            result = self.get()
+        except ValueError:
             return self.update()
 
         salt = result[0]
@@ -93,6 +97,9 @@ class Salt:
     def get(self) -> Tuple[str, str]:
         """
         Retrieve the project-specific salts.
+
+        If the salts are not available for the project then a `ValueError` is
+        raised.
         """
 
         result = self.database.execute('''SELECT salt, pepper
@@ -102,7 +109,7 @@ class Salt:
                                        one=True)
 
         if result is None:
-            raise TypeError('Unexpected result')
+            raise ValueError('No salts stored for project')
 
         return str(result[0]), str(result[1])
 

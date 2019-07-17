@@ -170,11 +170,11 @@ class Gatherer:
             project = Project(project_key)
 
         with Salt(project=project, **self._options) as store:
-            pair = store.get()
-            if not pair:
+            try:
+                salt, pepper = store.get()
+            except ValueError:
                 return ''
 
-            salt, pepper = pair
             return store.encrypt(value.encode('utf-8'), salt.encode('utf-8'),
                                  pepper.encode('utf-8'))
 

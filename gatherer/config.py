@@ -84,7 +84,7 @@ class Configuration:
         return cls.get_settings().items('projects')[0][0].upper()
 
     @classmethod
-    def get_url_blacklist(cls) -> Pattern:
+    def get_url_blacklist(cls) -> Pattern[str]:
         """
         Retrieve a regular expression object that matches URLs that should not
         be requested by the gatherer because they are known to be inaccessible.
