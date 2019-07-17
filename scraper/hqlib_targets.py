@@ -199,7 +199,8 @@ class Metric_Visitor(ast.NodeVisitor):
             elif node.func.id == 'LooseVersion' and \
                 isinstance(node.args[0], ast.Str):
                 arg = LooseVersion(node.args[0].s).version
-                number = version_number_to_numerical(arg)
+                version = tuple(part for part in arg if isinstance(part, int))
+                number = version_number_to_numerical(version)
                 self._targets[self._target_name] = str(number)
 
     def visit_Raise(self, node: ast.Raise) -> None:

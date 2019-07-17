@@ -7,6 +7,7 @@ quality metrics, namely custom targets.
 """
 
 import datetime
+from distutils.version import LooseVersion
 import importlib
 import inspect
 import logging
@@ -18,6 +19,7 @@ from typing import Any, AnyStr, Dict, Iterator, List, Mapping, Optional, \
 from unittest.mock import Mock, MagicMock, mock_open, patch
 # Non-standard imports
 from hqlib import domain, metric, metric_source
+from hqlib.utils import version_number_to_numerical
 from .compatibility import Compatibility, COMPACT_HISTORY, JIRA_FILTER, SONAR
 from ..utils import get_datetime, parse_unicode
 
@@ -92,7 +94,7 @@ class Project_Definition_Parser:
         if self.context_lines >= 0:
             message += ''.join(formatted_lines[:-1])
             if emulate_context:
-                line = traceback.extract_tb(trace)[-1][1]
+                line = traceback.extract_tb(trace)[-1].lineno
                 if isinstance(contents, bytes):
                     text = contents.decode('utf-8')
                 else:
@@ -305,7 +307,7 @@ class Sources_Parser(Project_Definition_Parser):
         domain.Application, domain.Component, domain.Document,
         domain.Environment, domain.Product, domain.Project
     )
-    SOURCE_CLASSES = {
+    SOURCE_CLASSES: Dict[str, Type] = {
         'History': metric_source.History,
         'CompactHistory': COMPACT_HISTORY,
         'Jenkins': metric_source.Jenkins,
@@ -396,10 +398,12 @@ class Sources_Parser(Project_Definition_Parser):
             return sources
 
         for key, items in list(keywords[keyword].items()):
-            if not isinstance(items, (list, tuple)):
+            if isinstance(items, (list, tuple)):
+                sequence: Sequence[Union[Type, str]] = items
+            else:
                 items = [items]
 
-            for value in items:
+            for value in sequence:
                 class_name, source_value = \
                     self._parse_source_value(key, value, domain_name, from_key)
 
@@ -419,10 +423,12 @@ class Sources_Parser(Project_Definition_Parser):
     def _parse_source_value(self, key: Type, value: Union[Type, str],
                             domain_name: str, from_key: bool) \
             -> Tuple[Optional[str], SourceUrl]:
-        if from_key and isinstance(key, self.source_types):
+        if from_key and isinstance(key, domain.DomainObject) and \
+            isinstance(key, self.source_types):
             return self._parse_source_key(key, value, domain_name)
 
-        if not from_key and isinstance(value, self.source_types):
+        if not from_key and isinstance(value, domain.DomainObject) and \
+            isinstance(value, self.source_types):
             class_name = self.get_class_name(value)
             logging.debug('Class name: %s', class_name)
 
@@ -432,17 +438,18 @@ class Sources_Parser(Project_Definition_Parser):
 
         return None, None
 
-    def _parse_source_key(self, key: Type, value: Union[Type, str],
-                          domain_name: str) \
+    def _parse_source_key(self, key: domain.DomainObject,
+                          value: Union[Type, str], domain_name: str) \
             -> Tuple[Optional[str], SourceUrl]:
         source_url: SourceUrl = None
+        source_value: str = str(value)
         class_name = self.get_class_name(key)
         url = self._get_source_url(key)
-        if url is None or url in self.DUMMY_URLS or value.startswith(url):
-            source_url = str(value)
+        if url is None or url in self.DUMMY_URLS or source_value.startswith(url):
+            source_url = source_value
         elif class_name in self.SOURCE_ID_SOURCES and \
-            value not in self.DUMMY_URLS:
-            source_url = (url, value, domain_name)
+            source_value not in self.DUMMY_URLS:
+            source_url = (url, source_value, domain_name)
             if domain_name in self.SOURCES_DOMAIN_FILTER:
                 return None, None
         else:
@@ -493,22 +500,33 @@ class Metric_Options_Parser(Project_Definition_Parser):
         """
 
         if "name" in keywords:
-            name = keywords["name"]
+            name = str(keywords["name"])
         else:
             name = ""
 
-        if "metric_options" in keywords:
-            for metric_type, options in keywords["metric_options"].items():
+        metric_options = keywords.get("metric_options")
+        if isinstance(metric_options, dict):
+            for metric_type, options in metric_options.items():
                 self.parse_metric(name, metric_type, options=options)
 
         for old_keyword, new_key in self._old_metric_options.items():
-            if old_keyword in keywords:
-                for metric_type, option in keywords[old_keyword].items():
+            old = keywords.get(old_keyword)
+            if isinstance(old, dict):
+                for metric_type, option in old.items():
                     self.parse_metric(name, metric_type,
                                       options={new_key: option},
                                       options_type='old_options')
 
-    def parse_metric(self, name: str, metric_type: Any,
+    @staticmethod
+    def _get_target(value: Union[float, int, str, LooseVersion]) -> str:
+        if isinstance(value, LooseVersion):
+            version = value.version
+            parts = tuple(part for part in version if isinstance(part, int))
+            value = version_number_to_numerical(parts)
+
+        return str(int(value))
+
+    def parse_metric(self, name: str, metric_type: Type[domain.Metric],
                      options: Optional[Dict[str, Any]] = None,
                      options_type: str = 'metric_options'):
         """
@@ -527,7 +545,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         metric_name = class_name + name
         if metric_name in self.data:
-            targets = self.data[metric_name]
+            targets: Dict[str, str] = self.data[metric_name]
         elif isinstance(metric_type, Mock):
             # No default data available
             targets = {
@@ -539,8 +557,8 @@ class Metric_Options_Parser(Project_Definition_Parser):
         else:
             try:
                 targets = {
-                    'low_target': str(int(metric_type.low_target_value)),
-                    'target': str(int(metric_type.target_value)),
+                    'low_target': self._get_target(metric_type.low_target_value),
+                    'target': self._get_target(metric_type.target_value),
                     'type': options_type,
                     'comment': ''
                 }

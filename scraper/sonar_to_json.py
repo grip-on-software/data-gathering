@@ -70,7 +70,7 @@ class Custom_Metric(SonarMetric, LowerIsBetterMetric):
         return name
 
     def value(self) -> MetricValue:
-        if self._metric_source:
+        if isinstance(self._metric_source, Sonar_Time_Machine):
             val = self._metric_source.custom(self._sonar_id(),
                                              metric_name=self._metric_name)
         else:
@@ -172,6 +172,13 @@ class Sonar_Time_Machine(Sonar7):
         has_content = int(data['paging']['total']) > size
         self.__has_next_page = self.__iterator.check(has_content)
 
+    def _get_json(self, url: str, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        result = super()._get_json(url, *args, **kwargs)
+        if not isinstance(result, dict):
+            return {}
+
+        return result
+
     def _metric(self, product: str, metric_name: str, branch: str) -> Number:
         if not self._has_project(product, branch):
             return -1
@@ -209,7 +216,7 @@ class Sonar_Time_Machine(Sonar7):
         return -1
 
     def __count_issues(self, url: str, closed: bool = False,
-                       default: Number = -1, **url_params: str) -> int:
+                       default: int = -1, **url_params: str) -> int:
         count = 0
         has_content = True
         iterator_limiter = Iterator_Limiter(size=100, maximum=100000)
@@ -250,7 +257,7 @@ class Sonar_Time_Machine(Sonar7):
         return count
 
     def _rule_violation(self, product: str, rule_name: str, default: int = 0,
-                        branch: Optional[str] = None) -> int:
+                        branch: str = '') -> int:
         if not self._has_project(product, branch):
             return -1
 
@@ -306,8 +313,8 @@ class Sonar_Time_Machine(Sonar7):
 
         return int(self._metric(product, metric_name, branch))
 
-def retrieve(sonar: Sonar_Time_Machine, project: domain.Project,
-             products: Sequence[str], metrics: Sequence[Metric]) -> Set[str]:
+def retrieve(sonar: Sonar_Time_Machine, project: Project,
+             products: Sequence[str], metrics: Sequence[str]) -> Set[str]:
     """
     Retrieve Sonar metrics from the instance at `url`, of the project `name`,
     and for the component names in the list `products`.
@@ -330,7 +337,7 @@ def retrieve(sonar: Sonar_Time_Machine, project: domain.Project,
 
 def retrieve_product(sonar: Sonar_Time_Machine, history: CompactHistory,
                      project: domain.Project, product: str,
-                     include_metrics: Sequence[Metric]) -> Set[str]:
+                     include_metrics: Sequence[str]) -> Set[str]:
     """
     Retrieve Sonar metrics from the instance described by the domain object
     `sonar`, of the project `project`, and for the component name `product`.
@@ -375,9 +382,10 @@ def retrieve_product(sonar: Sonar_Time_Machine, history: CompactHistory,
     return metric_names
 
 def get_metrics(metric_classes: Sequence[Type[Metric]],
-                include_metrics: Sequence[Metric],
-                component: Optional[str] = None,
-                project: Optional[str] = None) -> Tuple[List[Metric], Set[str]]:
+                include_metrics: Sequence[str],
+                component: Optional[domain.Component] = None,
+                project: Optional[domain.Project] = None) \
+                    -> Tuple[List[Metric], Set[str]]:
     """
     Retrieve metric objects that we wish to collect from the Sonar source, based
     upon `metric_classes`, a list of required metric classes, and

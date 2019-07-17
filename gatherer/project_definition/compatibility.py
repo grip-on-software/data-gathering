@@ -3,13 +3,13 @@ Module that increases compatibility with earlier project definitions by
 augmenting the hqlib module with replacement domain objects.
 """
 
-from typing import Any, Callable, Dict, Type
+from typing import Any, Callable, Dict, Type, Union
 from unittest.mock import Mock, MagicMock
 from hqlib.domain import DomainObject, TechnicalDebtTarget, \
     DynamicTechnicalDebtTarget
 from hqlib.typing import DateTime, MetricValue
 
-DomainType = Type[DomainObject]
+DomainType = Type[Union[DomainObject, TechnicalDebtTarget]]
 
 # Define some classes that are backward compatible with earlier versions of
 # hqlib (quality_report, qualitylib). This suppresses argument exceptions.
