@@ -11,7 +11,7 @@ import shutil
 import tempfile
 from typing import Any, AbstractSet, Dict, Iterator, List, MutableSet, \
     Optional, Pattern, Sequence, Tuple, Union, TYPE_CHECKING
-from git import Git, Repo, Blob, Commit, DiffIndex, NULL_TREE, \
+from git import Git, Repo, Blob, Commit, DiffIndex, TagReference, NULL_TREE, \
     InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 from ordered_set import OrderedSet
 from .progress import Git_Progress
@@ -585,17 +585,15 @@ class Git_Repository(Version_Control_Repository):
             'min_age': date_epoch,
             'max_age': date_epoch
         }
+        rev = self.default_branch
         try:
-            commits = list(self.repo.iter_commits(rev=self.default_branch,
-                                                  paths='',
-                                                  **rev_list_args))
+            commit: Commit = next(self.repo.iter_commits(rev=rev, paths='',
+                                                         **rev_list_args))
+            return commit.hexsha
+        except StopIteration:
+            return None
         except GitCommandError as error:
             raise RepositoryDataException(str(error))
-
-        if commits:
-            return commits[0].hexsha
-
-        return None
 
     def get_versions(self, filename: str = '',
                      from_revision: Optional[Version] = None,
@@ -707,7 +705,7 @@ class Git_Repository(Version_Control_Repository):
             return str(0)
 
         try:
-            merge_commit = next(commits)
+            merge_commit: Commit = next(commits)
         except StopIteration:
             return str(0)
 
@@ -770,6 +768,9 @@ class Git_Repository(Version_Control_Repository):
         for diff in diffs:
             old_file = diff.a_path
             new_file = diff.b_path
+            if old_file is None or new_file is None:
+                continue
+
             change_type = Change_Type.from_label(diff.change_type)
             if old_file != new_file:
                 stat_file = self._format_replaced_path(old_file, new_file)
@@ -808,26 +809,30 @@ class Git_Repository(Version_Control_Repository):
 
     def _parse_tags(self) -> None:
         for tag_ref in self.repo.tags:
-            tag_data = {
-                'repo_name': str(self._repo_name),
-                'tag_name': tag_ref.name,
-                'version_id': str(tag_ref.commit.hexsha),
-                'message': str(0),
-                'tagged_date': str(0),
-                'tagger': str(0),
-                'tagger_email': str(0)
-            }
-            if tag_ref.tag is not None:
-                tag_data['message'] = parse_unicode(tag_ref.tag.message)
+            self._parse_tag(tag_ref)
 
-                tag_timestamp = tag_ref.tag.tagged_date
-                tagged_datetime = datetime.fromtimestamp(tag_timestamp)
-                tag_data['tagged_date'] = format_date(tagged_datetime)
+    def _parse_tag(self, tag_ref: TagReference) -> None:
+        tag_data = {
+            'repo_name': str(self._repo_name),
+            'tag_name': tag_ref.name,
+            'version_id': str(tag_ref.commit.hexsha),
+            'message': str(0),
+            'tagged_date': str(0),
+            'tagger': str(0),
+            'tagger_email': str(0)
+        }
 
-                tag_data['tagger'] = parse_unicode(tag_ref.tag.tagger.name)
-                tag_data['tagger_email'] = str(tag_ref.tag.tagger.email)
+        if tag_ref.tag is not None:
+            tag_data['message'] = parse_unicode(tag_ref.tag.message)
 
-            self._tables['tag'].append(tag_data)
+            tag_timestamp = tag_ref.tag.tagged_date
+            tagged_datetime = datetime.fromtimestamp(tag_timestamp)
+            tag_data['tagged_date'] = format_date(tagged_datetime)
+
+            tag_data['tagger'] = parse_unicode(tag_ref.tag.tagger.name)
+            tag_data['tagger_email'] = str(tag_ref.tag.tagger.email)
+
+        self._tables['tag'].append(tag_data)
 
     def get_latest_version(self) -> Version:
         try:
