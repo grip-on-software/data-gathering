@@ -107,7 +107,7 @@ class Sonar_Time_Machine(Sonar7):
         self.__iterator = Iterator_Limiter(size=100, maximum=100000)
         self.__has_next_page = False
 
-    def set_datetime(self, date: Optional[datetime] = None):
+    def set_datetime(self, date: Optional[datetime] = None) -> None:
         """
         Alter the moment in time at which to check the Sonar state.
         """
@@ -314,7 +314,8 @@ class Sonar_Time_Machine(Sonar7):
         return int(self._metric(product, metric_name, branch))
 
 def retrieve(sonar: Sonar_Time_Machine, project: Project,
-             products: Sequence[str], metrics: Sequence[str]) -> Set[str]:
+             products: Sequence[Union[str, Mapping[str, str]]],
+             metrics: Sequence[str]) -> Set[str]:
     """
     Retrieve Sonar metrics from the instance at `url`, of the project `name`,
     and for the component names in the list `products`.
@@ -336,7 +337,8 @@ def retrieve(sonar: Sonar_Time_Machine, project: Project,
     return metric_names
 
 def retrieve_product(sonar: Sonar_Time_Machine, history: CompactHistory,
-                     project: domain.Project, product: str,
+                     project: domain.Project,
+                     product: Union[str, Mapping[str, str]],
                      include_metrics: Sequence[str]) -> Set[str]:
     """
     Retrieve Sonar metrics from the instance described by the domain object
@@ -346,12 +348,13 @@ def retrieve_product(sonar: Sonar_Time_Machine, history: CompactHistory,
 
     if isinstance(product, dict):
         source_id = product["source_id"]
-        product = product["domain_name"]
+        product_name = product["domain_name"]
     else:
         source_id = product
+        product_name = product
 
     sonar.reset_datetime()
-    component = domain.Component(name=product,
+    component = domain.Component(name=product_name,
                                  metric_source_ids={sonar: source_id})
     requirements = (CodeQuality(), ViolationsByType())
     metric_classes = tuple(itertools.chain(*[
@@ -477,7 +480,8 @@ def adjust_verify(verify: Union[bool, str]) -> None:
         cafile_env = ssl.get_default_verify_paths().openssl_cafile_env
         os.environ[cafile_env] = verify
 
-def get_products(products: Optional[Sequence[str]], project: Project) -> List[str]:
+def get_products(products: Optional[Sequence[str]], project: Project) \
+        -> List[Union[str, Dict[str, str]]]:
     """
     Retrieve a list of product components to collect for the project.
     """
@@ -536,34 +540,34 @@ def main() -> None:
     """
 
     args = parse_args()
+    username = ""
     if Configuration.has_value(args.username):
         username = args.username
-    else:
-        username = ""
 
+    password = ""
     if Configuration.has_value(args.password):
         password = args.password
-    else:
-        password = ""
 
     adjust_verify(args.verify)
 
     project = Project(args.project)
     project.make_export_directory()
 
+    names = str(args.names)
+    url = ""
     if Configuration.has_value(args.url):
         url = args.url
     else:
         url = get_sonar_url(project)
         if url == "":
             metric_names = get_metrics([], args.metrics)[1]
-            update_metric_names(args.names, metric_names)
+            update_metric_names(names, metric_names)
             return
 
     products = get_products(args.products, project)
 
     update_filename = project.export_key / 'history_update.json'
-    from_date = args.from_date
+    from_date: Optional[str] = args.from_date
     dates: Dict[str, str] = {}
     if update_filename.exists():
         with update_filename.open('r') as update_file:
@@ -583,7 +587,7 @@ def main() -> None:
     with update_filename.open('w') as update_file:
         json.dump(dates, update_file)
 
-    update_metric_names(args.names, metric_names)
+    update_metric_names(names, metric_names)
 
 if __name__ == '__main__':
     main()

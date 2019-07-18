@@ -64,7 +64,8 @@ def validate_project_name(name: str, config: Dict[str, Any]) -> Optional[str]:
     if any(name.startswith(ignore) for ignore in config['ignore']):
         raise StopIteration
 
-    for prefix in config['prefixes']:
+    prefixes: List[str] = config['prefixes']
+    for prefix in prefixes:
         if name.startswith(prefix):
             return name[len(prefix):]
 
@@ -186,7 +187,7 @@ def main() -> None:
                 return
 
     with open('seats.yml') as config_file:
-        config = yaml.load(config_file)
+        config: Dict[str, Any] = yaml.load(config_file)
 
     teams: Teams = {}
     for pattern in args.filename:
@@ -198,7 +199,7 @@ def main() -> None:
             logging.info('Forecast date: %r', forecast_date)
 
             workbook = xlrd.open_workbook(str(file_path))
-            worksheet = workbook.sheet_by_name(config.get('sheet'))
+            worksheet = workbook.sheet_by_name(str(config.get('sheet')))
 
             months = gather_months(workbook, worksheet, forecast_date)
 

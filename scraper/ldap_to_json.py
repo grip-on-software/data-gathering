@@ -75,18 +75,20 @@ def get_members(client: LDAPObject, name: str, args: Namespace) \
     """
 
     data: List[Dict[str, str]] = []
-    group = client.search_s(args.root, ldap.SCOPE_SUBTREE,
-                            f'cn={name}', [str(args.group_attr)])[0][1]
-    if args.group_attr not in group:
+    base = str(args.root)
+    group_attr = str(args.group_attr)
+    group = client.search_s(base, ldap.SCOPE_SUBTREE, f'cn={name}',
+                            [group_attr])[0][1]
+    if group_attr not in group:
         logging.warning('Group %s contains no members', name)
         return data
 
     query = '(|{})'.format(''.join([
         '({})'.format(args.search_filter.format(uid.decode('utf-8')))
-        for uid in group[args.group_attr]
+        for uid in group[group_attr]
     ]))
 
-    users = client.search_s(args.root, ldap.SCOPE_SUBTREE, query, [
+    users = client.search_s(base, ldap.SCOPE_SUBTREE, query, [
         str(args.user_id), str(args.display_name), str(args.user_email)
     ])
 

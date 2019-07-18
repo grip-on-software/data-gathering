@@ -6,7 +6,8 @@ from abc import ABCMeta
 from configparser import RawConfigParser
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, \
+    Tuple, Union
 from urllib.parse import quote, urlencode
 from requests.auth import HTTPBasicAuth
 from requests.models import Response
@@ -61,7 +62,7 @@ class Base(metaclass=ABCMeta):
 
         self._base_url = base_url
         self._query = query
-        self._data: Mapping = {}
+        self._data: Mapping[str, Any] = {}
         self._has_data = False
         self._exists = exists
         self._version: Optional[str] = None
@@ -109,7 +110,7 @@ class Base(metaclass=ABCMeta):
             self._exists = True
 
     @property
-    def data(self) -> Mapping:
+    def data(self) -> Mapping[str, Any]:
         """
         Retrieve the raw data from the API. The API is accessed if the data has
         not been retrieved before since the last invalidation or since the
@@ -261,7 +262,7 @@ class Jenkins(Base):
             return
 
         request.raise_for_status()
-        crumb_data = request.json()
+        crumb_data: Dict[str, str] = request.json()
         headers = {crumb_data['crumbRequestField']: crumb_data['crumb']}
         self._session.headers.update(headers)
 
@@ -366,7 +367,7 @@ class Nodes(Base, Sequence['Node']):
     def __getitem__(self, index: Any) -> Any:
         return self.nodes[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.nodes)
 
 class Node(Base):
@@ -374,16 +375,15 @@ class Node(Base):
     Computer node linked to a Jenkins instance.
     """
 
-    def __init__(self, instance: Jenkins, **kwargs: Any) -> None:
-        try:
-            display_name = kwargs.pop('displayName')
-        except KeyError:
+    def __init__(self, instance: Jenkins, displayName: str = '',
+                 **kwargs: Any) -> None:
+        if displayName == '':
             raise ValueError('Display name must be provided')
 
-        if display_name == "master":
-            name = f"({display_name})"
+        if displayName == "master":
+            name = f"({displayName})"
         else:
-            name = display_name
+            name = displayName
 
         url = '{}computer/{}'.format(instance.base_url, quote(name))
         super().__init__(instance, url, exists=True)
@@ -589,7 +589,7 @@ class Job(Base):
         Retrieve the next build number.
         """
 
-        return self.data['nextBuildNumber']
+        return int(self.data['nextBuildNumber'])
 
     def get_build(self, number: int) -> 'Build':
         """
@@ -626,7 +626,7 @@ class Job(Base):
 
         for action in build.data['actions']:
             if 'buildsByBranchName' in action:
-                build_data = action['buildsByBranchName']
+                build_data: Dict[str, Dict[str, Any]] = action['buildsByBranchName']
                 # Check if there has been a build for the branch.
                 if branch not in build_data:
                     return None, None
@@ -661,8 +661,6 @@ class Job(Base):
         elif isinstance(parameters, dict):
             url = self.base_url + 'buildWithParameters'
             params.update(parameters)
-        elif parameters is not None:
-            raise TypeError('Parameters must be list or dict')
 
         return self.instance.session.post(url, params=params, data=data,
                                           timeout=self.instance.timeout)
@@ -706,7 +704,7 @@ class Build(Base):
         """
 
         if self._number is None:
-            self._number = self.data['number']
+            self._number = int(self.data['number'])
             if self._number is None:
                 return 0
 

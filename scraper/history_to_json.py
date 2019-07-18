@@ -112,15 +112,18 @@ def read_project_file(data_file: IOLike, start_from: int = 0) \
     logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
 
-def get_setting(arg: Any, key: str, project: Project, boolean: bool = False) -> Any:
+def get_setting(arg: Any, key: str, project: Project, default: str = '') -> str:
     """
     Retrieve a configuration setting from the history section using the `key`
     as well as the project key for the option name, using multiple variants.
 
     If `arg` is set to a valid setting then this value is used instead.
-
-    If `boolean` is `True`, then configuration settings (not provided via `arg`)
-    are casted to boolean via `Configuration.has_value`.
+    Only if `arg` is `None` (missing) or `True` (enabled) then the project key
+    setting will be used if available, otherwise the `default` is returned.
+    If `arg` is `False` then an empty string will be returned. In any case, the
+    return value will be a string, which should only be used if additional
+    value checks (e.g., valid URL, path or within a set of allowed values) is
+    performed.
     """
 
     project_name = project.quality_metrics_name
@@ -129,13 +132,26 @@ def get_setting(arg: Any, key: str, project: Project, boolean: bool = False) -> 
 
     if arg is None or arg is True:
         setting = project.get_key_setting('history', key, project_name)
-        has_value = Configuration.has_value(setting)
-        if boolean:
-            return has_value
-        if has_value:
+        if Configuration.has_value(setting):
             return setting
 
-    return arg
+        return default
+
+    if arg is False:
+        return ''
+
+    return str(arg)
+
+def get_boolean_setting(arg: Any, key: str, project: Project) -> bool:
+    """
+    Check a configuration setting from the history section using the `key`
+    as well as the project key for the option name, using multiple variants.
+
+    If `arg` is set to a valid setting then this is used instead. The return
+    value is a boolean.
+    """
+
+    return Configuration.has_value(get_setting(arg, key, project, default='1'))
 
 def check_sparse_base(export_path: PathLike) -> bool:
     """
@@ -182,10 +198,10 @@ def get_gitlab_path(project: Project, args: Namespace) \
     values are returned.
     """
 
-    export_path = get_setting(args.export_path, 'path', project)
-    if not Configuration.has_value(export_path):
+    path = get_setting(args.export_path, 'path', project)
+    if not Configuration.has_value(path):
         return None, None
-    export_path = Path(export_path)
+    export_path = Path(path)
 
     gitlab_url = get_setting(args.url, 'url', project)
     if not Configuration.has_value(gitlab_url):
@@ -193,7 +209,7 @@ def get_gitlab_path(project: Project, args: Namespace) \
     if not GitLab.is_gitlab_url(gitlab_url):
         return export_path, None
 
-    delete = get_setting(args.delete, 'delete', project, boolean=True)
+    delete = get_boolean_setting(args.delete, 'delete', project)
     if delete and export_path.exists():
         logging.info('Removing old history clone %s', export_path)
         shutil.rmtree(str(export_path))
@@ -531,7 +547,7 @@ def main() -> None:
     """
 
     args = parse_args()
-    project_key = args.project
+    project_key = str(args.project)
 
     project = Project(project_key)
 
@@ -544,7 +560,7 @@ def main() -> None:
             update_source(project, data)
 
             if args.compact is not None:
-                is_compact = args.compact
+                is_compact = bool(args.compact)
             else:
                 is_compact = any(source.is_compact for source in data.sources)
 

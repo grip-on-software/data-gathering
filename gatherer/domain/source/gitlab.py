@@ -159,7 +159,7 @@ class GitLab(Git):
     def version(self) -> str:
         try:
             self.gitlab_api.timeout = 3
-            version = self.gitlab_api.version()[0]
+            version = str(self.gitlab_api.version()[0])
         except RuntimeError:
             version = ''
         finally:
