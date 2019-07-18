@@ -5,7 +5,7 @@ Module that handles access to and remote updates of a Subversion repository.
 from datetime import datetime
 import logging
 from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Sequence, \
-    Tuple, TYPE_CHECKING
+    Tuple, Union, TYPE_CHECKING
 # Non-standard imports
 import dateutil.tz
 import svn.common
@@ -37,7 +37,8 @@ class UnsafeRemoteClient(svn.remote.RemoteClient):
     if it has other verification failures than a self-signed certificate.
     """
 
-    def run_command(self, subcommand: str, args: List[str], **kwargs: Any):
+    def run_command(self, subcommand: str, args: List[str], **kwargs: Any) \
+            -> Union[bytes, List[str]]:
         failures = 'unknown-ca,cn-mismatch,expired,not-yet-valid,other'
         args.append('--trust-server-cert-failures={}'.format(failures))
         return super(UnsafeRemoteClient, self).run_command(subcommand,
@@ -66,8 +67,9 @@ class Subversion_Repository(Version_Control_Repository):
         self._iterator_limiter = Iterator_Limiter()
 
     @classmethod
-    def _create_environment(cls, source: Source) -> Dict[str, Any]:
-        env: Dict[str, Any] = {}
+    def _create_environment(cls, source: Source) \
+            -> Dict[str, Optional[Union[bool, str]]]:
+        env: Dict[str, Optional[Union[bool, str]]] = {}
         if source.get_option('unsafe_hosts'):
             env['trust_cert'] = True
             env['username'] = source.get_option('username')
@@ -105,7 +107,9 @@ class Subversion_Repository(Version_Control_Repository):
     def get_branches(cls, source: Source) -> List[str]:
         repo = cls._create_remote_repo(source)
         try:
-            return [path.rstrip('/') for path in repo.list(rel_path='branches')]
+            return [
+                str(path).rstrip('/') for path in repo.list(rel_path='branches')
+            ]
         except svn.exception.SvnException as error:
             raise RepositorySourceException(str(error))
 
@@ -119,7 +123,7 @@ class Subversion_Repository(Version_Control_Repository):
         return self._repo
 
     @repo.setter
-    def repo(self, repo: svn.common.CommonClient) -> None:
+    def repo(self, repo: object) -> None:
         if not isinstance(repo, svn.common.CommonClient):
             raise TypeError('Repository must be a PySvn Client instance')
 
@@ -130,7 +134,8 @@ class Subversion_Repository(Version_Control_Repository):
         if self._version_info is None:
             version = self.repo.run_command('--version', ['--quiet'])[0]
             self._version_info = tuple(
-                int(number) for number in version.split('.') if number.isdigit
+                int(number) for number in str(version).split('.')
+                if number.isdigit()
             )
 
         return self._version_info
@@ -351,21 +356,28 @@ class Subversion_Repository(Version_Control_Repository):
     def _parse_tags(self) -> None:
         try:
             for tag in self.repo.list(extended=True, rel_path='tags'):
-                # Convert to local timestamp
-                tagged_date = tag['date'].replace(tzinfo=dateutil.tz.tzutc())
-                tagged_datetime = tagged_date.astimezone(dateutil.tz.tzlocal())
-
-                self._tables['tag'].append({
-                    'repo_name': str(self._repo_name),
-                    'tag_name': tag['name'].rstrip('/'),
-                    'version_id': str(tag['commit_revision']),
-                    'message': str(0),
-                    'tagged_date': format_date(tagged_datetime),
-                    'tagger': tag['author'],
-                    'tagger_email': str(0)
-                })
+                if not isinstance(tag, str):
+                    self._parse_tag(tag)
         except svn.exception.SvnException:
             logging.exception('Could not retrieve tags')
+
+    def _parse_tag(self, tag: Dict[str, Union[int, str, datetime]]) -> None:
+        # Convert to local timestamp
+        if isinstance(tag['date'], datetime):
+            tagged_date = tag['date'].replace(tzinfo=dateutil.tz.tzutc())
+            tagged_datetime = tagged_date.astimezone(dateutil.tz.tzlocal())
+        else:
+            tagged_datetime = datetime.fromtimestamp(0)
+
+        self._tables['tag'].append({
+            'repo_name': str(self._repo_name),
+            'tag_name': str(tag['name']).rstrip('/'),
+            'version_id': str(tag['commit_revision']),
+            'message': str(0),
+            'tagged_date': format_date(tagged_datetime),
+            'tagger': str(tag['author']),
+            'tagger_email': str(0)
+        })
 
     def get_contents(self, filename: str, revision: Optional[Version] = None) -> bytes:
         """
@@ -378,6 +390,6 @@ class Subversion_Repository(Version_Control_Repository):
         except svn.exception.SvnException as error:
             raise FileNotFoundException(str(error))
 
-    def get_latest_version(self) -> int:
+    def get_latest_version(self) -> Version:
         info = self.repo.info()
-        return info['entry_revision']
+        return int(info['entry_revision'])

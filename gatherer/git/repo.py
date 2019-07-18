@@ -336,7 +336,7 @@ class Git_Repository(Version_Control_Repository):
         return self._repo
 
     @repo.setter
-    def repo(self, repo: Repo) -> None:
+    def repo(self, repo: object) -> None:
         if not isinstance(repo, Repo):
             raise TypeError('Repository must be a gitpython Repo instance')
 

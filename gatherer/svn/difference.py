@@ -229,6 +229,9 @@ class Difference:
                 'size': str(0)
             }
 
+        if not isinstance(diff_result, bytes):
+            raise TypeError('Diff is not a bytes object')
+
         return self._parse_diff(diff_result)
 
     @property
