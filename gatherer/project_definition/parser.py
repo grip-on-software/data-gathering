@@ -401,7 +401,7 @@ class Sources_Parser(Project_Definition_Parser):
             if isinstance(items, (list, tuple)):
                 sequence: Sequence[Union[Type, str]] = items
             else:
-                items = [items]
+                sequence = [items]
 
             for value in sequence:
                 class_name, source_value = \
