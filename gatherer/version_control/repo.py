@@ -55,7 +55,7 @@ class Change_Type(Enum):
     TYPE_CHANGED = 'T'
 
     @classmethod
-    def from_label(cls, label: str) -> Enum:
+    def from_label(cls, label: str) -> 'Change_Type':
         """
         Retrieve a change type from its shorthand label.
         """

@@ -3,7 +3,7 @@ Module that tracks and logs Git command progress output.
 """
 
 import logging
-from typing import Dict, NamedTuple, Optional, Set, overload
+from typing import Dict, NamedTuple, Optional, Set, Union, overload
 from git import RemoteProgress
 
 LogRecord = NamedTuple('LogRecord', [('dropped', bool),
@@ -81,25 +81,24 @@ class Git_Progress(RemoteProgress):
         stage_op = op_code & RemoteProgress.STAGE_MASK
         action_op = op_code & RemoteProgress.OP_MASK
         if action_op in self._op_codes:
-            log_extra = {
+            log_extra: Dict[str, Union[bool, int, float]] = {
                 'op_code': action_op,
                 'done': stage_op == RemoteProgress.END,
-                'cur_count': cur_count,
-                'max_count': max_count
+                'cur_count': cur_count
             }
             if max_count is not None and max_count != '':
                 ratio = cur_count / float(max_count)
                 log_extra['ratio'] = ratio
-                count = '{0:>3.0%} ({1:.0f}/{2:.0f})'.format(ratio, cur_count,
-                                                             max_count)
+                count = f'{ratio:>3.0%} ({cur_count:.0f}/{max_count:.0f})'
             else:
-                count = '{0:.0f}'.format(cur_count)
+                count = f'{cur_count:.0f}'
 
             token = ''
             if stage_op == RemoteProgress.END:
                 token = RemoteProgress.TOKEN_SEPARATOR + RemoteProgress.DONE_TOKEN
 
-            line = '{0}: {1}{2}'.format(self._op_codes[action_op], count, token)
+            text = self._op_codes[action_op]
+            line = f'{text}: {count}{token}'
             self._logger.info('Git: %s', line, extra=log_extra)
         else:
             self._logger.warning('Unexpected Git progress opcode: 0x%x',

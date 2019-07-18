@@ -101,7 +101,7 @@ class Git_Repository(Version_Control_Repository):
     BATCH_SIZE = 10000
     LOG_SIZE = 1000
 
-    MERGE_PATTERNS: Tuple[Pattern[str], ...] = \
+    MERGE_PATTERNS: Sequence[Pattern[str]] = \
         tuple(re.compile(pattern) for pattern in (
             r".*\bMerge branch '([^']+)'",
             r".*\bMerge remote-tracking branch '(?:(?:refs/)?remotes)?origin/([^']+)'",
@@ -349,6 +349,9 @@ class Git_Repository(Version_Control_Repository):
 
     @classmethod
     def _get_ssh_command(cls, source: Source) -> str:
+        if source.credentials_path is None:
+            raise ValueError('Must have a credentials path')
+
         logging.debug('Using credentials path %s', source.credentials_path)
         ssh_command = f"ssh -i '{source.credentials_path}'"
         if source.get_option('unsafe_hosts'):
@@ -756,7 +759,8 @@ class Git_Repository(Version_Control_Repository):
 
     def _parse_change_stats(self, commit: Commit) -> None:
         if commit.parents:
-            parent_diffs = tuple(commit.diff(parent, R=True) for parent in commit.parents)
+            parent_diffs: Sequence[DiffIndex] = \
+                tuple(commit.diff(parent, R=True) for parent in commit.parents)
         else:
             parent_diffs = (commit.diff(NULL_TREE),)
 
