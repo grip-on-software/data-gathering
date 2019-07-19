@@ -78,7 +78,7 @@ class DynamicTechnicalDebtTargetCompat(DynamicTechnicalDebtTarget):
         super().__init__(initial_target_value, initial_datetime,
                          end_target_value, end_datetime, explanation)
 
-def produce_mock(name: str) -> Type:
+def produce_mock(name: str) -> Type[DomainObject]:
     """
     Method which produces a dynamic class, which in turn produces a magic
     mock object upon instantiation. The dynamic class is given the name.
@@ -86,14 +86,18 @@ def produce_mock(name: str) -> Type:
     This can be used to pass isinstance checks against this class.
     """
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> MagicMock:
+    def __new__(cls: Type[DomainObject], *args: Any, **kwargs: Any) -> DomainObject:
         obj = MagicMock(spec=cls)
         obj.name = cls.__name__
         obj(*args, **kwargs)
         return obj
 
-    return type(name, (object,), {"__new__": __new__})
+    return type(name, (DomainObject,), {"__new__": __new__})
 
+# Produce mock source objects for classes that did not exist in earlier
+# versions, which perform operations upon construction or which were metric
+# source classes in earlier versions.
 COMPACT_HISTORY = produce_mock('CompactHistory')
+JIRA = produce_mock('Jira')
 JIRA_FILTER = produce_mock('JiraFilter')
 SONAR = produce_mock('Sonar')

@@ -55,7 +55,7 @@ class History(Source):
             return True
 
         if self.file_name is not None:
-            return self.file_name.startswith('compact_history.json')
+            return self.file_name.startswith('compact-history.json')
 
         return False
 

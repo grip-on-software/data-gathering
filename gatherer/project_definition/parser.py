@@ -20,7 +20,8 @@ from unittest.mock import Mock, MagicMock, mock_open, patch
 # Non-standard imports
 from hqlib import domain, metric, metric_source
 from hqlib.utils import version_number_to_numerical
-from .compatibility import Compatibility, COMPACT_HISTORY, JIRA_FILTER, SONAR
+from .compatibility import Compatibility, COMPACT_HISTORY, JIRA, JIRA_FILTER, \
+    SONAR, DomainType
 from ..utils import get_datetime, parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
@@ -64,7 +65,8 @@ class Project_Definition_Parser:
 
         return False
 
-    def get_mock_domain_objects(self, module: ModuleType, module_name: str) -> Dict[str, Type]:
+    def get_mock_domain_objects(self, module: ModuleType, module_name: str) \
+            -> Dict[str, Mock]:
         """
         Create a dictionary of class names and their mocks and replacements.
 
@@ -72,7 +74,7 @@ class Project_Definition_Parser:
         or metric_source.
         """
 
-        domain_objects: Dict[str, Type] = {}
+        domain_objects: Dict[str, Mock] = {}
         module_filter = lambda member: self.filter_member(member, module_name)
         for name, member in inspect.getmembers(module, module_filter):
             replacement = Compatibility.get_replacement(name, member)
@@ -307,11 +309,11 @@ class Sources_Parser(Project_Definition_Parser):
         domain.Application, domain.Component, domain.Document,
         domain.Environment, domain.Product, domain.Project
     )
-    SOURCE_CLASSES: Dict[str, Type] = {
+    SOURCE_CLASSES: Dict[str, Type[domain.DomainObject]] = {
         'History': metric_source.History,
         'CompactHistory': COMPACT_HISTORY,
         'Jenkins': metric_source.Jenkins,
-        'Jira': metric_source.Jira,
+        'Jira': JIRA,
         'JiraFilter': JIRA_FILTER,
         'Sonar': SONAR,
         'Git': metric_source.Git,
@@ -327,10 +329,11 @@ class Sources_Parser(Project_Definition_Parser):
         super().__init__(context_lines=context_lines, file_time=file_time)
 
         self.sys_path = path
-        self.source_objects = self.get_mock_domain_objects(metric_source,
-                                                           self.METRIC_SOURCE)
+        self.source_objects: Dict[str, Union[Mock, DomainType]] = \
+            self.get_mock_domain_objects(metric_source, self.METRIC_SOURCE)
         self.source_objects.update(self.SOURCE_CLASSES)
-        self.source_types = tuple(self.SOURCE_CLASSES.values())
+        self.source_types: Sequence[Type[domain.DomainObject]] = \
+            tuple(self.SOURCE_CLASSES.values())
 
     def get_hqlib_submodules(self) -> Dict[str, Mock]:
         return {
