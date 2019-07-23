@@ -69,7 +69,7 @@ class Topdesk_Parser:
         blacklist = self._config.get('blacklist', 'all')
         self._blacklist = regex.compile(blacklist, flags=regex.IGNORECASE)
 
-    def _sort_whitelist(self, pair: Tuple[str, Pattern]) -> Hashable:
+    def _sort_whitelist(self, pair: Tuple[str, Pattern[str]]) -> Hashable:
         if pair[0] == self.PROJECT_ALL.upper():
             # Sort last
             return (True,)
@@ -168,7 +168,7 @@ def main() -> None:
     """
 
     args = parse_args()
-    project_key = args.project
+    project_key = str(args.project)
     project = Project(project_key)
     parser = Topdesk_Parser(project)
 

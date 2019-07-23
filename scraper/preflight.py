@@ -8,7 +8,7 @@ import json
 import logging
 from pathlib import Path
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
@@ -58,7 +58,7 @@ def check_secrets(path: Path) -> bool:
     """
 
     with path.open('r') as secrets_file:
-        secrets = json.load(secrets_file)
+        secrets: Dict[str, Dict[str, str]] = json.load(secrets_file)
         if 'salts' in secrets and \
             'salt' in secrets['salts'] and 'pepper' in secrets['salts']:
             return True
@@ -77,7 +77,8 @@ def check_controller(host: str, cert: str, project: Project) -> List[str]:
     request = session.get(url)
 
     try:
-        response = json.loads(request.text)
+        response: Dict[str, Dict[str, Union[bool, str]]] = \
+            json.loads(request.text)
     except ValueError:
         logging.exception('Invalid JSON response from controller API: %s',
                           request.text)
@@ -85,7 +86,7 @@ def check_controller(host: str, cert: str, project: Project) -> List[str]:
 
     if Session.is_code(request, 'service_unavailable') and 'total' in response:
         problems = ['controller-service-unavailable']
-        for key, value in list(response.items()):
+        for key, value in response.items():
             if key != 'total' and not value['ok']:
                 message = value.get('message', 'Not OK')
                 problems.append("Status '{}': {}".format(key, message))

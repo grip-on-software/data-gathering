@@ -16,7 +16,7 @@ from pathlib import Path, PurePath
 import shutil
 from types import TracebackType
 from typing import Any, Dict, Generator, List, Optional, Sequence, Set, \
-    Tuple, Type, Union
+    Tuple, Type, Union, TYPE_CHECKING
 # Non-standard imports
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -30,7 +30,11 @@ from gatherer.request import Session
 MetricRow = Dict[str, Union[str, Tuple[str, str, str]]]
 OpenFile = Union[io.FileIO, gzip.GzipFile]
 IOLike = Union[OpenFile, io.StringIO]
-PathLike = Union[str, os.PathLike]
+if TYPE_CHECKING:
+    # pylint: disable=unsubscriptable-object
+    PathLike = Union[str, os.PathLike[str]]
+else:
+    PathLike: os.PathLike
 
 def parse_args() -> Namespace:
     """

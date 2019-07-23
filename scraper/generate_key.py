@@ -116,8 +116,8 @@ class Identity:
         if self.dry_run:
             return None
 
-        data = {
-            'purpose': 'agent for the {} project'.format(self.project.key),
+        data: Dict[str, Union[str, bool, Dict[str, Union[str, List[str]]]]] = {
+            'purpose': f'agent for the {self.project.key} project',
             'keygen-options': '',
             'abraxas-account': False,
             'servers': {},
@@ -125,7 +125,7 @@ class Identity:
         }
         update: List[str] = []
         key_file = get_temp_filename()
-        key = Key(key_file, data, update, {}, False)
+        key = Key(key_file, data, update, set(), False)
         key.generate()
         return key.keyname
 

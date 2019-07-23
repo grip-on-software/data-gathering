@@ -32,6 +32,10 @@ from gatherer.domain import source
 from gatherer.log import Log_Setup
 from gatherer.utils import format_date, get_datetime, Iterator_Limiter
 
+SearchHistory = Dict[str,
+                     Union[Dict[str, int],
+                           List[Dict[str, Union[str, List[Dict[str, str]]]]]]]
+
 class Custom_Metric(SonarMetric, LowerIsBetterMetric):
     """
     A custom metric from Sonar.
@@ -142,7 +146,7 @@ class Sonar_Time_Machine(Sonar7):
     def __make_datetime(date: str) -> datetime:
         return get_datetime(date[:-5], '%Y-%m-%dT%H:%M:%S')
 
-    def __parse_measures(self, data: Sequence[Mapping[str, Any]],
+    def __parse_measures(self, data: Sequence[Mapping[str, str]],
                          keys: Tuple[str, str]) -> Number:
         date_key, value_key = keys
 
@@ -167,10 +171,19 @@ class Sonar_Time_Machine(Sonar7):
                         self.__current_datetime, self.__end_datetime)
         return -1
 
-    def _update_page(self, data: Mapping[str, Any]) -> None:
-        size = self.__iterator.skip + int(data['paging']['pageSize'])
-        has_content = int(data['paging']['total']) > size
-        self.__has_next_page = self.__iterator.check(has_content)
+    @staticmethod
+    def _check_paging(iterator_limiter: Iterator_Limiter,
+                      paging: Dict[str, int]) -> bool:
+        size = iterator_limiter.skip + paging['pageSize']
+        has_content = paging['total'] > size
+        return iterator_limiter.check(has_content)
+
+    def _update_page(self, data: SearchHistory) -> None:
+        paging = data.get('paging')
+        if not isinstance(paging, dict):
+            return
+
+        self.__has_next_page = self._check_paging(self.__iterator, paging)
 
     def _get_json(self, url: str, *args: Any, **kwargs: Any) -> Dict[str, Any]:
         result = super()._get_json(url, *args, **kwargs)
@@ -183,33 +196,33 @@ class Sonar_Time_Machine(Sonar7):
         if not self._has_project(product, branch):
             return -1
 
-        metric_url = self.url() + 'api/timemachine/index?' + \
-            'resource={component}&metrics={metric}&fromDateTime={from_date}'
-        measures_url = self.url() + 'api/measures/search_history?' + \
-            'component={component}&metrics={metric}&from={from_date}'
-        api_options = [
-            (self._add_branch_param_to_url(measures_url, branch),
-             lambda json: json['measures'][0]['history'],
-             ('date', 'value')),
-            (self._add_branch_param_to_url(metric_url, branch),
-             lambda json: json[0]['cells'], ('d', 'v'))
-        ]
+        api_url = self.url() + 'api/measures/search_history?' + \
+            'component={component}&metrics={metric}&from={from_date}&' + \
+            'p={p}&ps={ps}'
+        keys = ('date', 'value')
         from_date = format_date(self.__from_datetime,
                                 '%Y-%m-%dT%H:%M:%S+0000')
-        for api_url, data_getter, keys in api_options:
-            api_url = "{0}&p={{p}}&ps={{ps}}".format(api_url)
-            url = api_url.format(component=urllib.parse.quote(product),
-                                 metric=urllib.parse.quote(metric_name),
-                                 from_date=urllib.parse.quote(from_date),
-                                 p=self.__iterator.page,
-                                 ps=self.__iterator.size)
-            if url not in self.__failed_urls:
-                try:
-                    data = self._get_json(url)
-                    self._update_page(data)
-                    return self.__parse_measures(data_getter(data), keys)
-                except UrlOpener.url_open_exceptions:
-                    self.__failed_urls.add(url)
+        url = api_url.format(component=urllib.parse.quote(product),
+                             metric=urllib.parse.quote(metric_name),
+                             from_date=urllib.parse.quote(from_date),
+                             p=self.__iterator.page,
+                             ps=self.__iterator.size)
+        if url not in self.__failed_urls:
+            try:
+                data: SearchHistory = self._get_json(url)
+                self._update_page(data)
+
+                measures = data.get('measures')
+                if not isinstance(measures, list):
+                    return -1
+
+                history = measures[0].get('history')
+                if not isinstance(history, dict):
+                    return -1
+
+                return self.__parse_measures(history, keys)
+            except UrlOpener.url_open_exceptions:
+                self.__failed_urls.add(url)
 
         logging.warning("Can't get %s value for %s from any of URLs",
                         metric_name, product)
@@ -218,18 +231,16 @@ class Sonar_Time_Machine(Sonar7):
     def __count_issues(self, url: str, closed: bool = False,
                        default: int = -1, **url_params: str) -> int:
         count = 0
-        has_content = True
+        check = True
         iterator_limiter = Iterator_Limiter(size=100, maximum=100000)
-        while iterator_limiter.check(has_content):
+        while check:
             url = url.format(p=iterator_limiter.page,
                              ps=iterator_limiter.size,
                              **url_params)
             try:
                 data = self._get_json(url)
-                new_size = iterator_limiter.skip + data['paging']['pageSize']
-                has_content = data['paging']['total'] > new_size
+                check = self._check_paging(iterator_limiter, data['paging'])
                 count += self.__count_issue_data(data['issues'], closed)
-
                 iterator_limiter.update()
             except UrlOpener.url_open_exceptions:
                 logging.exception("Can't get value from %s", url)
@@ -555,12 +566,13 @@ def main() -> None:
 
     names = str(args.names)
     url = ""
+    metrics: List[str] = args.metrics
     if Configuration.has_value(args.url):
         url = args.url
     else:
         url = get_sonar_url(project)
         if url == "":
-            metric_names = get_metrics([], args.metrics)[1]
+            metric_names = get_metrics([], metrics)[1]
             update_metric_names(names, metric_names)
             return
 
@@ -574,14 +586,14 @@ def main() -> None:
             dates = json.load(update_file)
 
     if from_date is None:
-        for metric in args.metrics:
+        for metric in metrics:
             from_date = dates.get(metric, from_date)
 
     sonar = Sonar_Time_Machine(url, from_date, username=username,
                                password=password)
-    metric_names = retrieve(sonar, project, products, args.metrics)
+    metric_names = retrieve(sonar, project, products, metrics)
 
-    for metric in args.metrics:
+    for metric in metrics:
         dates[metric] = format_date(datetime.now())
 
     with update_filename.open('w') as update_file:

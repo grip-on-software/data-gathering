@@ -26,7 +26,8 @@ from ..utils import get_datetime, parse_unicode
 
 __all__ = ["Project_Definition_Parser"]
 
-SourceUrl = Optional[Union[str, Tuple[str, Union[Type, str], str]]]
+SourceID = Union[Type[domain.DomainObject], domain.DomainObject]
+SourceUrl = Optional[Union[str, Tuple[str, str, str]]]
 
 class Project_Definition_Parser:
     """
@@ -240,7 +241,7 @@ class Project_Definition_Parser:
         raise NotImplementedError("Must be extened by subclasses")
 
     @staticmethod
-    def get_class_name(class_type: Any) -> str:
+    def get_class_name(class_type: Union[Type, object]) -> str:
         """
         Retrieve the class name for a class type variable or object.
 
@@ -290,9 +291,9 @@ class Project_Parser(Project_Definition_Parser):
     def parse_domain_call(self, mock_object: Mock, args: Sequence[Any],
                           keywords: Mapping[str, Any]) -> None:
         if "name" in keywords:
-            name = keywords["name"]
+            name = str(keywords["name"])
         elif len(args) > 1:
-            name = args[1]
+            name = str(args[1])
         else:
             return
 
@@ -332,7 +333,7 @@ class Sources_Parser(Project_Definition_Parser):
         self.source_objects: Dict[str, Union[Mock, DomainType]] = \
             self.get_mock_domain_objects(metric_source, self.METRIC_SOURCE)
         self.source_objects.update(self.SOURCE_CLASSES)
-        self.source_types: Sequence[Type[domain.DomainObject]] = \
+        self.source_types: Tuple[Type[domain.DomainObject], ...] = \
             tuple(self.SOURCE_CLASSES.values())
 
     def get_hqlib_submodules(self) -> Dict[str, Mock]:
@@ -371,14 +372,14 @@ class Sources_Parser(Project_Definition_Parser):
     def parse_domain_call(self, mock_object: Mock, args: Sequence[Any],
                           keywords: Mapping[str, Any]) -> None:
         if "name" in keywords:
-            name = keywords["name"]
+            name = str(keywords["name"])
         elif len(args) > 1:
-            name = args[1]
+            name = str(args[1])
         else:
             # Likely a call to a superclass constructor
             return
 
-        domain_name = mock_object.__class__.__name__
+        domain_name = str(mock_object.__class__.__name__)
         logging.debug('Name: %s Domain: %s', name, domain_name)
 
         self.data.setdefault(name, {})
@@ -423,7 +424,7 @@ class Sources_Parser(Project_Definition_Parser):
 
         return source.url()
 
-    def _parse_source_value(self, key: Type, value: Union[Type, str],
+    def _parse_source_value(self, key: SourceID, value: Union[SourceID, str],
                             domain_name: str, from_key: bool) \
             -> Tuple[Optional[str], SourceUrl]:
         if from_key and isinstance(key, domain.DomainObject) and \
@@ -442,7 +443,7 @@ class Sources_Parser(Project_Definition_Parser):
         return None, None
 
     def _parse_source_key(self, key: domain.DomainObject,
-                          value: Union[Type, str], domain_name: str) \
+                          value: Union[SourceID, str], domain_name: str) \
             -> Tuple[Optional[str], SourceUrl]:
         source_url: SourceUrl = None
         source_value: str = str(value)
@@ -570,11 +571,12 @@ class Metric_Options_Parser(Project_Definition_Parser):
                 return
 
         for key in ('low_target', 'target', 'comment'):
-            if key in options:
-                if isinstance(options[key], (str, bytes)):
-                    targets[key] = parse_unicode(options[key])
+            value = options.get(key)
+            if value is not None:
+                if isinstance(value, str):
+                    targets[key] = parse_unicode(value)
                 else:
-                    targets[key] = str(options[key])
+                    targets[key] = str(value)
 
         targets.update(self.parse_debt_target(options))
         targets.update({
