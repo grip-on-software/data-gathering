@@ -6,6 +6,7 @@ from typing import Dict, Hashable, List, Optional, Tuple, Type
 from urllib.parse import urlsplit, SplitResult
 import logging
 import github
+import github.Repository
 from .types import Source, Source_Types
 from .git import Git
 from ...git.github import GitHub_Repository
@@ -26,7 +27,7 @@ class GitHub(Git):
         self._github_api: Optional[github.Github] = None
         self._github_api_url: str = github.MainClass.DEFAULT_BASE_URL
         self._github_owner: str = ''
-        self._github_repo: Optional[str] = kwargs.pop('github_repo', None)
+        self._github_repo: Optional[github.Repository.Repository] = None
         self._github_team: Optional[str] = kwargs.pop('github_team', None)
 
         super().__init__(source_type, name=name, url=url,
@@ -123,7 +124,7 @@ class GitHub(Git):
         """
 
         if self._github_repo is None:
-            full_path = '{}/{}'.format(self._github_owner, self.path_name)
+            full_path = f'{self._github_owner}/{self.path_name}'
             self._github_repo = self.github_api.get_repo(full_path)
 
         return self._github_repo

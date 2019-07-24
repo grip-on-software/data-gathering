@@ -17,10 +17,23 @@ if TYPE_CHECKING:
     # pylint: disable=cyclic-import
     from ..domain import Project, Source
     from ..domain.source import GitHub
+    import github.CommitComment
+    import github.Issue
+    import github.IssueComment
+    import github.NamedUser
+    import github.PullRequest
+    import github.PullRequestComment
+    import github.PullRequestReview
+    import github.Repository
 else:
     Project = object
     Source = object
     GitHub = object
+
+CommentLike = Union[github.CommitComment.CommitComment,
+                    github.PullRequestComment.PullRequestComment]
+NoteLike = Union[CommentLike, github.IssueComment.IssueComment]
+IssueLike = Union[github.Issue.Issue, github.PullRequest.PullRequest]
 
 class GitHub_Repository(Git_Repository, Review_System):
     """
@@ -192,7 +205,7 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return False
 
-    def _format_issue(self, issue: github.Issue.Issue) -> Dict[str, str]:
+    def _format_issue(self, issue: IssueLike) -> Dict[str, str]:
         author_username = self._get_username(issue.user)
         assignee_username = self._get_username(issue.assignee)
         return {
@@ -255,7 +268,8 @@ class GitHub_Repository(Git_Repository, Review_System):
         if issue.pull_request is not None:
             pulls_url = re.sub('{/[^}]+}', r'/(\d+)',
                                self.source.github_repo.pulls_url)
-            match = re.match(pulls_url, issue.pull_request.raw_data['url'])
+            pull_request_url: str = issue.pull_request.raw_data['url']
+            match = re.match(pulls_url, pull_request_url)
             if match:
                 pull_request_id = int(match.group(1))
 
@@ -275,11 +289,7 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def _format_note(self,
-                     comment: Union[github.CommitComment.CommitComment,
-                                    github.IssueComment.IssueComment,
-                                    github.PullRequestComment.PullRequestComment]) \
-                     -> Dict[str, str]:
+    def _format_note(self, comment: NoteLike) -> Dict[str, str]:
         author = self._get_username(comment.user)
         return {
             'repo_name': str(self._repo_name),
@@ -308,8 +318,7 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def add_pull_comment(self,
-                         comment: github.PullRequestComment.PullRequestComment,
+    def add_pull_comment(self, comment: github.IssueComment.IssueComment,
                          request_id: int) -> bool:
         """
         Add a normal pull request comment described by its GitHub API response
@@ -334,8 +343,7 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def _add_commit_comment(self, comment: github.CommitComment.CommitComment,
-                            **kwargs: Any) -> None:
+    def _add_commit_comment(self, comment: CommentLike, **kwargs: Any) -> None:
         note = self._format_note(comment)
         note.update({
             'thread_id': str(0),
