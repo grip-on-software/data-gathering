@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     # pylint: disable=unsubscriptable-object
     PathLike = Union[str, os.PathLike[str]]
 else:
-    PathLike: os.PathLike
+    PathLike = os.PathLike
 
 def parse_args() -> Namespace:
     """
