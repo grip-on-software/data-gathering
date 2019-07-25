@@ -64,7 +64,7 @@ class GitLab_Dropins_Parser:
             return False
 
         with self._filename.open('r') as dropin_file:
-            data = json.load(dropin_file)
+            data: List[Dict[str, str]] = json.load(dropin_file)
 
         return self._parse(data)
 
@@ -120,9 +120,9 @@ class GitLab_Repository(Git_Repository, Review_System):
         self._has_commit_comments = has_commit_comments is not None
 
         # List of dropin files that contain table data for GitLab only.
-        self._table_dropin_files = tuple([
-            'data_{}.json'.format(table) for table in self.review_tables
-        ])
+        self._table_dropin_files = [
+            f'data_{table}.json' for table in self.review_tables
+        ]
 
     @property
     def review_tables(self) -> Dict[str, Table]:
