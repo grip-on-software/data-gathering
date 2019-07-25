@@ -91,7 +91,7 @@ class Repository_Archive:
         self._repo = git_repo
 
         self._api = gitlab_api
-        self._group = None
+        self._group: Optional[gitlab.v4.objects.Group] = None
 
         self._dry_run = dry_run
         if self._dry_run:
@@ -142,7 +142,6 @@ class Repository_Archive:
         """
 
         if self._group is None:
-            # pylint: disable=no-member
             name = self._project.gitlab_group_name
             try:
                 self._group = self.api.groups.get(name)
@@ -159,9 +158,8 @@ class Repository_Archive:
         project_name = self._project.gitlab_group_name
         path = '{0}/{1}'.format(project_name, self.repo_name.lower())
         try:
-            project_repo = self.api.projects.get(path)
             if not self._dry_run:
-                self.api.delete_project(project_repo)
+                self.api.projects.delete(path)
 
             logging.info('%sDeleted repository %s', self._dry_run_log, path)
         except GitlabError:
@@ -317,10 +315,9 @@ def main() -> None:
     logging.info('%s: %s (%d repos)',
                  project_key, project_name, len(project_repos))
 
+    api: Optional[gitlab.Gitlab] = None
     if args.delete or args.create or args.upload:
         api = gitlab.Gitlab(args.url, private_token=args.token)
-    else:
-        api = None
 
     for repo in project_repos:
         logging.info('Processing repository %s', repo.repo_name)

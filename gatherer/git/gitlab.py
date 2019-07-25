@@ -115,7 +115,7 @@ class GitLab_Repository(Git_Repository, Review_System):
     def __init__(self, source: Source, repo_directory: PathLike,
                  project: Optional[Project] = None, **kwargs: Any) -> None:
         super().__init__(source, repo_directory, project=project, **kwargs)
-        self._repo_project = None
+        self._repo_project: Optional[gitlab.v4.objects.Project] = None
         has_commit_comments = self._source.get_option('has_commit_comments')
         self._has_commit_comments = has_commit_comments is not None
 
@@ -322,7 +322,9 @@ class GitLab_Repository(Git_Repository, Review_System):
             'star_count': str(repo_project.star_count)
         })
 
-    def add_merge_request(self, request: gitlab.v4.objects.MergeRequest) -> bool:
+    def add_merge_request(self,
+                          request: gitlab.v4.objects.ProjectMergeRequest) \
+            -> bool:
         """
         Add a merge request described by its GitLab API response object to
         the merge requests table.
@@ -403,27 +405,34 @@ class GitLab_Repository(Git_Repository, Review_System):
         })
 
     @staticmethod
-    def _parse_legacy_push_event(event: gitlab.v4.objects.ProjectEvent,
+    def _parse_legacy_push_event(event: gitlab.v4.objects.Event,
                                  event_data: Dict[str, str]) -> List[str]:
+        if event.data is None:
+            return []
+
         event_data.update({
             'kind': str(event.data['object_kind']) if 'object_kind' in event.data else 'push',
             'ref': str(event.data['ref'])
         })
 
         if 'user_email' in event.data:
-            event_data['email'] = parse_unicode(event.data['user_email'])
+            event_data['email'] = parse_unicode(str(event.data['user_email']))
         if 'user_name' in event.data:
-            event_data['user'] = parse_unicode(event.data['user_name'])
+            event_data['user'] = parse_unicode(str(event.data['user_name']))
         if event_data['kind'] == 'tag_push':
             key = 'before' if event.action_name == 'deleted' else 'after'
-            return [event.data[key]]
+            return [str(event.data[key])]
         if 'after' in event.data and event.data['after'][:8] == '00000000':
             event_data['action'] = 'deleted'
-            return [event.data['before']]
+            return [str(event.data['before'])]
 
-        return [commit['id'] for commit in event.data['commits']]
+        commits = event.data['commits']
+        if isinstance(commits, list):
+            return [commit['id'] for commit in commits]
 
-    def _parse_push_event(self, event: gitlab.v4.objects.ProjectEvent,
+        return []
+
+    def _parse_push_event(self, event: gitlab.v4.objects.Event,
                           event_data: Dict[str, str]) -> List[str]:
         event_data.update({
             'kind': str(event.push_data['ref_type']),
@@ -459,7 +468,7 @@ class GitLab_Repository(Git_Repository, Review_System):
             logging.warning('Cannot find commit range %s: %s', refspec, error)
             return []
 
-    def add_event(self, event: gitlab.v4.objects.ProjectEvent) -> None:
+    def add_event(self, event: gitlab.v4.objects.Event) -> None:
         """
         Add an event from the GitLab API. Only relevant events are actually
         added to the events table.
@@ -497,7 +506,8 @@ class GitLab_Repository(Git_Repository, Review_System):
                                                              **kwargs)
 
         if self._has_commit_comments and kwargs.get('comments'):
-            project_commit = self.repo_project.commit(commit.hexsha, lazy=True)
+            project_commit = self.repo_project.commits.get(commit.hexsha,
+                                                           lazy=True)
             for comment in project_commit.comments.list(as_list=False):
                 self.add_commit_comment(comment, commit.hexsha)
 
