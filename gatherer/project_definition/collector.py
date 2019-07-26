@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, Optional
 from .metric import Metric_Difference
 from .parser import Metric_Options_Parser, Project_Parser, Sources_Parser, \
-    Project_Definition_Parser
+    Project_Definition_Parser, SourceUrl
 from .update import Update_Tracker
 from ..domain import Project, Source
 from ..domain.source.types import Source_Type_Error
@@ -185,7 +185,7 @@ class Sources_Collector(Collector):
     def build_parser(self, version: Dict[str, str]) -> Project_Definition_Parser:
         return Sources_Parser(str(self._repo_path), **self._options)
 
-    def _build_metric_source(self, name: str, url: str, source_type: str) -> None:
+    def _build_metric_source(self, name: str, url: SourceUrl, source_type: str) -> None:
         try:
             if isinstance(url, tuple):
                 domain_type = url[2]

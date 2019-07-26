@@ -19,7 +19,7 @@ class Jira(Source):
                  follow_host_change: bool = True, **kwargs: str) -> None:
         self._username: Optional[str] = kwargs.pop('username', None)
         self._password: Optional[str] = kwargs.pop('password', None)
-        self._agile_path: str = JIRA.DEFAULT_OPTIONS["agile_rest_path"]
+        self._agile_path = str(JIRA.DEFAULT_OPTIONS["agile_rest_path"])
         self._jira_api: Optional[JIRA] = None
         self._version: Optional[str] = None
 
@@ -49,7 +49,7 @@ class Jira(Source):
     def version(self) -> str:
         if self._version is None:
             try:
-                self._version = self.jira_api.server_info()['version']
+                self._version = str(self.jira_api.server_info()['version'])
             except (RuntimeError, JIRAError, KeyError):
                 self._version = ''
 
@@ -79,12 +79,11 @@ class Jira(Source):
             }
 
             parts = urlsplit(self.url)
+            auth: Optional[Tuple[str, str]] = None
             if parts.username is not None:
                 auth = (parts.username, parts.password)
             elif self._username is not None:
                 auth = (self._username, self._password)
-            else:
-                auth = None
 
             self._jira_api = JIRA(options, basic_auth=auth, max_retries=0)
 

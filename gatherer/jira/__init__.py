@@ -350,7 +350,7 @@ class Jira:
         # Replace the source URL with the one provided by the API if possible
         myself = api.myself()
         regex = api.JIRA_BASE_URL.replace('{', '(?P<').replace('}', '>.*?)')
-        match = re.match(regex, myself['self'])
+        match = re.match(regex, str(myself['self']))
         if match:
             jira_source = source.Source.from_type('jira',
                                                   name=self._project.key,
