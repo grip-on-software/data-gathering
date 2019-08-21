@@ -59,7 +59,8 @@ gatherer can use:
     - Azure DevOps: Tested with TFS versions 2015, 2017 and 2018.
   - Subversion: Tested with server version 1.6 and later and client version 1.7 
     and later.
-- Quality report: Works with 2.21 or later on Python 3.
+- Quality report: Works with version 2.21 or later.
+- Quality Time: Works with rolling (version 0) releases.
 - SonarQube: Works with version 7 and later.
 - BigBoat: Works with BigBoat version 5.0 and later.
 
@@ -267,23 +268,34 @@ the setting is not used in this environment.
   `project_sources.py`): Project definitions source. The settings in this 
   section may be customized per-project by suffixing the option name with 
   a period and the JIRA key of the custom project.
-  - `source_type` (`$DEFINITIONS_TYPE`): Version control system used by the 
-    project definitions repository, e.g., 'subversion' or 'git'.
-  - `name` (`$DEFINITIONS_NAME`): The internal name of the repository.
-  - `url` (`$DEFINITONS_URL`): The HTTP(S) URL from which the repository can be 
-    accessed. GitLab URLs can be converted to SSH if the credentials require.
+  - `source_type` (`$DEFINITIONS_TYPE`): Domain source type used by the project 
+    definitions. This may be a version control system that contains the 
+    repository of the definitions, e.g., 'subversion' or 'git'.
+  - `name` (`$DEFINITIONS_NAME`): The source name of the data storage, to give 
+    it a unique name within the sources of the project. The default is
+    'quality-report-definition' and it only shows up in update trackers.
+  - `url` (`$DEFINITONS_URL`): The HTTP(S) URL from which the data storage can 
+    be accessed. VCS URLs can be automatically converted to SSH if the 
+    credentials require so.
   - `path` (`$DEFINITIONS_PATH`): The local directory to check out the 
     repository to. May contain a formatter parameter `{}` which is replaced by 
     the project's quality dashboard name.
   - `base` (`$DEFINITIONS_BASE`): The name of the base library/path that is 
-    required to parse the project definitions correctly.
+    required to parse the project definitions.
   - `base_url` (`$DEFINITIONS_BASE_URL`): The HTTP(S) URL from which the 
     repository containing the base library for parsing project definitions can 
-    be accessed. GitLab URLs can be converted to SSH.
+    be accessed. VCS URLs can be converted to SSH.
   - `required_paths` (`$DEFINITIONS_REQUIRED_PATHS`): If non-empty, paths to 
-    check out in a sparse checkout of the repository. For paths that do not 
+    check out in a sparse checkout of a repository. For paths that do not 
     contain a slash, the quality metrics name is always added to the sparse 
     checkout.
+- quality-time (used by `project_sources.py`): Quality Time source for
+  project definitions and metrics history.
+  - `name` (`$QUALITY_TIME_NAME`): The source name of the Quality Time server, 
+    to give it a unique name within the sources of the project. The default is
+    'quality-time-definition' and it only shows up in update trackers.
+  - `url` (`$QUALITY_TIME_URL`): The HTTP(S) URL from which the Quality Time 
+    main landing UI page can be found.
 - history (used by `history_to_json.py`): Quality dashboard metrics history 
   dump locations.  The settings in this section may be customized per-project 
   by suffixing the option name with a period and the JIRA key of the custom 
@@ -306,7 +318,7 @@ the setting is not used in this environment.
     This option may need to be enabled for Git older than 1.9 which does not
     fully support shallow fetches due to which file updates are not available.
 - metrics (used by `retrieve_metrics_base_names.py`): Quality dashboard report
-  locations containing metadata for live metrics.
+  locations containing metadata for live metrics. Not used for Quality Time.
   - `host` (`$METRICS_HOST`): The HTTP(S) base name from which the metrics data
     can be obtained for projects in subdirectories by their quality metrics
     name. A JSON formatted metrics report file `json/metrics.json` must be 

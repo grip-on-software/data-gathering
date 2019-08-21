@@ -10,6 +10,9 @@ path = $DEFINITIONS_PATH
 base = $DEFINITIONS_BASE
 base_url = $DEFINITIONS_BASE_URL
 required_paths = $DEFINITIONS_REQUIRED_PATHS
+[quality-time]
+name = $QUALITY_TIME_NAME
+url = $QUALITY_TIME_URL
 [history]
 url = $HISTORY_URL
 path = $HISTORY_PATH

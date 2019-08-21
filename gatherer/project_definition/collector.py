@@ -2,16 +2,17 @@
 Module for collecting data from various versions of project definitions.
 """
 
+import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
+from .base import Data, Definition_Parser, SourceUrl
+from .data import Project_Definition_Data, Quality_Time_Data
 from .metric import Metric_Difference
-from .parser import Metric_Options_Parser, Project_Parser, Sources_Parser, \
-    Project_Definition_Parser, SourceUrl
 from .update import Update_Tracker
 from ..domain import Project, Source
 from ..domain.source.types import Source_Type_Error
 from ..table import Table
-from ..version_control.repo import PathLike, Version, Version_Control_Repository
+from ..version_control.repo import PathLike, Version
 
 class Collector:
     """
@@ -19,39 +20,19 @@ class Collector:
     definition files.
     """
 
-    FILENAME = 'project_definition.py'
-
-    def __init__(self, project: Project, repo_path: Optional[PathLike] = None,
+    def __init__(self, project: Project, source: Source,
+                 repo_path: Optional[PathLike] = None,
                  target: str = 'project_definition', **options: Any):
-        if project.quality_metrics_name is None or \
-            project.project_definitions_source is None or \
-            project.project_definitions_source.repository_class is None:
-            raise RuntimeError(f'No project definitions repo for {project.key}')
-
-        if repo_path is None:
-            repo_path = project.get_key_setting('definitions', 'path',
-                                                project.quality_metrics_name)
-
         self._project = project
-        self._update_tracker = Update_Tracker(self._project, target=target)
-        repo_class = project.project_definitions_source.repository_class
-        self._repo = repo_class(project.project_definitions_source,
-                                repo_path, project=self._project)
-
-        if project.quality_metrics_name not in str(repo_path):
-            self._filename = f'{project.quality_metrics_name}/{self.FILENAME}'
-        else:
-            self._filename = self.FILENAME
-
+        self._update_tracker = Update_Tracker(self._project, source,
+                                              target=target)
         self._options = options
-
-    @property
-    def repo(self) -> Version_Control_Repository:
-        """
-        Retrieve the Subversion repository containing the project definitions.
-        """
-
-        return self._repo
+        self._target = target
+        if source.repository_class is not None:
+            self._data: Data = Project_Definition_Data(project, source,
+                                                       repo_path)
+        else:
+            self._data = Quality_Time_Data(project, source, repo_path)
 
     def collect(self, from_revision: Optional[Version] = None,
                 to_revision: Optional[Version] = None) -> None:
@@ -60,18 +41,16 @@ class Collector:
         """
 
         from_revision = self._update_tracker.get_start_revision(from_revision)
-        versions = self._repo.get_versions(self._filename,
-                                           from_revision=from_revision,
-                                           to_revision=to_revision,
-                                           descending=False, stats=False)
+        versions = self._data.get_versions(from_revision, to_revision)
         end_revision = None
+        data = None
         for index, version in enumerate(versions):
             logging.debug('Collecting version %s (%d in sequence)',
                           version['version_id'], index)
-            self.collect_version(version)
+            data = self.collect_version(version)
             end_revision = version['version_id']
 
-        self.finish(end_revision)
+        self.finish(end_revision, self.use_update_data(data))
 
     def finish(self, end_revision: Optional[Version],
                data: Optional[Dict[str, Any]] = None) -> None:
@@ -84,22 +63,43 @@ class Collector:
 
         self._update_tracker.set_end(end_revision, data)
 
-    def collect_version(self, version: Dict[str, str]) -> None:
+    def use_update_data(self, data: Optional[Dict[str, Any]]) \
+            -> Optional[Dict[str, Any]]:
+        # pylint: disable=no-self-use,unused-argument
+        """
+        Determine whether the provided data should be included in the update
+        tracker.
+
+        Collectors that make use of earlier data should return `data` or an
+        alteration of it.
+        """
+
+        return None
+
+    def collect_version(self, version: Dict[str, str]) -> Optional[Dict[str, Any]]:
         """
         Collect information from a version of the project definition,
         based on a dictionary containing details of a Subversion version.
         """
 
-        parser = self.build_parser(version)
-        contents = self._repo.get_contents(self._filename,
-                                           revision=version['version_id'])
         try:
-            parser.load_definition(self._filename, contents)
+            parser = self.build_parser(version)
+            contents = self._data.get_contents(version)
+        except RuntimeError as error:
+            logging.warning('Cannot create a parser for version %s: %s',
+                            version['version_id'], str(error))
+            return None
+
+        try:
+            parser.load_definition(self._data.filename, contents)
             result = parser.parse()
             self.aggregate_result(version, result)
+            return result
         except RuntimeError as error:
             logging.warning("Problem with revision %s: %s",
                             version['version_id'], str(error))
+
+        return None
 
     def collect_latest(self) -> None:
         """
@@ -107,9 +107,9 @@ class Collector:
         and finalize the collection immediately.
         """
 
-        latest_version = self._repo.get_latest_version()
-        self.collect_version({"version_id": str(latest_version)})
-        self.finish(latest_version)
+        latest_version = self._data.get_latest_version()
+        data = self.collect_version(latest_version)
+        self.finish(latest_version['version_id'], self.use_update_data(data))
 
     def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
         """
@@ -119,7 +119,7 @@ class Collector:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def build_parser(self, version: Dict[str, str]) -> Project_Definition_Parser:
+    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
         """
         Retrieve a project definition parser object that retrieves the data that
         we collect.
@@ -127,19 +127,30 @@ class Collector:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
+    def get_parser_class(self) -> Type[Definition_Parser]:
+        """
+        Retrieve a parser class for the current collection target.
+        """
+
+        parsers = self._data.parsers
+        if self._target not in parsers:
+            raise RuntimeError(f'Could not find a parser for collection target {self._target}')
+
+        return parsers[self._target]
+
 class Project_Collector(Collector):
     """
     Collector that retrieves project information.
     """
 
-    def __init__(self, project: Project, **kwargs: Any):
-        super(Project_Collector, self).__init__(project,
+    def __init__(self, project: Project, source: Source, **kwargs: Any):
+        super(Project_Collector, self).__init__(project, source,
                                                 target='project_meta',
                                                 **kwargs)
         self._meta: Dict[str, str] = {}
 
-    def build_parser(self, version: Dict[str, str]) -> Project_Definition_Parser:
-        return Project_Parser(**self._options)
+    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
+        return self.get_parser_class()(**self._options)
 
     def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
         self._meta = result
@@ -157,33 +168,16 @@ class Sources_Collector(Collector):
     Collector that retrieves version control sources from project definitions.
     """
 
-    SOURCES_MAP = {
-        'Subversion': 'subversion',
-        'Git': 'git',
-        'History': 'history',
-        'CompactHistory': 'compact-history',
-        'Jenkins': 'jenkins',
-        'Jira': 'jira',
-        'JiraFilter': 'jira',
-        'Sonar': 'sonar'
-    }
-
-    def __init__(self, project: Project, **kwargs: Any):
-        super(Sources_Collector, self).__init__(project,
+    def __init__(self, project: Project, source: Source, **kwargs: Any):
+        super(Sources_Collector, self).__init__(project, source,
                                                 target='project_sources',
                                                 **kwargs)
 
-        repo_path = self._repo.repo_directory
-        if project.quality_metrics_name is not None and \
-            project.quality_metrics_name in str(repo_path):
-            self._repo_path = repo_path.resolve().parent
-        else:
-            self._repo_path = repo_path
-
         self._source_ids = Table('source_ids')
+        self._parser_class = self.get_parser_class()
 
-    def build_parser(self, version: Dict[str, str]) -> Project_Definition_Parser:
-        return Sources_Parser(str(self._repo_path), **self._options)
+    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
+        return self._parser_class(path=self._data.path, **self._options)
 
     def _build_metric_source(self, name: str, url: SourceUrl, source_type: str) -> None:
         try:
@@ -200,7 +194,7 @@ class Sources_Collector(Collector):
                 })
                 # Do not add sources belonging to search domain types to the
                 # main sources list, such as a VCS in a document object.
-                if domain_type in Sources_Parser.SOURCES_DOMAIN_FILTER:
+                if domain_type in self._parser_class.SOURCES_DOMAIN_FILTER:
                     return
             else:
                 source = Source.from_type(source_type, name=name, url=url)
@@ -211,8 +205,9 @@ class Sources_Collector(Collector):
             logging.exception('Could not register source')
 
     def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
+        sources_map = self._parser_class.SOURCES_MAP
         for name, metric_source in result.items():
-            for metric_type, source_type in self.SOURCES_MAP.items():
+            for metric_type, source_type in sources_map.items():
                 # Loop over all known metric source class names and convert
                 # them to our own Source objects.
                 if metric_type in metric_source:
@@ -230,19 +225,31 @@ class Metric_Options_Collector(Collector):
     Collector that retrieves changes to metric targets from project definitions.
     """
 
-    def __init__(self, project: Project, **kwargs: Any):
-        super(Metric_Options_Collector, self).__init__(project,
+    def __init__(self, project: Project, source: Source, **kwargs: Any):
+        super(Metric_Options_Collector, self).__init__(project, source,
                                                        target='metric_options',
                                                        **kwargs)
+        self._source = source
+        self._start: Optional[Version] = None
         self._diff = Metric_Difference(project,
                                        self._update_tracker.get_previous_data())
 
-    def build_parser(self, version: Dict[str, str]) -> Project_Definition_Parser:
-        return Metric_Options_Parser(file_time=version['commit_date'],
-                                     **self._options)
+    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
+        data_model = self._data.get_data_model(version)
+        return self.get_parser_class()(file_time=version['commit_date'],
+                                       data_model=data_model,
+                                       **self._options)
+
+    def collect(self, from_revision: Optional[Version] = None,
+                to_revision: Optional[Version] = None) -> None:
+        self._start = self._update_tracker.get_start_revision(from_revision)
+        super().collect(from_revision, to_revision)
 
     def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
-        self._diff.add_version(version, result)
+        for new_version, data in self._data.adjust_target_versions(version,
+                                                                   result,
+                                                                   self._start):
+            self._diff.add_version(new_version, data)
 
     def finish(self, end_revision: Optional[Version],
                data: Optional[Dict[str, Any]] = None) -> None:
@@ -256,13 +263,24 @@ class Metric_Options_Collector(Collector):
         if data is None:
             data = self._diff.previous_metric_targets
 
-        definitions_source = self._project.project_definitions_source
-        if definitions_source is not None:
-            source = Source.from_type('metric_options',
-                                      name=definitions_source.name,
-                                      url=definitions_source.plain_url)
-            if not self._project.sources.has_url(source.plain_url):
-                self._project.sources.add(source)
-                self._project.export_sources()
+        metric_names = set(data.keys())
+        metric_names_path = self._project.export_key / 'metric_names.json'
+        if metric_names_path.exists():
+            with metric_names_path.open('r') as metric_names_file:
+                metric_names.update(json.load(metric_names_file))
+
+        with metric_names_path.open('w') as metric_names_file:
+            json.dump(list(metric_names), metric_names_file)
+
+        source = Source.from_type('metric_options',
+                                  name=self._source.name,
+                                  url=self._source.plain_url)
+        if not self._project.sources.has_url(source.plain_url):
+            self._project.sources.add(source)
+            self._project.export_sources()
 
         super(Metric_Options_Collector, self).finish(end_revision, data=data)
+
+    def use_update_data(self, data: Optional[Dict[str, Any]]) \
+            -> Optional[Dict[str, Any]]:
+        return data

@@ -50,12 +50,17 @@ def main() -> None:
     if project.quality_metrics_name is None:
         logging.warning('No project defintion available for %s, missing out.',
                         project_key)
-    else:
-        collector = Project_Collector(project, repo_path=args.repo,
-                                      context_lines=args.context)
-        collector.collect_latest()
 
-        data.update(collector.meta)
+    for source in project.project_definitions_sources:
+        try:
+            collector = Project_Collector(project, source, repo_path=args.repo,
+                                          context_lines=args.context)
+            collector.collect_latest()
+
+            data.update(collector.meta)
+        except RuntimeError:
+            logging.exception('Could not collect project definition for %s',
+                              project_key)
 
     export_path = project.export_key / 'data_project.json'
     with export_path.open('w') as export_file:

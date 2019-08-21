@@ -19,7 +19,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default=None,
-                        help="Repository path with project definitions")
+                        help="Project definitions repository path or URL")
     parser.add_argument("--context", type=int, default=3,
                         help="Number of context lines for parser problems")
     parser.add_argument("--from-revision", dest="from_revision", default=None,
@@ -46,9 +46,15 @@ def main() -> None:
                         project_key)
         return
 
-    collector = Metric_Options_Collector(project, repo_path=args.repo,
-                                         context_lines=args.context)
-    collector.collect(args.from_revision, args.to_revision)
+    for source in project.project_definitions_sources:
+        try:
+            collector = Metric_Options_Collector(project, source,
+                                                 repo_path=args.repo,
+                                                 context_lines=args.context)
+            collector.collect(args.from_revision, args.to_revision)
+        except RuntimeError:
+            logging.exception('Could not collect metric options of %s',
+                              project_key)
 
 if __name__ == "__main__":
     main()

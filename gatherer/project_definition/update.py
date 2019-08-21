@@ -5,7 +5,7 @@ Utilities for tracking updates between versions of a project definition.
 import json
 import os
 from typing import Any, Dict, Optional
-from ..domain import Project
+from ..domain import Project, Source
 from ..domain.sources import Sources
 from ..version_control.repo import Version
 
@@ -15,12 +15,10 @@ class Update_Tracker:
     update, so that the data gatherer can resume from a previous known state.
     """
 
-    def __init__(self, project: Project, target: str = 'metric_options') -> None:
-        if project.project_definitions_source is None:
-            raise RuntimeError(f'No project definitions source for {project.key}')
-
+    def __init__(self, project: Project, source: Source,
+                 target: str = 'metric_options') -> None:
         self._project = project
-        self._source = project.project_definitions_source
+        self._source = source
 
         self._filename = project.export_key / f'{target}_update.json'
 

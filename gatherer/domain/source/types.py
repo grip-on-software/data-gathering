@@ -362,6 +362,17 @@ class Source:
         return self.name
 
     @property
+    def file_name(self) -> Optional[str]:
+        """
+        Retrieve an identifier of the source that can be used as a file name,
+        possibly extracted from the URL.
+
+        If the file name cannot be extracted, then this is `None`.
+        """
+
+        return None
+
+    @property
     def repository_class(self) -> Optional[Type[Version_Control_Repository]]:
         """
         Retrieve the class that implements a version control repository pointing

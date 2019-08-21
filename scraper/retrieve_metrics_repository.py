@@ -169,19 +169,23 @@ def main() -> None:
                         project.key)
         return
 
-    source = project.project_definitions_source
-    if source is None:
-        logging.warning('Project %s has no definitions source', project.key)
-        return
+    name = project.quality_metrics_name
+    count = 0
+    for source in project.project_definitions_sources:
+        if source.repository_class is None:
+            continue
 
-    default_repo_path = project.get_key_setting('definitions', 'path',
-                                                project.quality_metrics_name)
-    if args.repo is not None:
-        repo_path = Path(args.repo)
-    else:
-        repo_path = Path(default_repo_path)
+        default_repo_path = project.get_key_setting('definitions', 'path', name)
+        if args.repo is not None:
+            repo_path = Path(args.repo)
+        else:
+            repo_path = Path(default_repo_path)
 
-    perform(project, source, repo_path, args)
+        perform(project, source, repo_path, args)
+        count += 1
+
+    logging.info('Retrieved %d repository-based definitions for project %s',
+                 count, project.key)
 
 if __name__ == '__main__':
     main()

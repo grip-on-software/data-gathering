@@ -6,12 +6,14 @@ readable by the database importer.
 from argparse import ArgumentParser, Namespace
 from contextlib import contextmanager
 import ast
+from datetime import datetime
 import gzip
 import io
 import itertools
 import json
 import logging
 import os
+import re
 from pathlib import Path, PurePath
 import shutil
 from types import TracebackType
@@ -19,12 +21,11 @@ from typing import Any, Dict, Generator, List, Optional, Sequence, Set, \
     Tuple, Type, Union, TYPE_CHECKING
 # Non-standard imports
 from gatherer.config import Configuration
-from gatherer.domain import Project
-from gatherer.domain.source import Source
-from gatherer.domain.source.gitlab import GitLab
-from gatherer.domain.source.history import History
+from gatherer.domain import Project, Source
+from gatherer.domain.source import GitLab, History, Quality_Time
 from gatherer.log import Log_Setup
-from gatherer.utils import parse_date
+from gatherer.project_definition.data import Quality_Time_Data
+from gatherer.utils import get_utc_datetime, parse_date
 from gatherer.request import Session
 
 MetricRow = Dict[str, Union[str, Tuple[str, str, str]]]
@@ -35,6 +36,8 @@ if TYPE_CHECKING:
     PathLike = Union[str, os.PathLike[str]]
 else:
     PathLike = os.PathLike
+
+UUID = re.compile('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
 
 def parse_args() -> Namespace:
     """
@@ -115,6 +118,64 @@ def read_project_file(data_file: IOLike, start_from: int = 0) \
     logging.info('Number of lines read: %d', line_count)
     logging.info('Number of new metric values: %d', len(metric_data))
     return metric_data, line_count
+
+def read_quality_time_measurements(project: Project, source: Source,
+                                   url: Optional[str] = None,
+                                   start_date: str = "1900-01-01 00:00:00") \
+        -> Tuple[List[Dict[str, str]], str]:
+    """
+    Read metric data from a quality time project definition report.
+    """
+
+    metric_data: List[Dict[str, str]] = []
+    metric_path = project.export_key / 'metric_names.json'
+    if not metric_path.exists():
+        logging.warning('No metric names available for %s', project.key)
+        return metric_data, start_date
+
+    data = Quality_Time_Data(project, source, url)
+    with metric_path.open('r') as metric_file:
+        metrics: List[str] = json.load(metric_file)
+
+    cutoff_date = get_utc_datetime(start_date)
+    version = data.get_latest_version()
+    for metric_uuid in metrics:
+        if not UUID.match(metric_uuid):
+            continue
+
+        measurements = data.get_measurements(metric_uuid, version)
+        for measurement in measurements:
+            metric_row_data = parse_quality_time_measurement(metric_uuid,
+                                                             measurement,
+                                                             cutoff_date)
+            if metric_row_data is not None:
+                metric_data.append(metric_row_data)
+
+    return metric_data, version['version_id']
+
+def parse_quality_time_measurement(metric_uuid: str,
+                                   measurement: Dict[str, Any],
+                                   cutoff_date: datetime) \
+        -> Optional[Dict[str, str]]:
+    """
+    Parse a measurement of a Quality Time metric from its API.
+    """
+
+    date = parse_date(str(measurement.get("end")))
+    if get_utc_datetime(date) <= cutoff_date:
+        return None
+
+    category = measurement.get("status")
+    if category is None:
+        category = "unknown"
+
+    return {
+        'name': metric_uuid,
+        'value': str(measurement.get("value", "-1")),
+        'category': str(category),
+        'date': date,
+        'since_date': parse_date(str(measurement.get("start")))
+    }
 
 def get_setting(arg: Any, key: str, project: Project, default: str = '') -> str:
     """
@@ -283,6 +344,14 @@ class Location:
         raise NotImplementedError('Must be implemented by subclass')
 
     @property
+    def compact(self) -> bool:
+        """
+        Retrieve whether the file is a compact history file.
+        """
+
+        return self._location.split('/')[-1] == 'compact-history.json'
+
+    @property
     def compression(self) -> Union[bool, str]:
         """
         Retrieve the compression used of the file or a falsy value if the file
@@ -318,7 +387,7 @@ class Data_Source:
     for one or more history data sources.
     """
 
-    def __init__(self, sources: Set[History],
+    def __init__(self, sources: Set[Source],
                  locations: Union[Location, Sequence[Location]],
                  open_file: Optional[IOLike] = None) -> None:
         self._sources = sources
@@ -332,10 +401,11 @@ class Data_Source:
         self._file = open_file
 
     @property
-    def sources(self) -> Set[History]:
+    def sources(self) -> Set[Source]:
         """
-        Retrieve the `History` source objects which were involved in locating
-        the history file, or an empty list if there are no such source objects.
+        Retrieve the source objects which were involved in locating the history
+        of the measurements, or an empty list if there are no such source
+        objects.
         """
 
         return self._sources
@@ -377,7 +447,7 @@ class Data_Source:
             self._file.close()
             self._file = None
 
-def get_filename(project: Project, sources: Set[History], args: Namespace) -> str:
+def get_filename(project: Project, sources: Set[Source], args: Namespace) -> str:
     """
     Retrieve the file name of the history file. This name, without any preceding
     paths, may be set from a command line argument, the history sources, or the
@@ -393,7 +463,7 @@ def get_filename(project: Project, sources: Set[History], args: Namespace) -> st
 
     return project.get_key_setting('history', 'filename')
 
-def get_filename_compression(project: Project, sources: Set[History],
+def get_filename_compression(project: Project, sources: Set[Source],
                              args: Namespace) -> Tuple[str, str]:
     """
     Retrieve the file name of the history file and the compression to be used
@@ -453,7 +523,13 @@ def get_data_source(project: Project, args: Namespace) \
     # environment settings. See `get_filename` for details. We adjust the
     # filename to contain the compression extension if it did not have one;
     # note that we do not remove extensions if compression is disabled.
-    sources: Set[History] = set(project.sources.find_sources_by_type(History))
+    sources: Set[Source] = set(project.sources.find_sources_by_type(History))
+    locations: List[Location] = []
+    for source in project.project_definitions_sources:
+        if isinstance(source, Quality_Time):
+            sources.add(source)
+            locations.append(Url(source.url))
+
     filename, compression = get_filename_compression(project, sources, args)
 
     if args.export_path is not None:
@@ -463,18 +539,19 @@ def get_data_source(project: Project, args: Namespace) \
         # quality dashboard name.
         export_path, gitlab_url = get_gitlab_path(project, args)
         if export_path is not None and export_path.exists():
-            locations: List[Location] = []
-            locations.append(File(export_path, filename, compression))
+            path = File(export_path, filename, compression)
+            locations.append(path)
             if gitlab_url is not None:
                 locations.append(Url(gitlab_url, compression=compression))
-            logging.info('Found metrics history path: %s', locations[0])
+            logging.info('Found metrics history path: %s', path)
             yield Data_Source(sources, locations)
             return
     elif args.path is not None:
         # Path to a directory with a local file that can be opened.
         path = File(args.path, filename, compression)
+        locations.append(path)
         opener = get_file_opener(compression)
-        yield Data_Source(sources, path, open_file=opener(str(path), 'r'))
+        yield Data_Source(sources, locations, open_file=opener(str(path), 'r'))
         return
 
     if args.export_url is not None:
@@ -483,20 +560,26 @@ def get_data_source(project: Project, args: Namespace) \
         parts = get_gitlab_url(project, args)
         if parts is not None:
             url = Url(parts, filename, compression)
+            locations.append(url)
             logging.info('Found metrics history URL: %s', url)
-            yield Data_Source(sources, url)
+            yield Data_Source(sources, locations)
             return
     elif args.url is not None:
         # URL prefix to a specific download location.
         url_prefix = get_setting(args.url, 'url', project)
         url = Url(url_prefix, filename, compression)
+        locations.append(url)
+        yield Data_Source(sources, locations,
+                          open_file=get_stream(compression, url))
+        return
 
-        yield Data_Source(sources, url, open_file=get_stream(compression, url))
+    if locations:
+        yield Data_Source(sources, locations)
         return
 
     raise RuntimeError('No valid metrics history source defined')
 
-def get_tracker_start(args: Namespace) -> int:
+def get_tracker_start(project: Project, args: Namespace) -> int:
     """
     Retrieve an indicator of where to start reading from in the history file.
     """
@@ -504,46 +587,126 @@ def get_tracker_start(args: Namespace) -> int:
     if args.start_from is not None:
         return int(args.start_from)
 
-    start_paths = [
-        Path('history_record_time.txt'), Path('history_line_count.txt')
-    ]
     start_from = 0
-    for path in start_paths:
-        if path.exists():
-            with path.open('r') as start_file:
-                start_from = int(start_file.read())
-
-            break
+    path = project.export_key / 'history_line_count.txt'
+    if path.exists():
+        with path.open('r') as start_file:
+            start_from = int(start_file.read())
 
     return start_from
 
 def update_source(project: Project, data: Data_Source) -> None:
     """
-    Replace the `History` source domain object in the project sources with
-    another source which uses the full URL of the data source location, if
-    possible.
+    Replace the source domain objects involved in locating the measurements with
+    another source which uses the full URL of the data source location in the
+    project sources. If no such replacement can be made then the project sources
+    are kept intact. Only sources with the same environment type are replaced.
     """
 
     for location in data.locations:
         if not location.local:
+            environment_type = 'metric_history'
             source_name = project.key
-            file_name = ''
+            if location.compact:
+                source_type = 'compact-history'
+                file_name = 'compact-history.json'
+            else:
+                source_type = 'metric_history'
+                file_name = ''
+
             for source in data.sources:
+                if source.environment_type != 'metric_history' and \
+                    location.location == source.url:
+                    source_type = source.environment_type
+                    environment_type = source_type
                 if source.file_name is not None:
                     source_name = source.name
                     file_name = source.file_name
+                    if is_compact(source):
+                        source_type = 'compact-history'
+
                     break
 
             url = '{}/{}'.format(location.parts[0], file_name)
-            new_source = Source.from_type('metric_history',
+            new_source = Source.from_type(source_type,
                                           name=source_name,
                                           url=url)
             for source in data.sources:
-                project.sources.remove(source)
+                if source.environment_type == environment_type:
+                    project.sources.discard(source)
             project.sources.add(new_source)
-            project.export_sources()
 
-            break
+        project.export_sources()
+
+def is_compact(source: Source) -> bool:
+    """
+    Retrieve whether the history source is in a compact format.
+    """
+
+    if source.type == 'compact-history':
+        return True
+
+    if source.file_name is not None:
+        return source.file_name.startswith('compact-history.json')
+
+    return False
+
+def build_metric_url(data: Data_Source, start_from: int, compact: bool) -> str:
+    """
+    Build a URL from a data source including an anchor that can be parsed
+    to determine how to open the source.
+    """
+
+    flags = [str(start_from)]
+    if data.location.local:
+        flags.append('local')
+    if compact or data.location.compact:
+        flags.append('compact')
+
+    if data.location.compression:
+        flags.append(f'compression={data.location.compression}')
+    else:
+        flags.append('compression=')
+
+    anchor = '|'.join(flags)
+    return f'{data.location}#{anchor}'
+
+def retrieve_metric_data(project: Project, data: Data_Source, start_from: int,
+                         compact: bool) -> Union[str, List[Dict[str, str]]]:
+    """
+    Retrieve metric data from the source or format an identifier for it.
+    """
+
+    metric_data: Union[str, List[Dict[str, str]]] = ''
+    for source in project.project_definitions_sources:
+        if isinstance(source, Quality_Time):
+            start_date = "1901-01-01 00:00:00"
+            date_path = project.export_key / 'quality_time_measurement_date.txt'
+            if date_path.exists():
+                with date_path.open('r') as date_file:
+                    start_date = date_file.read()
+
+            logging.info("Reading Quality Time measurements of %s", project.key)
+            metric_data, latest_date = \
+                read_quality_time_measurements(project, source,
+                                               start_date=start_date)
+            with date_path.open('w') as date_file:
+                date_file.write(parse_date(latest_date))
+
+            return metric_data
+
+    if data.file is None:
+        return build_metric_url(data, start_from, compact)
+
+    if compact:
+        raise RuntimeError('Cannot read compact history during gather')
+
+    metric_data, line_count = read_project_file(data.file, start_from)
+    line_path = project.export_key / 'history_line_count.txt'
+    with line_path.open('w') as line_file:
+        line_file.write(str(start_from + line_count))
+
+    return metric_data
 
 def main() -> None:
     """
@@ -555,8 +718,6 @@ def main() -> None:
 
     project = Project(project_key)
 
-    # Check most recent history format tracker first
-    start_from = get_tracker_start(args)
     metric_data: Union[str, List[Dict[str, str]]] = ''
 
     try:
@@ -564,31 +725,12 @@ def main() -> None:
             update_source(project, data)
 
             if args.compact is not None:
-                is_compact = bool(args.compact)
+                compact = bool(args.compact)
             else:
-                is_compact = any(source.is_compact for source in data.sources)
+                compact = any(is_compact(source) for source in data.sources)
 
-            if data.file is None:
-                flags = [str(start_from)]
-                if data.location.local:
-                    flags.append('local')
-                if is_compact:
-                    flags.append('compact')
-
-                if data.location.compression:
-                    flags.append('compression={}'.format(data.location.compression))
-                else:
-                    flags.append('compression=')
-
-                metric_data = '{0}#{1}'.format(str(data.location), '|'.join(flags))
-            elif is_compact:
-                raise RuntimeError('Cannot read compact history during gather')
-            else:
-                metric_data, line_count = read_project_file(data.file,
-                                                            int(start_from))
-                line_path = project.export_key / 'history_line_count.txt'
-                with line_path.open('w') as line_file:
-                    line_file.write(str(start_from + line_count))
+            start = get_tracker_start(project, args)
+            metric_data = retrieve_metric_data(project, data, start, compact)
     except RuntimeError as error:
         logging.warning('Skipping quality metrics history import for %s: %s',
                         project_key, str(error))
