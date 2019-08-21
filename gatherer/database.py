@@ -12,6 +12,7 @@ class Database:
     """
 
     def __init__(self, **options: Any) -> None:
+        self._open = False
         self._connection = pymonetdb.connect(**options)
         self._cursor = self._connection.cursor()
         self._open = True
