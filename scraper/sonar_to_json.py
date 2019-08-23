@@ -217,7 +217,7 @@ class Sonar_Time_Machine(Sonar7):
                     return -1
 
                 history = measures[0].get('history')
-                if not isinstance(history, dict):
+                if not isinstance(history, list):
                     return -1
 
                 return self.__parse_measures(history, keys)
