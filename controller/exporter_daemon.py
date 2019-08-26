@@ -53,14 +53,22 @@ class Exporter:
             "metric_options_to_json.py", "ldap_to_json.py"
         ]
         tasks = ["all", "developerlink", "-vcs", "-jenkins"]
+        config = {
+            "listOfProjects": project_key,
+            "importerTasks": ",".join(tasks),
+            "logLevel": "INFO",
+            "cleanupRepos": "true",
+            "gathererScripts": " ".join(scripts),
+            "jiraParameters": f"--server {jira_url}"
+        }
+        for parameter in job.default_parameters:
+            if parameter['name'] not in config:
+                config[parameter['name']] = parameter['value']
+
         parameters = [
-            {"name": "listOfProjects", "value": project_key},
-            {"name": "importerTasks", "value": ",".join(tasks)},
-            {"name": "logLevel", "value": "INFO"},
-            {"name": "cleanupRepos", "value": "true"},
-            {"name": "gathererScripts", "value": " ".join(scripts)},
-            {"name": "jiraParameters", "value": "--server {}".format(jira_url)}
+            {"name": name, "value": value} for name, value in config.items()
         ]
+
         job.build(parameters=parameters, token=token)
 
     def write_agent_status(self, project_key: str, agent_status: str) -> None:

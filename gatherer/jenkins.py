@@ -640,6 +640,27 @@ class Job(Base):
 
         return None, None
 
+    @property
+    def default_parameters(self) -> List[Dict[str, str]]:
+        """
+        Retrieve a list of dictionaries containing a 'name' and 'value'
+        entry for every parameter defined for a parameterized job.
+        """
+
+        parameters: List[Dict[str, str]] = []
+        for action in self.data['actions']:
+            if 'parameterDefinitions' in action:
+                for parameter in action['parameterDefinitions']:
+                    value = str(parameter['defaultParameterValue']['value'])
+                    parameters.append({
+                        "name": str(parameter['name']),
+                        "value": value
+                    })
+
+                return parameters
+
+        return parameters
+
     def build(self, parameters: Optional[Union[List[Dict[str, str]], Dict[str, str]]] = None,
               token: Optional[str] = None) -> Response:
         """
