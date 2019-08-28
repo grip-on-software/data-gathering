@@ -175,7 +175,14 @@ class SSH_Tracker(Update_Tracker):
         args = ['scp', '-T', '-i', self._key_path] + [
             self.remote_path + '/\\{' + ','.join(files) + '\\}'
         ] + [str(self._project.export_key)]
-        subprocess.call(args)
+        try:
+            output = subprocess.check_output(args, stderr=subprocess.STDOUT)
+            if output:
+                logging.info('SSH: %s', output.decode('utf-8'))
+        except subprocess.CalledProcessError as error:
+            logging.warning('SSH: %s', error.output.decode('utf-8'))
+            if b'No such file or directory' not in error.output:
+                raise RuntimeError(f'Could not obtain files: {error}')
 
     def retrieve_content(self, filename: str) -> Optional[str]:
         try:
@@ -193,6 +200,6 @@ class SSH_Tracker(Update_Tracker):
                 subprocess.run([
                     'scp', '-i', self._key_path,
                     temp_file.name, f'{self.remote_path}/{filename}'
-                ])
+                ], check=True)
             except subprocess.CalledProcessError:
                 pass

@@ -4,6 +4,7 @@ Script to retrieve update tracker files from the database for synchronization.
 
 from argparse import ArgumentParser, Namespace
 import logging
+import sys
 from typing import Optional, Set, Type
 from gatherer.config import Configuration
 from gatherer.domain import Project
@@ -80,7 +81,7 @@ def remove_files(files: Optional[Set[str]], project: Project) -> None:
             if path.exists():
                 path.unlink()
 
-def main() -> None:
+def main() -> int:
     """
     Main entry point.
     """
@@ -99,7 +100,14 @@ def main() -> None:
         remove_files(files, project)
     else:
         tracker = build_tracker(args, project)
-        tracker.retrieve(files=files)
+        try:
+            tracker.retrieve(files=files)
+        except RuntimeError:
+            logging.exception('Could not retrieve update trackers for project %s',
+                              args.project)
+            return 1
+
+    return 0
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

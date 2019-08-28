@@ -81,7 +81,10 @@ class Exporter:
         if self.dry_run:
             logging.info('Dry run: Would execute %s', ' '.join(args))
         else:
-            subprocess.call(args)
+            try:
+                subprocess.check_call(args)
+            except subprocess.CalledProcessError as error:
+                raise RuntimeError(f'Could not export files: {error}')
 
     def update_controller(self, cert: str,
                           export: Optional[Sequence[str]] = None,
@@ -139,7 +142,11 @@ def main() -> int:
 
     exporter = Exporter(project, args.ssh, args.agent, dry_run=args.dry_run)
 
-    exporter.export_files(args.path, args.export + args.update, args.other)
+    try:
+        exporter.export_files(args.path, args.export + args.update, args.other)
+    except RuntimeError:
+        logging.exception('Could not export data and update/auxiliary files')
+        return 1
 
     if args.export or args.update:
         try:
