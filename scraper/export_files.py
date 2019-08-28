@@ -82,9 +82,13 @@ class Exporter:
             logging.info('Dry run: Would execute %s', ' '.join(args))
         else:
             try:
-                subprocess.check_call(args)
+                output = subprocess.check_output(args, stderr=subprocess.STDOUT)
+                if output:
+                    logging.info('SSH: %s', output.decode('utf-8').rstrip())
             except subprocess.CalledProcessError as error:
-                raise RuntimeError(f'Could not export files: {error}')
+                logging.info('SSH: %s', error.output.decode('utf-8').rstrip())
+                if b'No such file or directory' not in error.output:
+                    raise RuntimeError(f'Could not export files: {error}')
 
     def update_controller(self, cert: str,
                           export: Optional[Sequence[str]] = None,

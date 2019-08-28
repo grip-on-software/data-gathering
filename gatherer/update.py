@@ -178,9 +178,9 @@ class SSH_Tracker(Update_Tracker):
         try:
             output = subprocess.check_output(args, stderr=subprocess.STDOUT)
             if output:
-                logging.info('SSH: %s', output.decode('utf-8'))
+                logging.info('SSH: %s', output.decode('utf-8').rstrip())
         except subprocess.CalledProcessError as error:
-            logging.warning('SSH: %s', error.output.decode('utf-8'))
+            logging.info('SSH: %s', error.output.decode('utf-8').rstrip())
             if b'No such file or directory' not in error.output:
                 raise RuntimeError(f'Could not obtain files: {error}')
 
