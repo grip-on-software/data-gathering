@@ -241,7 +241,8 @@ class Controller:
                                    user='exporter', permissions='0770')
 
     def update_status_file(self, project_key: str, filename: str,
-                           statuses: Sequence[Mapping[str, Any]]) -> None:
+                           statuses: Union[Sequence[Mapping[str, Any]],
+                                           Mapping[str, Any]]) -> None:
         """
         Update a status logging file for the agent's health monitoring.
         """
