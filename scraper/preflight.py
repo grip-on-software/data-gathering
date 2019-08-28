@@ -13,7 +13,7 @@ from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.request import Session
-from gatherer.utils import format_date
+from gatherer.utils import convert_local_datetime
 
 def parse_args() -> Namespace:
     """
@@ -144,7 +144,7 @@ def main() -> int:
 
     date_path = project.export_key / 'preflight_date.txt'
     with date_path.open('w') as date_file:
-        date_file.write(format_date(datetime.now()))
+        date_file.write(convert_local_datetime(datetime.now()).isoformat())
 
     return 0
 

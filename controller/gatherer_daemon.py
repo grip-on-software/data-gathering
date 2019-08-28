@@ -15,7 +15,7 @@ from gatherer.domain import Project
 from gatherer.files import File_Store
 from gatherer.salt import Salt
 from gatherer.update import Database_Tracker
-from gatherer.utils import get_datetime
+from gatherer.utils import get_datetime, parse_date
 
 @Pyro4.expose
 class Gatherer:
@@ -88,12 +88,12 @@ class Gatherer:
         filename = 'preflight_date.txt'
         content = track.retrieve_content(filename)
         if content is None:
-            raise ValueError('No update tracker {} found'.format(filename))
+            raise ValueError(f'No update tracker {filename} found')
 
         try:
-            tracker_date = get_datetime(content)
+            tracker_date = get_datetime(parse_date(content))
         except ValueError as error:
-            raise ValueError('Update tracker {} is unparseable: {}'.format(filename, str(error)))
+            raise ValueError(f'Update tracker {filename} is unparseable: {error}')
 
         today = datetime.now()
         schedule = self._calculate_drift(project_key, today)
