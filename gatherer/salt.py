@@ -104,7 +104,7 @@ class Salt:
 
         result = self.database.execute('''SELECT salt, pepper
                                           FROM gros.project_salt
-                                          WHERE project_id=%d''',
+                                          WHERE project_id=%s''',
                                        parameters=[self.project_id],
                                        one=True)
 
@@ -126,6 +126,6 @@ class Salt:
 
     def _update(self, salt: str, pepper: str) -> None:
         self.database.execute('''INSERT INTO gros.project_salt(project_id,salt,pepper)
-                                 VALUES (%d,%s,%s)''',
+                                 VALUES (%s,%s,%s)''',
                               parameters=[self.project_id, salt, pepper],
                               update=True)

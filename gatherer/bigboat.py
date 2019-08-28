@@ -188,7 +188,7 @@ class Statuses:
             raise TypeError('Database must be available')
 
         check_query = '''SELECT url FROM gros.source_environment
-                         WHERE project_id = %d AND source_type = %s
+                         WHERE project_id = %s AND source_type = %s
                          AND url = %s AND environment = %s'''
         parameters = [self.project_id, 'bigboat', self._source, self._source]
         row = self.database.execute(check_query, parameters, one=True)
