@@ -5,6 +5,7 @@ API to perform an export of collected agent data.
 import cgi
 import cgitb
 import json
+from typing import Dict
 import Pyro4
 
 def setup_log() -> None:
@@ -42,9 +43,9 @@ def main() -> None:
     exporter = Pyro4.Proxy("PYRONAME:gros.exporter")
     agent_key = project_key
     if "agent" in fields:
-        agent = fields.getfirst("agent")
+        agent = str(fields.getfirst("agent"))
         try:
-            status = json.loads(agent)
+            status: Dict[str, str] = json.loads(agent)
             if "key" in status and status["key"] not in ("", "-"):
                 agent_key = status["key"]
             elif "user" in status and status["user"].startswith("agent-"):
