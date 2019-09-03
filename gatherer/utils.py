@@ -187,7 +187,7 @@ class Sprint_Data:
         # Return the suitable sprint ID.
         return sprint_id
 
-GATHERER_DATETIME_PATTERN = re.compile(r"\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d")
+GATHERER_DATETIME_PATTERN = re.compile(r"^\d\d\d\d-\d\d-\d\d(?: \d\d:\d\d:\d\d)?$")
 
 def get_datetime(date: str, date_format: str = '%Y-%m-%d %H:%M:%S') -> datetime:
     """
@@ -269,6 +269,7 @@ def parse_date(date: str) -> str:
     is a local date, even if it is trailed by a zone identifier.
 
     The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
+    Additionally, dates of the format YYYY-MM-DD are also allowed.
 
     If the date cannot be parsed into the standard format, then the lowest
     timestamp that is still accepted by datetime methods, '1900-01-01 00:00:00',
