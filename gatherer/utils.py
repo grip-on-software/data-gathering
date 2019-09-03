@@ -5,6 +5,7 @@ Utilities for various parts of the data gathering chain.
 import bisect
 import json
 import logging
+import re
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -186,6 +187,8 @@ class Sprint_Data:
         # Return the suitable sprint ID.
         return sprint_id
 
+GATHERER_DATETIME_PATTERN = re.compile(r"\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d")
+
 def get_datetime(date: str, date_format: str = '%Y-%m-%d %H:%M:%S') -> datetime:
     """
     Convert a date string to a `datetime` object without a timezone.
@@ -221,16 +224,18 @@ def get_utc_datetime(date: str, date_format: str = '%Y-%m-%d %H:%M:%S') -> datet
 
 def convert_local_datetime(date: datetime) -> datetime:
     """
-    Convert a timezone-aware datetime object `date` to one that is in the local
-    timezone.
+    Convert a datetime object `date` to one that is in the local timezone.
+    If the date did not have a timezone then the local timezone is made explicit
+    (without adjustment of time).
     """
 
     return date.astimezone(dateutil.tz.tzlocal())
 
 def convert_utc_datetime(date: datetime) -> datetime:
     """
-    Convert a timezone-aware datetime object `date` to one that is in the UTC
-    timezone.
+    Convert a datetime object `date` to one that is in the UTC timezone.
+    If the date did not have a timezone then it is assumed to be in the system
+    local time and is adjusted to UTC time.
     """
 
     return date.astimezone(dateutil.tz.tzutc())
@@ -265,15 +270,17 @@ def parse_date(date: str) -> str:
 
     The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
 
-    If the date cannot be parsed, '0' is returned.
+    If the date cannot be parsed into the standard format, then the lowest
+    timestamp that is still accepted by datetime methods, '1900-01-01 00:00:00',
+    is returned.
     """
 
-    date_string = str(date)
-    date_string = date_string.replace('T', ' ').split('.', 1)[0]
-    if date_string is None:
-        return "0"
+    date_string = str(date).replace('T', ' ').split('+', 1)[0].split('.', 1)[0]
+    date_string = date_string.rstrip('Z')
+    if not GATHERER_DATETIME_PATTERN.match(date_string):
+        return "1900-01-01 00:00:00"
 
-    return date_string.rstrip('Z')
+    return date_string
 
 def parse_unicode(text: str) -> str:
     """

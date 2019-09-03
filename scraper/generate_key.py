@@ -260,8 +260,9 @@ def add_gitlab_key(project: Project, identities: MutableMapping[Path, Identity],
     if not args.gitlab or (args.source and project.gitlab_source is not None):
         add_ssh_key(project, identities, project.gitlab_source, known_hosts,
                     dry_run=args.dry_run)
-        add_ssh_key(project, identities, project.project_definitions_source,
-                    known_hosts, dry_run=args.dry_run)
+        for source in project.project_definitions_sources:
+            add_ssh_key(project, identities, source, known_hosts,
+                        dry_run=args.dry_run)
     else:
         for gitlab_host in args.gitlab:
             url = f'http://{gitlab_host}'

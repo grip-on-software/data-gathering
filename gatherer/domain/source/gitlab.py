@@ -285,8 +285,8 @@ class GitLab(Git):
                                 repo_name)
                 continue
 
-            source = Source.from_type('gitlab', name=repo_name,
-                                      url=project_repo.http_url_to_repo,
+            url = self.remove_git_suffix(project_repo.http_url_to_repo)
+            source = Source.from_type('gitlab', name=repo_name, url=url,
                                       follow_host_change=False)
 
             sources.append(source)

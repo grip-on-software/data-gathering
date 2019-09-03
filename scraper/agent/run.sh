@@ -18,7 +18,7 @@ if [ -z "$logLevel" ]; then
 fi
 
 # Declare update and export files
-scripts="project_to_json.py project_sources.py git_to_json.py jenkins_to_json.py sonar_to_json.py"
+scripts="project_to_json.py project_sources.py git_to_json.py metric_options_to_json.py history_to_json.py jenkins_to_json.py sonar_to_json.py"
 preflightFiles=$(./scraper/list-files.sh update preflight.py)
 updateFiles=$(./scraper/list-files.sh update $scripts)
 exportFiles=$(./scraper/list-files.sh export $scripts)
@@ -39,6 +39,8 @@ python scraper/project_sources.py $project --log $logLevel
 python scraper/project_to_json.py $project --log $logLevel
 python scraper/environment_sources.py $project --log $logLevel
 python scraper/git_to_json.py $project --log $logLevel --force
+python scraper/metric_options_to_json.py $project --log INFO
+python scraper/history_to_json.py $project --log INFO
 python scraper/jenkins_to_json.py $project --log $logLevel
 python scraper/sonar_to_json.py $project --log $logLevel --no-url --metrics ${SONAR_METRICS}
 python scraper/export_files.py $project --update $preflightFiles $updateFiles --export $exportFiles

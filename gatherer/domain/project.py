@@ -2,9 +2,9 @@
 Project domain object
 """
 
-from configparser import RawConfigParser
+from configparser import RawConfigParser, NoOptionError, NoSectionError
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Set, Union
 from ..config import Configuration
 from .source import Source
 from .source.github import GitHub
@@ -40,7 +40,12 @@ class Project_Meta:
         arguments and keyword arguments.
         """
 
-        value = self.settings.get(section, key)
+        try:
+            value = self.settings.get(section, key)
+        except NoSectionError:
+            raise KeyError(f'Could not find section {section} with key {key}')
+        except NoOptionError:
+            raise KeyError(f'Could not find key {key} in section {section}')
 
         if format_values or format_args:
             value = value.format(*format_values, **format_args)
@@ -75,18 +80,21 @@ class Project_Meta:
         return self._update_directory
 
     def make_project_definitions(self, base: bool = False,
+                                 section: str = 'definitions',
                                  project_name: Optional[str] = None) -> Source:
         """
         Create a `Source` object for a repository containing project definitions
         and metrics history, or other dependency files. If `base` is `True`,
-        then the base code source repository is provided. If `project_name` is
-        not `None`, then this is used for the quality metrics repository name.
-        At least one of the two arguments must be provided, otherwise this
-        method raises a `ValueError`.
+        then the base code source repository is provided. The options to build
+        the source are from the `section` provided, "definitions" by default.
+        If `project_name` is not `None`, then this is used for the quality
+        metrics repository name. At least one of the two arguments must be
+        provided, otherwise this method raises a `ValueError`. If required
+        settings are missing, then a `KeyError` is raised.
         """
 
         if base:
-            repo_name = self.get_key_setting('definitions', 'base')
+            repo_name = self.get_key_setting(section, 'base')
             key = 'base_url'
         elif project_name is not None:
             repo_name = project_name
@@ -94,9 +102,13 @@ class Project_Meta:
         else:
             raise ValueError('One of base or project_name must be non-falsy')
 
-        source_type = self.get_key_setting('definitions', 'source_type')
-        name = self.get_key_setting('definitions', 'name')
-        url = self.get_key_setting('definitions', key, repo_name,
+        try:
+            source_type = self.get_key_setting(section, 'source_type')
+        except KeyError:
+            source_type = section
+
+        name = self.get_key_setting(section, 'name')
+        url = self.get_key_setting(section, key, repo_name,
                                    project=not base)
         return Source.from_type(source_type, name=name, url=url)
 
@@ -130,7 +142,7 @@ class Project(Project_Meta):
         support = self.get_group_setting('support')
         self._is_support_team = Configuration.has_value(support)
 
-        self._project_definitions: Optional[Source] = None
+        self._project_definitions: Optional[Set[Source]] = None
 
         sources_path = self.export_key / 'data_sources.json'
         self._sources = Sources(sources_path,
@@ -162,7 +174,7 @@ class Project(Project_Meta):
         arguments and keyword arguments.
         """
 
-        project_key = '{}.{}'.format(key, self.key)
+        project_key = f'{key}.{self.key}'
         project = format_args.pop('project', True)
         if project and self.settings.has_option(section, project_key):
             key = project_key
@@ -343,19 +355,26 @@ class Project(Project_Meta):
         return self._main_project
 
     @property
-    def project_definitions_source(self) -> Optional[Source]:
+    def project_definitions_sources(self) -> Set[Source]:
         """
-        Retrieve a `Source` object that describes the project definitions
-        version control system. If the project has no definitions, then `None`
-        is returned.
+        Retrieve a set of `Source` objects that describe where to find the
+        project definitions (version control systems, Quality Time instances).
+        If the project has no definitions, then an empty set is returned.
         """
 
-        if self.quality_metrics_name is None:
-            return None
 
         if self._project_definitions is None:
+            self._project_definitions = set()
+            if self.quality_metrics_name is None:
+                return self._project_definitions
+
             project = self.quality_metrics_name
-            self._project_definitions = \
-                self.make_project_definitions(project_name=project)
+            for section in ('definitions', 'quality-time'):
+                try:
+                    source = self.make_project_definitions(section=section,
+                                                           project_name=project)
+                    self._project_definitions.add(source)
+                except (KeyError, ValueError):
+                    pass
 
         return self._project_definitions

@@ -11,13 +11,14 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union, TYPE_
 from ..table import Table
 from ..utils import Sprint_Data
 if TYPE_CHECKING:
-    # pylint: disable=cyclic-import
+    # pylint: disable=cyclic-import,unsubscriptable-object
     from ..domain import Project, Source
+    PathLike = Union[str, os.PathLike[str]]
 else:
     Project = object
     Source = object
+    PathLike = Union[str, os.PathLike]
 
-PathLike = Union[str, os.PathLike]
 Tables = Dict[str, Table]
 Version = Union[int, str]
 

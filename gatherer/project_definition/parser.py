@@ -14,12 +14,13 @@ import logging
 import sys
 import traceback
 from types import ModuleType
-from typing import Any, AnyStr, Dict, Iterator, List, Mapping, Optional, \
-    Sequence, Set, Tuple, Type, Union
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, \
+    Set, Tuple, Type, Union
 from unittest.mock import Mock, MagicMock, mock_open, patch
 # Non-standard imports
 from hqlib import domain, metric, metric_source
 from hqlib.utils import version_number_to_numerical
+from .base import SourceUrl, Definition_Parser
 from .compatibility import Compatibility, COMPACT_HISTORY, JIRA, JIRA_FILTER, \
     SONAR, DomainType
 from ..utils import get_datetime, parse_unicode
@@ -27,9 +28,8 @@ from ..utils import get_datetime, parse_unicode
 __all__ = ["Project_Definition_Parser"]
 
 SourceID = Union[Type[domain.DomainObject], domain.DomainObject]
-SourceUrl = Optional[Union[str, Tuple[str, str, str]]]
 
-class Project_Definition_Parser:
+class Project_Definition_Parser(Definition_Parser):
     """
     Parser for project definitions of the quality reporting tool.
     """
@@ -41,7 +41,9 @@ class Project_Definition_Parser:
         "hqlib.domain": ["qualitylib.ecosystem"]
     }
 
-    def __init__(self, context_lines: int = 3, file_time: Optional[str] = None) -> None:
+    def __init__(self, context_lines: int = 3,
+                 file_time: Optional[str] = None, **options: Any) -> None:
+        super().__init__(**options)
         self.context_lines = context_lines
 
         if file_time is None:
@@ -83,7 +85,8 @@ class Project_Definition_Parser:
 
         return domain_objects
 
-    def format_exception(self, contents: AnyStr, emulate_context: bool = True) -> RuntimeError:
+    def format_exception(self, contents: Union[str, bytes],
+                         emulate_context: bool = True) -> RuntimeError:
         """
         Wrap a problem that is encountered while parsing the project definition
         `contents`. This method must be called from an exception context.
@@ -174,7 +177,7 @@ class Project_Definition_Parser:
 
         return modules
 
-    def load_definition(self, filename: str, contents: AnyStr) -> None:
+    def load_definition(self, filename: str, contents: Union[str, bytes]) -> None:
         """
         Safely read the contents of a project definition file.
 
@@ -320,12 +323,23 @@ class Sources_Parser(Project_Definition_Parser):
         'Git': metric_source.Git,
         'Subversion': metric_source.Subversion
     }
+    SOURCES_MAP = {
+        'Subversion': 'subversion',
+        'Git': 'git',
+        'History': 'history',
+        'CompactHistory': 'compact-history',
+        'Jenkins': 'jenkins',
+        'Jira': 'jira',
+        'JiraFilter': 'jira',
+        'Sonar': 'sonar'
+    }
+
     SOURCE_ID_SOURCES = ('Sonar', 'Git', 'Subversion')
-    SOURCES_DOMAIN_FILTER = ('Document',)
+    SOURCES_DOMAIN_FILTER = ['Document']
 
     DUMMY_URLS = (None, 'dummy', '.', '/')
 
-    def __init__(self, path: str, context_lines: int = 3,
+    def __init__(self, path: str = ".", context_lines: int = 3,
                  file_time: Optional[str] = None) -> None:
         super().__init__(context_lines=context_lines, file_time=file_time)
 
@@ -362,7 +376,7 @@ class Sources_Parser(Project_Definition_Parser):
 
         return modules
 
-    def load_definition(self, filename: str, contents: AnyStr) -> None:
+    def load_definition(self, filename: str, contents: Union[str, bytes]) -> None:
         with patch('sys.path', sys.path + [self.sys_path]):
             super(Sources_Parser, self).load_definition(filename, contents)
 

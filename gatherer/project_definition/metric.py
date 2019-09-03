@@ -39,8 +39,12 @@ class Metric_Difference:
 
                 if metric_target != previous_metric_target:
                     unique_target = dict(metric_target)
-                    unique_target['name'] = name
-                    unique_target['revision'] = version['version_id']
+                    unique_target.update({
+                        "name": name,
+                        "revision": version['version_id']
+                    })
+                    unique_target.pop('report_uuid', None)
+                    unique_target.pop('report_date', None)
                     self._unique_metric_targets.append(unique_target)
 
             self._previous_metric_targets = metric_targets
