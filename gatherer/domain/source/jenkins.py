@@ -23,11 +23,11 @@ class Jenkins(Source):
 
     @property
     def environment(self) -> Optional[Hashable]:
-        return self.url
+        return self.plain_url
 
     @property
     def environment_url(self) -> Optional[str]:
-        return self.url
+        return self.plain_url
 
     def update_identity(self, project: Project, public_key: str,
                         dry_run: bool = False) -> None:

@@ -21,7 +21,7 @@ class History(Source):
 
     @property
     def environment(self) -> Optional[Hashable]:
-        return ('metric_history', '/'.join(self.url.split('/')[:-1]))
+        return ('metric_history', '/'.join(self.plain_url.split('/')[:-1]))
 
     @property
     def environment_type(self) -> str:
@@ -29,7 +29,7 @@ class History(Source):
 
     @property
     def environment_url(self) -> Optional[str]:
-        return '/'.join(self.url.split('/')[:-1])
+        return '/'.join(self.plain_url.split('/')[:-1])
 
     @property
     def file_name(self) -> Optional[str]:

@@ -24,7 +24,7 @@ class Controller(Source):
 
     @property
     def environment(self) -> Optional[Hashable]:
-        return self.url.rstrip('/')
+        return self.plain_url.rstrip('/')
 
     @property
     def certificate(self) -> Union[str, bool]:

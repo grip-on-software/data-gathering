@@ -19,11 +19,11 @@ class Metric_Options(Source):
 
     @property
     def environment(self) -> Optional[Hashable]:
-        return ('metric_options', '/'.join(self.url.split('/')[:-1]))
+        return ('metric_options', '/'.join(self.plain_url.split('/')[:-1]))
 
     @property
     def environment_url(self) -> Optional[str]:
-        return self.url
+        return self.plain_url
 
     @property
     def file_name(self) -> str:
