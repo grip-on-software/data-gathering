@@ -31,14 +31,14 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
           install_requires=[
               # gatherer.config
               'urlmatch',
+              # gatherer.jira
+              'jira>=2.0.1.0rc1',
               # gatherer.git
               'gitpython', 'PyGithub', 'python-gitlab',
               # gatherer.svn
               'svn',
-              # gatherrr.request
+              # gatherer.request
               'requests', 'requests_ntlm', 'ordered-set',
-              # gatherer.project_definition
-              'mock',
               # gatherer.database
               'pymonetdb',
               # gatherer.files

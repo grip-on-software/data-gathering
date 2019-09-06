@@ -2,7 +2,7 @@
 # gatherer.config
 urlmatch
 # gatherer.jira
-git+https://github.com/pycontribs/jira.git@8306c3d3fd03eec7749d9d288b5c8e8a7dde9b28#egg=jira
+jira>=2.0.1.0rc1
 # gatherer.git
 gitpython>=2.1.8
 PyGithub>=1.40
