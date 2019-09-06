@@ -47,7 +47,7 @@ class Gatherer:
                     'ok': False,
                     'message': 'Project is not yet registered in the database'
                 }
-        except (EnvironmentError, pymonetdb.Error) as error:
+        except (OSError, pymonetdb.Error) as error:
             return {
                 'ok': False,
                 'message': str(error)
@@ -86,7 +86,10 @@ class Gatherer:
         project = Project(project_key)
         track = Database_Tracker(project, **self._options)
         filename = 'preflight_date.txt'
-        content = track.retrieve_content(filename)
+        try:
+            content = track.retrieve_content(filename)
+        except OSError as error:
+            raise ValueError(f'Could not access update tracker from database: {error}')
         if content is None:
             raise ValueError(f'No update tracker {filename} found')
 

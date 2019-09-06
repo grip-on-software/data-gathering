@@ -184,6 +184,11 @@ def main() -> None:
         usernames = response.get_usernames()
 
         permissions.update_permissions()
+    except (RuntimeError, OSError) as error:
+        print('Status: 503 Service Unavailable')
+        print('Content-Type: text/plain')
+        print()
+        print('Could not update the agent: {!r}'.format(error))
     finally:
         lock.release()
 
