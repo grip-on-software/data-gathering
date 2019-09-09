@@ -14,7 +14,8 @@ objects with properties.
 
 ## Installation
 
-The data gathering scripts and modules require Python version 3.6+.
+The data gathering scripts and modules require Python version 3.6+. The scripts 
+have been tested on MacOS 10.14+, Ubuntu 16.04+ and CentOS 7.3+.
 
 The scripts and modules are two separate concepts with regard to installation: 
 the data gathering module `gatherer` must be installed so that the scripts can 
@@ -23,30 +24,39 @@ dependencies which must be installed. Each of these steps can be done
 separately or in combination with one another:
 
 - Run `pip install -r requirements.txt` to install the dependencies for the 
-  data gathering scripts. Add `--user` if you do not have access to the system 
-  libraries, or do not want to store the libraries in that path but in your 
-  home directory.
+  data gathering scripts.
   - If you want to gather Topdesk or LDAP data: run `pip install -r 
     requirements-jenkins.txt`, which also ensures that the normal dependencies 
     are installed.
-  - For the webservice daemons: run `pip install -r requirements-daemon.txt`, 
-    which also ensures that the normal dependencies are installed.
+  - For the controller: run `pip install -r requirements-daemon.txt`, which 
+    also ensures that the normal dependencies are installed.
 - Run `python setup.py install` to install the module and any missing 
-  dependencies for the data gathering module. Add `--user` if you do not have 
-  access to the system libraries, or do not want to store the libraries in that 
-  path but in your home directory. Note that some versions of `setuptools`, 
-  which is used in this step, are unable to use wheels or eggs even if they are 
-  supported by the platform. Due to the additional compilation time required 
-  for some source packages, running both the `pip` and `setup.py` commands may 
-  therefore be faster than only `setup.py`.
+  dependencies for the data gathering module. Note that some versions of 
+  `setuptools`, which is used in this step, are unable to use wheels or eggs 
+  even if they are supported by the platform. Due to the additional compilation 
+  time required for some source packages, running both the `pip` and `setup.py` 
+  commands may therefore be faster than only `setup.py`.
 - Instead of running the `setup.py` script from this repository directly, you 
   can also use `pip install gros-gatherer` to obtain the module. You may need 
   to add additional parameters, such as `--extra-index-url` for a private 
   repository and `--process-dependency-links` to obtain Git dependencies.
 
+We recommend creating a virtual environment to manage the dependencies. 
+Otherwise, add `--user` to the commands above if you do not have access to the 
+system libraries, or do not want to store the libraries in that path. For the 
+controller, a virtualenv must be created beneath `/usr/local/envs` (create this 
+directory) named `controller` with the dependencies above. Next, continue with 
+the following steps:
+
+- Configure the agent, controller or development environment using the settings 
+  and credentials files as explained in the [configuration](#configuration) 
+  section.
+- For the controller: use `sudo ./controller/setup.sh` to create services and 
+  symlink scripts to make them available for the services.
+
 Some scripts and controller services interact with a database for update 
 trackers, project salts and status information storage. This database must be 
-a MonetDB instance.
+a MonetDB instance pre-installed in the environment where.
 
 ## Data sources
 
@@ -164,7 +174,7 @@ a deployment interface:
   creation and permissions of the agent files.
 - `controller/gatherer_daemon.py`: Internal daemon for providing update 
   trackers and project salts for use by the agent.
-- `controller/exporter_daemon.py` and `controller-export.sh`: Internal daemon 
+- `controller/exporter_daemon.py` and `controller/export.sh`: Internal daemon 
   for handling agent's collected data to import into the database.
 
 ## Docker
