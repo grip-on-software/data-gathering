@@ -44,6 +44,10 @@ separately or in combination with one another:
   to add additional parameters, such as `--extra-index-url` for a private 
   repository and `--process-dependency-links` to obtain Git dependencies.
 
+Some scripts and controller services interact with a database for update 
+trackers, project salts and status information storage. This database must be 
+a MonetDB instance.
+
 ## Data sources
 
 The following list provides the supported version of platforms that the data 
@@ -80,24 +84,24 @@ The usual pipeline setup runs the scripts in the following order:
 - `scraper/retrieve_dropins.py`: Retrieve dropin files that may be provided for 
   archived projects, containing already-scraped export data.
 - `scraper/project_sources.py`: Retrieve source data from project definitions, 
-  which is then used for later version control gathering purposes.
-- `scraper/jira_to_json.py`: Retrieve issue changes and metadata from a JIRA 
+  which is then used for later gathering purposes.
+- `scraper/jira_to_json.py`: Retrieve issue changes and metadata from a Jira 
   instance.
 - `scraper/environment_sources.py`: Retrieve additional source data from known 
   version control systems, based on the group/namespace/collection in which the 
-  repositories that were found earlier live.
-- `scraper/git_to_json.py`: Retrieve version information from Git or Subversion 
-  instances, possibly including auxiliary information such as GitLab/GitHub 
-  project data (commit comments, merge requests) and TFS work item data.
-- `scraper/history_to_json.py`: Retrieve a history file containing measurement 
-  values for metrics during the project, or only output a reference to it.
+  already-known repositories live.
+- `scraper/git_to_json.py`: Retrieve version information from version control 
+  systems (Git or Subversion), possibly including auxiliary information such as 
+  GitLab/GitHub project data (commit comments, merge requests) and TFS work 
+  item data (also sprints and team members).
 - `scraper/metric_options_to_json.py`: Retrieve changes to metric targets from 
-  a Git or Subversion repository holding the project definitions.
+  a changelog of the project definitions.
+- `scraper/history_to_json.py`: Retrieve the history of measurement values for 
+  metrics that are collected in the project, or only output a reference to it.
 - `scraper/jenkins_to_json.py`: Retrieve usage statistics from a Jenkins 
   instance.
 - `scraper/sonar_to_json.py`: Retrieve additional or historical metrics 
-  directly from a SonarQube instance instead of an existing quality dashboard 
-  history file.
+  directly from a SonarQube instance.
 
 These scripts are already streamlined in the `scraper/jenkins.sh` script 
 suitable for a Jenkins job, as well as in a number of Docker scripts explained 
@@ -118,18 +122,18 @@ There are also a few tools for inspecting data or setting up sources:
 - `init_gitlab.py`: Set up repositories for filtered or archived source code.
 - `retrieve_salts.py`: Retrieve project salts from the database.
 - `update_jira_mails.py`: Update email addresses in legacy dropin developer 
-  data from JIRA.
+  data from Jira.
 
 All of these scripts and tools make use of the `gatherer` library, contained 
-within this repository, which supplies abstracted and standardized access and 
-data storage OOP classes with various functionality.
+within this repository, which supplies abstracted and standardized access to 
+data sources as well as data storage.
 
 This repository also contains agent-only tools, including Shell-based Docker 
 initialization scripts:
 
 - `scraper/agent/init.sh`: Entry point which sets up periodic scraping, 
-  permissions and the server
-- `scraper/agent/start.sh`: Prepare the environment for running scripts
+  permissions and the server.
+- `scraper/agent/start.sh`: Prepare the environment for running scripts.
 - `scraper/agent/run.sh`: Start a custom pipeline which collects data from 
   the version control systems, exporting it to the controller server.
 
@@ -137,27 +141,31 @@ Aside from the normal data gathering pipeline, an agent additionally uses the
 following scripts to retrieve data or publish status:
 
 - `scraper/bigboat_to_json.py`: Request the status of a BigBoat dashboard and 
-  publish this data to the controller server.
+  publish this data to the controller server via its API.
 - `scraper/generate_key.py`: Generate a public-private key pair and distribute 
-  the public part to supporting sources (GitLab) and the controller server, for 
-  registration purposes.
+  the public part to supporting sources (version control systems) and the 
+  controller server, for registration purposes.
 - `scraper/preflight.py`: Perform status checks, including integrity of secrets 
   and the controller server, before collecting and exporting data.
+- `scraper/export_files.py`: Upload exported data and update trackers via SSH 
+  to the controller server and the API for a status indication.
 - `scraper/agent/scraper.py`: Web API server providing scraper status 
-  information and immediate job starts.
+  information and immediate jobs. See the [scraper web API](#scraper-web-api) 
+  for more details.
 
 Finally, the repository contains a controller API and its backend daemons, and 
 a deployment interface:
 
 - `controller/auth/`: API endpoints of the controller, at which agents can 
   register themselves, publish health status and logs, or indicate that they 
-  have exported their scraped data.
-- `controller/daemon.py`: Internal daemon for handling agent user creation and 
-  permissions of their files.
-- `daemon.py`: Internal daemon for providing update tracking and project salts 
-  for use by the agent.
-- `exporter_daemon.py` and `controller-export.sh`: Internal daemon for handling 
-  agent's collected data to import into the database.
+  have exported their scraped data. See the [controller API](#controller-api) 
+  for more details.
+- `controller/controller_daemon.py`: Internal daemon for handling agent user 
+  creation and permissions of the agent files.
+- `controller/gatherer_daemon.py`: Internal daemon for providing update 
+  trackers and project salts for use by the agent.
+- `controller/exporter_daemon.py` and `controller-export.sh`: Internal daemon 
+  for handling agent's collected data to import into the database.
 
 ## Docker
 
@@ -172,46 +180,49 @@ image. You may wish to use a registry URL in place of `ictu` and push the image
 there for distributed deployments.
 
 Next, start the Docker instance based on the container. Use `docker run --name 
-data-gathering-agent -v env:/home/agent/env [options]... 
+gros-data-gathering-agent -v env:/home/agent/env [options]... 
 ictu/gros-data-gathering` to start the instance using environment variables 
 from a file called `env` to set [configuration](#configuration). 
 
 Depending on this configuration, the Docker instance can run in 'Daemon' mode 
 or in 'Jenkins' mode. In 'Daemon' mode, the instance periodically checks if it 
 should scrape data. Therefore, it should be started in a daemonized form using 
-the option `-d`. Set `CRON_PERIOD` and `BIGBOAT_PERIOD` to appropriate values 
-for this purpose. You run in a 'Jenkins-style' run using the environment 
-variable `JENKINS_URL=value`, which performs one scrape job if possible.
+the option `-d`. Set the environment variables `CRON_PERIOD` (required) and 
+`BIGBOAT_PERIOD` (optional) to appropriate periodic values (15min, hourly, 
+daily) for this purpose. To start a 'Jenkins-style' run, use the environment 
+variable `JENKINS_URL=value`, which performs one scrape job immediately and 
+terminates.
 
-For Jenkins-style runs, you can also pass environment variables using `-e` and 
-other Docker parameters. In Daemon runs only the variables described in the 
-configuration section can be passed via `-e`; others must be placed on their 
-own line in `env`. Skip some of the pre-flight checks using 
-`PREFLIGHT_ARGS="--no-secrets --no-ssh"` or other options from 
-`scraper/preflight.py`. Finally, you can enter a running docker instance using 
-`docker exec data-gathering-agent /home/agent/scraper/agent/env.sh` and run any 
-scripts there, as described in the [overview](#overview).
+You can pass environment variables using the Docker parameter `-e`, or with the 
+`environment` section of a Docker compose file. Additionally, configuration is 
+read from environment files which must be stored in `/home/agent/env` (added 
+from the Docker context during `docker build`) or `/home/agent/config/env` (via 
+a volume mount `-v`). For example, skip some of the pre-flight checks using 
+`PREFLIGHT_ARGS="--no-secrets --no-ssh"` (see all these options from 
+`scraper/preflight.py`). Note that you can enter a running docker instance 
+using `docker exec -it gros-data-gathering-agent 
+/home/agent/scraper/agent/env.sh` which sets up the correct environment to run 
+any of the scripts described in the [overview](#overview).
 
-For more advanced setups with many variables that need configuration or 
-persistent volume mounts, it is advisable to create 
-a [docker-compose](https://docs.docker.com/compose/) file to manage the Docker 
-environment and resulting scraper configuration. Any environment variables 
-defined for the container are passed into the configuration. During the build, 
-a file called `env` can be added to the build context in order to set up 
-environment variables that remain true in all instances. For even more 
-versatility, a separate configuration tool can alter the configuration and 
-environment files via shared volumes.
+For advanced setups with many configuration variables or volume mounts, it is 
+advisable to create a [docker-compose](https://docs.docker.com/compose/) file 
+to manage the Docker environment and resulting scraper configuration. Any 
+environment variables defined for the container are passed into the 
+configuration. During the build, a file called `env` can be added to the build 
+context in order to set up environment variables that remain true in all 
+instances. For even more versatility, a separate configuration tool can alter 
+the configuration and environment files via shared volumes.
 
 More details regarding the specific configuration of the environment within the 
 Docker instance can be found in the [environment](#environment) section.
 
 ## Scraper web API
 
-In the [Docker instance](#docker) of the agent when not running the 
-'Jenkins-style' mode, one can make use of a web API to collect status 
-information about the agent and immediately start a scrape operation. By 
-default, the web API server runs on port 7070. The API uses JSON as an output 
-format. The following endpoints are provided:
+In the [Docker instance](#docker) of the agent when running the 'Daemon' mode, 
+one can make use of a web API to collect status information about the agent and 
+immediately start a scrape operation. By default, the web API server runs on 
+port 7070. The API uses JSON as an output format. The following endpoints are 
+provided:
 
 - `/status`: Check the status of the scrape process. Returns a body containing 
   a JSON object with keys `ok` and `message`. If a scrape is in operation, then 
@@ -236,6 +247,35 @@ components and libraries as keys and version strings as values, and a key
 - `traceback`: If display of tracebacks is enabled, then the error traceback is 
   provided as a string. Otherwise, the value is `null`.
 
+## Controller API
+
+The controller is meant to run on a host that is accessible by the scraper 
+agents in order to exchange information with the agents, databases and 
+Jenkins-style scrape jobs. Setup of this host requires some extensive 
+configuration of directories and users/permissions in order to keep data secure 
+during the scrape process while allowing administration of the agent users. The 
+`controller` directory provides a few services which play a role in setting up 
+all the backend services.
+
+A web API is exposed by the controller API, provided from the `controller/auth` 
+directory. The following endpoints exist:
+
+- `access.py`: Check a list of networks to determine if a user should be shown
+  exported data from the projects (one, multiple or all of them).
+- `agent.py`: Set up an agent to allow access to update trackers and project 
+  salts using a SSH key, updating the permissions of relevant directories.
+- `encrypt.py`: Use the project salts to provide an encrypted version of 
+  a provided piece of text.
+- `export.py`: Update status of an agent, start a Jenkins scrape job and import 
+  the agent's scrape data into the database.
+- `log.py`: Write logging from the agent to a central location for debugging.
+- `status.py`: Check if the agent should be allowed to collect new scrape data 
+  based on environment conditions (accessibility of services, allowed networks, 
+  correct configuration and directory permissions, and a tracker-based timer). 
+  If the agent is POSTing data to this endpoint, then instead store status 
+  information in a database or other centralized location.
+- `version.py`: Check whether a provided version is up to date.
+
 ## Configuration
 
 A number of configuration files are used to point the scraper to the correct 
@@ -245,10 +285,10 @@ Inspect the `settings.cfg.example` and `credentials.cfg.example` files. Both
 files have sections, option names and values, and dollar signs indicate values 
 that should be filled in. You can do this by copying the file to the name 
 without `.example` at the end and editing it. For Docker builds, the dollar 
-signs indicate environment variables (passed with `-e`) that are filled in when 
-starting the instance, as explained in the [Docker](#docker) section. Many 
-configuration values can also be supplied through arguments to the relevant 
-pipeline scripts as shown in their `--help` output.
+signs indicate environment variables that are filled in when starting the 
+instance, as explained in the [Docker](#docker) section. Many configuration 
+values can also be supplied through arguments to the relevant pipeline scripts 
+as shown in their `--help` output.
 
 Some options may have their value set to a falsy value ('false', 'no', 'off', 
 '-', '0' or the empty string) to disable a certain feature or to indicate that 
@@ -256,18 +296,19 @@ the setting is not used in this environment.
 
 ### Settings
 
-- jira (used by `jira_to_json.py`): JIRA access settings.
-  - `server` (`$JIRA_SERVER`): Base URL of the JIRA server used by the 
+- jira (used by `jira_to_json.py`): Jira access settings.
+  - `server` (`$JIRA_SERVER`): Base URL of the Jira server used by the 
     projects.
-  - `username` (`$JIRA_USER`): Username to log in to JIRA with. This may also
-    be provided in a credentials section for the URL's network location domain.
-  - `password` (`$JIRA_PASSWORD`): Password to log in to JIRA with. This may 
-    also be provided in a credentials section for the URL's network location 
-    domain.
+  - `username` (`$JIRA_USER`): Username to log in to Jira with. This may also
+    be provided in a credentials section for the instance's network location 
+    (domain and optional port).
+  - `password` (`$JIRA_PASSWORD`): Password to log in to Jira with. This may 
+    also be provided in a credentials section for the instance's network 
+    location (domain and optional port).
 - definitions (used by `retrieve_metrics_repository.py` and 
   `project_sources.py`): Project definitions source. The settings in this 
   section may be customized per-project by suffixing the option name with 
-  a period and the JIRA key of the custom project.
+  a period and the Jira key of the custom project.
   - `source_type` (`$DEFINITIONS_TYPE`): Domain source type used by the project 
     definitions. This may be a version control system that contains the 
     repository of the definitions, e.g., 'subversion' or 'git'.
@@ -298,8 +339,7 @@ the setting is not used in this environment.
     main landing UI page can be found.
 - history (used by `history_to_json.py`): Quality dashboard metrics history 
   dump locations.  The settings in this section may be customized per-project 
-  by suffixing the option name with a period and the JIRA key of the custom 
-  project.
+  by suffixing the option name with a period and the Jira project key.
   - `url` (`$HISTORY_URL`): The HTTP(S) URL from which the history dump can be 
     accessed, excluding the filename itself. For GitLab repositories, provide 
     the repository URL containing the dump in the root directory or 
@@ -375,13 +415,17 @@ the setting is not used in this environment.
   health checks.
   - `host` (`$BIGBOAT_HOST`): Base URL of the BigBoat dashboard.
   - `key` (`$BIGBOAT_KEY`): API key to use on the BigBoat dashboard.
-- jenkins (used by `jenkins_to_json.py` and `exporter/daemon.py`): Jenkins 
-  instance where jobs can be started.
+- jenkins (used by `jenkins_to_json.py` and `controller/exporter_daemon.py`): 
+  Jenkins instance where jobs can be started.
   - `host` (`$JENKINS_HOST`): Base URL of the Jenkins instance.
   - `username` (`$JENKINS_USERNAME`): Username to log in to the Jenkins 
-    instance. Use a falsy value to not authenticate to Jenkins this way.
+    instance. Use a falsy value to not authenticate to Jenkins this way. This 
+    may also be provided in a credentials section for the instance's network 
+    location (domain and optional port).
   - `password` (`$JENKINS_PASSWORD`): Password to log in to the Jenkins 
-    instance. Use a falsy value to not authenticate to Jenkins this way.
+    instance. Use a falsy value to not authenticate to Jenkins this way. This 
+    may also be provided in a credentials section for the instance's network 
+    location (domain and optional port).
   - `verify` (`$JENKINS_VERIFY`): SSL certificate verification for the Jenkins 
     instance. This option has no effect is the Jenkins `host` URL does not use 
     HTTPS. Use a falsy value to disable verification, a path name to specify 
@@ -404,8 +448,9 @@ the setting is not used in this environment.
     use HTTPS. Use a falsy value to disable verification (currently not 
     honored), a path name to specify a specific (self-signed) certificate to 
     match against, or any other value to enable secure verification.
-- schedule (used by `daemon.py`): Schedule imposed by the controller API status
-  preflight checks to let the agents check whether they should collect data.
+- schedule (used by `controller/gatherer_daemon.py`): Schedule imposed by the 
+  controller API status preflight checks to let the agents check whether they 
+  should collect data.
   - `days` (`$SCHEDULE_DAYS`): Integer determining the interval in days between
      each collection run by each agent.
   - `drift` (`$SCHEDULE_DRIFT`): Integer determining the maximum number of 
@@ -413,8 +458,8 @@ the setting is not used in this environment.
     causing agents to perform their scheduled scrape earlier or later than they 
     all would. Useful if all agents want to perform the scrape at once to 
     reduce load across the network.
-- ldap (used by `deployer.py` and `status.py`): Connection, authentication and 
-  query parameters for an LDAP server.
+- ldap (used by `ldap_to_json.py`): Connection, authentication and query 
+  parameters for an LDAP server.
   - `server` (`$LDAP_SERVER`): URL of the LDAP server, including protocol, host 
     and port.
   - `root_dn` (`$LDAP_ROOT_DN`): The base DN to use for all queries.
@@ -430,31 +475,37 @@ the setting is not used in this environment.
     member login names.
   - `display_name` (`$LDAP_DISPLAY_NAME`): Attribute of the user that holds 
     their displayable name (instead of the login name).
-- deploy (used by `deployer.py` and `status.py`): Bootstrapping for the 
-  deployment application and status dashboard.
+- deploy: Bootstrapping for the deployment application and status dashboard.
   - `auth` (`$DEPLOYER_AUTH`): Authentication scheme to use for the service. 
     Accepted values are 'open' (all logins allowed, only in debug environment), 
     'pwd' (/etc/passwd), 'spwd' (/etc/shadow), and 'ldap' (LDAP server).
-- projects: A list of project JIRA keys and their long names in quality metrics 
+- projects: A list of Jira project keys and their long names in quality metrics 
   dashboard and repositories. You may add any number of projects here; the 
-  pipeline can obtain project definitions only if they have their project JIRA
+  pipeline can obtain project definitions only if they have their Jira project
   key here, are not a subproject and have a non-empty long name.
-  - `$JIRA_KEY`: JIRA key of the project that the Docker instance scrapes.
+  - `$JIRA_KEY`: Jira project key for the project that is collected by the 
+    Docker instance.
   - `$PROJECT_NAME`: Name of the scraped project in the quality dashboard.
 - subprojects: Subprojects and their main project.
-  - `$SUBPROJECT_KEY`: JIRA key of the subproject.
+  - `$SUBPROJECT_KEY`: Jira project key of the subproject.
 - teams: GitHub teams and their main project.
   - `$TEAM_NAME`: GitHub slug of the team that manages the repositories 
     relevant to the project.
-- support: JIRA key of a project and an indication of whether they are 
-  considered to be a support team.
+- support: Jira project key and an indication of whether they are considered to 
+  be a support team.
   - `$SUPPORT_TEAM`: Whether the project is considered to be a support team.
 - network (used by `controller/auth/status.py`): The networks that are allowed
   to contain agents.
   - `$CONTROLLER_NETWORK`: A comma-separated list of IP networks (a single IP
-    address, a CIDR/netmask/hostmask range consisting of an IP address with 
+    address or a CIDR/netmask/hostmask range consisting of an IP address with 
     zeroes for the host bits followed by a slash and the masking operation)
     which are allowed to perform scrape operations for the project.
+- access (used by `controller/auth/access.py`): The networks that are allowed 
+  to access retrieved data.
+  - `$ACCESS_NETWORK`: A comma-separated list of IP networks (a single IP
+    address or a CIDR/netmask/hostmask range consisting of an IP address with 
+    zeroes for the host bits followed by a slash and the masking operation)
+    which are allowed to access the data. 
 
 ### Credentials
 
@@ -466,11 +517,10 @@ placeholder name `$DEFINITIONS_HOST`, is the hostname containing project
 definitions, matching the URLs in the `definitions` section of the settings. 
 The two sections by default use separate credentials.
 
-These sections may be edited and additional sections may be added if the 
-project(s) have different setups, such as more VCS hosts or other sources that 
-make use of credentials, including Jira. All options may be set to falsy 
-values, e.g., to perform unauthenticated access to to disable access to the 
-service completely.
+These sections may be edited and additional sections may be added for 
+project(s) that have more sources, such as multiple VCS hosts, Jenkins hosts or 
+Jira hosts. All options may be set to falsy values, e.g., to perform 
+unauthenticated access to to disable access to the service completely.
 
 - `env` (`$SOURCE_CREDENTIALS_ENV` and `$DEFINITIONS_CREDENTIALS_ENV`): Name of 
   the environment variable that contains the path to the SSH identity file. 
@@ -513,7 +563,7 @@ service completely.
   token for GitLab instances in order to obtain auxiliary data from GitLab or 
   interface with its authorization scheme.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
-  is a Team Foundation Server and thus has auxliary data aside from the Git 
+  is a Team Foundation Server and thus has auxiliary data aside from the Git 
   repository. If this is true, then any collections found based on the initial
   source that we have are collected, otherwise the value must be a collection
   name starting with `tfs/`. Any projects within or beneath the collection may
@@ -533,13 +583,13 @@ service completely.
   a repository in relation to migration.
 - `strip` (`$SOURCE_STRIP`): Strip an initial part of the path of any source
   repository hosted from this host when converting the source HTTP(s) URL to an 
-  SSH URL. Useful for GitLab instaces hosted behind path-based proxies.
+  SSH URL. Useful for GitLab instances hosted behind path-based proxies.
 - `unsafe_hosts` (`$SOURCE_UNSAFE`): Disable strict HTTPS certificate and SSH 
   host key verification for the host. This works for Git SSH communication and 
   Subversion HTTPS requests.
 - `skip_stats` (`$SOURCE_SKIP_STATS`): Disable collection of statistics on 
   commit sizes from repositories at this source.
-- `agile_rest_path` (used by `jira` source type): The REST path to use for JIRA 
+- `agile_rest_path` (used by `jira` source type): The REST path to use for Jira 
   Agile requests. Set to `agile` in order to use the public API.
 
 ### Environment
@@ -578,10 +628,10 @@ from writing them into the configuration files (if at all):
   logging to a logger server on the controller host. Aside from this 
   functionality, the 'Daemon' mode of the agent always uploads the entire log 
   to the controller at the end of the scrape.
-- `$JIRA_KEY`: The JIRA key to use for the entire scrape operation. This is
-  required to generate and spread keys to the VCS sources and controller, as
-  well as to actually perform the collection. It may be provided at a later 
-  moment than the initial startup.
+- `$JIRA_KEY`: The Jira project key to use for the entire scrape operation. 
+  This is required to generate and spread keys to the VCS sources and 
+  controller, as well as to actually perform the collection. It may be provided 
+  at a later moment than the initial startup.
 - `$DEFINITIONS_CREDENTIALS_ENV`: Used during key generation to determine the
   environment variable holding the path to store/obtain the main private key.
 - `$SOURCE_HOST` and `$DEFINITIONS_HOST`: Used during key generation to spread
@@ -601,8 +651,8 @@ and lists. The following keys are necessary:
   file was created.
 - `projects`: An array of project names and project keys. The project name 
   should appear in the first worksheet column (excluding the `prefixes`).
-  The project keys may be a single JIRA key to map the project name to, or 
-  a list of JIRA keys to distribute the seat counts evenly over.
+  The project keys may be a single Jira project key to map the project name to, 
+  or a list of Jira project keys to distribute the seat counts evenly over.
 - `prefixes`: A list of strings that should be removed from names in the first 
   worksheet column before using them as a project name.
 - `ignore`: A list of strings that indicate that no further projects can be 
@@ -612,12 +662,12 @@ and lists. The following keys are necessary:
 ### Topdesk
 
 For `topdesk_to_json.py`, the presence of a `topdesk.cfg` configuration file is 
-necessary. The projects section has option names corresponding to JIRA keys and 
-values corresponding to the project representation pass number in the CSV dump. 
-The names section have internal identifiers for the columns in the CSV dump as 
-options, and their associated values are the actual names in the CSV dump. The 
-whitelist section contains a global whitelist, which is a regular expression 
-that matches descriptions of items that are relevant events. The 
+necessary. The projects section has option names corresponding to Jira project 
+keys and values corresponding to the project representation pass number in the 
+CSV dump. The names section have internal identifiers for the columns in the 
+CSV dump as options, and their associated values are the actual names in the 
+CSV dump. The whitelist section contains a global whitelist, which is a regular 
+expression that matches descriptions of items that are relevant events. The 
 project-specific whitelist(s) instead match event descriptions that are 
 specifically relevant to the project. The blacklist section can only have 
 a global blacklist that filters irrelevant events based on their description.
