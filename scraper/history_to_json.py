@@ -286,22 +286,22 @@ def get_gitlab_path(project: Project, args: Namespace) \
         return export_path, None
 
     delete = get_boolean_setting(args.delete, 'delete', project)
-    if delete and export_path.exists():
-        logging.info('Removing old history clone %s', export_path)
-        shutil.rmtree(str(export_path))
-
     paths: Optional[List[str]] = None
     clone_path = export_path
     if check_sparse_base(export_path) and project.quality_metrics_name is not None:
         paths = [project.quality_metrics_name]
         clone_path = export_path / project.quality_metrics_name
         git_path = export_path / '.git'
-        if export_path.exists() and not git_path.exists():
+        if not git_path.exists():
             # The sparse clone has not yet been created (no .git directory)
             # but it must be placed in the root directory of the clones.
             # The other clones must be removed before the clone operation.
-            logging.info('Making way to clone into %s', export_path)
-            shutil.rmtree(str(export_path))
+            logging.info('Making way to clone sparsely into %s', export_path)
+            delete = True
+
+    if delete and export_path.exists():
+        logging.info('Removing previous history clone %s', export_path)
+        shutil.rmtree(str(export_path))
 
     logging.info('Pulling quality metrics history repository to %s',
                  export_path)
