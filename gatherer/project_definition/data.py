@@ -21,7 +21,7 @@ class Project_Definition_Data(Data):
     Project definition stored as a Python file in a version control system.
     """
 
-    FILENAME = 'project_definition.py'
+    DEFINITION_FILENAME = 'project_definition.py'
 
     def __init__(self, project: Project, source: Source,
                  repo_path: Optional[PathLike] = None):
@@ -44,9 +44,9 @@ class Project_Definition_Data(Data):
                                    f'must be checked out first')
 
             if quality_name not in str(repo_path):
-                self._filename = f'{quality_name}/{self.FILENAME}'
+                self._filename = f'{quality_name}/{self.DEFINITION_FILENAME}'
             else:
-                self._filename = self.FILENAME
+                self._filename = self.DEFINITION_FILENAME
 
     def get_versions(self, from_revision: Optional[Version],
                      to_revision: Optional[Version]) -> Iterable[Dict[str, str]]:
@@ -189,24 +189,34 @@ class Quality_Time_Data(Data):
 
             changelog = self._get_changelog(metric['report_uuid'], metric_uuid,
                                             10, version)
-            for change in changelog:
-                match = self._delta_description.match(change.get("delta", ""))
-                if match:
-                    delta = match.groupdict()
-                    key = delta['parameter_key']
-                    if key not in self.METRIC_TARGET_MAP or \
-                        self.METRIC_TARGET_MAP[key] not in metric:
-                        continue
-
-                    date = get_utc_datetime(parse_date(change.get("timestamp", "")))
-                    if date <= start_date:
-                        break
-
-                    versions.append(self._update_metric_version(metric_uuid,
-                                                                metric, delta,
-                                                                date))
+            versions.extend(self._adjust_changelog(changelog, start_date,
+                                                   metric_uuid, metric))
 
         return sorted(versions, key=lambda version: version[0]['version_id'])
+
+    def _adjust_changelog(self, changelog: List[Dict[str, str]],
+                          start_date: datetime, metric_uuid: str,
+                          metric: Dict[str, str]) \
+            -> List[Tuple[Dict[str, str], Dict[str, Any]]]:
+        versions = []
+        for change in changelog:
+            match = self._delta_description.match(change.get("delta", ""))
+            if match:
+                delta = match.groupdict()
+                key = delta['parameter_key']
+                if key not in self.METRIC_TARGET_MAP or \
+                    self.METRIC_TARGET_MAP[key] not in metric:
+                    continue
+
+                date = get_utc_datetime(parse_date(change.get("timestamp", "")))
+                if date <= start_date:
+                    break
+
+                versions.append(self._update_metric_version(metric_uuid,
+                                                            metric, delta,
+                                                            date))
+
+        return versions
 
     def _update_metric_version(self, metric_uuid: str, metric: Dict[str, str],
                                delta: Dict[str, str], utc_date: datetime) \

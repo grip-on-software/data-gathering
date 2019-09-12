@@ -17,8 +17,8 @@ import re
 from pathlib import Path, PurePath
 import shutil
 from types import TracebackType
-from typing import Any, Dict, Generator, List, Optional, Sequence, Set, \
-    Tuple, Type, Union, TYPE_CHECKING
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, \
+    Set, Tuple, Type, Union, TYPE_CHECKING
 # Non-standard imports
 from gatherer.config import Configuration
 from gatherer.domain import Project, Source
@@ -36,6 +36,11 @@ if TYPE_CHECKING:
     PathLike = Union[str, os.PathLike[str]]
 else:
     PathLike = os.PathLike
+
+Parts = Union[str, None, Tuple[Optional[Path], Optional[str]], Tuple[str, ...]]
+Transform = Callable[[Project, Namespace], Parts]
+Generate = Callable[[Union[Parts, str], Set[Source], List['Location'],
+                     str, str], Optional['Data_Source']]
 
 UUID = re.compile('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
 
@@ -234,6 +239,9 @@ def get_gitlab_url(project: Project, args: Namespace) -> Optional[Tuple[str, ...
     in a subpath in the repository.
     """
 
+    if args.export_url is None:
+        return None
+
     export_url = get_setting(args.export_url, 'url', project)
     if not Configuration.has_value(export_url):
         return None
@@ -262,6 +270,9 @@ def get_gitlab_path(project: Project, args: Namespace) \
     is returned. If the argument or setting is not provided, then two `None`
     values are returned.
     """
+
+    if args.export_path is None:
+        return None, None
 
     path = get_setting(args.export_path, 'path', project)
     if not Configuration.has_value(path):
@@ -400,6 +411,82 @@ class Data_Source:
 
         self._file = open_file
 
+    @classmethod
+    def from_export_path(cls, gitlab_parts: Parts, sources: Set[Source],
+                         locations: List[Location], filename: str,
+                         compression: str) -> Optional['Data_Source']:
+        """
+        Create a data source object from a path to a local directory or
+        a repository target for a GitLab URL.
+        The local directory contains history.json.gz or the GitLab repository
+        contains it in its root or possibly in a subdirectory matching the
+        quality dashboard name.
+        """
+
+        if not isinstance(gitlab_parts, tuple) or len(gitlab_parts) != 2:
+            return None
+
+        export_path, gitlab_url = gitlab_parts
+        if not isinstance(export_path, Path) or not export_path.exists():
+            return None
+
+        path = File(export_path, filename, compression)
+        locations.append(path)
+        if gitlab_url is not None:
+            locations.append(Url(gitlab_url, compression=compression))
+        logging.info('Found metrics history path: %s', path)
+        return cls(sources, locations)
+
+    @classmethod
+    def from_path(cls, arg: Parts, sources: Set[Source],
+                  locations: List[Location], filename: str,
+                  compression: str) -> Optional['Data_Source']:
+        """
+        Create a data source object from a path to a directory with a local
+        file that can be opened.
+        """
+
+        if not isinstance(arg, str):
+            return None
+
+        path = File(arg, filename, compression)
+        locations.append(path)
+        opener = get_file_opener(compression)
+        return cls(sources, locations, open_file=opener(str(path), 'r'))
+
+    @classmethod
+    def from_export_url(cls, parts: Parts, sources: Set[Source],
+                        locations: List[Location], filename: str,
+                        compression: str) -> Optional['Data_Source']:
+        """
+        Create a data source object from a URL or a GitLab repository that
+        can be accessed in an unauthenticated manner by the importer.
+        """
+
+        if parts is None:
+            return None
+
+        url = Url(tuple(str(part) for part in parts), filename, compression)
+        locations.append(url)
+        logging.info('Found metrics history URL: %s', url)
+        return cls(sources, locations)
+
+    @classmethod
+    def from_url(cls, arg: Parts, sources: Set[Source],
+                 locations: List[Location], filename: str,
+                 compression: str) -> Optional['Data_Source']:
+        """
+        Create a data source object from a URL prefix to a specific download
+        location.
+        """
+
+        if not isinstance(arg, str):
+            return None
+
+        url = Url(arg, filename, compression)
+        locations.append(url)
+        return cls(sources, locations, open_file=get_stream(compression, url))
+
     @property
     def sources(self) -> Set[Source]:
         """
@@ -532,46 +619,21 @@ def get_data_source(project: Project, args: Namespace) \
 
     filename, compression = get_filename_compression(project, sources, args)
 
-    if args.export_path is not None:
-        # Path to a local directory or a repository target for a GitLab URL.
-        # The local directory contains history.json.gz or the GitLab repository
-        # contains it in its root or possibly in a subdirectory matching the
-        # quality dashboard name.
-        export_path, gitlab_url = get_gitlab_path(project, args)
-        if export_path is not None and export_path.exists():
-            path = File(export_path, filename, compression)
-            locations.append(path)
-            if gitlab_url is not None:
-                locations.append(Url(gitlab_url, compression=compression))
-            logging.info('Found metrics history path: %s', path)
-            yield Data_Source(sources, locations)
-            return
-    elif args.path is not None:
-        # Path to a directory with a local file that can be opened.
-        path = File(args.path, filename, compression)
-        locations.append(path)
-        opener = get_file_opener(compression)
-        yield Data_Source(sources, locations, open_file=opener(str(path), 'r'))
-        return
+    options: List[Tuple[Transform, Generate]] = [
+        (get_gitlab_path, Data_Source.from_export_path),
+        (lambda project, args: args.path, Data_Source.from_path),
+        (get_gitlab_url, Data_Source.from_export_url),
+        (lambda project, args: get_setting(args.url, 'url', project),
+         Data_Source.from_url)
+    ]
 
-    if args.export_url is not None:
-        # URL or a GitLab repository that can be accessed in an unauthenticated
-        # manner by the importer.
-        parts = get_gitlab_url(project, args)
+    for transform, method in options:
+        parts = transform(project, args)
         if parts is not None:
-            url = Url(parts, filename, compression)
-            locations.append(url)
-            logging.info('Found metrics history URL: %s', url)
-            yield Data_Source(sources, locations)
-            return
-    elif args.url is not None:
-        # URL prefix to a specific download location.
-        url_prefix = get_setting(args.url, 'url', project)
-        url = Url(url_prefix, filename, compression)
-        locations.append(url)
-        yield Data_Source(sources, locations,
-                          open_file=get_stream(compression, url))
-        return
+            data = method(parts, sources, locations, filename, compression)
+            if data is not None:
+                yield data
+                return
 
     if locations:
         yield Data_Source(sources, locations)
@@ -595,6 +657,39 @@ def get_tracker_start(project: Project, args: Namespace) -> int:
 
     return start_from
 
+def build_source(project: Project, location: Location, data: Data_Source) \
+        -> Tuple[Source, str]:
+    """
+    Create a new source object based ona the information contained in a remote
+    location.
+    """
+
+    environment_type = 'metric_history'
+    source_name = project.key
+    if location.compact:
+        source_type = 'compact-history'
+        file_name = 'compact-history.json'
+    else:
+        source_type = 'metric_history'
+        file_name = ''
+
+    for source in data.sources:
+        if source.environment_type != 'metric_history' and \
+            location.location == source.url:
+            source_type = source.environment_type
+            environment_type = source_type
+        if source.file_name is not None:
+            source_name = source.name
+            file_name = source.file_name
+            if is_compact(source):
+                source_type = 'compact-history'
+
+            break
+
+    url = '{}/{}'.format(location.parts[0], file_name)
+    source = Source.from_type(source_type, name=source_name, url=url)
+    return source, environment_type
+
 def update_source(project: Project, data: Data_Source) -> None:
     """
     Replace the source domain objects involved in locating the measurements with
@@ -605,36 +700,11 @@ def update_source(project: Project, data: Data_Source) -> None:
 
     for location in data.locations:
         if not location.local:
-            environment_type = 'metric_history'
-            source_name = project.key
-            if location.compact:
-                source_type = 'compact-history'
-                file_name = 'compact-history.json'
-            else:
-                source_type = 'metric_history'
-                file_name = ''
-
-            for source in data.sources:
-                if source.environment_type != 'metric_history' and \
-                    location.location == source.url:
-                    source_type = source.environment_type
-                    environment_type = source_type
-                if source.file_name is not None:
-                    source_name = source.name
-                    file_name = source.file_name
-                    if is_compact(source):
-                        source_type = 'compact-history'
-
-                    break
-
-            url = '{}/{}'.format(location.parts[0], file_name)
-            new_source = Source.from_type(source_type,
-                                          name=source_name,
-                                          url=url)
-            for source in data.sources:
-                if source.environment_type == environment_type:
-                    project.sources.discard(source)
-            project.sources.add(new_source)
+            source, environment_type = build_source(project, location, data)
+            for old_source in data.sources:
+                if old_source.environment_type == environment_type:
+                    project.sources.discard(old_source)
+            project.sources.add(source)
 
         project.export_sources()
 

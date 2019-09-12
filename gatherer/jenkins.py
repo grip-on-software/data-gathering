@@ -375,15 +375,15 @@ class Node(Base):
     Computer node linked to a Jenkins instance.
     """
 
-    def __init__(self, instance: Jenkins, displayName: str = '',
-                 **kwargs: Any) -> None:
-        if displayName == '':
+    def __init__(self, instance: Jenkins, **kwargs: Any) -> None:
+        display_name = str(kwargs.get('displayName', ''))
+        if display_name == '':
             raise ValueError('Display name must be provided')
 
-        if displayName == "master":
-            name = f"({displayName})"
+        if display_name == "master":
+            name = f"({display_name})"
         else:
-            name = displayName
+            name = display_name
 
         url = '{}computer/{}'.format(instance.base_url, quote(name))
         super().__init__(instance, url, exists=True)
