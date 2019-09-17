@@ -182,26 +182,31 @@ def retrieve_files(args: Namespace) -> None:
             copy_path(args.path, args.base)
         except OSError:
             logging.exception('Could not retrieve distribution')
-            return
-    else:
-        # Use an URL to download a dist directory artifact archive
-        if args.jenkins is None:
-            url = args.url
-        else:
-            try:
-                url = get_jenkins_url(args)
-            except EnvironmentError:
-                logging.exception('Could not log in to Jenkins')
-                return
-            except ValueError:
-                logging.exception('Could not parse Jenkins job build data')
-                return
 
-        logging.info('Downloading distribution from %s', url)
+        return
+
+    # Use an URL to download a dist directory artifact archive
+    if args.jenkins is None:
+        url = args.url
+    else:
         try:
-            download_zip(url, args.base)
-        except (ConnectError, HTTPError, Timeout):
-            logging.exception('Could not download ZIP file')
+            url = get_jenkins_url(args)
+        except EnvironmentError:
+            logging.exception('Could not log in to Jenkins')
+            return
+        except ValueError:
+            logging.exception('Could not parse Jenkins job build data')
+            return
+
+    if not Configuration.has_value(url):
+        logging.warning('Could not find URL for distribution')
+        return
+
+    logging.info('Downloading distribution from %s', url)
+    try:
+        download_zip(url, args.base)
+    except (ConnectError, HTTPError, Timeout):
+        logging.exception('Could not download ZIP file')
 
 def main() -> None:
     """
