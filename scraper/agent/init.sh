@@ -11,7 +11,9 @@ if [ ! -z "$CRON_PERIOD" ] && [ "$CRON_PERIOD" != "-" ]; then
 	# Enable a cron job for scraping regularly
 	cat >/etc/periodic/$CRON_PERIOD/scrape <<'SH'
 #!/bin/sh
-/home/agent/scraper/agent/scrape.sh
+if ! pgrep -f /home/agent/scraper/agent/run.sh > /dev/null; then
+	/home/agent/scraper/agent/scrape.sh
+fi
 SH
 
 	chmod +x /etc/periodic/$CRON_PERIOD/scrape
