@@ -97,8 +97,13 @@ class Git_Repository(Version_Control_Repository):
     A single Git repository that has commit data that can be read.
     """
 
+    # How often to log Git clone/pull/fetch progress
     DEFAULT_UPDATE_RATIO = 10
+    # Number of commits to obtain from git in one iteration
     BATCH_SIZE = 10000
+    # Maximum number of commits to obtain
+    MAX_SIZE = 100000
+    # How often to log the number of commits that have been analyzed
     LOG_SIZE = 1000
 
     MERGE_PATTERNS: Sequence[Pattern[str]] = \
@@ -138,7 +143,8 @@ class Git_Repository(Version_Control_Repository):
         })
 
     def _reset_limiter(self) -> None:
-        self._iterator_limiter = Iterator_Limiter(size=self.BATCH_SIZE)
+        self._iterator_limiter = Iterator_Limiter(size=self.BATCH_SIZE,
+                                                  maximum=self.MAX_SIZE)
 
     def _get_refspec(self, from_revision: Optional[Version] = None,
                      to_revision: Optional[Version] = None) -> str:

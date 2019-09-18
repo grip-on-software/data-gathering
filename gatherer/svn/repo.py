@@ -51,6 +51,10 @@ class Subversion_Repository(Version_Control_Repository):
     """
 
     AUXILIARY_TABLES = {'change_path', 'tag'}
+    # Number of commits to obtain from git in one iteration
+    BATCH_SIZE = 1000
+    # Maximum number of commits to obtain
+    MAX_SIZE = 10000
 
     def __init__(self, source: Source, repo_directory: PathLike, **kwargs: Any):
         super(Subversion_Repository, self).__init__(source, repo_directory, **kwargs)
@@ -64,7 +68,8 @@ class Subversion_Repository(Version_Control_Repository):
         })
 
     def _reset_limiter(self) -> None:
-        self._iterator_limiter = Iterator_Limiter()
+        self._iterator_limiter = Iterator_Limiter(size=self.BATCH_SIZE,
+                                                  maximum=self.MAX_SIZE)
 
     @classmethod
     def _create_environment(cls, source: Source) \
