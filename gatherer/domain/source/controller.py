@@ -56,7 +56,7 @@ class Controller(Source):
         # In return for our public key, we may receive some secrets (salts).
         # Export these to a file since the data is never received again.
         try:
-            response = json.loads(request.text)
+            response = request.json()
         except ValueError:
             logging.exception('Invalid JSON response from controller API: %s',
                               request.text)
