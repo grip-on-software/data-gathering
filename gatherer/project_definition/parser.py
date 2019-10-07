@@ -252,9 +252,9 @@ class Project_Definition_Parser(Definition_Parser):
         from it.
         """
 
-        if isinstance(class_type, Mock):
+        if isinstance(class_type, Mock): # type: ignore[misc]
             class_name = class_type.name
-            if isinstance(class_name, Mock):
+            if isinstance(class_name, Mock): # type: ignore[misc]
                 # pylint: disable=protected-access
                 class_name = class_type._mock_name
         else:
@@ -433,7 +433,7 @@ class Sources_Parser(Project_Definition_Parser):
 
     @staticmethod
     def _get_source_url(source: domain.DomainObject) -> Optional[str]:
-        if isinstance(source, MagicMock):
+        if isinstance(source, MagicMock): # type: ignore[misc]
             return source.call_args_list[0][0][0]
 
         return source.url()
@@ -564,7 +564,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
         metric_name = class_name + name
         if metric_name in self.data:
             targets: Dict[str, str] = self.data[metric_name]
-        elif isinstance(metric_type, Mock):
+        elif isinstance(metric_type, Mock): # type: ignore[misc]
             # No default data available
             targets = {
                 'low_target': '0',

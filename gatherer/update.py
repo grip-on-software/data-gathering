@@ -189,12 +189,12 @@ class SSH_Tracker(Update_Tracker):
             return subprocess.check_output([
                 'scp', '-i', self._key_path, f'{self.remote_path}/{filename}',
                 '/dev/stdout'
-            ])
+            ]).decode('utf-8')
         except subprocess.CalledProcessError:
             return None
 
     def put_content(self, filename: str, contents: str) -> None:
-        with tempfile.NamedTemporaryFile(buffering=0) as temp_file:
+        with tempfile.NamedTemporaryFile(mode="r", buffering=0) as temp_file:
             temp_file.write(contents)
             try:
                 subprocess.run([
