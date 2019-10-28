@@ -174,12 +174,17 @@ class Sprint_Parser(Field_Parser):
 
         sprint_string = sprint_string[sprint_string.rindex('[')+1:-1]
         sprint_parts = sprint_string.split(',')
+        prev_key = ""
         for part in sprint_parts:
             try:
                 pair = part.split('=')
-                key = pair[0]
-                value = pair[1]
-                sprint_data[key] = value
+                if len(pair) == 1 and prev_key != '':
+                    sprint_data[prev_key] += f",{part}"
+                else:
+                    key = pair[0]
+                    value = pair[1]
+                    sprint_data[key] = value
+                    prev_key = key
             except IndexError:
                 return {}
 
