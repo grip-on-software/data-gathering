@@ -91,7 +91,8 @@ class TFS(Git):
         self._tfs_password = self._credentials.get(host, 'password')
 
         url_parts = urlsplit(self.url)
-        if url_parts.scheme == self.SSH_PROTOCOL:
+        if url_parts.scheme == self.SSH_PROTOCOL and \
+            url_parts.username is not None and url_parts.hostname is not None:
             # Do not use a port specifier.
             netloc = url_parts.username + '@' + url_parts.hostname
         else:
