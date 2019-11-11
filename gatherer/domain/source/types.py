@@ -133,7 +133,7 @@ class Source:
                 pass
         else:
             if parts.hostname is None:
-                raise ValueError('Split result must have a hostname')
+                return '', None
 
             hostname = parts.hostname
             try:
@@ -174,7 +174,7 @@ class Source:
     @classmethod
     def _format_host_section(cls, parts: SplitResult) -> str:
         if parts.hostname is None:
-            raise ValueError('Split result must have a hostname')
+            return ''
 
         if parts.port is None:
             return parts.hostname
