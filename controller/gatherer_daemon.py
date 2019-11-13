@@ -5,7 +5,7 @@ Internal daemon for handling update tracking and project salt requests,
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Union, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Union, Sequence, Tuple
 import pymonetdb
 import Pyro4
 from gatherer.bigboat import Statuses
@@ -103,7 +103,30 @@ class Gatherer:
         interval = today - tracker_date
         return schedule - interval
 
-    def get_tracker_status(self, project_key):
+    def update_tracker_schedule(self, project_key: str, contents: Optional[str] = None) -> None:
+        """
+        Update the scheduled time of the given project.
+        This uses the update tracker file 'preflight_date.txt' to adjust when
+        the collected data was most recently changed.
+
+        The `contents`, if given, should be an ISO-formatted date time string
+        for the claimed update moment. If it is not provided, then the tracker
+        is set to the current time minus the schedule and drift of the project
+        such that the schedule status is immediately set to allow collection
+        of updates again.
+        """
+
+        if contents is None:
+            today = datetime.now()
+            schedule = self._calculate_drift(project_key, today)
+            old_date = today - schedule
+            contents = old_date.isoformat()
+
+        tracker = Database_Tracker(project_key, **self._options)
+        filename = 'preflight_date.txt'
+        tracker.put_content(filename, contents)
+
+    def get_tracker_status(self, project_key: str) -> Dict[str, Union[bool, str]]:
         """
         Retrieve the status of the update tracker schedule of the given project.
         This uses the update tracker file 'preflight_date.txt' to compare
