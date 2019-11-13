@@ -150,8 +150,7 @@ class Quality_Time_Data(Data):
         """
 
         parts = urlsplit(self._url)
-        host = parts.netloc.replace('www.', 'server.').replace('5000', '5001')
-        new_parts = (parts.scheme, host, f'/{path}', query, '')
+        new_parts = (parts.scheme, parts.netloc, f'/api/v1/{path}', query, '')
         return urlunsplit(new_parts)
 
     def get_contents(self, version: Dict[str, str]) -> Union[str, bytes]:
