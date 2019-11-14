@@ -9,7 +9,7 @@ import re
 from copy import copy
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
-from jira import Issue, JIRA
+from jira import Issue, JIRA, JIRAError
 from .base import Base_Jira_Field, Table_Source
 from .changelog import Changelog
 from .field import Jira_Field, Primary_Field, Payload_Field, Property_Field
@@ -340,8 +340,10 @@ class Jira:
 
         self.search_issues(query_api)
 
-        if not self.project.sources.find_source_type(source.Jira):
-            self._add_source(jira_source, query_api.api)
+        old_source = self.project.sources.find_source_type(source.Jira)
+        if old_source:
+            self.project.sources.delete(old_source)
+        self._add_source(jira_source, query_api.api)
 
         self.write_tables()
         return query_api.latest_update
@@ -352,8 +354,15 @@ class Jira:
         regex = api.JIRA_BASE_URL.replace('{', '(?P<').replace('}', '>.*?)')
         match = re.match(regex, str(myself['self']))
         if match:
+            try:
+                name = api.project(self._project.jira_key).name
+            except JIRAError:
+                logging.exception('Could not extract name for %s',
+                                  self._project.key)
+                name = self._project.key
+
             jira_source = source.Source.from_type('jira',
-                                                  name=self._project.key,
+                                                  name=name,
                                                   url=match.group('server'))
         else:
             logging.warning('Could not extract JIRA base URL from API')

@@ -6,6 +6,7 @@ from argparse import ArgumentParser, Namespace
 import json
 import logging
 from gatherer.domain import Project
+from gatherer.domain.source import Jira
 from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Project_Collector
 
@@ -36,9 +37,15 @@ def main() -> None:
     args = parse_args()
     project_key = str(args.project)
     project = Project(project_key)
+    jira_source = project.sources.find_source_type(Jira)
+    if jira_source:
+        jira_name = jira_source.name
+    else:
+        jira_name = project.key
 
     data = {
         'jira_key': project.jira_key,
+        'jira_name': jira_name,
         'github_team': project.github_team,
         'gitlab_group_name': project.gitlab_group_name,
         'tfs_collection': project.tfs_collection,
