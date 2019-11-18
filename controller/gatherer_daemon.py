@@ -122,7 +122,8 @@ class Gatherer:
             old_date = today - schedule
             contents = old_date.isoformat()
 
-        tracker = Database_Tracker(project_key, **self._options)
+        project = Project(project_key)
+        tracker = Database_Tracker(project, **self._options)
         filename = 'preflight_date.txt'
         tracker.put_content(filename, contents)
 
