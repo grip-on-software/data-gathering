@@ -26,6 +26,8 @@ class Jira(Source):
         super().__init__(source_type, name=name, url=url,
                          follow_host_change=follow_host_change)
 
+        self._plain_url = self._plain_url.strip('/')
+
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super(Jira, self)._update_credentials()
         if self.has_option(host, 'agile_rest_path'):
@@ -39,7 +41,7 @@ class Jira(Source):
 
     @property
     def environment_url(self) -> Optional[str]:
-        return self.plain_url.rstrip('/')
+        return self.plain_url
 
     def update_identity(self, project: Project, public_key: str,
                         dry_run: bool = False) -> None:
