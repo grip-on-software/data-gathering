@@ -383,6 +383,14 @@ class Sources_Parser(Project_Definition_Parser):
     def filter_domain_object(self, mock_object: Mock) -> bool:
         return isinstance(mock_object, self.DOMAIN_CLASSES)
 
+    def _merge(self, name: str, new_data: Mapping[str, Set[SourceUrl]]):
+        for key, value in new_data.items():
+            if isinstance(value, set):
+                self.data[name].setdefault(key, set())
+                self.data[name][key].update(value)
+            else:
+                self.data[name][key] = value
+
     def parse_domain_call(self, mock_object: Mock, args: Sequence[Any],
                           keywords: Mapping[str, Any]) -> None:
         if "name" in keywords:
@@ -397,13 +405,13 @@ class Sources_Parser(Project_Definition_Parser):
         logging.debug('Name: %s Domain: %s', name, domain_name)
 
         self.data.setdefault(name, {})
-        self.data[name].update(self._parse_sources(keywords,
-                                                   "metric_source_ids",
-                                                   domain_name,
-                                                   from_key=True))
-        self.data[name].update(self._parse_sources(keywords, "metric_sources",
-                                                   domain_name,
-                                                   from_key=False))
+        self._merge(name, self._parse_sources(keywords,
+                                              "metric_source_ids",
+                                              domain_name,
+                                              from_key=True))
+        self._merge(name, self._parse_sources(keywords, "metric_sources",
+                                              domain_name,
+                                              from_key=False))
 
     def _parse_sources(self, keywords: Mapping[str, Any], keyword: str,
                        domain_name: str, from_key: bool = True) -> Dict[str, Set[SourceUrl]]:
