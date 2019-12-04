@@ -5,6 +5,7 @@ Internal daemon for handling update tracking and project salt requests,
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
+import shutil
 from typing import Any, Dict, List, Mapping, Optional, Union, Sequence, Tuple
 import pymonetdb
 import Pyro4
@@ -169,6 +170,11 @@ class Gatherer:
                           update_directory=str(update_directory))
         track = Database_Tracker(project, **self._options)
         track.retrieve()
+
+        # Retrieve additional trackers.
+        tracker_directory = Path('tracker', project_key)
+        if tracker_directory.exists():
+            shutil.copytree(str(tracker_directory), str(update_directory))
 
     def get_salts(self, project_key: str) -> Tuple[str, str]:
         """
