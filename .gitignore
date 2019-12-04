@@ -39,6 +39,7 @@ hqlib_targets_update.json
 secrets.json
 secrets.*.json
 tracker/
+update/
 
 # filter-sourcecode.sh
 filter.txt
