@@ -189,6 +189,7 @@ def main() -> None:
         print('Content-Type: text/plain')
         print()
         print('Could not update the agent: {!r}'.format(error))
+        return
     finally:
         lock.release()
 
