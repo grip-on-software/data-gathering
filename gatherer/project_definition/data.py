@@ -150,7 +150,7 @@ class Quality_Time_Data(Data):
         """
 
         parts = urlsplit(self._url)
-        new_parts = (parts.scheme, parts.netloc, f'/api/v1/{path}', query, '')
+        new_parts = (parts.scheme, parts.hostname, f'/api/v2/{path}', query, '')
         return urlunsplit(new_parts)
 
     def get_contents(self, version: Dict[str, str]) -> Union[str, bytes]:
@@ -167,10 +167,10 @@ class Quality_Time_Data(Data):
         request.raise_for_status()
         return request.json()
 
-    def _get_changelog(self, report: str, metric: str, count: int,
-                       version: Dict[str, str]) -> List[Dict[str, str]]:
+    def _get_changelog(self, metric: str, count: int, version: Dict[str, str]) \
+            -> List[Dict[str, str]]:
         date = version['version_id']
-        url = self.get_url(f'changelog/report/{report}/metric/{metric}/{count}',
+        url = self.get_url(f'changelog/metric/{metric}/{count}',
                            f'report_date={date}')
         request = self._session.get(url)
         request.raise_for_status()
@@ -186,8 +186,7 @@ class Quality_Time_Data(Data):
             if get_utc_datetime(metric['report_date']) <= start_date:
                 continue
 
-            changelog = self._get_changelog(metric['report_uuid'], metric_uuid,
-                                            10, version)
+            changelog = self._get_changelog(metric_uuid, 10, version)
             versions.extend(self._adjust_changelog(changelog, start_date,
                                                    metric_uuid, metric))
 

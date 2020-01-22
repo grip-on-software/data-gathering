@@ -142,7 +142,7 @@ def read_quality_time_measurements(project: Project, source: Source,
     with metric_path.open('r') as metric_file:
         metrics: List[str] = json.load(metric_file)
 
-    cutoff_date = get_utc_datetime(start_date)
+    cutoff_date = get_utc_datetime(start_date.strip())
     version = data.get_latest_version()
     for metric_uuid in metrics:
         if not UUID.match(metric_uuid):
@@ -170,13 +170,12 @@ def parse_quality_time_measurement(metric_uuid: str,
     if get_utc_datetime(date) <= cutoff_date:
         return None
 
-    category = measurement.get("status")
-    if category is None:
-        category = "unknown"
+    count = measurement.get("count", {})
+    category = count.get("status", "unknown")
 
     return {
         'name': metric_uuid,
-        'value': str(measurement.get("value", "-1")),
+        'value': str(count.get("value", "-1")),
         'category': str(category),
         'date': date,
         'since_date': parse_date(str(measurement.get("start")))
