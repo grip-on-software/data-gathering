@@ -176,7 +176,7 @@ class Gatherer:
         if tracker_directory.exists():
             for tracker_file in tracker_directory.iterdir():
                 if not tracker_file.is_dir():
-                    shutil.copy(str(tracker_file), str(update_directory))
+                    shutil.copy(str(tracker_file), str(project.export_key))
 
     def get_salts(self, project_key: str) -> Tuple[str, str]:
         """
