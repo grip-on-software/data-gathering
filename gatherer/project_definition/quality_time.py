@@ -66,7 +66,7 @@ class Sources_Parser(Quality_Time_Parser):
         'jira': 'jira',
         'quality_time': 'quality-time'
     }
-    PATH_PARAMETERS = ('project',)
+    PATH_PARAMETERS = ('project', 'repository')
     SOURCE_ID_PARAMETERS = ('component',)
     SOURCES_DOMAIN_FILTER: List[str] = []
 
