@@ -111,6 +111,8 @@ class Sources_Parser(Quality_Time_Parser):
 
         for parameter in self.PATH_PARAMETERS:
             if parameter in parameters:
+                if not source_url.endswith("/"):
+                    source_url += "/"
                 source_url = urljoin(source_url, parameters[parameter])
 
         for parameter in self.SOURCE_ID_PARAMETERS:
