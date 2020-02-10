@@ -176,8 +176,8 @@ class Metric_Options_Parser(Quality_Time_Parser):
             "domain_name": subject_name
         }
         if comment is None and debt_target is None and \
-            target == model.get("target", "") and \
-            near_target == model.get("near_target", ""):
+            target == model.get("target", "0") and \
+            near_target == model.get("near_target", "0"):
             metric_data["default"] = "1"
         else:
             metric_data.update({

@@ -171,12 +171,13 @@ def parse_quality_time_measurement(metric_uuid: str,
         return None
 
     count = measurement.get("count", {})
-    category = count.get("status", "unknown")
+    category = count.get("status")
+    value = count.get("value")
 
     return {
         'name': metric_uuid,
-        'value': str(count.get("value", "-1")),
-        'category': str(category),
+        'value': str(value) if value is not None else "-1",
+        'category': str(category) if category is not None else "unknown",
         'date': date,
         'since_date': parse_date(str(measurement.get("start")))
     }
