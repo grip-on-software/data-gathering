@@ -4,7 +4,6 @@ Module for parsing report definitions from Quality Time.
 
 import json
 from typing import Any, Dict, List, Optional, Set, Union
-from urllib.parse import urljoin
 from .base import SourceUrl, Definition_Parser
 from ..utils import parse_date
 
@@ -66,7 +65,10 @@ class Sources_Parser(Quality_Time_Parser):
         'jira': 'jira',
         'quality_time': 'quality-time'
     }
-    PATH_PARAMETERS = ('project', 'repository')
+    PATH_PARAMETERS = {
+        'project': (),
+        'repository': ('_git',)
+    }
     SOURCE_ID_PARAMETERS = ('component',)
     SOURCES_DOMAIN_FILTER: List[str] = []
 
@@ -109,11 +111,10 @@ class Sources_Parser(Quality_Time_Parser):
         if source_url == "":
             return None
 
-        for parameter in self.PATH_PARAMETERS:
+        for parameter, parts in self.PATH_PARAMETERS.items():
             if parameter in parameters:
-                if not source_url.endswith("/"):
-                    source_url += "/"
-                source_url = urljoin(source_url, parameters[parameter])
+                url_parts = (source_url.rstip("/"),) + parts + (parameters[parameter],)
+                source_url = "/".join(url_parts)
 
         for parameter in self.SOURCE_ID_PARAMETERS:
             if parameter in parameters:
@@ -166,8 +167,13 @@ class Metric_Options_Parser(Quality_Time_Parser):
                       metrics: Dict[str, Dict[str, str]]) -> Dict[str, str]:
         comment = metric.get("comment", None)
         debt_target = metric.get("debt_target", None)
-        near_target = str(metric.get("near_target", "0"))
-        target = str(metric.get("target", "0"))
+        near_target = str(metric.get("near_target", ""))
+        if near_target == "":
+            near_target = "0"
+        target = str(metric.get("target"))
+        if target == "":
+            target = "0"
+
         metric_type = str(metric.get("type", ""))
         model = metrics.get(metric_type, {})
 
