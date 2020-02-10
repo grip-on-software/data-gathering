@@ -113,7 +113,7 @@ class Sources_Parser(Quality_Time_Parser):
 
         for parameter, parts in self.PATH_PARAMETERS.items():
             if parameter in parameters:
-                url_parts = (source_url.rstip("/"),) + parts + (parameters[parameter],)
+                url_parts = (source_url.rstrip("/"),) + parts + (parameters[parameter],)
                 source_url = "/".join(url_parts)
 
         for parameter in self.SOURCE_ID_PARAMETERS:
@@ -182,8 +182,8 @@ class Metric_Options_Parser(Quality_Time_Parser):
             "domain_name": subject_name
         }
         if comment is None and debt_target is None and \
-            target == model.get("target", "0") and \
-            near_target == model.get("near_target", "0"):
+            target == str(model.get("target", "0")) and \
+            near_target == str(model.get("near_target", "0")):
             metric_data["default"] = "1"
         else:
             metric_data.update({
