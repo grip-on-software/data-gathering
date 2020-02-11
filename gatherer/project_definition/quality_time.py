@@ -3,7 +3,7 @@ Module for parsing report definitions from Quality Time.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Sequence, Set, Union
 from .base import SourceUrl, Definition_Parser
 from ..utils import parse_date
 
@@ -65,7 +65,7 @@ class Sources_Parser(Quality_Time_Parser):
         'jira': 'jira',
         'quality_time': 'quality-time'
     }
-    PATH_PARAMETERS = {
+    PATH_PARAMETERS: Dict[str, Sequence[str]] = {
         'project': (),
         'repository': ('_git',)
     }
@@ -113,7 +113,7 @@ class Sources_Parser(Quality_Time_Parser):
 
         for parameter, parts in self.PATH_PARAMETERS.items():
             if parameter in parameters:
-                url_parts = (source_url.rstrip("/"),) + parts + (parameters[parameter],)
+                url_parts = (source_url.rstrip("/"),) + tuple(parts) + (parameters[parameter],)
                 source_url = "/".join(url_parts)
 
         for parameter in self.SOURCE_ID_PARAMETERS:
