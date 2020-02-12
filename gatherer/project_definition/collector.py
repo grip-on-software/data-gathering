@@ -263,14 +263,23 @@ class Metric_Options_Collector(Collector):
         if data is None:
             data = self._diff.previous_metric_targets
 
-        metric_names = set(data.keys())
+        metric_names = {
+            name: [metric.get('base_name'), metric.get('domain_name')]
+                  if 'base_name' in metric else None
+            for name, metric in data.items()
+        }
         metric_names_path = self._project.export_key / 'metric_names.json'
         if metric_names_path.exists():
             with metric_names_path.open('r') as metric_names_file:
-                metric_names.update(json.load(metric_names_file))
+                existing_names = json.load(metric_names_file)
+                if isinstance(existing_names, list):
+                    existing_names = {
+                        name: metric_names.get(name) for name in existing_names
+                    }
+                metric_names.update(existing_names)
 
         with metric_names_path.open('w') as metric_names_file:
-            json.dump(list(metric_names), metric_names_file)
+            json.dump(metric_names, metric_names_file)
 
         source = Source.from_type('metric_options',
                                   name=self._source.name,
