@@ -149,17 +149,18 @@ def read_quality_time_measurements(project: Project, source: Source,
         if not UUID.match(metric_uuid):
             continue
 
-        measurements = data.get_measurements(metric_uuid, version)
-        for measurement in measurements:
+        for measurement in data.get_measurements(metric_uuid, version):
             metric_row_data = parse_quality_time_measurement(metric_uuid,
                                                              measurement,
                                                              cutoff_date)
             if metric_row_data is not None:
-                if isinstance(metrics, dict) and metrics[metric_uuid] is not None:
-                    metric_row_data.update({
-                        'base_name': metrics[metric_uuid][0],
-                        'domain_name': metrics[metric_uuid][1]
-                    })
+                if isinstance(metrics, dict):
+                    metric = metrics[metric_uuid]
+                    if metric is not None:
+                        metric_row_data.update({
+                            'base_name': metric[0],
+                            'domain_name': metric[1]
+                        })
 
                 metric_data.append(metric_row_data)
 
