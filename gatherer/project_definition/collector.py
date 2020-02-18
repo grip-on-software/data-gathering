@@ -190,7 +190,8 @@ class Sources_Collector(Collector):
                     "domain_name": name,
                     "url": url,
                     "source_id": source_id,
-                    "source_type": source.environment_type
+                    "source_type": source.environment_type,
+                    "domain_type": domain_type
                 })
                 # Do not add sources belonging to search domain types to the
                 # main sources list, such as a VCS in a document object.
