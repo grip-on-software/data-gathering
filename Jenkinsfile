@@ -63,17 +63,6 @@ pipeline {
             }
         }
         stage('SonarQube Analysis') {
-            when {
-                anyOf {
-                    expression {
-                        currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) != null
-                    }
-                    expression {
-                        currentBuild.rawBuild.getCause(hudson.model.Cause$UserIdCause) != null
-                    }
-                    not { branch 'master' }
-                }
-            }
             steps {
                 withPythonEnv('System-CPython-3') {
                     pysh 'python -m pip install pylint mypy'
