@@ -265,8 +265,11 @@ class Metric_Options_Collector(Collector):
             data = self._diff.previous_metric_targets
 
         metric_names = {
-            name: [metric.get('base_name'), metric.get('domain_name')]
-                  if 'base_name' in metric else None
+            name: {
+                'base_name': metric.get('base_name'),
+                'domain_name': metric.get('domain_name'),
+                'domain_type': metric.get('domain_type')
+            } if 'base_name' in metric else None
             for name, metric in data.items()
         }
         metric_names_path = self._project.export_key / 'metric_names.json'

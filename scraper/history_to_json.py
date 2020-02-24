@@ -140,7 +140,7 @@ def read_quality_time_measurements(project: Project, source: Source,
 
     data = Quality_Time_Data(project, source, url)
     with metric_path.open('r') as metric_file:
-        metrics: Union[List[str], Dict[str, Optional[List[str]]]] = \
+        metrics: Union[List[str], Dict[str, Optional[Dict[str, str]]]] = \
             json.load(metric_file)
 
     cutoff_date = get_utc_datetime(start_date.strip())
@@ -156,11 +156,8 @@ def read_quality_time_measurements(project: Project, source: Source,
             if metric_row_data is not None:
                 if isinstance(metrics, dict):
                     metric = metrics[metric_uuid]
-                    if metric is not None:
-                        metric_row_data.update({
-                            'base_name': metric[0],
-                            'domain_name': metric[1]
-                        })
+                    if isinstance(metric, dict):
+                        metric_row_data.update(metric)
 
                 metric_data.append(metric_row_data)
 
