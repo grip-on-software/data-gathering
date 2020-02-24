@@ -149,6 +149,7 @@ class Metric_Options_Parser(Quality_Time_Parser):
                 continue
 
             subject_name = subject.get("name", name)
+            subject_type = subject.get("type", "software")
             metrics = subject.get("metrics", {})
             if not isinstance(metrics, dict):
                 continue
@@ -157,7 +158,8 @@ class Metric_Options_Parser(Quality_Time_Parser):
                 metric_data = self._parse_metric(metric, subject_name, metrics)
                 metric_data.update({
                     "report_uuid": report_uuid,
-                    "report_date": parse_date(report_date)
+                    "report_date": parse_date(report_date),
+                    "domain_type": subject_type
                 })
 
                 self.data[uuid] = metric_data
