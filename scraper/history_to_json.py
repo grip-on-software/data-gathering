@@ -13,7 +13,6 @@ import itertools
 import json
 import logging
 import os
-import re
 from pathlib import Path, PurePath
 import shutil
 from types import TracebackType
@@ -24,6 +23,7 @@ from gatherer.config import Configuration
 from gatherer.domain import Project, Source
 from gatherer.domain.source import GitLab, History, Quality_Time
 from gatherer.log import Log_Setup
+from gatherer.project_definition.base import UUID
 from gatherer.project_definition.data import Quality_Time_Data
 from gatherer.utils import get_utc_datetime, parse_date
 from gatherer.request import Session
@@ -41,8 +41,6 @@ Parts = Union[str, None, Tuple[Optional[Path], Optional[str]], Tuple[str, ...]]
 Transform = Callable[[Project, Namespace], Parts]
 Generate = Callable[[Union[Parts, str], Set[Source], List['Location'],
                      str, str], Optional['Data_Source']]
-
-UUID = re.compile('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
 
 def parse_args() -> Namespace:
     """

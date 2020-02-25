@@ -2,10 +2,12 @@
 Module defining base types for parsing project definitions.
 """
 
+import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from ..version_control.repo import Version
 
 SourceUrl = Optional[Union[str, Tuple[str, str, str]]]
+UUID = re.compile('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
 
 class Definition_Parser:
     """

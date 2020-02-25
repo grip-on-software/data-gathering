@@ -7,7 +7,7 @@ import os
 import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from urllib.parse import urlsplit, urlunsplit
-from .base import Data, Definition_Parser
+from .base import Data, Definition_Parser, UUID
 from . import parser, quality_time
 from ..config import Configuration
 from ..domain import Project, Source
@@ -242,6 +242,15 @@ class Quality_Time_Data(Data):
         request = self._session.get(url)
         request.raise_for_status()
         return request.json()['measurements']
+
+    @property
+    def filename(self) -> str:
+        parts = urlsplit(self._url)
+        path = parts.path.lstrip('/')
+        if UUID.match(path):
+            return path
+
+        return ''
 
     @property
     def parsers(self) -> Dict[str, Type[Definition_Parser]]:

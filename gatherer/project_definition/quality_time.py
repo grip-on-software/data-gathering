@@ -4,7 +4,7 @@ Module for parsing report definitions from Quality Time.
 
 import json
 from typing import Any, Dict, List, Optional, Sequence, Set, Union
-from .base import SourceUrl, Definition_Parser
+from .base import SourceUrl, Definition_Parser, UUID
 from ..utils import parse_date
 
 Source = Dict[str, Union[str, Dict[str, Union[str, List[str]]]]]
@@ -20,17 +20,23 @@ class Quality_Time_Parser(Definition_Parser):
 
     def __init__(self, **options: Any) -> None:
         super().__init__(**options)
-        self.json: Dict[str, Any] = {}
+        self.reports: List[Report] = []
         self.data: Dict[str, Any] = {}
 
     def load_definition(self, filename: str, contents: Union[str, bytes]) -> None:
         try:
-            self.json = json.loads(contents)
+            definition = json.loads(contents)
+            self.reports = definition.get("reports", [])
+            if UUID.match(filename):
+                self.reports = [
+                    report for report in self.reports
+                    if report.get("report_uuid") == filename
+                ]
         except ValueError as error:
             raise RuntimeError(f"Could not parse JSON from {filename}: {error}")
 
     def parse(self) -> Dict[str, Any]:
-        for index, report in enumerate(self.json.get("reports", [])):
+        for index, report in enumerate(self.reports):
             self.parse_report(index, report)
 
         return self.data
