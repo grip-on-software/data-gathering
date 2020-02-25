@@ -23,7 +23,7 @@ from gatherer.config import Configuration
 from gatherer.domain import Project, Source
 from gatherer.domain.source import GitLab, History, Quality_Time
 from gatherer.log import Log_Setup
-from gatherer.project_definition.base import UUID
+from gatherer.project_definition.base import MetricNames, UUID
 from gatherer.project_definition.data import Quality_Time_Data
 from gatherer.utils import get_utc_datetime, parse_date
 from gatherer.request import Session
@@ -138,8 +138,7 @@ def read_quality_time_measurements(project: Project, source: Source,
 
     data = Quality_Time_Data(project, source, url)
     with metric_path.open('r') as metric_file:
-        metrics: Union[List[str], Dict[str, Optional[Dict[str, str]]]] = \
-            json.load(metric_file)
+        metrics: MetricNames = json.load(metric_file)
 
     cutoff_date = get_utc_datetime(start_date.strip())
     version = data.get_latest_version()
@@ -147,19 +146,36 @@ def read_quality_time_measurements(project: Project, source: Source,
         if not UUID.match(metric_uuid):
             continue
 
-        for measurement in data.get_measurements(metric_uuid, version):
-            metric_row_data = parse_quality_time_measurement(metric_uuid,
-                                                             measurement,
-                                                             cutoff_date)
-            if metric_row_data is not None:
-                if isinstance(metrics, dict):
-                    metric = metrics[metric_uuid]
-                    if isinstance(metric, dict):
-                        metric_row_data.update(metric)
-
-                metric_data.append(metric_row_data)
+        metric_data.extend(fetch_quality_time_measurements(data, metric_uuid,
+                                                           version,
+                                                           cutoff_date,
+                                                           metrics))
 
     return metric_data, version['version_id']
+
+def fetch_quality_time_measurements(data: Quality_Time_Data, metric_uuid: str,
+                                    version: Dict[str, str],
+                                    cutoff_date: datetime,
+                                    metrics: MetricNames) \
+        -> List[Dict[str, str]]:
+    """
+    Retrieve the measurements of a Quality Time metric from its source.
+    """
+
+    metric_data: List[Dict[str, str]] = []
+    for measurement in data.get_measurements(metric_uuid, version):
+        metric_row_data = parse_quality_time_measurement(metric_uuid,
+                                                         measurement,
+                                                         cutoff_date)
+        if metric_row_data is not None:
+            if isinstance(metrics, dict):
+                metric = metrics[metric_uuid]
+                if isinstance(metric, dict):
+                    metric_row_data.update(metric)
+
+            metric_data.append(metric_row_data)
+
+    return metric_data
 
 def parse_quality_time_measurement(metric_uuid: str,
                                    measurement: Dict[str, Any],

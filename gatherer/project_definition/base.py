@@ -6,6 +6,7 @@ import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from ..version_control.repo import Version
 
+MetricNames = Union[List[str], Dict[str, Optional[Dict[str, str]]]]
 SourceUrl = Optional[Union[str, Tuple[str, str, str]]]
 UUID = re.compile('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
 

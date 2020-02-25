@@ -171,7 +171,8 @@ class Metric_Options_Parser(Quality_Time_Parser):
                 self.data[uuid] = metric_data
 
     @staticmethod
-    def _parse_metric(metric: Dict[str, Optional[str]], subject_name: str,
+    def _parse_metric(metric: Dict[str, Optional[Union[str, Dict[str, Any]]]],
+                      subject_name: str,
                       metrics: Dict[str, Dict[str, str]]) -> Dict[str, str]:
         comment = metric.get("comment", None)
         debt_target = metric.get("debt_target", None)
@@ -183,11 +184,14 @@ class Metric_Options_Parser(Quality_Time_Parser):
             target = "0"
 
         metric_type = str(metric.get("type", ""))
+        metric_sources = metric.get("sources", {})
         model = metrics.get(metric_type, {})
 
         metric_data = {
             "base_name": metric_type,
-            "domain_name": subject_name
+            "domain_name": subject_name,
+            "number_of_sources": str(len(metric_sources)) \
+                if isinstance(metric_sources, dict) else "0"
         }
         if comment is None and debt_target is None and \
             target == str(model.get("target", "0")) and \

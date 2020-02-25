@@ -5,7 +5,7 @@ Module for collecting data from various versions of project definitions.
 import json
 import logging
 from typing import Any, Dict, Optional, Type
-from .base import Data, Definition_Parser, SourceUrl
+from .base import Data, Definition_Parser, MetricNames, SourceUrl
 from .data import Project_Definition_Data, Quality_Time_Data
 from .metric import Metric_Difference
 from .update import Update_Tracker
@@ -264,18 +264,18 @@ class Metric_Options_Collector(Collector):
         if data is None:
             data = self._diff.previous_metric_targets
 
-        metric_names = {
+        metric_names: Dict[str, Optional[Dict[str, str]]] = {
             name: {
-                'base_name': metric.get('base_name'),
-                'domain_name': metric.get('domain_name'),
-                'domain_type': metric.get('domain_type')
+                'base_name': str(metric.get('base_name')),
+                'domain_name': str(metric.get('domain_name')),
+                'domain_type': str(metric.get('domain_type', ''))
             } if 'base_name' in metric else None
             for name, metric in data.items()
         }
         metric_names_path = self._project.export_key / 'metric_names.json'
         if metric_names_path.exists():
             with metric_names_path.open('r') as metric_names_file:
-                existing_names = json.load(metric_names_file)
+                existing_names: MetricNames = json.load(metric_names_file)
                 if isinstance(existing_names, list):
                     existing_names = {
                         name: metric_names.get(name) for name in existing_names
