@@ -2,9 +2,9 @@
 Utilities for comparing and analyzing metric options.
 """
 
-import json
 from typing import Dict, List, Optional
 from ..domain import Project
+from ..table import Key_Table, Table
 
 class Metric_Difference:
     """
@@ -19,8 +19,8 @@ class Metric_Difference:
         else:
             self._previous_metric_targets = {}
 
-        self._unique_versions: List[Dict[str, str]] = []
-        self._unique_metric_targets: List[Dict[str, str]] = []
+        self._unique_versions = Key_Table('metric_versions', 'version_id')
+        self._unique_metric_targets = Table('metric_targets')
 
     def add_version(self, version: Dict[str, str],
                     metric_targets: Dict[str, Dict[str, str]]) -> None:
@@ -54,11 +54,8 @@ class Metric_Difference:
         Save the unique data to JSON files.
         """
 
-        with open(self._project_key / 'data_metric_versions.json', 'w') as out:
-            json.dump(self._unique_versions, out, indent=4)
-
-        with open(self._project_key / 'data_metric_targets.json', 'w') as out:
-            json.dump(self._unique_metric_targets, out, indent=4)
+        self._unique_versions.write(self._project_key)
+        self._unique_metric_targets.write(self._project_key)
 
     @property
     def previous_metric_targets(self) -> Dict[str, Dict[str, str]]:
@@ -75,7 +72,7 @@ class Metric_Difference:
         Retrieve the unique versions that have changed metric targets.
         """
 
-        return self._unique_versions
+        return self._unique_versions.get()
 
     @property
     def unique_metric_targets(self) -> List[Dict[str, str]]:
@@ -83,4 +80,4 @@ class Metric_Difference:
         Retrieve metric targets that changed within revisions.
         """
 
-        return self._unique_metric_targets
+        return self._unique_metric_targets.get()
