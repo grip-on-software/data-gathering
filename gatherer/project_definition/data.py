@@ -7,6 +7,7 @@ import os
 import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from urllib.parse import urlsplit, urlunsplit
+from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from .base import Data, Definition_Parser, UUID
 from . import parser, quality_time
 from ..config import Configuration
@@ -157,14 +158,20 @@ class Quality_Time_Data(Data):
         date = version['version_id']
         url = self.get_url('reports', f'report_date={date}')
         request = self._session.get(url)
-        request.raise_for_status()
+        try:
+            request.raise_for_status()
+        except (ConnectError, HTTPError, Timeout):
+            raise RuntimeError("Could not retrieve reports from Quality Time")
         return request.text
 
     def get_data_model(self, version: Dict[str, str]) -> Dict[str, Any]:
         date = version['version_id']
         url = self.get_url('datamodel', f'report_date={date}')
         request = self._session.get(url)
-        request.raise_for_status()
+        try:
+            request.raise_for_status()
+        except (ConnectError, HTTPError, Timeout):
+            raise RuntimeError("Could not retrieve data model from Quality Time")
         return request.json()
 
     def _get_changelog(self, metric: str, count: int, version: Dict[str, str]) \
@@ -173,7 +180,10 @@ class Quality_Time_Data(Data):
         url = self.get_url(f'changelog/metric/{metric}/{count}',
                            f'report_date={date}')
         request = self._session.get(url)
-        request.raise_for_status()
+        try:
+            request.raise_for_status()
+        except (ConnectError, HTTPError, Timeout):
+            raise RuntimeError(f"Could not retrieve changelog for {metric} from Quality Time")
         return request.json()['changelog']
 
     def adjust_target_versions(self, version: Dict[str, str],
