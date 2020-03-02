@@ -6,7 +6,8 @@ from datetime import datetime
 import os
 import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
+import dateutil.parser
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from .base import Data, Definition_Parser, UUID
 from . import parser, quality_time
@@ -141,22 +142,30 @@ class Quality_Time_Data(Data):
         return [self._format_version(str(to_revision))]
 
     def get_latest_version(self) -> Dict[str, str]:
-        date = format_date(convert_utc_datetime(datetime.now()),
-                           '%Y-%m-%dT%H:%M:%S%z')
+        date = self._format_date(datetime.now())
         return self._format_version(date)
 
-    def get_url(self, path: str = "reports", query: str = "") -> str:
+    @staticmethod
+    def _format_date(date: datetime) -> str:
+        return convert_utc_datetime(date).isoformat()
+
+    def get_url(self, path: str = "reports",
+                query: Optional[Dict[str, str]] = None) -> str:
         """
         Format an API URL for the Quality Time server.
         """
 
         parts = urlsplit(self._url)
-        new_parts = (parts.scheme, parts.hostname, f'/api/v2/{path}', query, '')
+        query_string = ""
+        if query is not None:
+            query_string = urlencode(query)
+        new_parts = (parts.scheme, parts.hostname, f'/api/v2/{path}',
+                     query_string, '')
         return urlunsplit(new_parts)
 
     def get_contents(self, version: Dict[str, str]) -> Union[str, bytes]:
-        date = version['version_id']
-        url = self.get_url('reports', f'report_date={date}')
+        date = dateutil.parser.parse(version['version_id'])
+        url = self.get_url('reports', {'report_date': self._format_date(date)})
         request = self._session.get(url)
         try:
             request.raise_for_status()
@@ -165,8 +174,9 @@ class Quality_Time_Data(Data):
         return request.text
 
     def get_data_model(self, version: Dict[str, str]) -> Dict[str, Any]:
-        date = version['version_id']
-        url = self.get_url('datamodel', f'report_date={date}')
+        date = dateutil.parser.parse(version['version_id'])
+        url = self.get_url('datamodel',
+                           {'report_date': self._format_date(date)})
         request = self._session.get(url)
         try:
             request.raise_for_status()
@@ -176,9 +186,9 @@ class Quality_Time_Data(Data):
 
     def _get_changelog(self, metric: str, count: int, version: Dict[str, str]) \
             -> List[Dict[str, str]]:
-        date = version['version_id']
+        date = dateutil.parser.parse(version['version_id'])
         url = self.get_url(f'changelog/metric/{metric}/{count}',
-                           f'report_date={date}')
+                           {'report_date': self._format_date(date)})
         request = self._session.get(url)
         try:
             request.raise_for_status()
@@ -248,7 +258,7 @@ class Quality_Time_Data(Data):
         """
 
         date = version['version_id']
-        url = self.get_url(f'measurements/{metric_uuid}', f'report_date={date}')
+        url = self.get_url(f'measurements/{metric_uuid}', {'report_date': date})
         request = self._session.get(url)
         request.raise_for_status()
         return request.json()['measurements']
