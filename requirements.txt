@@ -6,7 +6,7 @@ jira>=2.0.1.0rc1
 # gatherer.git
 gitpython>=2.1.8
 PyGithub>=1.40
-python-gitlab>=1.10.0
+#python-gitlab>=1.10.0
 # gatherer.svn
 svn>=0.3.45
 # gatherer.request
@@ -25,6 +25,6 @@ bcrypt
 # bigboat_to_json.py
 bigboat
 # generate_key.py
-sshdeploy
+sshdeploy<1.2
 # scraper.py, deployer.py
 cherrypy
