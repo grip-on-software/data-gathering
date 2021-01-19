@@ -25,6 +25,6 @@ bcrypt
 # bigboat_to_json.py
 bigboat
 # generate_key.py
-sshdeploy
+sshdeploy<1.2
 # scraper.py, deployer.py
 cherrypy

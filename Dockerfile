@@ -5,8 +5,7 @@ COPY requirements.txt setup.py /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev libressl-dev bash git subversion openssh-client gettext && \
-	cd /tmp/ && \
-	PYGOBJECT_WITHOUT_PYCAIRO=1 pip install --no-build-isolation -r requirements.txt && \
+	cd /tmp/ && pip install -r requirements.txt && \
 	pip install -I 'python-gitlab>=1.10.0'
 
 # Install gatherer
