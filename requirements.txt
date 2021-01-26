@@ -19,7 +19,7 @@ quality_report>=2.84.2
 # gatherer.database
 pymonetdb
 # gatherer.files
-pyocclient==0.5
+pyocclient==0.4
 # gatherer.salt
 bcrypt
 # bigboat_to_json.py
