@@ -121,7 +121,7 @@ class OwnCloud_Store(File_Store):
         except owncloud.HTTPResponseError as error:
             if error.status_code == 404:
                 raise PathExistenceError(remote_file)
-            raise error
+            raise RuntimeError(error.get_resource_body()) from error
 
     def get_file_contents(self, remote_file: str) -> str:
         return self._client.get_file_contents(remote_file)
