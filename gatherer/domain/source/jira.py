@@ -3,7 +3,7 @@ Jira issue tracker source domain object.
 """
 
 from typing import Hashable, Optional, Tuple
-from urllib.parse import urlsplit, SplitResult
+from urllib.parse import urlsplit, SplitResult, unquote
 from jira import JIRA
 from jira.exceptions import JIRAError
 from .types import Source, Source_Types, Project
@@ -83,7 +83,7 @@ class Jira(Source):
             parts = urlsplit(self.url)
             auth: Optional[Tuple[str, Optional[str]]] = None
             if parts.username is not None:
-                auth = (parts.username, parts.password)
+                auth = (unquote(parts.username), unquote(parts.password))
             elif self._username is not None:
                 auth = (self._username, self._password)
 
