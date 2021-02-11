@@ -1,10 +1,10 @@
-FROM python:3.7-alpine3.7
+FROM python:3.7-alpine3.13
 
 # Install dependencies
 COPY requirements.txt setup.py /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
-	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev libressl-dev bash git subversion openssh-client gettext && \
+	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev libressl-dev bash git subversion openssh-client gettext cargo && \
 	cd /tmp/ && pip install -r requirements.txt && \
 	pip install -I 'python-gitlab>=1.10.0'
 
@@ -12,7 +12,8 @@ RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 COPY gatherer/ /tmp/gatherer/
 
 RUN cd /tmp && python setup.py install && \
-	apk del gcc musl-dev libffi-dev libressl-dev && rm -rf /var/cache/apk/* /tmp /root/.cache
+	apk del gcc musl-dev libffi-dev libressl-dev cargo && \
+	rm -rf /var/cache/apk/* /tmp /root/.cache
 
 # Configure agent environment
 COPY VERSION *.cfg.example jira_fields.json en[v] /home/agent/
