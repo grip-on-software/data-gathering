@@ -67,7 +67,7 @@ pipeline {
                 withPythonEnv('System-CPython-3') {
                     pysh 'python -m pip install pylint mypy'
                     pysh 'python -m pip install -r requirements-jenkins.txt'
-                    pysh 'mypy gatherer scraper scraper/agent controller controller/auth *.py --html-report mypy-report --cobertura-xml-report mypy-report --junit-xml mypy-report/junit.xml --no-incremental --show-traceback || true'
+                    pysh 'mypy gatherer scraper controller *.py --html-report mypy-report --cobertura-xml-report mypy-report --junit-xml mypy-report/junit.xml --no-incremental --show-traceback || true'
                     pysh 'python -m pylint gatherer scraper --exit-zero --reports=n --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" -d duplicate-code > pylint-report.txt'
                 }
                 withSonarQubeEnv('SonarQube') {

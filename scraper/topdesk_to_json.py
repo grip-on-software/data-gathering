@@ -6,12 +6,16 @@ from argparse import ArgumentParser, Namespace
 import csv
 import json
 import logging
-from typing import Dict, Hashable, List, Optional, Pattern, TextIO, Tuple
+from typing import Dict, List, Optional, Pattern, TextIO, Tuple, \
+    TYPE_CHECKING
 import regex
 from gatherer.config import Configuration
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
 from gatherer.utils import get_local_datetime, format_date, parse_unicode
+if TYPE_CHECKING:
+    # pylint: disable=import-error
+    from _typeshed import SupportsLessThan
 
 def parse_args() -> Namespace:
     """
@@ -69,7 +73,8 @@ class Topdesk_Parser:
         blacklist = self._config.get('blacklist', 'all')
         self._blacklist = regex.compile(blacklist, flags=regex.IGNORECASE)
 
-    def _sort_whitelist(self, pair: Tuple[str, Pattern[str]]) -> Hashable:
+    def _sort_whitelist(self, pair: Tuple[str, Pattern[str]]) \
+            -> SupportsLessThan:
         if pair[0] == self.PROJECT_ALL.upper():
             # Sort last
             return (True,)

@@ -271,6 +271,7 @@ class Metric_Options_Collector(Collector):
                 'domain_type': str(metric.get('domain_type', ''))
             } if 'base_name' in metric else None
             for name, metric in data.items()
+            if int(metric.get('number_of_sources', 1)) <= 1
         }
         metric_names_path = self._project.export_key / 'metric_names.json'
         if metric_names_path.exists():

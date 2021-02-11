@@ -81,7 +81,8 @@ class Project_Definition_Parser(Definition_Parser):
         module_filter = lambda member: self.filter_member(member, module_name)
         for name, member in inspect.getmembers(module, module_filter):
             replacement = Compatibility.get_replacement(name, member)
-            domain_objects[name] = replacement
+            if isinstance(replacement, Mock):
+                domain_objects[name] = replacement
 
         return domain_objects
 
@@ -344,8 +345,9 @@ class Sources_Parser(Project_Definition_Parser):
         super().__init__(context_lines=context_lines, file_time=file_time)
 
         self.sys_path = path
-        self.source_objects: Dict[str, Union[Mock, DomainType]] = \
-            self.get_mock_domain_objects(metric_source, self.METRIC_SOURCE)
+        self.source_objects: Dict[str, Union[Mock, DomainType]] = {}
+        mocks = self.get_mock_domain_objects(metric_source, self.METRIC_SOURCE)
+        self.source_objects.update(mocks)
         self.source_objects.update(self.SOURCE_CLASSES)
         self.source_types: Tuple[Type[domain.DomainObject], ...] = \
             tuple(self.SOURCE_CLASSES.values())
