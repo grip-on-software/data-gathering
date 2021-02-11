@@ -82,7 +82,7 @@ class Jira(Source):
 
             parts = urlsplit(self.url)
             auth: Optional[Tuple[str, Optional[str]]] = None
-            if parts.username is not None and parts.passwd is not None:
+            if parts.username is not None and parts.password is not None:
                 auth = (unquote(parts.username), unquote(parts.password))
             elif self._username is not None:
                 auth = (self._username, self._password)
