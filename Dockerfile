@@ -13,7 +13,7 @@ COPY gatherer/ /tmp/gatherer/
 
 RUN cd /tmp && python setup.py install && \
 	apk del gcc musl-dev libffi-dev libressl-dev cargo && \
-	rm -rf /var/cache/apk/* /tmp /root/.cache
+	rm -rf /var/cache/apk/* /tmp /root/.cache /root/.cargo
 
 # Configure agent environment
 COPY VERSION *.cfg.example jira_fields.json en[v] /home/agent/
