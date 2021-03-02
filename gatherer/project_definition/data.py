@@ -124,7 +124,7 @@ class Quality_Time_Data(Data):
         if Configuration.is_url_blacklisted(self._url):
             raise RuntimeError(f'Cannot use blacklisted URL as a definitions source: {self._url}')
 
-        verify = source.get_option('verify')
+        verify: Union[Optional[str], bool] = source.get_option('verify')
         if verify is None:
             verify = True
         self._session = Session()

@@ -3,7 +3,7 @@ SonarQube code quality inspection system source domain object.
 """
 
 import logging
-from typing import Hashable, Optional
+from typing import Hashable, Optional, Union
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from ...config import Configuration
 from ...request import Session
@@ -43,7 +43,7 @@ class Sonar(Source):
 
         try:
             logging.info("Checking server version of %s", self.url)
-            verify = self.get_option('verify')
+            verify: Union[Optional[str], bool] = self.get_option('verify')
             if verify is None:
                 verify = True
             session = Session()
