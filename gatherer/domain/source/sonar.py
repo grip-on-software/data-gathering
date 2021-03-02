@@ -43,7 +43,11 @@ class Sonar(Source):
 
         try:
             logging.info("Checking server version of %s", self.url)
+            verify = self.get_option('verify')
+            if verify is None:
+                verify = True
             session = Session()
+            session.verify = verify
             url = '{}/api/server/version'.format(self.url.rstrip('/'))
             response = session.get(url, timeout=3)
             return response.text

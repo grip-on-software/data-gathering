@@ -124,7 +124,11 @@ class Quality_Time_Data(Data):
         if Configuration.is_url_blacklisted(self._url):
             raise RuntimeError(f'Cannot use blacklisted URL as a definitions source: {self._url}')
 
+        verify = source.get_option('verify')
+        if verify is None:
+            verify = True
         self._session = Session()
+        self._session.verify = verify
         self._delta_description = re.compile(self.DELTA_DESCRIPTION, re.X)
 
     @staticmethod
@@ -159,7 +163,7 @@ class Quality_Time_Data(Data):
         query_string = ""
         if query is not None:
             query_string = urlencode(query)
-        new_parts = (parts.scheme, parts.hostname, f'/api/v2/{path}',
+        new_parts = (parts.scheme, parts.hostname, f'/api/v3/{path}',
                      query_string, '')
         return urlunsplit(new_parts)
 

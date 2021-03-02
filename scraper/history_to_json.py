@@ -499,7 +499,7 @@ class Data_Source:
         location.
         """
 
-        if not isinstance(arg, str):
+        if not isinstance(arg, str) or not Configuration.has_value(arg):
             return None
 
         url = Url(arg, filename, compression)
