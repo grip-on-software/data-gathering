@@ -7,10 +7,11 @@ import cgitb
 import ipaddress
 import json
 import os
-from typing import List
+from typing import List, Union
 from gatherer.config import Configuration
 
-def is_in_networks(address: str, nets: str) -> bool:
+def is_in_networks(address: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
+                   nets: str) -> bool:
     """
     Check if an IP address object `address` is part of any of the networks
     defined by their CIDR ranges in the comma-separated `nets` string.
@@ -36,9 +37,9 @@ def get_accessible_projects() -> List[str]:
     if forwarded is not None:
         nets = config.get('access', '_')
         for via_address in reversed(forwarded.split(', ')):
-            via_address = ipaddress.ip_address(via_address)
-            if not is_in_networks(via_address, nets):
-                address = via_address
+            via_ip = ipaddress.ip_address(via_address)
+            if not is_in_networks(via_ip, nets):
+                address = via_ip
                 break
 
     projects = []

@@ -187,7 +187,7 @@ def main() -> None:
                 return
 
     with open('seats.yml') as config_file:
-        config: Dict[str, Any] = yaml.load(config_file)
+        config: Dict[str, Any] = yaml.safe_load(config_file)
 
     teams: Teams = {}
     for pattern in args.filename:

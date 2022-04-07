@@ -161,7 +161,7 @@ def main() -> None:
 
     args = parse_args()
     with open('guilds.yml') as config_file:
-        config = yaml.load(config_file)
+        config = yaml.safe_load(config_file)
 
     schema = Excel_Schema(config, args.filename)
     guilds = schema.parse()

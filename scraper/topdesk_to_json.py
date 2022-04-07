@@ -15,7 +15,7 @@ from gatherer.log import Log_Setup
 from gatherer.utils import get_local_datetime, format_date, parse_unicode
 if TYPE_CHECKING:
     # pylint: disable=import-error
-    from _typeshed import SupportsLessThan
+    from _typeshed import SupportsRichComparison
 
 def parse_args() -> Namespace:
     """
@@ -74,7 +74,7 @@ class Topdesk_Parser:
         self._blacklist = regex.compile(blacklist, flags=regex.IGNORECASE)
 
     def _sort_whitelist(self, pair: Tuple[str, Pattern[str]]) \
-            -> SupportsLessThan:
+            -> 'SupportsRichComparison':
         if pair[0] == self.PROJECT_ALL.upper():
             # Sort last
             return (True,)
