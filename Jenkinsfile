@@ -85,7 +85,7 @@ pipeline {
         stage('Build pypi') {
             agent {
                 docker {
-                    image '$AGENT_IMAGE'
+                    image "${env.AGENT_IMAGE}"
                     reuseNode true
                 }
             }
