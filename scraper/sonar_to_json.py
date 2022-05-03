@@ -1,6 +1,21 @@
 """
 Retrieve historical data from Sonar and output it in a format similar to that
 of the quality reporting dashboard history.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -19,8 +34,8 @@ from hqlib.metric_source import Sonar, Sonar7
 from hqlib.metric_source.sonar import extract_branch_decorator
 try:
     from hqlib.metric_source import CompactHistory
-except ImportError:
-    raise ImportError('Cannot import CompactHistory: quality_reporting 2.3.0+ required')
+except ImportError as _error:
+    raise ImportError('Cannot import CompactHistory: quality_reporting 2.3.0+ required') from _error
 from hqlib.requirement import CodeQuality, ViolationsByType
 from hqlib.metric_source.url_opener import UrlOpener
 from hqlib.domain import Metric, LowerIsBetterMetric
@@ -336,7 +351,7 @@ def retrieve(sonar: Sonar_Time_Machine, project: Project,
                                 metric_sources={Sonar: sonar})
 
     history_path = project.export_key / 'data_history.json'
-    with history_path.open('w') as history_file:
+    with history_path.open('w', encoding='utf-8') as history_file:
         json.dump({"dates": [], "statuses": [], "metrics": {}}, history_file)
 
     history = CompactHistory(str(history_path))
@@ -504,7 +519,7 @@ def get_products(products: Optional[Sequence[str]], project: Project) \
                             project.key)
             return []
 
-        with sources_path.open('r') as source_ids:
+        with sources_path.open('r', encoding='utf-8') as source_ids:
             products = [
                 product for product in json.load(source_ids)
                 if product.get("source_type", "sonar") == "sonar"
@@ -520,10 +535,10 @@ def update_metric_names(filename: str, metric_names: Set[str]) -> None:
 
     path = Path(filename)
     if path.exists():
-        with path.open('r') as input_file:
+        with path.open('r', encoding='utf-8') as input_file:
             metric_names.update(json.load(input_file))
 
-    with path.open('w') as output_file:
+    with path.open('w', encoding='utf-8') as output_file:
         json.dump(list(metric_names), output_file)
 
 def get_sonar_url(project: Project) -> str:
@@ -582,7 +597,7 @@ def main() -> None:
     from_date: Optional[str] = args.from_date
     dates: Dict[str, str] = {}
     if update_filename.exists():
-        with update_filename.open('r') as update_file:
+        with update_filename.open('r', encoding='utf-8') as update_file:
             dates = json.load(update_file)
 
     if from_date is None:
@@ -596,7 +611,7 @@ def main() -> None:
     for metric in metrics:
         dates[metric] = format_date(datetime.now())
 
-    with update_filename.open('w') as update_file:
+    with update_filename.open('w', encoding='utf-8') as update_file:
         json.dump(dates, update_file)
 
     update_metric_names(names, metric_names)

@@ -1,5 +1,20 @@
 """
 Data connection for the project definitions.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from datetime import datetime
@@ -173,8 +188,8 @@ class Quality_Time_Data(Data):
         request = self._session.get(url)
         try:
             request.raise_for_status()
-        except (ConnectError, HTTPError, Timeout):
-            raise RuntimeError("Could not retrieve reports from Quality Time")
+        except (ConnectError, HTTPError, Timeout) as error:
+            raise RuntimeError("Could not retrieve reports from Quality Time") from error
         return request.text
 
     def get_data_model(self, version: Dict[str, str]) -> Dict[str, Any]:
@@ -184,8 +199,8 @@ class Quality_Time_Data(Data):
         request = self._session.get(url)
         try:
             request.raise_for_status()
-        except (ConnectError, HTTPError, Timeout):
-            raise RuntimeError("Could not retrieve data model from Quality Time")
+        except (ConnectError, HTTPError, Timeout) as error:
+            raise RuntimeError("Could not retrieve data model from Quality Time") from error
         return request.json()
 
     def _get_changelog(self, metric: str, count: int, version: Dict[str, str]) \
@@ -196,8 +211,9 @@ class Quality_Time_Data(Data):
         request = self._session.get(url)
         try:
             request.raise_for_status()
-        except (ConnectError, HTTPError, Timeout):
-            raise RuntimeError(f"Could not retrieve changelog for {metric} from Quality Time")
+        except (ConnectError, HTTPError, Timeout) as error:
+            raise RuntimeError(f"Could not retrieve changelog for {metric} from Quality Time") \
+                from error
         return request.json()['changelog']
 
     def adjust_target_versions(self, version: Dict[str, str],

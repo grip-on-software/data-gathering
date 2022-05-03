@@ -1,5 +1,20 @@
 """
 Utilities for tracking updates between versions of a project definition.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import json
@@ -63,7 +78,7 @@ class Update_Tracker:
             return
 
         if self._filename.exists():
-            with self._filename.open('r') as update_file:
+            with self._filename.open('r', encoding='utf-8') as update_file:
                 data = json.load(update_file)
 
             self._previous_data = data['targets']
@@ -101,5 +116,5 @@ class Update_Tracker:
             }
 
             self._project.make_export_directory()
-            with open(self._filename, 'w') as update_file:
+            with open(self._filename, 'w', encoding='utf-8') as update_file:
                 json.dump(data, update_file)

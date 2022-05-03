@@ -1,5 +1,20 @@
 """
 Module for synchronizing update tracker files.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from datetime import datetime
@@ -71,7 +86,7 @@ class Update_Tracker:
 
         if update:
             logging.info('Updating file %s from remote tracker file', filename)
-            with path.open('w') as tracker_file:
+            with path.open('w', encoding='utf-8') as tracker_file:
                 tracker_file.write(contents)
 
             times = (int(datetime.now().strftime('%s')),
@@ -150,7 +165,7 @@ class SSH_Tracker(Update_Tracker):
 
     def __init__(self, project: Project, user: str = '', host: str = '',
                  key_path: str = '~/.ssh/id_rsa') -> None:
-        super(SSH_Tracker, self).__init__(project)
+        super().__init__(project)
         self._username = user
         self._host = host
         self._key_path = key_path
@@ -182,7 +197,7 @@ class SSH_Tracker(Update_Tracker):
         except subprocess.CalledProcessError as error:
             logging.info('SSH: %s', error.output.decode('utf-8').rstrip())
             if b'No such file or directory' not in error.output:
-                raise RuntimeError(f'Could not obtain files: {error}')
+                raise RuntimeError('Could not obtain files') from error
 
     def retrieve_content(self, filename: str) -> Optional[str]:
         try:

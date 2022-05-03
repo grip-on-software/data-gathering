@@ -1,5 +1,20 @@
 """
 Module for collecting data from various versions of project definitions.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import json
@@ -144,9 +159,7 @@ class Project_Collector(Collector):
     """
 
     def __init__(self, project: Project, source: Source, **kwargs: Any):
-        super(Project_Collector, self).__init__(project, source,
-                                                target='project_meta',
-                                                **kwargs)
+        super().__init__(project, source, target='project_meta', **kwargs)
         self._meta: Dict[str, str] = {}
 
     def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
@@ -169,9 +182,7 @@ class Sources_Collector(Collector):
     """
 
     def __init__(self, project: Project, source: Source, **kwargs: Any):
-        super(Sources_Collector, self).__init__(project, source,
-                                                target='project_sources',
-                                                **kwargs)
+        super().__init__(project, source, target='project_sources', **kwargs)
 
         self._source_ids = Table('source_ids')
         self._parser_class = self.get_parser_class()
@@ -217,7 +228,7 @@ class Sources_Collector(Collector):
 
     def finish(self, end_revision: Optional[Version],
                data: Optional[Dict[str, Any]] = None) -> None:
-        super(Sources_Collector, self).finish(end_revision, data=data)
+        super().finish(end_revision, data=data)
 
         self._source_ids.write(self._project.export_key)
 
@@ -227,9 +238,7 @@ class Metric_Options_Collector(Collector):
     """
 
     def __init__(self, project: Project, source: Source, **kwargs: Any):
-        super(Metric_Options_Collector, self).__init__(project, source,
-                                                       target='metric_options',
-                                                       **kwargs)
+        super().__init__(project, source, target='metric_options', **kwargs)
         self._source = source
         self._start: Optional[Version] = None
         self._diff = Metric_Difference(project,
@@ -275,7 +284,7 @@ class Metric_Options_Collector(Collector):
         }
         metric_names_path = self._project.export_key / 'metric_names.json'
         if metric_names_path.exists():
-            with metric_names_path.open('r') as metric_names_file:
+            with metric_names_path.open('r', encoding='utf-8') as metric_names_file:
                 existing_names: MetricNames = json.load(metric_names_file)
                 if isinstance(existing_names, list):
                     existing_names = {
@@ -283,7 +292,7 @@ class Metric_Options_Collector(Collector):
                     }
                 metric_names.update(existing_names)
 
-        with metric_names_path.open('w') as metric_names_file:
+        with metric_names_path.open('w', encoding='utf-8') as metric_names_file:
             json.dump(metric_names, metric_names_file)
 
         source = Source.from_type('metric_options',
@@ -293,7 +302,7 @@ class Metric_Options_Collector(Collector):
             self._project.sources.add(source)
             self._project.export_sources()
 
-        super(Metric_Options_Collector, self).finish(end_revision, data=data)
+        super().finish(end_revision, data=data)
 
     def use_update_data(self, data: Optional[Dict[str, Any]]) \
             -> Optional[Dict[str, Any]]:

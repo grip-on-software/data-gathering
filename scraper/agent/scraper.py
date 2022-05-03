@@ -1,6 +1,21 @@
 """
 Listener server which starts a Docker-based scrape job when a request is made
 to the server.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -21,14 +36,16 @@ class Scraper:
     Scraper listener.
     """
 
+    HOME_DIRECTORY = '/home/agent'
+
     def __init__(self, domain: Optional[str] = None) -> None:
         self._domain = domain
 
-    @staticmethod
-    def _is_running() -> bool:
+    @classmethod
+    def _is_running(cls) -> bool:
         try:
             subprocess.check_call([
-                'pgrep', '-f', '/home/agent/scraper/agent/run.sh',
+                'pgrep', '-f', f'{cls.HOME_DIRECTORY}/scraper/agent/run.sh',
             ], stdout=None, stderr=None)
         except subprocess.CalledProcessError:
             return False
@@ -75,7 +92,7 @@ class Scraper:
         if self._is_running():
             raise cherrypy.HTTPError(503, 'Another scrape process is already running')
 
-        path = Path('/home/agent/scraper/agent/scrape.sh')
+        path = Path(f'{self.HOME_DIRECTORY}/scraper/agent/scrape.sh')
         if not path.exists():
             raise cherrypy.HTTPError(500, f'Cannot find scraper at {path}')
 
@@ -84,17 +101,16 @@ class Scraper:
         environment = os.environ.copy()
         environment['PREFLIGHT_ARGS'] = '--skip'
 
-        process = subprocess.Popen(['/bin/bash', path],
-                                   stdout=None, stderr=None, env=environment)
+        with subprocess.Popen(['/bin/bash', path], stdout=None, stderr=None,
+                              env=environment) as process:
+            # Poll once after freeing CPU to check if the process has started.
+            time.sleep(0.1)
+            process.poll()
+            if process.returncode is not None and process.returncode != 0:
+                raise cherrypy.HTTPError(503, f'Status code {process.returncode}')
 
-        # Poll once after freeing CPU to check if the process has started.
-        time.sleep(0.1)
-        process.poll()
-        if process.returncode is not None and process.returncode != 0:
-            raise cherrypy.HTTPError(503, 'Status code {}'.format(process.returncode))
-
-        cherrypy.response.status = 201
-        return {'ok': True}
+            cherrypy.response.status = 201
+            return {'ok': True}
 
     @classmethod
     def json_error(cls, status: str, message: str, traceback: str, version: str) -> str:
@@ -104,7 +120,8 @@ class Scraper:
 
         cherrypy.response.headers['Content-Type'] = 'application/json'
         try:
-            with open('/home/agent/VERSION', 'r') as version_file:
+            with open(f'{cls.HOME_DIRECTORY}/VERSION', 'r',
+                      encoding='utf-8') as version_file:
                 gatherer_version = version_file.readline().strip()
         except IOError:
             gatherer_version = gatherer.__version__
@@ -132,7 +149,7 @@ def parse_args() -> Namespace:
     parser.add_argument('--listen', default=None,
                         help='Bind address (default: localhost)')
     parser.add_argument('--port', default=7070, type=int,
-                        help='Port to listen to (default: 7070')
+                        help='Port to listen to (default: 7070)')
     parser.add_argument('--domain', default=None,
                         help='Host name and port to validate in headers')
     return parser.parse_args()

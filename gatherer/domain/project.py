@@ -1,5 +1,20 @@
 """
-Project domain object
+Project domain object.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from configparser import RawConfigParser, NoOptionError, NoSectionError
@@ -42,10 +57,10 @@ class Project_Meta:
 
         try:
             value = self.settings.get(section, key)
-        except NoSectionError:
-            raise KeyError(f'Could not find section {section} with key {key}')
-        except NoOptionError:
-            raise KeyError(f'Could not find key {key} in section {section}')
+        except NoSectionError as error:
+            raise KeyError(f'Could not find section {section} with key {key}') from error
+        except NoOptionError as error:
+            raise KeyError(f'Could not find key {key} in section {section}') from error
 
         if format_values or format_args:
             value = value.format(*format_values, **format_args)
@@ -179,9 +194,8 @@ class Project(Project_Meta):
         if project and self.settings.has_option(section, project_key):
             key = project_key
 
-        return super(Project, self).get_key_setting(section, key,
-                                                    *format_values,
-                                                    **format_args)
+        return super().get_key_setting(section, key, *format_values,
+                                       **format_args)
 
     def has_source(self, source: Source) -> bool:
         """

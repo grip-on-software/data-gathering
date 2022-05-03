@@ -1,5 +1,20 @@
 """
 Base module that defines an abstract version control system.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import json
@@ -43,7 +58,7 @@ class Repositories_Holder:
         """
 
         if self._latest_filename.exists():
-            with self._latest_filename.open('r') as latest_versions_file:
+            with self._latest_filename.open('r', encoding='utf-8') as latest_versions_file:
                 self._latest_versions = json.load(latest_versions_file)
 
         return self._latest_versions
@@ -54,7 +69,7 @@ class Repositories_Holder:
 
         path = self._make_tracker_path(file_name)
         if path.exists():
-            with path.open('r') as update_file:
+            with path.open('r', encoding='utf-8') as update_file:
                 self._update_trackers[file_name] = json.load(update_file)
         else:
             self._update_trackers[file_name] = {}
@@ -217,12 +232,12 @@ class Repositories_Holder:
 
         for table, table_data in tables.items():
             table_path = Path(self._project.export_key, f'data_{table}.json')
-            with table_path.open('w') as table_file:
+            with table_path.open('w', encoding='utf-8') as table_file:
                 json.dump(table_data, table_file, indent=4)
 
-        with self._latest_filename.open('w') as latest_versions_file:
+        with self._latest_filename.open('w', encoding='utf-8') as latest_versions_file:
             json.dump(self._latest_versions, latest_versions_file)
 
         for file_name, repo_trackers in self._update_trackers.items():
-            with self._make_tracker_path(file_name).open('w') as tracker_file:
+            with self._make_tracker_path(file_name).open('w', encoding='utf-8') as tracker_file:
                 json.dump(repo_trackers, tracker_file)

@@ -1,5 +1,20 @@
 """
 Internal daemon for handling agent user creation and update requests.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import json
@@ -63,7 +78,8 @@ class Controller:
         if permissions is None:
             permissions = self.FILE_PERMISSIONS
 
-        with Path(path).open('w'):
+        # Create empty file
+        with Path(path).open('w', encoding='utf-8'):
             pass
 
         subprocess.check_call(['sudo', 'chmod', permissions, str(path)])
@@ -200,7 +216,7 @@ class Controller:
             subprocess.check_call(['sudo', 'chmod', '2660', key_filename])
 
             if key_filename.exists():
-                with key_filename.open('r') as read_key_file:
+                with key_filename.open('r', encoding='utf-8') as read_key_file:
                     if read_key_file.readline().rstrip('\n') == public_key:
                         return True
 
@@ -208,7 +224,7 @@ class Controller:
 
         self._create_directory(agent_key, ssh_directory, user='controller')
 
-        with key_filename.open('w') as key_file:
+        with key_filename.open('w', encoding='utf-8') as key_file:
             key_file.write(public_key)
 
         return False
@@ -252,7 +268,7 @@ class Controller:
         if not data_path.exists():
             self._create_file(project_key, data_path, 'exporter')
 
-        with data_path.open('a') as data_file:
+        with data_path.open('a', encoding='utf-8') as data_file:
             json.dump(statuses, data_file, indent=None)
             data_file.write('\n')
 

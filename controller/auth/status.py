@@ -1,5 +1,20 @@
 """
 API to track dashboard status (on POST) or provide controller status (on GET).
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import cgi
@@ -119,7 +134,7 @@ class Lock_Status(Status):
     """
 
     def __init__(self, project_key: str) -> None:
-        super(Lock_Status, self).__init__()
+        super().__init__()
         self._project_key = project_key
 
     @property
@@ -129,7 +144,7 @@ class Lock_Status(Status):
     def generate(self) -> StatusField:
         try:
             client = etcd3.client(timeout=2)
-            lock = client.lock('/agent/{}'.format(self._project_key))
+            lock = client.lock(f'/agent/{self._project_key}')
             if lock.is_acquired():
                 return {
                     'ok': False,
@@ -190,7 +205,7 @@ class Daemon_Status(Status):
         if missing:
             return {
                 'ok': False,
-                'message': 'Missing daemons: {}'.format(', '.join(missing))
+                'message': f'Missing daemons: {", ".join(missing)}'
             }
 
         return {
@@ -226,7 +241,7 @@ class Network_Status(Status):
         except ValueError as error:
             return {
                 'ok': False,
-                'message': 'Remote address is malformed: {}'.format(error)
+                'message': f'Remote address is malformed: {error}'
             }
 
         try:
@@ -235,13 +250,13 @@ class Network_Status(Status):
         except ValueError as error:
             return {
                 'ok': False,
-                'message': 'Project has malformed networks defined: {}'.format(error)
+                'message': f'Project has malformed networks defined: {error}'
             }
 
         if not any(address in network for network in networks):
             return {
                 'ok': False,
-                'message': 'Remote address {} is not in defined networks'.format(self._address)
+                'message': f'Remote address {self._address} is not in defined networks'
             }
 
         return {
@@ -270,13 +285,13 @@ class Configuration_Status(Status):
                 'message': 'Agent environment configuration is missing'
             }
 
-        if any([not part.get('ok') for part in self._status.values()]):
+        if any(not part.get('ok') for part in self._status.values()):
             return {
                 'ok': False,
                 'message': 'Cannot look up environment due to other problems'
             }
 
-        with env_path.open('r') as env_file:
+        with env_path.open('r', encoding='utf-8') as env_file:
             return {
                 'ok': True,
                 'contents': env_file.read()
@@ -297,7 +312,7 @@ class Total_Status(Status):
 
     def generate(self) -> StatusField:
         try:
-            is_ok = all([part['ok'] for part in self._status.values()])
+            is_ok = all(part['ok'] for part in self._status.values())
             message = 'Everything OK' if is_ok else 'Some parts are not OK'
         except KeyError:
             is_ok = False
@@ -337,7 +352,7 @@ class StatusError(RuntimeError):
         if self._code in self._responses:
             return self._responses[self._code][0]
 
-        return '{} Custom Error'.format(self._code)
+        return f'{self._code} Custom Error'
 
     @property
     def message(self) -> str:
@@ -351,7 +366,7 @@ class StatusError(RuntimeError):
         if self._code in self._responses:
             return self._responses[self._code][1]
 
-        return 'Controller error: {}'.format(self._code)
+        return f'Controller error: {self._code}'
 
 def setup_log() -> None:
     """
@@ -375,8 +390,8 @@ def receive_status(fields: cgi.FieldStorage, project_key: str) -> None:
 
     try:
         statuses = json.loads(status[0])
-    except ValueError:
-        raise RuntimeError('Status field must be valid JSON')
+    except ValueError as error:
+        raise RuntimeError('Status field must be valid JSON') from error
 
     gatherer = Pyro4.Proxy("PYRONAME:gros.gatherer")
     if not gatherer.add_bigboat_status(project_key, statuses, source):
@@ -460,7 +475,7 @@ def main() -> None:
         else:
             raise StatusError(501)
     except StatusError as error:
-        print('Status: {}'.format(error.status))
+        print(f'Status: {error.status}')
         print('Content-Type: text/plain')
         print()
         print(error.message)

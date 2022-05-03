@@ -1,5 +1,20 @@
 """
 GitHub source domain object.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from typing import Dict, Hashable, List, Optional, Tuple, Type
@@ -53,7 +68,7 @@ class GitHub(Git):
         return cls.has_option(host, 'github_token')
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super(GitHub, self)._update_credentials()
+        orig_parts, host = super()._update_credentials()
 
         # Retrieve the owner from the URL of the source.
         path = orig_parts.path.lstrip('/')
@@ -84,12 +99,11 @@ class GitHub(Git):
 
     @property
     def environment_url(self) -> Optional[str]:
-        return self._github_url + '/' + self.github_owner
+        return f'{self._github_url}/{self.github_owner}'
 
     @property
     def web_url(self) -> Optional[str]:
-        return '{}/{}/{}'.format(self._github_url, self.github_owner,
-                                 self.path_name)
+        return f'{self._github_url}/{self.github_owner}/{self.path_name}'
 
     @property
     def github_token(self) -> Optional[str]:
@@ -173,7 +187,7 @@ class GitHub(Git):
         return sources
 
     def export(self) -> Dict[str, str]:
-        data = super(GitHub, self).export()
+        data = super().export()
         if self._github_team is not None:
             data['github_team'] = self._github_team
 

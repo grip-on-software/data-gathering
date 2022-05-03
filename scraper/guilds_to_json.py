@@ -1,6 +1,21 @@
 """
 Parse schemas containing guild topics and dates to a JSON file containing
 guild information.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -25,14 +40,15 @@ class Schema:
         except ValueError:
             self._year = datetime.now().year
 
-    def _validate_date(self, guild_date: Dict[str, Union[str, int, datetime]]) \
+    @staticmethod
+    def _validate_date(guild_date: Dict[str, Union[str, int, datetime]]) \
             -> Optional[datetime]:
         found_date = guild_date.get("date")
         if isinstance(found_date, datetime):
             return found_date
 
         if "weekday" in guild_date and "week" in guild_date:
-            date = '{weekday} {week} {year}'.format(year=self._year, **guild_date)
+            date = '{guild_date["weekday"]} {guild_data["week"]} {self._year}'
             return datetime.strptime(date, '%w %W %Y')
 
         return None
@@ -160,12 +176,12 @@ def main() -> None:
     """
 
     args = parse_args()
-    with open('guilds.yml') as config_file:
+    with open('guilds.yml', encoding='utf-8') as config_file:
         config = yaml.safe_load(config_file)
 
     schema = Excel_Schema(config, args.filename)
     guilds = schema.parse()
-    with open("data_guilds.json", "w") as guilds_file:
+    with open('data_guilds.json', 'w', encoding='utf-8') as guilds_file:
         json.dump(guilds, guilds_file)
 
 if __name__ == '__main__':

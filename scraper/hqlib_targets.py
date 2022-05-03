@@ -1,6 +1,21 @@
 """
 Script to parse default values for targets and low targets from all versions of
 the quality reporting tool.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -234,7 +249,7 @@ class Metric_Target_Tracker:
         if not update_path.exists():
             return None
 
-        with update_path.open('r') as update_file:
+        with update_path.open('r', encoding='utf-8') as update_file:
             return json.load(update_file)
 
     def update(self, version: Dict[str, str],
@@ -273,9 +288,10 @@ class Metric_Target_Tracker:
         Export the version targets to a JSON file.
         """
 
-        with open('data_hqlib.json', 'w') as targets_file:
+        with open('data_hqlib.json', 'w', encoding='utf-8') as targets_file:
             json.dump(self._version_targets, targets_file, indent=4)
-        with open('hqlib_targets_update.json', 'w') as update_file:
+        with open('hqlib_targets_update.json', 'w',
+                  encoding='utf-8') as update_file:
             json.dump(self._latest_version, update_file)
 
 def parse(path: str, start: Version, repo: Git_Repository,

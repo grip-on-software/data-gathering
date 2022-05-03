@@ -1,5 +1,20 @@
 """
 Module for accessing Jenkins build information and starting jobs.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from abc import ABCMeta
@@ -97,8 +112,7 @@ class Base(metaclass=ABCMeta):
         self._query = query
 
     def _retrieve(self) -> None:
-        query = urlencode(self._query)
-        url = '{}api/json?{}'.format(self.base_url, query)
+        url = f'{self.base_url}api/json?{urlencode(self._query)}'
         request = self.instance.session.get(url, timeout=self.instance.timeout)
         self._version = request.headers.get('X-Jenkins', '')
         if Session.is_code(request, 'not_found'):
@@ -211,7 +225,7 @@ class Base(metaclass=ABCMeta):
         return hash((self.instance, self.base_url))
 
     def __repr__(self) -> str:
-        return '{}({!r})'.format(self.__class__.__name__, self.base_url)
+        return f'{self.__class__.__name__}({self.base_url!r})'
 
 class Jenkins(Base):
     """
@@ -382,10 +396,12 @@ class Node(Base):
 
         if display_name == "master":
             name = f"({display_name})"
+        elif display_name == "Built-In Node":
+            name = "(built-in)"
         else:
             name = display_name
 
-        url = '{}computer/{}'.format(instance.base_url, quote(name))
+        url = f'{instance.base_url}computer/{quote(name)}'
         super().__init__(instance, url, exists=True)
         self._name = name
         self._data = kwargs
@@ -418,7 +434,7 @@ class View(Base):
 
         super().__init__(instance, url, exists=exists)
         if self._base_url is None:
-            self._base_url = '{}view/{}'.format(instance.base_url, quote(name))
+            self._base_url = f'{instance.base_url}view/{quote(name)}'
 
         self._name = name
         self._data = kwargs
@@ -465,7 +481,7 @@ class Job(Base):
 
         super().__init__(instance, url, exists=exists)
         if self._base_url is None:
-            self._base_url = '{}job/{}/'.format(base.base_url, quote(name))
+            self._base_url = f'{base.base_url}job/{quote(name)}/'
 
         self._name = name
         self._data = kwargs
@@ -522,7 +538,7 @@ class Job(Base):
                 else:
                     self._last_builds[name] = Build(self, **self.data[name])
             else:
-                url = '{}{}/'.format(self.base_url, name)
+                url = f'{self.base_url}{name}/'
                 self._last_builds[name] = Build(self, url=url, exists=None)
 
         return self._last_builds[name]
@@ -785,6 +801,6 @@ class Build(Base):
 
     def __repr__(self) -> str:
         if self.exists and self.has_data:
-            return 'Build({!r}, number={!r})'.format(self.job, self.number)
+            return f'Build({self.job!r}, number={self.number!r})'
 
-        return super(Build, self).__repr__()
+        return super().__repr__()

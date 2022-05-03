@@ -1,5 +1,20 @@
 """
 Module that supports retrieving auxiliary files from a data store.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from pathlib import Path, PurePath
@@ -48,7 +63,7 @@ class File_Store:
         """
 
         if store_type not in cls._store_types:
-            raise RuntimeError('Store type {} is not supported'.format(store_type))
+            raise RuntimeError(f'Store type {store_type} is not supported')
 
         return cls._store_types[store_type]
 
@@ -120,7 +135,7 @@ class OwnCloud_Store(File_Store):
             self._client.get_file(remote_file, local_file)
         except owncloud.HTTPResponseError as error:
             if error.status_code == 404:
-                raise PathExistenceError(remote_file)
+                raise PathExistenceError(remote_file) from error
             raise RuntimeError(error.get_resource_body()) from error
 
     def get_file_contents(self, remote_file: str) -> str:
@@ -135,7 +150,7 @@ class OwnCloud_Store(File_Store):
             self._client.get_directory_as_zip(remote_path, zip_file_name)
         except owncloud.HTTPResponseError as error:
             if error.status_code == 404:
-                raise PathExistenceError(remote_path)
+                raise PathExistenceError(remote_path) from error
             raise error
 
         extract_path = tempfile.mkdtemp()

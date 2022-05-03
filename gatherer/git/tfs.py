@@ -1,6 +1,21 @@
 """
 Module that handles access to a Team Foundation Server-based repository,
 augmenting the usual repository version information such as pull requests.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import itertools
@@ -77,10 +92,9 @@ class TFS_Project:
                 data = request.json()
                 if 'value' in data and 'Message' in data['value']:
                     text = data['value']['Message']
-                    message = 'HTTP error {}: {}'.format(request.status_code,
-                                                         text)
+                    message = f'HTTP error {request.status_code}: {text}'
                 elif 'message' in data:
-                    message = '{}: {}'.format(data['typeKey'], data['message'])
+                    message = f"{data['typeKey']}: {data['message']}"
                 else:
                     raise ValueError
 
@@ -298,8 +312,7 @@ class TFS_Project:
         Retrieve infromation about code review comments in a pull request.
         """
 
-        artifact = 'vstfs:///CodeReview/CodeReviewId/{}%2F{}'.format(project_id,
-                                                                     request_id)
+        artifact = f'vstfs:///CodeReview/CodeReviewId/{project_id}%2F{request_id}'
         comments = self._get('discussion', 'threads',
                              api_version='3.0-preview.1', artifactUri=artifact)
         return comments['value']
@@ -311,7 +324,7 @@ class TFS_Project:
         The team data is returned as an iterator.
         """
 
-        return self._get_iterator('projects', '{}/teams'.format(project),
+        return self._get_iterator('projects', f'{project}/teams',
                                   project_collection=None)
 
     def team_members(self, project: str, team: str) -> Iterator[Result]:
@@ -322,7 +335,7 @@ class TFS_Project:
         """
 
         return self._get_iterator('projects',
-                                  '{}/teams/{}/members'.format(project, team),
+                                  f'{project}/teams/{team}/members',
                                   project_collection=None)
 
     def sprints(self, project: str, team: Optional[str] = None) -> List[Result]:
@@ -335,7 +348,7 @@ class TFS_Project:
         if team is None:
             project_collection = project
         else:
-            project_collection = '{}/{}'.format(project, team)
+            project_collection = f'{project}/{team}'
 
         return self._get('work', 'teamsettings/iterations',
                          project_collection=project_collection,
@@ -405,7 +418,7 @@ class TFVC_Project(TFS_Project):
                                 project_collection=None)
             return project['id']
         except (RuntimeError, KeyError) as error:
-            raise ValueError("Repository '{}' cannot be found: {}".format(repository, error))
+            raise ValueError(f"Repository '{repository}' cannot be found") from error
 
 class TFS_Repository(Git_Repository, Review_System):
     """
@@ -428,7 +441,7 @@ class TFS_Repository(Git_Repository, Review_System):
 
     @property
     def review_tables(self) -> Dict[str, Table]:
-        review_tables = super(TFS_Repository, self).review_tables
+        review_tables = super().review_tables
         review_fields = self.build_user_fields('reviewer')
         review_tables.update({
             "merge_request_review": Link_Table('merge_request_review',
@@ -495,10 +508,8 @@ class TFS_Repository(Git_Repository, Review_System):
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None, force: bool = False,
                  **kwargs: Any) -> List[Result]:
-        versions = super(TFS_Repository, self).get_data(from_revision,
-                                                        to_revision,
-                                                        force=force,
-                                                        **kwargs)
+        versions = super().get_data(from_revision, to_revision, force=force,
+                                    **kwargs)
 
         if self.source.tfs_repo is not None:
             self._get_repo_data()
@@ -640,10 +651,9 @@ class TFS_Repository(Git_Repository, Review_System):
         """
 
         author = comment['author']
+        display_name = author['displayName']
         if 'authorDisplayName' in comment:
             display_name = comment['authorDisplayName']
-        else:
-            display_name = author['displayName']
 
         if self._is_container_account(author, display_name):
             return
@@ -660,12 +670,11 @@ class TFS_Repository(Git_Repository, Review_System):
         else:
             unique_name = author['uniqueName']
 
+        parent_id = 0
         if 'parentId' in comment:
             parent_id = comment['parentId']
         elif 'parentCommentId' in comment:
             parent_id = comment['parentCommentId']
-        else:
-            parent_id = 0
 
         note = {
             'repo_name': str(self._repo_name),
@@ -823,7 +832,7 @@ class TFS_Repository(Git_Repository, Review_System):
         ]
         types = dict((parser.type, parser) for parser in parsers)
 
-        with vsts_fields_path.open('r') as vsts_fields_file:
+        with vsts_fields_path.open('r', encoding='utf-8') as vsts_fields_file:
             work_item_fields: Work_Item_Fields = json.load(vsts_fields_file)
 
         for properties in work_item_fields.values():

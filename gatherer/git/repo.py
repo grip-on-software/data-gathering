@@ -1,5 +1,20 @@
 """
 Module that handles access to and remote updates of a Git repository.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from datetime import datetime
@@ -50,13 +65,13 @@ class Sparse_Checkout_Paths:
         """
 
         if self._path.exists():
-            with self._path.open('r') as sparse_file:
+            with self._path.open('r', encoding='utf-8') as sparse_file:
                 return OrderedSet(sparse_file.read().split('\n'))
 
         return OrderedSet()
 
     def _write(self, paths: AbstractSet[str]) -> None:
-        with self._path.open('w') as sparse_file:
+        with self._path.open('w', encoding='utf-8') as sparse_file:
             sparse_file.write('\n'.join(paths))
 
     def set(self, paths: Sequence[str], append: bool = True) -> None:
@@ -88,7 +103,7 @@ class Sparse_Checkout_Paths:
             if path in new_paths:
                 new_paths.remove(path)
             else:
-                new_paths.add('!{}'.format(path))
+                new_paths.add(f'!{path}')
 
         self._write(new_paths)
 
@@ -250,7 +265,7 @@ class Git_Repository(Version_Control_Repository):
         try:
             shutil.rmtree(str(self.repo_directory))
         except OSError as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not delete clone directory') from error
 
     def pull(self, shallow: bool = False, shared: bool = False,
              checkout: Union[bool, Sequence[str]] = True,
@@ -271,7 +286,7 @@ class Git_Repository(Version_Control_Repository):
 
         try:
             if not self.is_shared(shared=shared):
-                raise RepositorySourceException("Clone was not shared as '{}'".format(shared))
+                raise RepositorySourceException(f"Clone was not shared as '{shared}'")
 
             if self.is_empty():
                 return
@@ -280,16 +295,16 @@ class Git_Repository(Version_Control_Repository):
                 self.update(shallow=shallow, checkout=checkout, branch=branch)
             else:
                 self.checkout_sparse(checkout, shallow=shallow, branch=branch)
-        except RepositorySourceException as exception:
+        except RepositorySourceException as error:
             if not force:
-                raise exception
+                raise error
 
             logging.exception('Could not pull into existing repository %s',
                               self.repo_directory)
             try:
                 self._cleanup()
-            except RepositorySourceException:
-                raise exception
+            except RepositorySourceException as cleanup_error:
+                raise cleanup_error from error
 
     @classmethod
     def is_up_to_date(cls, source: Source, latest_version: Version,
@@ -304,7 +319,7 @@ class Git_Repository(Version_Control_Repository):
         try:
             remote_refs = git.ls_remote('--heads', source.url, branch)
         except GitCommandError as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not check up-to-dateness') from error
 
         head_version = remote_refs.split('\t', 1)[0]
         if head_version == str(latest_version):
@@ -319,7 +334,7 @@ class Git_Repository(Version_Control_Repository):
         try:
             remote_refs = git.ls_remote('--heads', source.url)
         except GitCommandError as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not check branches') from error
 
         prefix = 'refs/heads/'
         return [
@@ -337,7 +352,7 @@ class Git_Repository(Version_Control_Repository):
                 self._update_environment(repo)
                 self._repo = repo
             except (InvalidGitRepositoryError, NoSuchPathError) as error:
-                raise RepositorySourceException('Invalid or nonexistent path: {}'.format(error))
+                raise RepositorySourceException('Invalid or nonexistent path') from error
 
         return self._repo
 
@@ -381,8 +396,9 @@ class Git_Repository(Version_Control_Repository):
 
             version_info = git.version_info
             if version_info < (2, 3, 0):
-                with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
-                    tmpfile.write('{} $*'.format(ssh_command).encode('utf-8'))
+                with tempfile.NamedTemporaryFile(delete=False,
+                                                 encoding='utf-8') as tmpfile:
+                    tmpfile.write(f'{ssh_command} $*'.encode('utf-8'))
                     command_filename = tmpfile.name
 
                 Path(command_filename).chmod(0o700)
@@ -473,7 +489,7 @@ class Git_Repository(Version_Control_Repository):
             if not self.repo.remotes:
                 raise RepositorySourceException('No remotes defined for repository')
 
-            refspec = 'origin/{}'.format(branch)
+            refspec = f'origin/{branch}'
             self._prev_head = self.repo.head.commit
             if shallow:
                 self.repo.remotes.origin.fetch(branch, depth=1,
@@ -491,12 +507,12 @@ class Git_Repository(Version_Control_Repository):
                 self.repo.remotes.origin.pull(branch, progress=self._progress)
             else:
                 # Update local branch but not the working tree
-                spec = '{0}:{0}'.format(branch)
+                spec = f'{branch}:{branch}'
                 self.repo.remotes.origin.fetch(spec,
                                                update_head_ok=True,
                                                progress=self._progress)
         except GitCommandError as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not update clone') from error
 
     def checkout(self, paths: Optional[Sequence[str]] = None,
                  shallow: bool = False, branch: Optional[str] = None) -> None:
@@ -509,7 +525,7 @@ class Git_Repository(Version_Control_Repository):
         try:
             self.repo.git.read_tree(['-m', '-u', 'HEAD'])
         except GitCommandError as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not checkout index') from error
 
     def checkout_sparse(self, paths: Sequence[str], remove: bool = False,
                         shallow: bool = False, branch: Optional[str] = None) -> None:
@@ -557,7 +573,7 @@ class Git_Repository(Version_Control_Repository):
             kwargs["depth"] = 1
         if shared is not False:
             value = "true" if shared is True else shared
-            kwargs["config"] = "core.sharedRepository={}".format(value)
+            kwargs["config"] = f"core.sharedRepository={value}"
         if branch is not None:
             kwargs["branch"] = branch
 
@@ -569,7 +585,7 @@ class Git_Repository(Version_Control_Repository):
                                         env=environment,
                                         **kwargs)
         except GitCommandError as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not clone repository') from error
 
     def _query(self, refspec: str, paths: Union[str, Sequence[str]] = '',
                descending: bool = True) -> Iterator[Commit]:
@@ -579,7 +595,7 @@ class Git_Repository(Version_Control_Repository):
                                           skip=self._iterator_limiter.skip,
                                           reverse=not descending)
         except GitCommandError as error:
-            raise RepositoryDataException(str(error))
+            raise RepositoryDataException('Could not search commits') from error
 
     def find_commit(self, committed_date: datetime) -> Optional[str]:
         """
@@ -602,7 +618,7 @@ class Git_Repository(Version_Control_Repository):
         except StopIteration:
             return None
         except GitCommandError as error:
-            raise RepositoryDataException(str(error))
+            raise RepositoryDataException('Could not retrieve commit') from error
 
     def get_versions(self, filename: str = '',
                      from_revision: Optional[Version] = None,
@@ -614,10 +630,8 @@ class Git_Repository(Version_Control_Repository):
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None,
                  force: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
-        versions = super(Git_Repository, self).get_data(from_revision,
-                                                        to_revision,
-                                                        force=force,
-                                                        **kwargs)
+        versions = super().get_data(from_revision, to_revision, force=force,
+                                    **kwargs)
 
         self._parse_tags()
 
@@ -643,7 +657,7 @@ class Git_Repository(Version_Control_Repository):
                     if count % self.LOG_SIZE == 0:
                         logging.info('Analysed commits up to %d', count)
             except GitCommandError as error:
-                raise RepositoryDataException(str(error))
+                raise RepositoryDataException('Could not analyze commit') from error
 
             logging.info('Analysed batch of commits, now at %d', count)
 
@@ -705,7 +719,7 @@ class Git_Repository(Version_Control_Repository):
 
     def _get_original_branch(self, commit: Commit) -> str:
         try:
-            commits = self.repo.iter_commits('{}..HEAD'.format(commit.hexsha),
+            commits = self.repo.iter_commits(f'{commit.hexsha}..HEAD',
                                              ancestry_path=True, merges=True,
                                              reverse=True)
         except GitCommandError:
@@ -848,7 +862,7 @@ class Git_Repository(Version_Control_Repository):
         try:
             return self.repo.rev_parse(self.default_branch).hexsha
         except GitCommandError as error:
-            raise RepositoryDataException(str(error))
+            raise RepositoryDataException('Could not retrieve latest version') from error
 
     def get_contents(self, filename: str, revision: Optional[Version] = None) -> bytes:
         try:
@@ -857,15 +871,15 @@ class Git_Repository(Version_Control_Repository):
             else:
                 commit = self.repo.commit('HEAD')
         except GitCommandError as error:
-            raise RepositoryDataException(str(error))
+            raise RepositoryDataException('Could not retrieve commit') from error
 
         try:
             blob = commit.tree.join(filename)
         except KeyError as error:
-            raise FileNotFoundException(str(error))
+            raise FileNotFoundException('Could not retrieve file') from error
 
         if not isinstance(blob, Blob):
-            raise FileNotFoundException('Path {} has no Blob object'.format(filename))
+            raise FileNotFoundException(f'Path {filename} has no Blob object')
 
         stream = BytesIO()
         blob.stream_data(stream)

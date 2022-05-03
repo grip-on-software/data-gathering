@@ -1,5 +1,20 @@
 """
 Script to obtain user details from an LDAP server.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -83,10 +98,11 @@ def get_members(client: LDAPObject, name: str, args: Namespace) \
         logging.warning('Group %s contains no members', name)
         return data
 
-    query = '(|{})'.format(''.join([
-        '({})'.format(args.search_filter.format(uid.decode('utf-8')))
+    group_filter = ''.join(
+        f'({args.search_filter.format(uid.decode("utf-8"))})'
         for uid in group[group_attr]
-    ]))
+    )
+    query = f'(|{group_filter})'
 
     users = client.search_s(base, ldap.SCOPE_SUBTREE, query, [
         str(args.user_id), str(args.display_name), str(args.user_email)
@@ -135,7 +151,7 @@ def main() -> None:
     data = get_members(client, group, args)
 
     output_path = project.export_key / 'data_ldap.json'
-    with output_path.open('w') as output_file:
+    with output_path.open('w', encoding='utf-8') as output_file:
         json.dump(data, output_file)
 
 if __name__ == '__main__':

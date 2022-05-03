@@ -1,5 +1,20 @@
 """
 GitLab source domain object.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import logging
@@ -65,7 +80,7 @@ class GitLab(Git):
         return cls.has_option(host, 'gitlab_token')
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super(GitLab, self)._update_credentials()
+        orig_parts, host = super()._update_credentials()
         orig_host = orig_parts.netloc
 
         # Check which group to use in the GitLab API.
@@ -114,8 +129,7 @@ class GitLab(Git):
         # Parse the current URL to update its path.
         url_parts = urlsplit(self._url)
         repo_path_name = repo_path.split('/', 1)[1]
-        path = '{0}/{1}-{2}'.format(self._gitlab_group, self._gitlab_namespace,
-                                    repo_path_name)
+        path = f'{self._gitlab_group}/{self._gitlab_namespace}-{repo_path_name}'
         # Track the new namespace and use the new URL.
         self._gitlab_namespace = self._gitlab_group
         self._url = self._create_url(url_parts.scheme, url_parts.netloc, path,
@@ -137,13 +151,13 @@ class GitLab(Git):
     @property
     def environment_url(self) -> Optional[str]:
         if self._gitlab_group is not None:
-            return self._gitlab_host + '/' + self._gitlab_group
+            return f'{self._gitlab_host}/{self._gitlab_group}'
 
-        return self._gitlab_host + '/' + self._gitlab_namespace
+        return f'{self._gitlab_host}/{self._gitlab_namespace}'
 
     @property
     def web_url(self) -> Optional[str]:
-        return self._gitlab_host + '/' + self._gitlab_path
+        return f'{self._gitlab_host}/{self._gitlab_path}'
 
     @property
     def host(self) -> str:
@@ -226,7 +240,7 @@ class GitLab(Git):
         """
 
         if Configuration.is_url_blacklisted(self.host):
-            raise RuntimeError('GitLab API for {} is blacklisted'.format(self.host))
+            raise RuntimeError(f'GitLab API for {self.host} is blacklisted')
 
         if self._gitlab_api is None:
             unsafe = self.get_option('unsafe_hosts')
@@ -241,7 +255,7 @@ class GitLab(Git):
                 self._gitlab_api.timeout = None
             except (ConnectError, Timeout, GitlabAuthenticationError, GitlabGetError) as error:
                 self._gitlab_api = None
-                raise RuntimeError('Cannot access the GitLab API: {!r}'.format(error))
+                raise RuntimeError('Cannot access the GitLab API') from error
 
         return self._gitlab_api
 
@@ -262,7 +276,7 @@ class GitLab(Git):
             group = self.gitlab_api.groups.get(group_name, lazy=True)
         except (GitlabAuthenticationError, GitlabGetError):
             logging.warning('GitLab group %s is not accessible', group_name)
-            return super(GitLab, self).get_sources()
+            return super().get_sources()
 
         # Fetch the group projects by requesting the group to the API again.
         group_repos = group.projects.list()
@@ -296,9 +310,9 @@ class GitLab(Git):
     def update_identity(self, project: Project, public_key: str,
                         dry_run: bool = False) -> None:
         if self.gitlab_token is None:
-            raise RuntimeError('GitLab source {} has no API token'.format(self.host))
+            raise RuntimeError(f'GitLab source {self.host} has no API token')
 
-        title = 'GROS agent for the {} project'.format(project.key)
+        title = f'GROS agent for the {project.key} project'
         for key in self.gitlab_api.user.keys.list(as_list=False):
             if key.key == public_key:
                 logging.info('SSH key already exists on GitLab host %s.',

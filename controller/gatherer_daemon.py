@@ -1,5 +1,20 @@
 """
-Internal daemon for handling update tracking and project salt requests,
+Internal daemon for handling update tracking and project salt requests.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from datetime import datetime, timedelta
@@ -90,14 +105,14 @@ class Gatherer:
         try:
             content = track.retrieve_content(filename)
         except OSError as error:
-            raise ValueError(f'Could not access update tracker from database: {error}')
+            raise ValueError(f'Could not access update tracker from database: {error}') from error
         if content is None:
             raise ValueError(f'No update tracker {filename} found')
 
         try:
             tracker_date = get_datetime(parse_date(content))
         except ValueError as error:
-            raise ValueError(f'Update tracker {filename} is unparseable: {error}')
+            raise ValueError(f'Update tracker {filename} is unparseable: {error}') from error
 
         today = datetime.now()
         schedule = self._calculate_drift(project_key, today)
@@ -153,7 +168,7 @@ class Gatherer:
 
         return {
             'ok': False,
-            'message': 'Next scheduled gather moment is in {}'.format(delta)
+            'message': f'Next scheduled gather moment is in {delta}'
         }
 
     def get_update_trackers(self, project_key: str, home_directory: str) -> None:
@@ -224,7 +239,7 @@ class Gatherer:
                     self._config.get('dropins', 'password'))
 
         data_file = 'data_vcsdev_to_dev.json'
-        usernames_file = store.get_file_contents('import/{}'.format(data_file))
+        usernames_file = store.get_file_contents(f'import/{data_file}')
         patterns = json.loads(usernames_file)
         usernames = []
         for pattern in patterns:

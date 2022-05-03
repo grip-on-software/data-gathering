@@ -1,5 +1,20 @@
 """
-Data source domain object
+Data source domain object.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import os
@@ -76,11 +91,14 @@ class Source_Types:
             source_class = cls._types[source_type]
 
         if source_class is None:
-            raise Source_Type_Error("Source type '{}' is not supported".format(source_type))
+            raise Source_Type_Error(f"Source type '{source_type}' is not supported")
 
         return source_class(source_type, **source_data)
 
-class Source:
+# Seven instance attributes in __init__, but pylint incorrectly counts
+# a property setter in use to be an instance attribute as well
+# https://github.com/PyCQA/pylint/issues/4100
+class Source: # pylint: disable=too-many-instance-attributes
     """
     Interface for source information about various types of data sources.
     """
@@ -167,9 +185,8 @@ class Source:
         if hostname.startswith('-'):
             raise ValueError('Long SSH host may not begin with dash')
 
-        netloc = '{0}{1}'.format(auth,
-                                 f':{port}' if port is not None else '')
-        return '{0}://{1}{2}'.format(self.SSH_PROTOCOL, netloc, path)
+        netloc = f'{auth}:{port}' if port is not None else auth
+        return f'{self.SSH_PROTOCOL}://{netloc}{path}'
 
     @classmethod
     def _format_host_section(cls, parts: SplitResult) -> str:
@@ -179,7 +196,7 @@ class Source:
         if parts.port is None:
             return parts.hostname
 
-        return '{0}:{1}'.format(parts.hostname, parts.port)
+        return f'{parts.hostname}:{parts.port}'
 
     def _get_username(self, protocol: str, host: str, orig_parts: SplitResult) -> Optional[str]:
         # Order of preference:
@@ -189,7 +206,7 @@ class Source:
         # If the username was configured in the credentials (the key exists in
         # the configuration), but it has a falsy value, then the original
         # username is used.
-        key = 'username.{}'.format(protocol)
+        key = f'username.{protocol}'
         username: Optional[str] = None
         if self._credentials.has_option(host, key):
             username = self._credentials.get(host, key)

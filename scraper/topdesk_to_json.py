@@ -1,5 +1,20 @@
 """
 Script to convert a Topdesk dump CSV file to JSON.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -177,13 +192,13 @@ def main() -> None:
     project = Project(project_key)
     parser = Topdesk_Parser(project)
 
-    with open(args.file) as input_file:
+    with open(args.file, 'r', encoding='utf-8') as input_file:
         reservations = parser.get_reservations(input_file, args.whitelist_only)
 
     logging.info('Project %s: %d reservations', project_key, len(reservations))
 
     export_path = project.export_key / 'data_reservations.json'
-    with export_path.open('w') as export_file:
+    with export_path.open('w', encoding='utf-8') as export_file:
         json.dump(reservations, export_file, indent=4)
 
 if __name__ == "__main__":

@@ -1,8 +1,23 @@
 """
 Collections of sources.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
-from collections import MutableSet
+from collections.abc import MutableSet
 from pathlib import Path
 from typing import Dict, Hashable, Iterator, Optional, List, MutableMapping, \
     Sequence, Set, Type, TypeVar
@@ -33,7 +48,7 @@ class Sources(MutableSet):
         """
 
         if sources_path.exists():
-            with sources_path.open('r') as sources_file:
+            with sources_path.open('r', encoding='utf-8') as sources_file:
                 sources = json.load(sources_file)
                 self.load_sources(sources)
 
@@ -193,7 +208,7 @@ class Sources(MutableSet):
             sources_data.append(source.export())
 
         if self._sources_path is not None:
-            with open(self._sources_path, 'w') as sources_file:
+            with open(self._sources_path, 'w', encoding='utf-8') as sources_file:
                 json.dump(sources_data, sources_file)
 
         return sources_data
@@ -213,8 +228,8 @@ class Sources(MutableSet):
                 "environment": environment,
                 "version": source.version
             })
-        with open(environments_path, 'w') as environments_file:
+        with open(environments_path, 'w', encoding='utf-8') as environments_file:
             json.dump(environment_data, environments_file)
 
     def __repr__(self) -> str:
-        return 'Sources({!r})'.format(self._sources)
+        return f'Sources({self._sources!r})'

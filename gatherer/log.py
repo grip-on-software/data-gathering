@@ -1,5 +1,20 @@
 """
 Module for initializing logging.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, ArgumentError, Namespace
@@ -43,7 +58,7 @@ class Log_Setup:
 
         options = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         parser.add_argument('--log', default=default, choices=options,
-                            help='log level ({} by default)'.format(default))
+                            help=f'log level ({default} by default)')
 
     @staticmethod
     def add_upload_arguments(parser: ArgumentParser) -> None:
@@ -104,7 +119,7 @@ class Log_Setup:
         # servers to reject the request (as per RFC7320 sec. 5.4 p. 44).
         # When the host can be extracted from the GET URL, however, all
         # subsequent Host headers are ignored (as per RFC2616 sec. 5.2 p. 37).
-        url = "https://{}/auth/log.py?project={}".format(host, project_key)
+        url = f"https://{host}/auth/log.py?project={project_key}"
         context = ssl.create_default_context(cafile=cert_file)
         try:
             # Python 2 logging handler does not support HTTPS connecions.

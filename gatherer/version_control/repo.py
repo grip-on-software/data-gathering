@@ -1,5 +1,20 @@
 """
 Base module that defines an abstract version control system repository.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from datetime import datetime
@@ -65,7 +80,7 @@ class Change_Type(Enum):
             if entity.value == label[0]:
                 return entity
 
-        raise ValueError('Label {} is not a valid change type'.format(label))
+        raise ValueError(f'Label {label} is not a valid change type')
 
 class Version_Control_Repository:
     """
@@ -355,7 +370,7 @@ class Version_Control_Repository:
         """
 
         if file_name not in self._update_trackers:
-            raise KeyError("File name '{}' is not registered as update tracker".format(file_name))
+            raise KeyError(f"File name '{file_name}' is not registered as update tracker")
 
         self._update_trackers[file_name] = value
 

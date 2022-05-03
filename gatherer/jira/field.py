@@ -1,5 +1,20 @@
 """
 Field definitions that fetch fields from JIRA API issue results.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
@@ -124,19 +139,19 @@ class Property_Field(Payload_Field):
     """
 
     def fetch(self, issue: Any) -> Optional[str]:
-        field = super(Property_Field, self).fetch(issue)
+        field = super().fetch(issue)
         if hasattr(field, str(self.data["property"])):
             return getattr(field, str(self.data["property"]))
 
         return None
 
     def parse(self, issue: Any) -> Optional[str]:
-        field = super(Property_Field, self).parse(issue)
+        field = super().parse(issue)
         if field is None:
             return None
 
         if "table" in self.data and isinstance(self.data["table"], dict):
-            payload_field = super(Property_Field, self).fetch(issue)
+            payload_field = super().fetch(issue)
             row: Dict[str, str] = {}
             row[str(self.data["property"])] = field
             has_data = False

@@ -1,6 +1,21 @@
 """
 Script to obtain a metrics history file and convert it to a JSON format
 readable by the database importer.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -137,7 +152,7 @@ def read_quality_time_measurements(project: Project, source: Source,
         return metric_data, start_date
 
     data = Quality_Time_Data(project, source, url)
-    with metric_path.open('r') as metric_file:
+    with metric_path.open('r', encoding='utf-8') as metric_file:
         metrics: MetricNames = json.load(metric_file)
 
     cutoff_date = get_utc_datetime(start_date.strip())
@@ -335,6 +350,8 @@ class Location:
     Location of a history file.
     """
 
+    COMPACT_HISTORY_FILENAME = 'compact-history.json'
+
     def __init__(self, parts: Union[PathLike, Tuple[str, ...]],
                  filename: Optional[str] = None,
                  compression: Union[bool, str] = False) -> None:
@@ -379,7 +396,8 @@ class Location:
         Retrieve whether the file is a compact history file.
         """
 
-        return self._location.split('/')[-1] == 'compact-history.json'
+        filename = self._location.rsplit('/', maxsplit=1)[-1]
+        return filename == self.COMPACT_HISTORY_FILENAME
 
     @property
     def compression(self) -> Union[bool, str]:
@@ -601,7 +619,7 @@ def get_file_opener(compression: Union[bool, str]) -> Type[OpenFile]:
     if compression == "gz":
         return gzip.GzipFile
 
-    raise ValueError("Compression '{}' is not supported".format(compression))
+    raise ValueError(f"Compression '{compression}' is not supported")
 
 def get_stream(compression: Union[bool, str], url: Url) -> IOLike:
     """
@@ -687,7 +705,7 @@ def build_source(project: Project, location: Location, data: Data_Source) \
     source_name = project.key
     if location.compact:
         source_type = 'compact-history'
-        file_name = 'compact-history.json'
+        file_name = Location.COMPACT_HISTORY_FILENAME
     else:
         source_type = 'metric_history'
         file_name = ''
@@ -705,7 +723,7 @@ def build_source(project: Project, location: Location, data: Data_Source) \
 
             break
 
-    url = '{}/{}'.format(location.parts[0], file_name)
+    url = f'{location.parts[0]}/{file_name}'
     source = Source.from_type(source_type, name=source_name, url=url)
     return source, environment_type
 
@@ -736,7 +754,7 @@ def is_compact(source: Source) -> bool:
         return True
 
     if source.file_name is not None:
-        return source.file_name.startswith('compact-history.json')
+        return source.file_name.startswith(Location.COMPACT_HISTORY_FILENAME)
 
     return False
 

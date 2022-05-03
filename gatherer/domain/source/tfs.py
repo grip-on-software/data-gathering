@@ -1,5 +1,20 @@
 """
 Team Foundation Server domain object.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import logging
@@ -57,15 +72,15 @@ class TFS(Git):
         return cls.has_option(host, 'tfs')
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super(TFS, self)._update_credentials()
+        orig_parts, host = super()._update_credentials()
 
         # Ensure we have a HTTP/HTTPS URL to the web host for API purposes.
         # This includes altering the web port to the one that TFS listens to.
         scheme = self._get_web_protocol(host, orig_parts.scheme)
         if self.has_option(host, 'web_port'):
             hostname = self._get_host_parts(host, orig_parts)[0]
-            web_host = '{}:{}'.format(hostname,
-                                      self._credentials.get(host, 'web_port'))
+            web_port = self._credentials.get(host, 'web_port')
+            web_host = f'{hostname}:{web_port}'
         else:
             web_host = host
 
@@ -120,14 +135,14 @@ class TFS(Git):
 
     @property
     def environment_url(self) -> str:
-        return self._tfs_host + '/' + '/'.join(self._tfs_collections)
+        return f'{self._tfs_host}/{"/".join(self._tfs_collections)}'
 
     @property
     def web_url(self) -> Optional[str]:
         if self._tfs_repo is None:
             return self.environment_url
 
-        return self.environment_url + '/' + self._tfs_repo
+        return f'{self.environment_url}/{self._tfs_repo}'
 
     @property
     def tfs_api(self) -> TFS_Project:
@@ -137,7 +152,7 @@ class TFS(Git):
         """
 
         if Configuration.is_url_blacklisted(self._tfs_host):
-            raise RuntimeError('TFS API for {} is blacklisted'.format(self._tfs_host))
+            raise RuntimeError(f'TFS API for {self._tfs_host} is blacklisted')
 
         if self._tfs_api is None:
             logging.info('Setting up API for %s', self._tfs_host)
@@ -209,7 +224,7 @@ class TFVC(TFS):
         self._tfvc_project: str = ''
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super(TFVC, self)._update_credentials()
+        orig_parts, host = super()._update_credentials()
 
         self._tfvc_project = self._tfs_collections[-1]
         if len(self._tfs_collections) == 1:
@@ -233,7 +248,7 @@ class TFVC(TFS):
         """
 
         if Configuration.is_url_blacklisted(self._tfs_host):
-            raise RuntimeError('TFS API for {} is blacklisted'.format(self._tfs_host))
+            raise RuntimeError(f'TFS API for {self._tfs_host} is blacklisted')
 
         if self._tfs_api is None:
             logging.info('Setting up API for %s', self._tfs_host)
@@ -245,8 +260,8 @@ class TFVC(TFS):
 
     @property
     def environment_url(self) -> str:
-        return self._tfs_host + '/' + \
-            '/'.join(part for part in self._tfs_collections if part != '')
+        path = '/'.join(part for part in self._tfs_collections if part != '')
+        return f'{self._tfs_host}/{path}'
 
     def get_sources(self) -> List[Source]:
         sources: List[Source] = []
@@ -260,10 +275,9 @@ class TFVC(TFS):
             return sources
 
         for project in projects:
-            url = '{}/{}{}{}'.format(self._tfs_host,
-                                     self._tfs_collections[0],
-                                     '/' if self._tfs_collections[0] else '',
-                                     project['name'])
+            collection = f'{self._tfs_collections[0]}/' \
+                if self._tfs_collections[0] else ''
+            url = f'{self._tfs_host}/{collection}{project["name"]}'
             name = project.get('description', project['name'])
             source = Source.from_type('tfvc', name=name,
                                       url=url, follow_host_change=False)

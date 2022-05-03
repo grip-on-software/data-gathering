@@ -1,6 +1,21 @@
 """
 Script used for initializing projects on a GitLab in order to prepare an import
 of filtered source code into the projects.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -145,8 +160,8 @@ class Repository_Archive:
             name = self._project.gitlab_group_name
             try:
                 self._group = self.api.groups.get(name)
-            except GitlabError:
-                raise RuntimeError('Group {} not found on GitLab'.format(name))
+            except GitlabError as error:
+                raise RuntimeError(f'Group {name} not found on GitLab') from error
 
         return self._group
 
@@ -156,7 +171,7 @@ class Repository_Archive:
         """
 
         project_name = self._project.gitlab_group_name
-        path = '{0}/{1}'.format(project_name, self.repo_name.lower())
+        path = f'{project_name}/{self.repo_name.lower()}'
         try:
             if not self._dry_run:
                 self.api.projects.delete(path)
@@ -171,7 +186,7 @@ class Repository_Archive:
         """
 
         project_name = self._project.gitlab_group_name
-        path = '{0}/{1}'.format(project_name, self.repo_name.lower())
+        path = f'{project_name}/{self.repo_name.lower()}'
         try:
             if not self._dry_run:
                 project_repo = self.api.projects.create({
@@ -256,7 +271,7 @@ class Repository_Archive:
         """
 
         logging.info('Bundle repository %s for agent upload', self.repo_path)
-        bundle_name = '{}.bundle'.format(self.repo_name)
+        bundle_name = f'{self.repo_name}.bundle'
         bundle_path = Path(self._project.export_key, bundle_name).resolve()
         self._repo.repo.git.bundle(['create', bundle_path, '--all'])
 

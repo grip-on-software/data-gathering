@@ -1,5 +1,20 @@
 """
 Perform pre-flight checks for the Docker agent scraper.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -49,7 +64,7 @@ def write_configuration(project: Project, response: Dict[str, Any]) -> None:
 
     if 'configuration' in response and 'contents' in response['configuration']:
         env_filename = project.export_key / 'preflight_env'
-        with open(env_filename, 'w') as env_file:
+        with open(env_filename, 'w', encoding='utf-8') as env_file:
             env_file.write(response['configuration']['contents'])
 
 def check_secrets(path: Path) -> bool:
@@ -57,7 +72,7 @@ def check_secrets(path: Path) -> bool:
     Check whether the secrets file contains all required options.
     """
 
-    with path.open('r') as secrets_file:
+    with path.open('r', encoding='utf-8') as secrets_file:
         secrets: Dict[str, Dict[str, str]] = json.load(secrets_file)
         if 'salts' in secrets and \
             'salt' in secrets['salts'] and 'pepper' in secrets['salts']:
@@ -89,7 +104,7 @@ def check_controller(host: str, cert: str, project: Project) -> List[str]:
         for key, value in response.items():
             if key != 'total' and not value['ok']:
                 message = value.get('message', 'Not OK')
-                problems.append("Status '{}': {}".format(key, message))
+                problems.append(f"Status '{key}': {message}")
 
         logging.warning('Controller status: %s: %s',
                         response['total']['message'], ', '.join(problems))
@@ -143,7 +158,7 @@ def main() -> int:
         return 1
 
     date_path = project.export_key / 'preflight_date.txt'
-    with date_path.open('w') as date_file:
+    with date_path.open('w', encoding='utf-8') as date_file:
         date_file.write(convert_local_datetime(datetime.now()).isoformat())
 
     return 0

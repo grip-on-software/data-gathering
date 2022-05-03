@@ -1,5 +1,20 @@
 """
 Script to obtain the base names of all metrics used in HQ.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -61,9 +76,9 @@ def main() -> None:
 
     if args.project is not None:
         project = Project(args.project)
-        if project.quality_metrics_name is not None:
-            url = '{}/{}/json/metrics.json'.format(args.host,
-                                                   project.quality_metrics_name)
+        base_name = project.quality_metrics_name
+        if base_name is not None:
+            url = f'{args.host}/{base_name}/json/metrics.json'
             meta_data = False
 
     try:
@@ -84,7 +99,7 @@ def main() -> None:
     else:
         base_names = parse_metrics(data)
 
-    with open(args.file, 'w') as output_file:
+    with open(args.file, 'w', encoding='utf-8') as output_file:
         json.dump(base_names, output_file)
 
 if __name__ == '__main__':

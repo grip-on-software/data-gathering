@@ -1,6 +1,21 @@
 """
 Module that handles access to a GitHub-based repository, augmenting the usual
 repository version information with pull requests and commit comments.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import re
@@ -63,7 +78,7 @@ class GitHub_Repository(Git_Repository, Review_System):
 
     @property
     def review_tables(self) -> Dict[str, Table]:
-        review_tables = super(GitHub_Repository, self).review_tables
+        review_tables = super().review_tables
         author = self.build_user_fields('author')
         assignee = self.build_user_fields('assignee')
         reviewer = self.build_user_fields('reviewer')
@@ -121,10 +136,8 @@ class GitHub_Repository(Git_Repository, Review_System):
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None, force: bool = False,
                  **kwargs: Any) -> List[Dict[str, str]]:
-        versions = super(GitHub_Repository, self).get_data(from_revision,
-                                                           to_revision,
-                                                           force=force,
-                                                           **kwargs)
+        versions = super().get_data(from_revision, to_revision, force=force,
+                                    **kwargs)
 
         self.fill_repo_table(self.source.github_repo)
         self._get_pull_requests()
@@ -394,10 +407,9 @@ class GitHub_Repository(Git_Repository, Review_System):
             return False
 
         # We store the most recent line indexes to which the comment applies.
-        if comment.position is None:
+        position = comment.position
+        if position is None:
             position = comment.original_position
-        else:
-            position = comment.position
 
         if comment.diff_hunk is not None and comment.diff_hunk.startswith('@@'):
             lines = comment.diff_hunk.split('\n')

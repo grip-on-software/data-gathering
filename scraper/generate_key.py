@@ -1,10 +1,24 @@
 """
 Generate a private and public key and distribute it to the correct locations.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
 import logging
-from os import devnull
 from pathlib import Path
 import shutil
 import subprocess
@@ -150,7 +164,7 @@ class Identity:
         if not public_key_path.exists():
             return False
 
-        with public_key_path.open('r') as public_key_file:
+        with public_key_path.open('r', encoding='utf-8') as public_key_file:
             return public_key_file.read().rstrip('\n')
 
     def _scan_host(self, url: str) -> None:
@@ -171,9 +185,8 @@ class Identity:
             logging.info('Scanning SSH host %s for keys and appending to %s',
                          hostname, self.known_hosts)
             if not self.dry_run:
-                with open(devnull, 'w') as null_file:
-                    lines = subprocess.check_output(['ssh-keyscan', hostname],
-                                                    stderr=null_file)
+                lines = subprocess.check_output(['ssh-keyscan', hostname],
+                                                stderr=subprocess.DEVNULL)
                 with self.known_hosts.open('ab') as known_hosts_file:
                     known_hosts_file.write(lines)
         except subprocess.CalledProcessError:
@@ -236,13 +249,13 @@ def make_source(domain: str) -> Optional[Source]:
     """
 
     if GitLab.is_gitlab_host(domain):
-        return Source.from_type('gitlab', url='http://{}/'.format(domain),
+        return Source.from_type('gitlab', url=f'http://{domain}/',
                                 name='dummy')
     if GitHub.is_github_host(domain):
-        return Source.from_type('github', url='https://{}/'.format(domain),
+        return Source.from_type('github', url=f'https://{domain}/',
                                 name='dummy')
     if TFS.is_tfs_host(domain):
-        return Source.from_type('tfs', url='http://{}/tfs'.format(domain),
+        return Source.from_type('tfs', url=f'http://{domain}/tfs',
                                 name='dummy')
 
     return None
@@ -290,7 +303,7 @@ def main() -> None:
         identity = Identity(project, main_key, known_hosts,
                             dry_run=args.dry_run)
         source = Source.from_type('controller',
-                                  url='https://{}/auth/'.format(args.ssh),
+                                  url=f'https://{args.ssh}/auth/',
                                   name='Controller',
                                   certificate=args.cert)
         identity.update_source(source)

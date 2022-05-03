@@ -1,5 +1,20 @@
 """
 Git source domain object.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import re
@@ -26,21 +41,22 @@ class Git(Source):
         # parsing done by the superclass can completely understand the URL.
         match = cls.GIT_URL_REGEX.match(url)
         if match:
-            return 'ssh://{netloc}/{path}'.format(**match.groupdict())
+            groups = match.groupdict()
+            return f'ssh://{groups["netloc"]}/{groups["path"]}'
 
         return url
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         self._plain_url = self._alter_git_url(self._plain_url)
-        return super(Git, self)._update_credentials()
+        return super()._update_credentials()
 
     def _format_ssh_url(self, hostname: str, auth: str, port: Optional[int],
                         path: str) -> str:
         # Use either short SCP-like URL or long SSH URL
         if port is not None:
-            return super(Git, self)._format_ssh_url(hostname, auth, port, path)
+            return super()._format_ssh_url(hostname, auth, port, path)
 
-        return '{0}:{1}'.format(auth, path)
+        return f'{auth}:{path}'
 
     @property
     def repository_class(self) -> Type[Git_Repository]:
@@ -50,7 +66,7 @@ class Git(Source):
     def path_name(self) -> str:
         path_name = self.get_path_name(self.url)
         if path_name is None:
-            return super(Git, self).path_name
+            return super().path_name
 
         return path_name
 

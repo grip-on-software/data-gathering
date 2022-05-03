@@ -1,5 +1,20 @@
 """
 Internal daemon for handling agent data export and database import jobs.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import os
@@ -34,7 +49,8 @@ class Exporter:
             'CLEANUP_EXPORT': '1'
         })
         args = ['/bin/bash', 'controller-export.sh', directory, project_key]
-        subprocess.Popen(args, stdout=None, stderr=None, env=environment)
+        with subprocess.Popen(args, stdout=None, stderr=None, env=environment):
+            pass
 
     def start_scrape(self, project_key: str) -> None:
         """
@@ -78,7 +94,7 @@ class Exporter:
         """
 
         path = Path(self.CONTROLLER_DIRECTORY, f'agent-{project_key}.json')
-        with path.open('w') as agent_file:
+        with path.open('w', encoding='utf-8') as agent_file:
             agent_file.write(agent_status)
 
 def main() -> None:

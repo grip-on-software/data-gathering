@@ -1,6 +1,21 @@
 """
 Parse XLS worksheets containing sheet counts per project/team, per month to
 a JSON file containing sheet counts per project, per month.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from argparse import ArgumentParser, Namespace
@@ -179,14 +194,14 @@ def main() -> None:
     project = Project(args.project)
     update_path = Path(project.export_key, 'seats_files.json')
     if update_path.exists():
-        with update_path.open('r') as update_file:
+        with update_path.open('r', encoding='utf-8') as update_file:
             filenames = json.load(update_file)
             if set(filenames) == set(args.filename):
                 logging.info('Seat files were already read for %s, skipping.',
                              project.jira_key)
                 return
 
-    with open('seats.yml') as config_file:
+    with open('seats.yml', encoding='utf-8') as config_file:
         config: Dict[str, Any] = yaml.safe_load(config_file)
 
     teams: Teams = {}
@@ -208,7 +223,7 @@ def main() -> None:
     output = format_seats(config, teams, project)
     output.write(project.export_key)
 
-    with open(update_path, 'w') as update_file:
+    with open(update_path, 'w', encoding='utf-8') as update_file:
         json.dump(args.filename, update_file)
 
 if __name__ == '__main__':

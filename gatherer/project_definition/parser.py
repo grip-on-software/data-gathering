@@ -4,6 +4,21 @@ Module for parsing project definitions.
 Project definitions are Python scripts that define a number of domain objects,
 such as projects, products and teams. Additionally, they specify options for
 quality metrics, namely custom targets.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import datetime
@@ -137,7 +152,7 @@ class Project_Definition_Parser(Definition_Parser):
             if index == 0:
                 root_name = part
             else:
-                root_name = '{}.{}'.format(root_name, part)
+                root_name = f'{root_name}.{part}'
 
             parts = module_parts[index+1:]
             module_names = self._format_compatibility_modules(root_name, parts)
@@ -199,20 +214,21 @@ class Project_Definition_Parser(Definition_Parser):
                 # pylint: disable=exec-used
                 try:
                     env = {
-                        '__{}__'.format('file'): filename,
+                        f'__{"file"}__': filename,
                         'open': open_mock
                     }
                     exec(contents, env, env)
-                except SyntaxError as exception:
+                except SyntaxError as error:
                     # Most syntax errors have correct line marker information
-                    if exception.text is None:
-                        raise self.format_exception(contents)
-                    raise self.format_exception(contents, emulate_context=False)
-                except Exception:
+                    if error.text is None:
+                        raise self.format_exception(contents) from error
+                    raise self.format_exception(contents,
+                                                emulate_context=False) from error
+                except Exception as error:
                     # Because of string execution, the line number of the
                     # exception becomes incorrect. Attempt to emulate the
                     # context display using traceback extraction.
-                    raise self.format_exception(contents)
+                    raise self.format_exception(contents) from error
 
     def parse(self) -> Dict[str, Any]:
         """
@@ -275,7 +291,7 @@ class Project_Parser(Project_Definition_Parser):
         return {}
 
     def get_mock_modules(self) -> Dict[str, ModuleType]:
-        modules = super(Project_Parser, self).get_mock_modules()
+        modules = super().get_mock_modules()
 
         ictu = MagicMock()
         ictu_convention = MagicMock()
@@ -358,7 +374,7 @@ class Sources_Parser(Project_Definition_Parser):
         }
 
     def get_mock_modules(self) -> Dict[str, ModuleType]:
-        modules = super(Sources_Parser, self).get_mock_modules()
+        modules = super().get_mock_modules()
 
         hqlib_metric_source = MagicMock(**self.source_objects)
         modules.update(self.get_compatibility_modules(self.METRIC_SOURCE,
@@ -380,7 +396,7 @@ class Sources_Parser(Project_Definition_Parser):
 
     def load_definition(self, filename: str, contents: Union[str, bytes]) -> None:
         with patch('sys.path', sys.path + [self.sys_path]):
-            super(Sources_Parser, self).load_definition(filename, contents)
+            super().load_definition(filename, contents)
 
     def filter_domain_object(self, mock_object: Mock) -> bool:
         return isinstance(mock_object, self.DOMAIN_CLASSES)
@@ -506,7 +522,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
         }
 
     def get_mock_modules(self) -> Dict[str, ModuleType]:
-        modules = super(Metric_Options_Parser, self).get_mock_modules()
+        modules = super().get_mock_modules()
 
         ictu = MagicMock()
         ictu_convention = MagicMock()

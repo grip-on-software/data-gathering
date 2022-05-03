@@ -1,5 +1,20 @@
 """
 Table structures.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import json
@@ -30,7 +45,7 @@ class Table:
         secrets_path = Path('secrets.json')
         self._secrets: Optional[Dict[str, Any]] = None
         if self._encrypt_fields is not None and secrets_path.exists():
-            with secrets_path.open('r') as secrets_file:
+            with secrets_path.open('r', encoding='utf-8') as secrets_file:
                 self._secrets = json.load(secrets_file)
 
         if filename is None:
@@ -186,7 +201,8 @@ class Table:
         if self._merge_update:
             self.load(folder)
 
-        with Path(folder, self._filename).open('w') as outfile:
+        path = Path(folder, self._filename)
+        with path.open('w', encoding='utf-8') as outfile:
             json.dump(self._data, outfile, indent=4)
 
     def load(self, folder: PathLike) -> None:
@@ -201,7 +217,7 @@ class Table:
 
         path = Path(folder, self._filename)
         if path.exists():
-            with path.open('r') as infile:
+            with path.open('r', encoding='utf-8') as infile:
                 self.extend(json.load(infile))
 
 class Key_Table(Table):
@@ -230,7 +246,7 @@ class Key_Table(Table):
 
         key = row[self._key]
         self._keys[key] = row
-        return super(Key_Table, self).append(row)
+        return super().append(row)
 
     def extend(self, rows: Sequence[Row]) -> None:
         for row in rows:
@@ -238,9 +254,9 @@ class Key_Table(Table):
 
     def update(self, search_row: Row, update_row: Row) -> None:
         if self._key in update_row:
-            raise KeyError('Key {} may not be provided in update row'.format(self._key))
+            raise KeyError(f'Key {self._key} may not be provided in update row')
 
-        super(Key_Table, self).update(search_row, update_row)
+        super().update(search_row, update_row)
 
 class Link_Table(Table):
     """
@@ -270,7 +286,7 @@ class Link_Table(Table):
             return False
 
         self._links[link_values] = row
-        return super(Link_Table, self).append(row)
+        return super().append(row)
 
     def extend(self, rows: Sequence[Row]) -> None:
         for row in rows:
@@ -281,6 +297,6 @@ class Link_Table(Table):
         if disallowed_keys:
             key_text = 'Key' if len(disallowed_keys) == 1 else 'Keys'
             disallowed = ', '.join(disallowed_keys)
-            raise KeyError('{} {} may not be provided in update row'.format(key_text, disallowed))
+            raise KeyError(f'{key_text} {disallowed} may not be provided in update row')
 
-        super(Link_Table, self).update(search_row, update_row)
+        super().update(search_row, update_row)

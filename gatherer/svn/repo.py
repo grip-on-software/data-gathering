@@ -1,5 +1,20 @@
 """
 Module that handles access to and remote updates of a Subversion repository.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 from datetime import datetime
@@ -40,9 +55,8 @@ class UnsafeRemoteClient(svn.remote.RemoteClient):
     def run_command(self, subcommand: str, args: List[str], **kwargs: Any) \
             -> Union[bytes, List[str]]:
         failures = 'unknown-ca,cn-mismatch,expired,not-yet-valid,other'
-        args.append('--trust-server-cert-failures={}'.format(failures))
-        return super(UnsafeRemoteClient, self).run_command(subcommand,
-                                                           args, **kwargs)
+        args.append(f'--trust-server-cert-failures={failures}')
+        return super().run_command(subcommand, args, **kwargs)
 
 class Subversion_Repository(Version_Control_Repository):
     """
@@ -57,7 +71,7 @@ class Subversion_Repository(Version_Control_Repository):
     MAX_SIZE = 10000
 
     def __init__(self, source: Source, repo_directory: PathLike, **kwargs: Any):
-        super(Subversion_Repository, self).__init__(source, repo_directory, **kwargs)
+        super().__init__(source, repo_directory, **kwargs)
         self._repo: Optional[svn.common.CommonClient] = None
         self._version_info: Optional[Tuple[int, ...]] = None
         self._reset_limiter()
@@ -116,7 +130,7 @@ class Subversion_Repository(Version_Control_Repository):
                 str(path).rstrip('/') for path in repo.list(rel_path='branches')
             ]
         except svn.exception.SvnException as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not retrieve branches') from error
 
     @property
     def repo(self) -> svn.common.CommonClient:
@@ -164,7 +178,7 @@ class Subversion_Repository(Version_Control_Repository):
         try:
             self.repo.update()
         except svn.exception.SvnException as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not update repository') from error
 
     def checkout(self, paths: Optional[Sequence[str]] = None,
                  shallow: bool = False, branch: Optional[str] = None) -> None:
@@ -179,7 +193,7 @@ class Subversion_Repository(Version_Control_Repository):
         try:
             self.repo.run_command('checkout', args)
         except svn.exception.SvnException as error:
-            raise RepositorySourceException(str(error))
+            raise RepositorySourceException('Could not checkout repository') from error
 
         # Invalidate so that we may continue woorking with a local client
         self._repo = None
@@ -201,7 +215,7 @@ class Subversion_Repository(Version_Control_Repository):
                 self.repo.run_command('update',
                                       ['--set-depth', depth, full_path])
             except svn.exception.SvnException as error:
-                raise RepositorySourceException(str(error))
+                raise RepositorySourceException('Could not sparse checkout') from error
 
     @staticmethod
     def parse_svn_revision(rev: Optional[Version], default: str) -> str:
@@ -232,15 +246,13 @@ class Subversion_Repository(Version_Control_Repository):
                                          revision_to=to_revision,
                                          limit=self._iterator_limiter.size)
         except svn.exception.SvnException as error:
-            raise RepositoryDataException(str(error))
+            raise RepositoryDataException('Could not search revisions') from error
 
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None, force: bool = False,
                  **kwargs: Any) -> List[Dict[str, str]]:
-        versions = super(Subversion_Repository, self).get_data(from_revision,
-                                                               to_revision,
-                                                               force=force,
-                                                               **kwargs)
+        versions = super().get_data(from_revision, to_revision, force=force,
+                                    **kwargs)
 
         self._parse_tags()
 
@@ -298,7 +310,7 @@ class Subversion_Repository(Version_Control_Repository):
                     except StopIteration:
                         break
         except svn.exception.SvnException as error:
-            raise RepositoryDataException(str(error))
+            raise RepositoryDataException('Could not analyze revisions') from error
 
         # Sort the log if it is not already in the preferred order
         if descending == log_descending:
@@ -393,7 +405,7 @@ class Subversion_Repository(Version_Control_Repository):
         try:
             return self.repo.cat(filename, revision=revision)
         except svn.exception.SvnException as error:
-            raise FileNotFoundException(str(error))
+            raise FileNotFoundException(f'Could not find file {filename}') from error
 
     def get_latest_version(self) -> Version:
         info = self.repo.info()

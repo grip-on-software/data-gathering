@@ -1,6 +1,21 @@
 """
 Module that handles access to a GitLab-based repository, augmenting the usual
 repository version information with merge requests and commit comments.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import json
@@ -63,7 +78,7 @@ class GitLab_Dropins_Parser:
             logging.info('Dropin file %s does not exist', self._filename)
             return False
 
-        with self._filename.open('r') as dropin_file:
+        with self._filename.open('r', encoding='utf-8') as dropin_file:
             data: List[Dict[str, str]] = json.load(dropin_file)
 
         return self._parse(data)
@@ -126,7 +141,7 @@ class GitLab_Repository(Git_Repository, Review_System):
 
     @property
     def review_tables(self) -> Dict[str, Table]:
-        review_tables = super(GitLab_Repository, self).review_tables
+        review_tables = super().review_tables
         review_tables.update({
             "gitlab_repo": Key_Table('gitlab_repo', 'gitlab_id'),
             "vcs_event": Table('vcs_event',
@@ -154,7 +169,7 @@ class GitLab_Repository(Git_Repository, Review_System):
     def _check_update_file(self, project: Project) -> None:
         update_path = Path(project.dropins_key, 'gitlab_update.json')
         if update_path.exists():
-            with update_path.open('r') as update_file:
+            with update_path.open('r', encoding='utf-8') as update_file:
                 update_times: Dict[str, str] = json.load(update_file)
                 if self.repo_name in update_times:
                     update_time = update_times[self.repo_name]
@@ -199,8 +214,8 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         try:
             repo_project = source.gitlab_api.projects.get(source.gitlab_path)
-        except (AttributeError, GitlabAuthenticationError, GitlabGetError):
-            raise RuntimeError('Cannot access the GitLab API (insufficient credentials)')
+        except (AttributeError, GitlabAuthenticationError, GitlabGetError) as error:
+            raise RuntimeError('Cannot access the GitLab API (insufficient credentials)') from error
 
         return repo_project
 
@@ -230,9 +245,10 @@ class GitLab_Repository(Git_Repository, Review_System):
 
             version = str(repo_project.default_branch)
 
-        return '{}/tree/{}/{}{}'.format(source.web_url, version,
-                                        path if path is not None else '',
-                                        '#L{}'.format(line) if line is not None else '')
+        if path is None:
+            path = ''
+        line_anchor = f'#L{line}' if line is not None else ''
+        return f'{source.web_url}/tree/{version}/{path}{line_anchor}'
 
     @property
     def source(self) -> GitLab:
@@ -259,8 +275,8 @@ class GitLab_Repository(Git_Repository, Review_System):
         if self._repo_project is None:
             try:
                 self._repo_project = self._get_repo_project(self._source)
-            except RuntimeError:
-                raise RepositorySourceException('Cannot obtain project from API')
+            except RuntimeError as error:
+                raise RepositorySourceException('Cannot obtain project from API') from error
 
         return self._repo_project
 
@@ -270,11 +286,9 @@ class GitLab_Repository(Git_Repository, Review_System):
         # Check if we can retrieve the data from legacy dropin files.
         has_dropins = self._check_dropin_files(self.project)
 
-        versions = super(GitLab_Repository, self).get_data(from_revision,
-                                                           to_revision,
-                                                           comments=has_dropins,
-                                                           force=force,
-                                                           **kwargs)
+        versions = super().get_data(from_revision, to_revision,
+                                    comments=has_dropins, force=force,
+                                    **kwargs)
 
         self.fill_repo_table(self.repo_project)
         if not has_dropins:
@@ -459,8 +473,7 @@ class GitLab_Repository(Git_Repository, Review_System):
         if event.push_data['commit_count'] == 1:
             return [event.push_data['commit_to']]
 
-        refspec = '{}..{}'.format(event.push_data['commit_from'],
-                                  event.push_data['commit_to'])
+        refspec = f"{event.push_data['commit_from']}..{event.push_data['commit_to']}"
         try:
             query = self.repo.iter_commits(refspec)
             return [commit.hexsha for commit in query]
@@ -501,9 +514,7 @@ class GitLab_Repository(Git_Repository, Review_System):
                 self._tables["vcs_event"].append(commit_event)
 
     def _parse_version(self, commit: Commit, stats: bool = True, **kwargs: Any) -> Dict[str, str]:
-        data = super(GitLab_Repository, self)._parse_version(commit,
-                                                             stats=stats,
-                                                             **kwargs)
+        data = super()._parse_version(commit, stats=stats, **kwargs)
 
         if self._has_commit_comments and kwargs.get('comments'):
             project_commit = self.repo_project.commits.get(commit.hexsha,

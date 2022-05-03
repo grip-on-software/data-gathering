@@ -1,5 +1,20 @@
 """
 Authentication API for external agents.
+
+Copyright 2017-2020 ICTU
+Copyright 2017-2022 Leiden University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 import cgi
@@ -160,14 +175,14 @@ def main() -> None:
 
     try:
         client = etcd3.client(timeout=2)
-        lock = client.lock('/agent/{}'.format(project_key), ttl=3600)
+        lock = client.lock(f'/agent/{project_key}', ttl=3600)
         if not lock.acquire(timeout=5):
             raise RuntimeError('Another process has acquired the lock')
     except (etcd3.exceptions.Etcd3Exception, RuntimeError) as error:
         print('Status: 503 Service Unavailable')
         print('Content-Type: text/plain')
         print()
-        print('Could not lock the agent for updating: {!r}'.format(error))
+        print(f'Could not lock the agent for updating: {error!r}')
         return
 
     try:
@@ -188,7 +203,7 @@ def main() -> None:
         print('Status: 503 Service Unavailable')
         print('Content-Type: text/plain')
         print()
-        print('Could not update the agent: {!r}'.format(error))
+        print(f'Could not update the agent: {error!r}')
         return
     finally:
         lock.release()
