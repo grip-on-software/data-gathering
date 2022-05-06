@@ -4,7 +4,7 @@ FROM python:3.7-alpine3.13
 COPY requirements.txt setup.py /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
-	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev libressl-dev bash git subversion openssh-client gettext cargo && \
+	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev libressl-dev bash git subversion openssh-client gettext cargo make cmake && \
 	cd /tmp/ && pip install -r requirements.txt && \
 	pip install -I 'python-gitlab>=1.10.0'
 
@@ -12,7 +12,7 @@ RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 COPY gatherer/ /tmp/gatherer/
 
 RUN cd /tmp && python setup.py install && \
-	apk del gcc musl-dev libffi-dev libressl-dev cargo && \
+	apk del gcc musl-dev libffi-dev libressl-dev cargo make cmake && \
 	rm -rf /var/cache/apk/* /tmp /root/.cache /root/.cargo
 
 # Configure agent environment
