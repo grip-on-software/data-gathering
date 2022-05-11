@@ -179,7 +179,7 @@ class Sprint_Parser(Field_Parser):
             try:
                 pair = part.split('=')
                 if len(pair) == 1 and prev_key != '':
-                    sprint_data[prev_key] += f",{part}"
+                    sprint_data[prev_key] = f"{sprint_data[prev_key]},{part}"
                 else:
                     key = pair[0]
                     value = pair[1]

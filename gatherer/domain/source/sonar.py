@@ -32,8 +32,9 @@ class Sonar(Source):
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
                  follow_host_change: bool = True) -> None:
+        # Ensure URL ends in a slash
         if not url.endswith('/'):
-            url += '/'
+            url = f'{url}/'
 
         super().__init__(source_type, name=name, url=url,
                          follow_host_change=follow_host_change)

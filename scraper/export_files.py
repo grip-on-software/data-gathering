@@ -85,8 +85,7 @@ class Exporter:
         rather than performing this action.
         """
 
-        auth = self.agent + '@' + self.host
-        export_path = f'{auth}:~/{self.project.export_key}/'
+        export_path = f'{self.agent}{"@"}{self.host}:~/{self.project.export_key}/'
 
         args = ['scp', '-i', key_path] + [
             f'{self.project.export_key}/{filename}' for filename in filenames

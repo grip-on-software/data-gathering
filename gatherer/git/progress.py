@@ -110,7 +110,7 @@ class Git_Progress(RemoteProgress):
 
             token = ''
             if stage_op == RemoteProgress.END:
-                token = RemoteProgress.TOKEN_SEPARATOR + RemoteProgress.DONE_TOKEN
+                token = f'{RemoteProgress.TOKEN_SEPARATOR}{RemoteProgress.DONE_TOKEN}'
 
             text = self._op_codes[action_op]
             line = f'{text}: {count}{token}'

@@ -64,7 +64,7 @@ def main() -> None:
 
         config = Configuration.get_settings()
         source = GitLab('gitlab', name='Data gathering',
-                        url=config.get('gitlab', 'url') + config.get('gitlab', 'repo'))
+                        url=f"{config.get('gitlab', 'url')}{config.get('gitlab', 'repo')}")
 
         try:
             repo_class = source.repository_class

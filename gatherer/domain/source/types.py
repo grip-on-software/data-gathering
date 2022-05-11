@@ -232,7 +232,7 @@ class Source: # pylint: disable=too-many-instance-attributes
             credentials_env = self._credentials.get(host, 'env')
             self.credentials_path = os.getenv(credentials_env)
 
-        auth = username + '@' + hostname
+        auth = f'{username}{"@"}{hostname}'
         path = orig_parts.path
 
         # If 'strip' exists, then this value is stripped from the
@@ -241,7 +241,7 @@ class Source: # pylint: disable=too-many-instance-attributes
             strip = self._credentials.get(host, 'strip')
             if path.startswith(strip):
                 path = path[len(strip):]
-            elif path.startswith('/' + strip):
+            elif path.startswith(f'/{strip}'):
                 path = path[len(strip)+1:]
 
         self._url = self._format_ssh_url(hostname, auth, port, path)
@@ -258,10 +258,9 @@ class Source: # pylint: disable=too-many-instance-attributes
         # Add a password to the URL for basic authentication.
         password = quote(self._credentials.get(host, 'password'))
 
-        auth = f'{username}:{password}'
-        full_host = auth + '@' + hostname
+        full_host = f'{username}:{password}{"@"}{hostname}'
         if port is not None:
-            full_host += f':{port}'
+            full_host = f'{full_host}:{port}'
 
         self._url = self._create_url(orig_parts.scheme, full_host,
                                      orig_parts.path, orig_parts.query,

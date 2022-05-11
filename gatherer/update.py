@@ -113,7 +113,9 @@ class Database_Tracker(Update_Tracker):
             parameters: List[Union[int, str]] = [project_id]
             if files is not None:
                 iters = itertools.tee(files, 2)
-                query += ' AND filename IN (' + ','.join('%s' for _ in iters[0]) + ')'
+                query = f'''{query}
+                            AND filename IN ({",".join("%s" for _ in iters[0])})
+                         '''
                 parameters.extend(iters[1])
 
             result = database.execute(query, parameters=parameters, one=False)
@@ -177,8 +179,7 @@ class SSH_Tracker(Update_Tracker):
         update tracker files.
         """
 
-        auth = self._username + '@' + self._host
-        return f'{auth}:~/{self._project.update_key}'
+        return f'{self._username}{"@"}{self._host}:~/{self._project.update_key}'
 
     def retrieve(self, files: Optional[Iterable[str]] = None) -> None:
         self._project.make_export_directory()
@@ -187,9 +188,11 @@ class SSH_Tracker(Update_Tracker):
             logging.warning('Cannot determine which files to retrieve')
             return
 
-        args = ['scp', '-T', '-i', self._key_path] + [
-            self.remote_path + '/\\{' + ','.join(files) + '\\}'
-        ] + [str(self._project.export_key)]
+        args = [
+            'scp', '-T', '-i', self._key_path,
+            f'{self.remote_path}/\\{{{",".join(files)}\\}}',
+            str(self._project.export_key)
+        ]
         try:
             output = subprocess.check_output(args, stderr=subprocess.STDOUT)
             if output:

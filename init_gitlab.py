@@ -276,8 +276,7 @@ class Repository_Archive:
         self._repo.repo.git.bundle(['create', bundle_path, '--all'])
 
         if not self._dry_run:
-            auth = agent + '@' + ssh
-            path = f'{auth}:~/{self._project.export_key}'
+            path = f'{agent}{"@"}{ssh}:~/{self._project.export_key}'
             subprocess.call(['scp', '-i', key_path, bundle_path, path])
 
         logging.info('%sUploaded bundle to controller', self._dry_run_log)

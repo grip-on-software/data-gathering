@@ -72,8 +72,9 @@ class Base(metaclass=ABCMeta):
             query = base_url.copy()
             base_url = query.pop('url', None)
 
+        # Ensure the base URL ends in a slash for further suffixes
         if isinstance(base_url, str) and not base_url.endswith('/'):
-            base_url += '/'
+            base_url = f'{base_url}/'
 
         self._base_url = base_url
         self._query = query
@@ -205,7 +206,7 @@ class Base(metaclass=ABCMeta):
         if self.DELETE_URL is None:
             raise TypeError("This object does not support deletion")
 
-        request = self.instance.session.post(self.base_url + self.DELETE_URL,
+        request = self.instance.session.post('{self.base_url}{self.DELETE_URL}',
                                              timeout=self.instance.timeout)
         request.raise_for_status()
 
@@ -270,7 +271,7 @@ class Jenkins(Base):
         return cls(host, username=username, password=password, verify=verify)
 
     def _add_crumb_header(self) -> None:
-        request = self._session.get(self.base_url + 'crumbIssuer/api/json',
+        request = self._session.get(f'{self.base_url}crumbIssuer/api/json',
                                     timeout=3)
         if Session.is_code(request, 'not_found'):
             return
@@ -687,7 +688,7 @@ class Job(Base):
         specifically for this job.
         """
 
-        url = self.base_url + 'build'
+        url = f'{self.base_url}build'
         params = {}
         data = None
         if token is not None:
@@ -696,7 +697,7 @@ class Job(Base):
         if isinstance(parameters, list):
             data = {"json": json.dumps({"parameter": parameters})}
         elif isinstance(parameters, dict):
-            url = self.base_url + 'buildWithParameters'
+            url = f'{self.base_url}buildWithParameters'
             params.update(parameters)
 
         return self.instance.session.post(url, params=params, data=data,

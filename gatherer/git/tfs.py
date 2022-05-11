@@ -501,9 +501,7 @@ class TFS_Repository(Git_Repository, Review_System):
     @classmethod
     def _get_ssh_command(cls, source: Source) -> str:
         ssh_command = super(TFS_Repository, cls)._get_ssh_command(source)
-        ssh_command += ' -c +aes256-cbc,aes192-cbc,aes128-cbc'
-
-        return ssh_command
+        return f'{ssh_command} -c +aes256-cbc,aes192-cbc,aes128-cbc'
 
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None, force: bool = False,
@@ -690,7 +688,7 @@ class TFS_Repository(Git_Repository, Review_System):
         }
 
         # Determine whether to add as commit comment or request note
-        if self.PROPERTY + '.ItemPath' in thread['properties']:
+        if f'{self.PROPERTY}.ItemPath' in thread['properties']:
             self.add_commit_comment(note, thread['properties'])
         else:
             self._tables["merge_request_note"].append(note)
@@ -702,8 +700,8 @@ class TFS_Repository(Git_Repository, Review_System):
         to the commit comments table.
         """
 
-        if self.PROPERTY + '.Position.PositionContext' in properties:
-            context = properties[self.PROPERTY + '.Position.PositionContext']
+        if f'{self.PROPERTY}.Position.PositionContext' in properties:
+            context = properties[f'{self.PROPERTY}.Position.PositionContext']
             if context['$value'] == 'LeftBuffer':
                 line_type = 'old'
             else:
@@ -711,13 +709,13 @@ class TFS_Repository(Git_Repository, Review_System):
         else:
             line_type = str(0)
 
-        if self.PROPERTY + '.Position.StartLine' in properties:
-            line = properties[self.PROPERTY + '.Position.StartLine']['$value']
+        if f'{self.PROPERTY}.Position.StartLine' in properties:
+            line = properties[f'{self.PROPERTY}.Position.StartLine']['$value']
         else:
             line = 0
 
-        if self.PROPERTY + '.Position.EndLine' in properties:
-            end_line = properties[self.PROPERTY + '.Position.EndLine']['$value']
+        if f'{self.PROPERTY}.Position.EndLine' in properties:
+            end_line = properties[f'{self.PROPERTY}.Position.EndLine']['$value']
         else:
             end_line = 0
 
@@ -725,7 +723,7 @@ class TFS_Repository(Git_Repository, Review_System):
             # Move creation and update date fields
             'created_date': note['created_at'],
             'updated_date': note['updated_at'],
-            'file': properties[self.PROPERTY + '.ItemPath']['$value'],
+            'file': properties[f'{self.PROPERTY}.ItemPath']['$value'],
             'line': str(line),
             'end_line': str(end_line),
             'line_type': line_type,

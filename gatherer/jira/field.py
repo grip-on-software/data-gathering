@@ -110,7 +110,7 @@ class Primary_Field(Jira_Field):
 
     @property
     def table_key(self) -> TableKey:
-        raise Exception("Primary field '" + self.name + "' is not keyable at this moment")
+        raise Exception(f"Primary field '{self.name}' is not keyable at this moment")
 
 class Payload_Field(Jira_Field):
     """

@@ -60,10 +60,9 @@ class Topdesk_Parser:
 
     _first_name = r'\p{Lu}(?:\p{Ll}+|\.)'
     _last_name = r'\p{Lu}\p{Ll}{2,}'
-    _full_name = _first_name + r'(?: van(?: t| de| den| der)?| de)? ' + \
-        _last_name + r'( ' + _last_name + r')?'
-    _name = r'^' + _full_name + r'(?: \(\p{Lu}[^)]+\)| - \p{Lu}[\w-]+| en ' + \
-        _full_name + r')?$'
+    _affix = r'van(?: t| de| den| der)?|de'
+    _full_name = rf'{_first_name}(?: (?:{_affix}))? {_last_name}(?: {_last_name})?'
+    _name = rf'^{_full_name}(?: \(\p{{Lu}}[^)]+\)| - \p{{Lu}}[\w-]+| en {_full_name})?$'
     _name_regex = regex.compile(_name, flags=regex.UNICODE)
 
     def __init__(self, project: Project) -> None:

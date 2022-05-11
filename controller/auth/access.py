@@ -47,7 +47,7 @@ def get_accessible_projects() -> List[str]:
     if not config.has_option('access', '*'):
         return ['*']
 
-    address = ipaddress.ip_address(os.getenv('REMOTE_ADDR'))
+    address = ipaddress.ip_address(os.getenv('REMOTE_ADDR', '127.0.0.1'))
     forwarded = os.getenv('HTTP_X_FORWARDED_FOR')
     if forwarded is not None:
         nets = config.get('access', '_')

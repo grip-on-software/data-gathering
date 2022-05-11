@@ -186,7 +186,7 @@ class Subversion_Repository(Version_Control_Repository):
             raise TypeError('Repository is already local, update the repository instead')
 
         # Check out trunk directory
-        args = [self.repo.url + '/trunk', str(self._repo_directory)]
+        args = [f'{self.repo.url}/trunk', str(self._repo_directory)]
         if paths is not None:
             args.extend(['--depth', 'immediates'])
 
@@ -358,7 +358,7 @@ class Subversion_Repository(Version_Control_Repository):
         """
 
         if isinstance(self.repo, svn.remote.RemoteClient):
-            path = self.repo.url + '/' + filename
+            path = f'{self.repo.url}/{filename}'
         else:
             path = str(self._repo_directory / filename)
 

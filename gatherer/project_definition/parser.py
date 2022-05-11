@@ -112,19 +112,22 @@ class Project_Definition_Parser(Definition_Parser):
 
         etype, value, trace = sys.exc_info()
         formatted_lines = traceback.format_exception_only(etype, value)
-        message = "Could not parse project definition: " + formatted_lines[-1]
+        message = f"Could not parse project definition: {formatted_lines[-1]}"
         if self.context_lines >= 0:
-            message += ''.join(formatted_lines[:-1])
+            message = f'{message}{"".join(formatted_lines[:-1])}'
             if emulate_context:
                 line = traceback.extract_tb(trace)[-1].lineno
+                if line is None:
+                    line = 0
                 if isinstance(contents, bytes):
                     text = contents.decode('utf-8')
                 else:
                     text = contents
                 lines = text.split('\n')
-                range_start = max(0, line-self.context_lines-1)
-                range_end = min(len(lines), line+self.context_lines)
-                message += "Context:\n" + '\n'.join(lines[range_start:range_end])
+                range_start = max(0, line - self.context_lines - 1)
+                range_end = min(len(lines), line + self.context_lines)
+                context = '\n'.join(lines[range_start:range_end])
+                message = f"{message}Context:\n{context}"
 
         return RuntimeError(message.strip())
 
@@ -207,7 +210,7 @@ class Project_Definition_Parser(Definition_Parser):
         open_mock = mock_open()
 
         with patch.dict('sys.modules', modules):
-            with patch(self.__class__.__module__ + '.open', open_mock):
+            with patch(f'{self.__class__.__module__}.open', open_mock):
                 # Load the project definition by executing the contents of
                 # the file with altered module definitions. This should be safe
                 # since all relevant modules and context has been patched.
@@ -587,7 +590,7 @@ class Metric_Options_Parser(Project_Definition_Parser):
 
         class_name = self.get_class_name(metric_type)
 
-        metric_name = class_name + name
+        metric_name = f'{class_name}{name}'
         if metric_name in self.data:
             targets: Dict[str, str] = self.data[metric_name]
         elif isinstance(metric_type, Mock): # type: ignore[misc]

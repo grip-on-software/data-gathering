@@ -598,7 +598,7 @@ def get_filename_compression(project: Project, sources: Set[Source],
     filename = get_filename(project, sources, args)
     compression = get_setting(args.compression, 'compression', project)
     if compression and PurePath(filename).suffix[1:] != compression:
-        filename += "." + compression
+        filename = f"{filename}.{compression}"
 
     return filename, compression
 

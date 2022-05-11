@@ -82,9 +82,9 @@ class Custom_Metric(SonarMetric, LowerIsBetterMetric):
     def stable_id(self) -> str:
         name = self.get_name()
         try:
-            name += self._subject.name()
+            name = f'{name}{self._subject.name()}'
         except AttributeError:
-            name += str(self._subject)
+            name = f'{name}{self._subject!s}'
 
         return name
 
@@ -211,17 +211,20 @@ class Sonar_Time_Machine(Sonar7):
         if not self._has_project(product, branch):
             return -1
 
-        api_url = self.url() + 'api/measures/search_history?' + \
-            'component={component}&metrics={metric}&from={from_date}&' + \
+        # Sonar metric history URL format
+        api_url_format = (
+            f'{self.url()}api/measures/search_history?'
+            'component={component}&metrics={metric}&from={from_date}&'
             'p={p}&ps={ps}'
+        )
         keys = ('date', 'value')
         from_date = format_date(self.__from_datetime,
                                 '%Y-%m-%dT%H:%M:%S+0000')
-        url = api_url.format(component=urllib.parse.quote(product),
-                             metric=urllib.parse.quote(metric_name),
-                             from_date=urllib.parse.quote(from_date),
-                             p=self.__iterator.page,
-                             ps=self.__iterator.size)
+        url = api_url_format.format(component=urllib.parse.quote(product),
+                                    metric=urllib.parse.quote(metric_name),
+                                    from_date=urllib.parse.quote(from_date),
+                                    p=self.__iterator.page,
+                                    ps=self.__iterator.size)
         if url not in self.__failed_urls:
             try:
                 data: SearchHistory = self._get_json(url)
@@ -287,11 +290,14 @@ class Sonar_Time_Machine(Sonar7):
         if not self._has_project(product, branch):
             return -1
 
-        rule_violation_url = self.url() + 'api/issues/search?' + \
+        # Rule violation issue URL format
+        rule_violation_url_format = (
+            f'{self.url()}api/issues/search?'
             'componentRoots={component}&rules={rule}&p={p}&ps={ps}'
-        rule_violation_url = self._add_branch_param_to_url(rule_violation_url,
-                                                           branch)
-        return self.__count_issues(rule_violation_url, closed=False,
+        )
+        rule_violation_url_format = \
+            self._add_branch_param_to_url(rule_violation_url_format, branch)
+        return self.__count_issues(rule_violation_url_format, closed=False,
                                    component=product, rule=rule_name,
                                    default=default)
 
@@ -299,37 +305,52 @@ class Sonar_Time_Machine(Sonar7):
         if not self._has_project(product, branch):
             return -1
 
-        false_positives_url = self.url() + 'api/issues/search?' + \
-            'componentRoots={component}&' + \
-            'resolutions=FALSE-POSITIVE&p={p}&ps={ps}'
-        false_positives_url = self._add_branch_param_to_url(false_positives_url,
-                                                            branch)
-        return self.__count_issues(false_positives_url, closed=True,
+        # False positive issue URL format
+        false_positives_url_format = (
+            f'{self.url()}api/issues/search?'
+            'componentRoots={component}&resolutions=FALSE-POSITIVE&p={p}&'
+            'ps={ps}'
+        )
+        false_positives_url_format = \
+            self._add_branch_param_to_url(false_positives_url_format, branch)
+        return self.__count_issues(false_positives_url_format, closed=True,
                                    default=0, component=product)
 
-    _issues_by_type_api_url = 'api/issues/search?' + \
+    # Issue by type URL format
+    _issues_by_type_api_url = (
+        'api/issues/search?'
         'componentRoots={component}&types={type}&p={p}&ps={ps}'
+    )
 
     @extract_branch_decorator
     def maintainability_bugs(self, product: str, branch: str) -> int:
-        bugs_url = self.url() + 'api/issues/search?' + \
+        # Bug issue URL format
+        bugs_url_format = (
+            f'{self.url()}api/issues/search?'
             'componentRoots={component}&types=BUG&p={p}&ps={ps}'
-        return self.__count_issues(bugs_url, closed=False, default=0,
+        )
+        return self.__count_issues(bugs_url_format, closed=False, default=0,
                                    component=product)
 
     @extract_branch_decorator
     def vulnerabilities(self, product: str, branch: str) -> int:
-        vulnerabilities_url = self.url() + 'api/issues/search?' + \
+        # Vulnerability issue URL format
+        vulnerabilities_url_format = (
+            f'{self.url()}api/issues/search?'
             'componentRoots={component}&types=VULNERABILITY&p={p}&ps={ps}'
-        return self.__count_issues(vulnerabilities_url, closed=False, default=0,
-                                   component=product)
+        )
+        return self.__count_issues(vulnerabilities_url_format, closed=False,
+                                   default=0, component=product)
 
     @extract_branch_decorator
     def code_smells(self, product: str, branch: str) -> int:
-        code_smells_url = self.url() + 'api/issues/search?' + \
+        # Code smell issue URL format
+        code_smells_url_format = (
+            f'{self.url()}api/issues/search?'
             'componentRoots={component}&types=CODE_SMELL&p={p}&ps={ps}'
-        return self.__count_issues(code_smells_url, closed=False, default=0,
-                                   component=product)
+        )
+        return self.__count_issues(code_smells_url_format, closed=False,
+                                   default=0, component=product)
 
     @extract_branch_decorator
     def custom(self, product: str, branch: str, metric_name: str = '') -> int:

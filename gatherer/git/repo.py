@@ -20,6 +20,7 @@ limitations under the License.
 from datetime import datetime
 from io import BytesIO
 import logging
+import os
 from pathlib import Path
 import re
 import shutil
@@ -376,7 +377,10 @@ class Git_Repository(Version_Control_Repository):
         logging.debug('Using credentials path %s', source.credentials_path)
         ssh_command = f"ssh -i '{source.credentials_path}'"
         if source.get_option('unsafe_hosts'):
-            ssh_command += ' -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+            ssh_command = (
+                f'{ssh_command} -o StrictHostKeyChecking=no'
+                f'-o UserKnownHostsFile={os.devnull}'
+            )
 
         return ssh_command
 
@@ -742,7 +746,10 @@ class Git_Repository(Version_Control_Repository):
 
     @staticmethod
     def _format_replaced_path(old_path: str, new_path: str) -> str:
-        # Not implemented: C-style quoted files with non-unicode characters
+        # Algorithm comparable to pprint_rename function as implemented in git
+        # to format a path with partial replacement (move). See git's diff.c.
+        # Not implemented: C-style quoted files with non-unicode characters.
+
         # Find common prefix
         prefix_length = 0
         for index, pair in enumerate(zip(old_path, new_path)):
@@ -769,11 +776,15 @@ class Git_Repository(Version_Control_Repository):
         old_midlen = max(0, len(old_path) - suffix_length)
         new_midlen = max(0, len(new_path) - suffix_length)
 
-        mid_name = old_path[prefix_length:old_midlen] + ' => ' + \
-                new_path[prefix_length:new_midlen]
+        mid_name = (
+            f'{old_path[prefix_length:old_midlen]} => '
+            f'{new_path[prefix_length:new_midlen]}'
+        )
         if prefix_length + suffix_length > 0:
-            return old_path[:prefix_length] + '{' + mid_name + '}' + \
-                    old_path[len(old_path)-suffix_length:]
+            return (
+                f'{old_path[:prefix_length]}{{{mid_name}}}'
+                f'{old_path[len(old_path)-suffix_length:]}'
+            )
 
         return mid_name
 
