@@ -30,6 +30,9 @@ separately or in combination with one another:
     are installed.
   - For the controller: run `pip install -r requirements-daemon.txt`, which 
     also ensures that the normal dependencies are installed.
+  - In order to make use of static code analysis, run `pip install -r 
+    requirements-analysis.txt`, which installs dependencies for Pylint and mypy 
+    (typing extensions).
 - Run `python setup.py install` to install the module and any missing 
   dependencies for the data gathering module. Note that some versions of 
   `setuptools`, which is used in this step, are unable to use wheels or eggs 
