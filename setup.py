@@ -41,6 +41,7 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
           url='',
           license='Apache 2.0',
           packages=find_packages(),
+          package_data={'gatherer': ['py.typed']},
           entry_points={},
           include_package_data=True,
           install_requires=[
