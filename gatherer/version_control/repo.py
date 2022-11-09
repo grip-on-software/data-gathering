@@ -374,7 +374,8 @@ class Version_Control_Repository:
 
         self._update_trackers[file_name] = value
 
-    def get_contents(self, filename: str, revision: Version = None) -> bytes:
+    def get_contents(self, filename: str,
+                     revision: Optional[Version] = None) -> bytes:
         """
         Retrieve the contents of a file with path `filename` at the given
         version `revision`, or the current version if not given.

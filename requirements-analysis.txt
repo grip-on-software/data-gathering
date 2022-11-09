@@ -3,7 +3,7 @@
 # Linter dependencies
 pylint
 # Typing/mypy dependencies
-mypy
+mypy<0.981
 types-python-dateutil
 types-requests>=2.27.27
 types-PyYAML

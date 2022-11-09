@@ -875,7 +875,8 @@ class Git_Repository(Version_Control_Repository):
         except GitCommandError as error:
             raise RepositoryDataException('Could not retrieve latest version') from error
 
-    def get_contents(self, filename: str, revision: Optional[Version] = None) -> bytes:
+    def get_contents(self, filename: str,
+                     revision: Optional[Version] = None) -> bytes:
         try:
             if revision is not None:
                 commit = self.repo.commit(str(revision))

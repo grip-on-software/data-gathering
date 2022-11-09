@@ -396,7 +396,8 @@ class Subversion_Repository(Version_Control_Repository):
             'tagger_email': str(0)
         })
 
-    def get_contents(self, filename: str, revision: Optional[Version] = None) -> bytes:
+    def get_contents(self, filename: str,
+                     revision: Optional[Version] = None) -> bytes:
         """
         Retrieve the contents of a file with path `filename` at the given
         `revision`, or the currently checked out revision if not given.
