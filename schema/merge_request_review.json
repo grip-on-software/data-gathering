@@ -1,0 +1,41 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/merge_request_review.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control review system merge request reviews",
+    "$ref": "#/$defs/merge_request_reviews",
+    "$defs": {
+        "merge_request_reviews": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/merge_request_review"}
+        },
+        "merge_request_review": {
+            "description": "A review for a merge or pull request from a review system, such as GitHub or TFS/VSTS/Azure DevOps.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "merge_request_id": {
+                    "description": "Identifier of the request.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "reviewer": {
+                    "description": "Name of the developer who performs the review. This may also be an account name.",
+                    "type": "string"
+                },
+                "reviewer_username": {
+                    "description": "Account name of the developer who performs the review.",
+                    "type": "string"
+                },
+                "vote": {
+                    "description": "The vote that the reviewer gave.",
+                    "type": "string",
+                    "pattern": "^-?\\d+$"
+                }
+            }
+        }
+    }
+}

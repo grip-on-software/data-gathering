@@ -1,0 +1,61 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/tag.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control system tags",
+    "$ref": "#/$defs/tags",
+    "$defs": {
+        "tags": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/tag"}
+        },
+        "tag": {
+            "description": "A tag that from a version control system, either Subversion or Git.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "tag_name": {
+                    "description": "Name of the tag.",
+                    "type": "string"
+                },
+                "version_id": {
+                    "description": "Hexadecimal SHA identifier of the version, if the event was related to a version.",
+                    "type": "string",
+                    "pattern": "^[a-f0-9]+$"
+                },
+                "message": {
+                    "description": "Message added specifically to the tag. This is `0` if tags cannot receive messages in the system.",
+                    "type": "string"
+                },
+                "tagged_date": {
+                    "description": "Moment when the tag was created or updated. This is `0` if the tag date is unknown.",
+                    "oneOf": [
+                        {"$ref": "#/$defs/datetime"},
+                        {"type": "string", "const": "0"}
+                    ]
+                },
+                "tagger": {
+                    "description": "Name of the developer who created the tag. This can also be the account name. This is `0` if the developer is unknown.",
+                    "type": "string"
+                },
+                "tagger_email": {
+                    "description": "Email address of the developer who created the tag. This is `0` if the developer is unknown.",
+                    "type": "string",
+                    "oneOf": [
+                        {"format": "email"},
+                        {"const": "0"}
+                    ]
+                }
+            }
+        },
+        "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
+        }
+    }
+}
+

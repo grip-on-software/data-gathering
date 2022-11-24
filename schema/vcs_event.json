@@ -1,0 +1,65 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs_event.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control review system events",
+    "$ref": "#/$defs/vcs_events",
+    "$defs": {
+        "vcs_events": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/vcs_event"}
+        },
+        "vcs_event": {
+            "description": "An event from a review system, such as GitLab or TFS/VSTS/Azure DevOps.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "version_id": {
+                    "description": "Hexadecimal SHA identifier of the version, if the event was related to a version.",
+                    "type": "string",
+                    "pattern": "^[a-f0-9]+$"
+                },
+                "action": {
+                    "description": "Action that the event performs.",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "Type of event.",
+                    "type": "string"
+                },
+                "ref": {
+                    "description": "Git reference that the event applies to, such as a branch or tag reference.",
+                    "type": "string"
+                },
+                "user": {
+                    "description": "Name of the developer who performed the event. This can also be an account name.",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Account name of the developer who performed the event.",
+                    "type": "string"
+                },
+                "email": {
+                    "description": "Email address of the developer who performed the event. This is `0` if the email address was not obtained.",
+                    "type": "string",
+                    "oneOf": [
+                        {"format": "email"},
+                        {"const": "0"}
+                    ]
+                },
+                "date": {
+                    "description": "Moment when the event took place.",
+                    "$ref": "#/$defs/datetime"
+                }
+            }
+        },
+        "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
+        }
+    }
+}

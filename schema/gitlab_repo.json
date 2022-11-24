@@ -1,0 +1,58 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/gitlab_repo.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "GitLab repositories",
+    "$ref": "#/$defs/gitlab_repos",
+    "$defs": {
+        "gitlab_repos": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/repo"}
+        },
+        "repo": {
+            "description": "Auxiliary information about a GitLab project repository.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "gitlab_id": {
+                    "description": "Internal identifier from GitLab for the project.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "description": {
+                    "description": "Description of the project. This is `0` if no description is filled in.",
+                    "type": "string"
+                },
+                "create_time": {
+                    "description": "Moment when the project was created.",
+                    "$ref": "#/$defs/datetime"
+                },
+                "archived": {
+                    "description": "Whether the project is archived.",
+                    "$ref": "#/$defs/boolean"
+                },
+                "has_avatar": {
+                    "description": "Whether the project has a custom avatar icon.",
+                    "$ref": "#/$defs/boolean"
+                },
+                "star_count": {
+                    "description": "Number of people who gave the project a star.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                }
+            }
+        },
+        "boolean": {
+            "type": "string",
+            "enum": ["0", "1"]
+        },
+        "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
+        }
+    }
+}

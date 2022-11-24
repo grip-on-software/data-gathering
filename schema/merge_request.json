@@ -1,0 +1,87 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/merge_request.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control review system merge requests",
+    "$ref": "#/$defs/merge_requests",
+    "$defs": {
+        "merge_requests": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/merge_request"}
+        },
+        "merge_request": {
+            "description": "A merge or pull request from a review system, such as GitLab, GitHub or TFS/VSTS/Azure DevOps.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Identifier of the request.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "title": {
+                    "description": "Title of the request.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description of the request.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "State of the request.",
+                    "type": "string"
+                },
+                "source_branch": {
+                    "description": "Branch where versions were committed in order to be merged upon completion of the request.",
+                    "type": "string"
+                },
+                "target_branch": {
+                    "description": "Branch where the changes of the request should be merged into.",
+                    "type": "string"
+                },
+                "author": {
+                    "description": "Name of the developer who made the request.",
+                    "type": "string"
+                },
+                "author_username": {
+                    "description": "Account name of the developer who made the request.",
+                    "type": "string"
+                },
+                "assignee": {
+                    "description": "Name of the developer who is assigned to review the request. This is `0` if the system has no assignees.",
+                    "type": "string"
+                },
+                "assignee_username": {
+                    "description": "Account name of the developer who is assigned to review the request. This is `0` if the system has no assignees",
+                    "type": "string"
+                },
+                "upvotes": {
+                    "description": "The number of positive votes for the request.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "downvotes": {
+                    "description": "The number of negative votes for the request.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "created_at": {
+                    "description": "Moment when the request was created.",
+                    "$ref": "#/$defs/datetime"
+                },
+                "updated_at": {
+                    "description": "Moment when the request was last updated.",
+                    "$ref": "#/$defs/datetime"
+                }
+            }
+        },
+        "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
+        }
+    }
+}

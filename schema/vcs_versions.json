@@ -1,0 +1,102 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs_versions.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control system versions",
+    "$ref": "#/$defs/vcs_versions",
+    "$defs": {
+        "vcs_versions": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/version"}
+        },
+        "version": {
+            "description": "A version from a version control system, either a Subversion or Git commit.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "version_id": {
+                    "description": "Identifier of the version, either a hexadecimal SHA hash or an incremental version number.",
+                    "type": "string",
+                    "pattern": "^[a-f0-9]+$"
+                },
+                "sprint_id": {
+                    "description": "Identifier of the sprint in which the commit was made. If this could not be determined during collection, then this is `0`.",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "Commit message.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Type of the version. This is `commit`, `revert` or `merge`.",
+                    "type": "string",
+                    "default": "commit",
+                    "enum": ["commit", "revert", "merge"]
+                },
+                "developer": {
+                    "description": "Name of the developer who committed the version. This can also be the account name.",
+                    "type": "string"
+                },
+                "developer_username": {
+                    "description": "Account name of the developer who committed the version. This can also be the full name.",
+                    "type": "string"
+                },
+                "developer_email": {
+                    "description": "Email address of the developer who committed the version. This is `0` if it is not known.",
+                    "type": "string",
+                    "oneOf": [
+                        {"format": "email"},
+                        {"const": "0"}
+                    ]
+                },
+                "commit_date": {
+                    "description": "Moment when the version was committed.",
+                    "$ref": "#/$defs/datetime"
+                },
+                "author_date": {
+                    "description": "Moment when the version was authored. This is `0` if it is not known.",
+                    "oneOf": [
+                        {"$ref": "#/$defs/datetime"},
+                        {"type": "string", "const": "0"}
+                    ]
+                },
+                "branch": {
+                    "description": "Branch on which the version was initially made. This is `0` if it is not known.",
+                    "type": "string"
+                },
+                "insertions": {
+                    "description": "Number of added lines in the version.",
+                    "$ref": "#/$defs/diffstat"
+                },
+                "deletions": {
+                    "description": "Number of removed lines in the version.",
+                    "$ref": "#/$defs/diffstat"
+                },
+                "number_of_files": {
+                    "description": "Number of files changed in the version.",
+                    "$ref": "#/$defs/diffstat"
+                },
+                "number_of_lines": {
+                    "description": "Number of lines changed in the version.",
+                    "$ref": "#/$defs/diffstat"
+                },
+                "size": {
+                    "description": "Size in bytes of the version.",
+                    "$ref": "#/$defs/diffstat"
+                }
+            }
+        },
+        "diffstat": {
+            "type": "string",
+            "pattern": "^\\d+$"
+        },
+        "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
+        }
+    }
+}

@@ -1,0 +1,53 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/change_path.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control system change paths",
+    "$ref": "#/$defs/change_paths",
+    "$defs": {
+        "change_paths": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/change_path"}
+        },
+        "change_path": {
+            "description": "A path that was changed in a version from a version control system, either a Subversion or Git commit.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "version_id": {
+                    "description": "Identifier of the version, either a hexadecimal SHA hash or an incremental version number.",
+                    "type": "string",
+                    "pattern": "^[a-f0-9]+$"
+                },
+                "file": {
+                    "description": "Path to the file as it is named after the change.",
+                    "type": "string"
+                },
+                "change_type": {
+                    "description": "Type of change made to the file. This is `M` for Modified, `A` for Added, `D` for Deleted or `R` for Replaced.",
+                    "type": "string",
+                    "enum": ["M", "A", "D", "R"]
+                },
+                "insertions": {
+                    "description": "Number of lines added to the file.",
+                    "$ref": "#/$defs/diffstat"
+                },
+                "deletions": {
+                    "description": "Number of files removed from the file.",
+                    "$ref": "#/$defs/diffstat"
+                },
+                "size": {
+                    "description": "Size in bytes of the file or the change.",
+                    "$ref": "#/$defs/diffstat"
+                }
+            }
+        },
+        "diffstat": {
+            "type": "string",
+            "pattern": "^\\d+$"
+        }
+    }
+}

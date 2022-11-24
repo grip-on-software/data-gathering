@@ -1,0 +1,89 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/commit_comment.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control review system commit comments",
+    "$ref": "#/$defs/commit_comments",
+    "$defs": {
+        "commit_comments": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/commit_comment"}
+        },
+        "commit_comment": {
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "commit_id": {
+                    "description": "Hexadecimal SHA hash of the commit.",
+                    "type": "string",
+                    "pattern": "^[a-f0-9]+$"
+                },
+                "merge_request_id": {
+                    "description": "Identifier of a merge request that the commit relates to, where the commit comment may serve as a code review. This is `0` if there is no such commit comment.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "thread_id": {
+                    "description": "Identifier of the thread that the commit comment is made in. This is `0` if the system does not support commit comment threads.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "note_id": {
+                    "description": "Identifier of the commit comment. This is `0` if the system does not provide identifiers to commit comments.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "parent_id": {
+                    "description": "Identifier of the commit comment to which this comment is a reply. This is `0` if the system does not support replying to commit comments.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "author": {
+                    "description": "Name of the author of the commit comment. This can also be an account name.",
+                    "type": "string"
+                },
+                "author_username": {
+                    "description": "Account name of the author of the commit comment.",
+                    "type": "string"
+                },
+                "comment": {
+                    "description": "Contents of the commit comment.",
+                    "type": "string"
+                },
+                "file": {
+                    "description": "Path to the file in the repository to which the commit comment was made.",
+                    "type": "string"
+                },
+                "line": {
+                    "description": "Start line in the file to which the commit comment was made.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "end_line": {
+                    "description": "End line in the file to which the commit comment was made. This is `0` if the comment was not made to a range.",
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                },
+                "line_type": {
+                    "description": "The type of line being discussed by the commit comment. This can be `old`, `new` or `0` if the commit comment does not belong to a particular line.",
+                    "type": "string",
+                    "enum": ["old", "new", "0"]
+                },
+                "created_date": {
+                    "description": "Moment when the commit comment is created.",
+                    "$ref": "#/$defs/datetime"
+                },
+                "updated_date": {
+                    "description": "Moment when the commit comment is updated.",
+                    "$ref": "#/$defs/datetime"
+                }
+            }
+        },
+        "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
+        }
+    }
+}
