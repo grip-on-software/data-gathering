@@ -1,0 +1,17 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/utils.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Data gathering utilities",
+    "$ref": "#/$defs/datetime",
+    "$defs": {
+        "boolean": {
+            "type": "string",
+            "enum": ["0", "1"]
+        },
+        "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d$"
+        }
+    }
+}

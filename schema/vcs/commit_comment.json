@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/commit_comment.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/commit_comment.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control review system commit comments",
     "$ref": "#/$defs/commit_comments",

@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs_event.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/vcs_event.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control review system events",
     "$ref": "#/$defs/vcs_events",
@@ -52,14 +52,9 @@
                 },
                 "date": {
                     "description": "Moment when the event took place.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 }
             }
-        },
-        "datetime": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
         }
     }
 }

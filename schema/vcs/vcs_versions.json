@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs_versions.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/vcs_versions.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control system versions",
     "$ref": "#/$defs/vcs_versions",
@@ -54,12 +54,12 @@
                 },
                 "commit_date": {
                     "description": "Moment when the version was committed.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 },
                 "author_date": {
                     "description": "Moment when the version was authored. This is `0` if it is not known.",
                     "oneOf": [
-                        {"$ref": "#/$defs/datetime"},
+                        {"$ref": "../utils.json#/$defs/datetime"},
                         {"type": "string", "const": "0"}
                     ]
                 },
@@ -92,11 +92,6 @@
         "diffstat": {
             "type": "string",
             "pattern": "^\\d+$"
-        },
-        "datetime": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
         }
     }
 }

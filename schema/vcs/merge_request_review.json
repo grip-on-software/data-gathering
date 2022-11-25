@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/merge_request_review.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/merge_request_review.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control review system merge request reviews",
     "$ref": "#/$defs/merge_request_reviews",

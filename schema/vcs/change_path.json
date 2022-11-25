@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/change_path.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/change_path.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control system change paths",
     "$ref": "#/$defs/change_paths",

@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/merge_request_note.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/merge_request_note.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control review system merge request notes",
     "$ref": "#/$defs/merge_request_notes",
@@ -51,18 +51,13 @@
                 },
                 "created_at": {
                     "description": "Moment when the note is created.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 },
                 "updated_at": {
                     "description": "Moment when the note is updated.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 }
             }
-        },
-        "datetime": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
         }
     }
 }

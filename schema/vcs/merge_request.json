@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/merge_request.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/merge_request.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control review system merge requests",
     "$ref": "#/$defs/merge_requests",
@@ -70,18 +70,13 @@
                 },
                 "created_at": {
                     "description": "Moment when the request was created.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 },
                 "updated_at": {
                     "description": "Moment when the request was last updated.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 }
             }
-        },
-        "datetime": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
         }
     }
 }

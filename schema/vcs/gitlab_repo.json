@@ -28,15 +28,15 @@
                 },
                 "create_time": {
                     "description": "Moment when the project was created.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 },
                 "archived": {
                     "description": "Whether the project is archived.",
-                    "$ref": "#/$defs/boolean"
+                    "$ref": "../utils.json#/$defs/boolean"
                 },
                 "has_avatar": {
                     "description": "Whether the project has a custom avatar icon.",
-                    "$ref": "#/$defs/boolean"
+                    "$ref": "../utils.json#/$defs/boolean"
                 },
                 "star_count": {
                     "description": "Number of people who gave the project a star.",
@@ -44,15 +44,6 @@
                     "pattern": "^\\d+$"
                 }
             }
-        },
-        "boolean": {
-            "type": "string",
-            "enum": ["0", "1"]
-        },
-        "datetime": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
         }
     }
 }
