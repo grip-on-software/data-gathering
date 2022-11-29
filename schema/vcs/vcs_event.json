@@ -19,8 +19,7 @@
                 },
                 "version_id": {
                     "description": "Hexadecimal SHA identifier of the version, if the event was related to a version.",
-                    "type": "string",
-                    "pattern": "^[a-f0-9]+$"
+                    "$ref": "../utils.json#/$defs/version"
                 },
                 "action": {
                     "description": "Action that the event performs.",
@@ -53,6 +52,10 @@
                 "date": {
                     "description": "Moment when the event took place.",
                     "$ref": "../utils.json#/$defs/datetime"
+                },
+                "encrypted": {
+                    "description": "Whether the personal information of the developer is encrypted.",
+                    "$ref": "../utils.json#/$defs/boolean"
                 }
             }
         }

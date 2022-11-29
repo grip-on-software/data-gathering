@@ -19,8 +19,7 @@
                 },
                 "version_id": {
                     "description": "Identifier of the version, either a hexadecimal SHA hash or an incremental version number.",
-                    "type": "string",
-                    "pattern": "^[a-f0-9]+$"
+                    "$ref": "../utils.json#/$defs/version"
                 },
                 "sprint_id": {
                     "description": "Identifier of the sprint in which the commit was made. If this could not be determined during collection, then this is `0`.",
@@ -69,29 +68,29 @@
                 },
                 "insertions": {
                     "description": "Number of added lines in the version.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/positive_integeryy"
                 },
                 "deletions": {
                     "description": "Number of removed lines in the version.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/version"
                 },
                 "number_of_files": {
                     "description": "Number of files changed in the version.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/version"
                 },
                 "number_of_lines": {
                     "description": "Number of lines changed in the version.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/version"
                 },
                 "size": {
                     "description": "Size in bytes of the version.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/version"
+                },
+                "encrypted": {
+                    "description": "Whether the personal information of the developer is encrypted.",
+                    "$ref": "../utils.json#/$defs/boolean"
                 }
             }
-        },
-        "diffstat": {
-            "type": "string",
-            "pattern": "^\\d+$"
         }
     }
 }

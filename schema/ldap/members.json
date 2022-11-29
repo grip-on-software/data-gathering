@@ -1,0 +1,29 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/ldap/members.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "LDAP group members",
+    "$ref": "#/$defs/ldap",
+    "$defs": {
+        "ldap": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "LDAP account name of the developer."
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "description": "Name of the developer."
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "Email address of the developer."
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,31 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/tfs/team.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TFS teams",
+    "$ref": "#/$defs/tfs_teams",
+    "$defs": {
+        "tfs_teams": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/tfs_team"}
+        },
+        "tfs_team": {
+            "description": "Auxiliary information about a TFS/VSTS/Azure DevOps team.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "team_name": {
+                    "description": "Name of the team.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description of the team.",
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

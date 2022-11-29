@@ -245,7 +245,7 @@
         "type": "int"
     },
     "comment": {
-        "special_parser": "comments",
+        "special_parser": "comment",
         "table": {
             "id": "int",
             "issue_id": "int",

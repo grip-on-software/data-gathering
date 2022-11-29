@@ -1,0 +1,51 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/github_repo.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "GitHub repositories",
+    "$ref": "#/$defs/github_repos",
+    "$defs": {
+        "github_repos": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/github_repo"}
+        },
+        "github_repo": {
+            "description": "Auxiliary information about a GitHub project repository.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "github_id": {
+                    "description": "Internal identifier from GitHub for the repository.",
+                    "$ref": "../utils.json#/$defs/positive_integer"
+                },
+                "description": {
+                    "description": "Description of the repository. This is `0` if no description is filled in.",
+                    "type": "string"
+                },
+                "create_time": {
+                    "description": "Moment when the repository was created.",
+                    "$ref": "../utils.json#/$defs/datetime"
+                },
+                "private": {
+                    "description": "Whether the repository is not visible publicly.",
+                    "$ref": "../utils.json#/$defs/boolean"
+                },
+                "forked": {
+                    "description": "Whether the repository was forked from another repository.",
+                    "$ref": "../utils.json#/$defs/boolean"
+                },
+                "star_count": {
+                    "description": "Number of people who gave the repository a star.",
+                    "$ref": "../utils.json#/$defs/positive_integer"
+                },
+                "watch_count": {
+                    "description": "Number of people who follow updates of the repository.",
+                    "$ref": "../utils.json#/$defs/positive_integer"
+                }
+            }
+        }
+    }
+}

@@ -18,7 +18,7 @@ limitations under the License.
 """
 
 import re
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 from ..table import Table
 from ..utils import parse_utc_date, parse_unicode
 
@@ -35,11 +35,12 @@ class Field_Parser:
 
         raise NotImplementedError("Must be overridden in subclass")
 
-    def parse(self, value: Any) -> str:
+    def parse(self, value: Any) -> Optional[str]:
         """
         Parse a work item field or revision value.
 
-        Returns the value formatted according to the type.
+        Returns the value formatted according to the type, or `None` if it
+        could not be parsed.
         """
 
         raise NotImplementedError("Must be overridden in subclass")
@@ -72,7 +73,7 @@ class String_Parser(Field_Parser):
     def type(self) -> str:
         return "string"
 
-    def parse(self, value: str) -> str:
+    def parse(self, value: str) -> Optional[str]:
         return str(value)
 
 class Int_Parser(Field_Parser):
@@ -84,7 +85,7 @@ class Int_Parser(Field_Parser):
     def type(self):
         return "integer"
 
-    def parse(self, value: Union[int, str]) -> str:
+    def parse(self, value: Union[int, str]) -> Optional[str]:
         return str(int(value))
 
 class Date_Parser(Field_Parser):
@@ -96,7 +97,7 @@ class Date_Parser(Field_Parser):
     def type(self) -> str:
         return "timestamp"
 
-    def parse(self, value: str) -> str:
+    def parse(self, value: str) -> Optional[str]:
         return parse_utc_date(value)
 
 class Unicode_Parser(Field_Parser):
@@ -108,7 +109,7 @@ class Unicode_Parser(Field_Parser):
     def type(self) -> str:
         return "unicode"
 
-    def parse(self, value: str) -> str:
+    def parse(self, value: str) -> Optional[str]:
         return parse_unicode(value)
 
 class Decimal_Parser(Field_Parser):
@@ -120,7 +121,7 @@ class Decimal_Parser(Field_Parser):
     def type(self) -> str:
         return "decimal"
 
-    def parse(self, value: Union[float, str]) -> str:
+    def parse(self, value: Union[float, str]) -> Optional[str]:
         return str(float(value))
 
 class Developer_Parser(Table_Parser):
@@ -133,10 +134,10 @@ class Developer_Parser(Table_Parser):
     def type(self) -> str:
         return "developer"
 
-    def parse(self, value: str) -> str:
+    def parse(self, value: str) -> Optional[str]:
         match = re.match(r"^(.*) <(.*)>$", value)
         if not match:
-            return ""
+            return None
 
         name = parse_unicode(match.group(1))
         email = parse_unicode(match.group(2))
@@ -160,6 +161,6 @@ class Tags_Parser(Field_Parser):
     def type(self) -> str:
         return "tags"
 
-    def parse(self, value: str) -> str:
+    def parse(self, value: str) -> Optional[str]:
         tags = value.split('; ')
         return str(len(tags))

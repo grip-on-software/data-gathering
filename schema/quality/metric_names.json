@@ -1,0 +1,36 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/metric_names.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Quality control metrics names",
+    "$ref": "#/$defs/metric_names",
+    "$defs": {
+        "metric_names": {
+            "type": "object",
+            "patternProperties": {
+                ".+": {
+                    "oneOf": [
+                        {"$ref": "#/$defs/metric_name"},
+                        {"type": "null"}
+                    ]
+                }
+            }
+        },
+        "metric_name": {
+            "type": "object",
+            "properties": {
+                "base_name": {
+                    "type": "string",
+                    "description": "Class name of the metric."
+                },
+                "domain_name": {
+                    "type": "string",
+                    "description": "Domain name of the measured object."
+                },
+                "domain_type": {
+                    "type": "string",
+                    "description": "Type of the measured object."
+                }
+            }
+        }
+    }
+}

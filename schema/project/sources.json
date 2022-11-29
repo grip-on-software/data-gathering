@@ -1,0 +1,44 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/project/sources.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Project sources",
+    "$ref": "#/$defs/sources",
+    "$defs": {
+        "sources": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "controller",
+                            "git", "github", "gitlab",
+                            "subversion",
+                            "tfs", "tfvc",
+                            "history", "compact-history", "metric_history",
+                            "metric_options", "quality-time", "sonar",
+                            "jenkins",
+                            "jira"
+                        ],
+                        "description": "Type of the source."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the source."
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL of the source."
+                    },
+                    "github_team": {
+                        "type": "string",
+                        "description": "Name of the team in the GitHub source."
+                    }
+                },
+                "required": ["type", "name", "url"]
+            }
+        }
+    }
+}

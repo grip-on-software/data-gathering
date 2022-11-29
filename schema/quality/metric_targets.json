@@ -1,0 +1,54 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/metric_targets.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Quality control metric targets",
+    "$ref": "#/$defs/metric_targets",
+    "$defs": {
+        "metric_targets": {
+            "type": "array",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "items": {
+                "anyOf": [
+                    {"$ref": "metric_names.json#/$defs/metric_names"}
+                ],
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the metric."
+                    },
+                    "target": {
+                        "$ref": "../utils.json#/$defs/float",
+                        "description": "Target of the metric."
+                    },
+                    "low_target": {
+                        "$ref": "../utils.json#/$defs/float",
+                        "description": "Low target of the metric."
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["options", "old_options", "TechnicalDebtTarget"],
+                        "description": "Type of change within the quality report structure."
+                    },
+                    "comment": {
+                        "type": "string",
+                        "description": "Reason for adjustment of the metric targets."
+                    },
+                    "revision": {
+                        "$ref": "../utils.json#/$defs/version",
+                        "description": "Identifier of the version in which the change to the metric targets was made."
+                    },
+                    "default": {
+                        "$ref": "../utils.json#/$defs/boolean",
+                        "default": "0",
+                        "description": "Whether the target is unchanged compared to the default target."
+                    },
+                    "debt_target": {
+                        "$ref": "../utils.json#/$defs/float",
+                        "description": "Target to reach while technical debt is being worked on."
+                    }
+                }
+            }
+        }
+    }
+}

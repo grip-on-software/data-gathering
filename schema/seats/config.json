@@ -1,0 +1,50 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/seats/config.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Seat count configuration",
+    "$ref": "#/$defs/config",
+    "$defs": {
+        "config": {
+            "type": "object",
+            "properties": {
+                "sheet": {
+                    "type": "string",
+                    "description": "Worksheet name within XLS/XLSX workbook containing seat counts."
+                },
+                "filename": {
+                    "type": "string",
+                    "description": "Template for filenames with XLS/XLSX workbook, using `strptime` format codes for the file's valid time range."
+                },
+                "projects": {
+                    "type": "object",
+                    "description": "Project names and the project keys that they represent.",
+                    "patternProperties": {
+                        ".+": {
+                            "oneOf": [
+                                {"$ref": "#/$defs/project_key"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "#/$defs/project_key"}
+                                }
+                            ]
+                        }
+                    }
+                },
+                "prefixes": {
+                    "type": "array",
+                    "description": "Prefixes to remove from names in first worksheet column, in order to obtain a project name.",
+                    "items": {"type": "string"}
+                },
+                "ignore": {
+                    "type": "array",
+                    "description": "Names in first worksheet column that indicate that it and remaining rows contain no further information.",
+                    "items": {"type": "string"}
+                }
+            }
+        },
+        "project_key": {
+            "type": "string",
+            "pattern": "^[A-Z]+$"
+        }
+    }
+}

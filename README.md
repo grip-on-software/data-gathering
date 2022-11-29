@@ -69,7 +69,7 @@ gatherer can use:
 - Jira: Tested with Jira 7.9.2 and later with Agile 7.3.1 and later.
 - Version control systems:
   - Git: Tested with Git clients with version 1.8.3 and later. Supported review 
-    systems are GitHub, GitLab and Azure DevOps (TFS).
+    systems are GitHub, GitLab and Azure DevOps (TFS/VSTS).
     - GitLab: Tested with version 9.4 and later. The legacy API v3 is supported
       up to version 0.0.2 of the gatherer (thus working with GitLab version 8), 
       after which it has been dropped.
@@ -188,14 +188,14 @@ Docker instances which collect (a part of) the data.
 
 First, you must have a (self-signed) SSL certificate for the controller server 
 which provides the API endpoints. Place the public certificate in the `certs/` 
-directory. Run `docker build -t ictu/gros-data-gathering .` to build the Docker 
-image. You may wish to use a registry URL in place of `ictu` and push the image 
-there for distributed deployments.
+directory. Run `docker build -t gros/data-gathering .` to build the Docker 
+image. You may wish to use a registry URL before the image name and push the 
+image there for distributed deployments.
 
 Next, start the Docker instance based on the container. Use `docker run --name 
 gros-data-gathering-agent -v env:/home/agent/env [options]... 
-ictu/gros-data-gathering` to start the instance using environment variables 
-from a file called `env` to set [configuration](#configuration). 
+gros/data-gathering` to start the instance using environment variables from 
+a file called `env` to set [configuration](#configuration). 
 
 Depending on this configuration, the Docker instance can run in 'Daemon' mode 
 or in 'Jenkins' mode. In 'Daemon' mode, the instance periodically checks if it 
@@ -651,6 +651,16 @@ from writing them into the configuration files (if at all):
   the public key to, assuming they are GitLab hosts, when the sources have not 
   been located yet.
 
+### JIRA and Azure DevOps
+
+In order to properly convert fields from different issue trackers, projects 
+with custom fields, and preserve semantics between them, two files called 
+`jira_fields.json` and `vsts_fields.json` define a mapping for exported issue 
+data fields from the internal field names in the issue trackers. The files are 
+by default configured to help with common situations found in two organizations 
+(ICTU and Wigo4it). Customization of these files may be relevant when another 
+organization is used.
+
 ### Seats
 
 For `seats_to_json.py`, the presence of a `seats.yml` specification file is 
@@ -662,7 +672,7 @@ and lists. The following keys are necessary:
 - `filename`: Format that valid workbook file names must adhere to. The format 
   must contain `strptime` format codes in order to deduce the time at which the 
   file was created.
-- `projects`: An array of project names and project keys. The project name 
+- `projects`: A mapping of project names and project keys. The project name 
   should appear in the first worksheet column (excluding the `prefixes`).
   The project keys may be a single Jira project key to map the project name to, 
   or a list of Jira project keys to distribute the seat counts evenly over.

@@ -1,0 +1,128 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/tfs/work_item.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TFS work item versions",
+    "$ref": "#/$defs/tfs_work_items",
+    "$defs": {
+        "tfs_work_items": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/tfs_work_item"}
+        },
+        "tfs_work_item": {
+            "description": "Auxiliary information about a version of a TFS/VSTS/Azure DevOps work item.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "issue_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the work item."
+                },
+                "changelog_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Sequential number of the version of the work item."
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Status of the work item."
+                },
+                "issuetype": {
+                    "type": "string",
+                    "description": "Type of the work item."
+                },
+                "created_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Momment when the work item is created."
+                },
+                "reporter": {
+                    "type": "string",
+                    "description": "Name of the developer who created the work item."
+                },
+                "assignee": {
+                    "type": "string",
+                    "description": "Name of the developer who is assigned to resolve the work item."
+                },
+                "updated": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the version was changed for the work item."
+                },
+                "updated_by": {
+                    "type": "string",
+                    "description": "Name of the developer who made the version change to the work item."
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Title of the work item."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "HTML description of the work item."
+                },
+                "labels": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of tags given to the work item."
+                },
+                "attachments": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of files uploaded as attachments to the work item."
+                },
+                "project_name": {
+                    "type": "string",
+                    "description": "Name of the project that the work item is for."
+                },
+                "team_name": {
+                    "type": "string",
+                    "description": "Name of the team that works on the work item."
+                },
+                "sprint_name": {
+                    "type": "string",
+                    "description": "Name of the sprint that the work item is worked in."
+                },
+                "priority": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Priority of the work item."
+                },
+                "rank_change": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Placement of the work item on the backlog."
+                },
+                "additional_information": {
+                    "type": "string",
+                    "description": "Acceptance criteria of the work item."
+                },
+                "severity": {
+                    "type": "string",
+                    "description": "Severity of the bug that the work item addresses."
+                },
+                "impact": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Impact of the work item."
+                },
+                "business_value": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Business value of the work item."
+                },
+                "duedate": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the work item is targeted to be completed."
+                },
+                "story_points": {
+                    "$ref": "../utils.json#/$defs/positive_float",
+                    "description": "Number of points assigned to a work item based on developer assessment of difficulty."
+                },
+                "topdesk_number": {
+                    "type": "string",
+                    "description": "Reference to a TopDesk request related to the work item."
+                },
+                "use_case": {
+                    "type": "string",
+                    "description": "Reference to another work item describing a use case for the work item."
+                },
+                "encrypted": {
+                    "description": "Whether the personal information fields related to the reporter, assignee and updater are encrypted.",
+                    "$ref": "../utils.json#/$defs/boolean"
+                }
+            },
+            "required": ["issue_id", "changelog_id"]
+        }
+    }
+}

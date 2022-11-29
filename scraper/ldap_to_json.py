@@ -1,5 +1,5 @@
 """
-Script to obtain user details from an LDAP server.
+Script to obtain user details for group members from an LDAP server.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -38,7 +38,7 @@ def parse_args(config: RawConfigParser) -> Namespace:
     Parse command line arguments.
     """
 
-    description = "Obtain repository versions and output JSON"
+    description = "Obtain LDAP users of relevant groups and output JSON"
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="Project key")
     parser.add_argument("--group", default=None, help="Group name")

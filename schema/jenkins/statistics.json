@@ -1,0 +1,33 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jenkins/statistics.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jenkins statistics",
+    "$ref": "#/$defs/stats",
+    "$defs": {
+        "stats": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Base URL of the Jenkins instance."
+                },
+                "jobs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of jobs configured on the instance."
+                },
+                "views": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of views configured on the instance."
+                },
+                "nodes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of computation nodes configured to accept jobs for the instance."
+                }
+            }
+        }
+    }
+}

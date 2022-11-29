@@ -1,0 +1,86 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/github_issue.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "GitHub issues",
+    "$ref": "#/$defs/github_issues",
+    "$defs": {
+        "github_issues": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/github_isues"}
+        },
+        "github_issue": {
+            "description": "An issue from a GitHub repository.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Identifier of the issue.",
+                    "$ref": "../utils.json#/$defs/positive_integer"
+                },
+                "title": {
+                    "description": "Title of the issue.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description of the issue.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "State of the issue.",
+                    "type": "string"
+                },
+                "author": {
+                    "description": "Account name of the developer who made the issue.",
+                    "type": "string"
+                },
+                "author_username": {
+                    "description": "Account name of the developer who made the issue.",
+                    "type": "string"
+                },
+                "assignee": {
+                    "description": "Account name of the developer who is assigned to review or resolve the issue.",
+                    "type": "string"
+                },
+                "assignee_username": {
+                    "description": "Account name of the developer who is assigned to review or resolve the issue.",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Moment when the issue was created.",
+                    "$ref": "../utils.json#/$defs/datetime"
+                },
+                "updated_at": {
+                    "description": "Moment when the issue was last updated.",
+                    "$ref": "../utils.json#/$defs/datetime"
+                },
+                "pull_request_id": {
+                    "description": "Identifier of a pull request that is related to the issue, as merging the completed pull request resolves the issue. This is `0` if no such link has been created yet for the issue.",
+                    "$ref": "../utils.json#/$defs/positive_integer"
+                },
+                "labels": {
+                    "description": "Number of labels that are added to the issue.",
+                    "$ref": "../utils.json#/$defs/positive_integer"
+                },
+                "closed_at": {
+                    "description": "Moment when the issue is closed. This is `0` if the issue is not yet closed.",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/datetime"},
+                        {"type": "string", "const": "0"}
+                    ]
+                },
+                "closed_by": {
+                    "description": "Account name of the developer who closed the issue. This is `0` if the issue is not yet closed.",
+                    "type": "string"
+                },
+                "encrypted": {
+                    "description": "Whether the personal information fields regarding the author and assignee are encrypted.",
+                    "$ref": "../utils.json#/$defs/boolean"
+                }
+            }
+        }
+    }
+}

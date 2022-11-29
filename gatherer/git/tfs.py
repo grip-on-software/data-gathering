@@ -860,7 +860,8 @@ class TFS_Repository(Git_Repository, Review_System):
             for field in properties["fields"]:
                 if field in revision["fields"]:
                     value = parser.parse(revision["fields"][field])
-                    row[target] = value
+                    if value is not None:
+                        row[target] = value
                     break
 
         self._tables["tfs_work_item"].append(row)

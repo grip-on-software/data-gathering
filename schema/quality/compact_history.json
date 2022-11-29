@@ -1,0 +1,71 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/compact_history.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Quality reporting compact history",
+    "$comment": "Format by quality_reporting (hqlib), which is no longer maintained. Still exported by gros/data-gathering scraper/sonar_to_json.py.",
+    "$ref": "#/$defs/compact_history",
+    "$defs": {
+        "compact_history": {
+            "type": "object",
+            "properties": {
+                "dates": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Moment when measurements took place."
+                    }
+                },
+                "statuses": {
+                    "type": "array",
+                    "description": "Statistics on severity categories during measurement moments.", 
+                    "items": {
+                        "type": "object",
+                        "patternProperties": {
+                            ".+": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Number of metrics that had this severity category at the corresponding moment."
+                            }
+                        }
+                    }
+                },
+                "metrics": {
+                    "type": "object",
+                    "patternProperties": {
+                        ".+": {
+                            "type": "array",
+                            "description": "Time ranges of measured values of the metric.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "start": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "description": "Moment when the metric started having the value that is valid for this range."
+                                    },
+                                    "end": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "description": "Moment when the metric has the value for the last time in this range."
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "description": "Severity category of the metric."
+                                    },
+                                    "value": {
+                                        "type": ["integer", "float", "null"],
+                                        "description": "Value of the metric."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+        }
+    }
+}

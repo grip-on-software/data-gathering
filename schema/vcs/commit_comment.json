@@ -16,28 +16,23 @@
                 },
                 "commit_id": {
                     "description": "Hexadecimal SHA hash of the commit.",
-                    "type": "string",
-                    "pattern": "^[a-f0-9]+$"
+                    "$ref": "../utils.json#/$defs/version"
                 },
                 "merge_request_id": {
                     "description": "Identifier of a merge request that the commit relates to, where the commit comment may serve as a code review. This is `0` if there is no such commit comment.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "thread_id": {
                     "description": "Identifier of the thread that the commit comment is made in. This is `0` if the system does not support commit comment threads.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "note_id": {
                     "description": "Identifier of the commit comment. This is `0` if the system does not provide identifiers to commit comments.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "parent_id": {
                     "description": "Identifier of the commit comment to which this comment is a reply. This is `0` if the system does not support replying to commit comments.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "author": {
                     "description": "Name of the author of the commit comment. This can also be an account name.",
@@ -57,13 +52,11 @@
                 },
                 "line": {
                     "description": "Start line in the file to which the commit comment was made.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "end_line": {
                     "description": "End line in the file to which the commit comment was made. This is `0` if the comment was not made to a range.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "line_type": {
                     "description": "The type of line being discussed by the commit comment. This can be `old`, `new` or `0` if the commit comment does not belong to a particular line.",
@@ -72,18 +65,17 @@
                 },
                 "created_date": {
                     "description": "Moment when the commit comment is created.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
                 },
                 "updated_date": {
                     "description": "Moment when the commit comment is updated.",
-                    "$ref": "#/$defs/datetime"
+                    "$ref": "../utils.json#/$defs/datetime"
+                },
+                "encrypted": {
+                    "description": "Whether the personal information of the author is encrypted.",
+                    "$ref": "../utils.json#/$defs/boolean"
                 }
             }
-        },
-        "datetime": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"
         }
     }
 }

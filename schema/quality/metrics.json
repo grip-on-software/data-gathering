@@ -1,0 +1,48 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/metrics.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Quality control metric values",
+    "$ref": "#/$defs/metrics",
+    "$defs": {
+        "metrics": {
+            "oneOf": [
+                {
+                    "type": "string",
+                    "description": "Local path or absolute URL to the history file. Must have a fragment identifier, with flags separated by vertical bars. First flag can be an integer to determine the start line or a timestamp of the start time to collect. Other flags are `local` to define a local path, `compact` to define a compacted history file, `compression=gz` to force GZip compression for the file, `compression=` to force-disable compression."
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            {"$ref": "metric_names.json#$/defs/metric_name"}
+                        ],
+                        "type": "object",
+                        "$comment": "All fields are strings for cross-compatibility with older importers.",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Amalgamated name of the metric."
+                            },
+                            "value": {
+                                "$ref": "../utils.json#/$defs/float",
+                                "description": "Value of the metric. This is `-1` when there was no measurement at that moment."
+                            },
+                            "category": {
+                                "type": "string",
+                                "description": "Severity category of the metric."
+                            },
+                            "date": {
+                                "$ref": "../utils.json#/$defs/datetime",
+                                "description": "Moment when the metric was measured."
+                            },
+                            "since_date": {
+                                "$ref": "../utils.json#/$defs/datetime",
+                                "description": "Moment when the metric had the same value such that it has been unchanged until now."
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

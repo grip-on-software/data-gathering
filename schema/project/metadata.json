@@ -1,0 +1,47 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/project/metadata.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Project metadata",
+    "$ref": "#/$defs/metadata",
+    "$defs": {
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "jira_key": {
+                    "type": "string",
+                    "description": "Identifier of the project as used in the issue tracker."
+                },
+                "jira_name": {
+                    "type": "string",
+                    "description": "Name of the project as used in the issue trackey. May be the same as `jira_key`."
+                },
+                "github_team": {
+                    "type": "string",
+                    "description": "Name of the team in the GitHub source of the project."
+                },
+                "gitlab_group_name": {
+                    "type": "string",
+                    "description": "Name of the group in the GitLab source of the project."
+                },
+                "tfs_collection": {
+                    "type": "string",
+                    "description": "Name of the collection in the TFS source of the project."
+                },
+                "quality_name": {
+                    "type": "string",
+                    "description": "Name of the project within the quality metrics source."
+                },
+                "main_project": {
+                    "type": ["string", "null"],
+                    "default": null,
+                    "description": "Main project for this subproject, if the project has a known hierarchical relation with another, encompassing project."
+                },
+                "is_support_team": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Whether the project is maintained by a team as a means of support for other projects."
+                }
+            }
+        }
+    }
+}

@@ -19,8 +19,7 @@
                 },
                 "id": {
                     "description": "Identifier of the request.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "title": {
                     "description": "Title of the request.",
@@ -55,18 +54,16 @@
                     "type": "string"
                 },
                 "assignee_username": {
-                    "description": "Account name of the developer who is assigned to review the request. This is `0` if the system has no assignees",
+                    "description": "Account name of the developer who is assigned to review the request. This is `0` if the system has no assignees.",
                     "type": "string"
                 },
                 "upvotes": {
                     "description": "The number of positive votes for the request.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "downvotes": {
                     "description": "The number of negative votes for the request.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "created_at": {
                     "description": "Moment when the request was created.",
@@ -75,6 +72,10 @@
                 "updated_at": {
                     "description": "Moment when the request was last updated.",
                     "$ref": "../utils.json#/$defs/datetime"
+                },
+                "encrypted": {
+                    "description": "Whether the personal information fields regarding the author and assignee are encrypted.",
+                    "$ref": "../utils.json#/$defs/boolean"
                 }
             }
         }

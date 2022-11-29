@@ -1,14 +1,14 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/gitlab_repo.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/gitlab_repo.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "GitLab repositories",
     "$ref": "#/$defs/gitlab_repos",
     "$defs": {
         "gitlab_repos": {
             "type": "array",
-            "items": {"$ref": "#/$defs/repo"}
+            "items": {"$ref": "#/$defs/gitlab_repo"}
         },
-        "repo": {
+        "gitlab_repo": {
             "description": "Auxiliary information about a GitLab project repository.",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "type": "object",
@@ -19,8 +19,7 @@
                 },
                 "gitlab_id": {
                     "description": "Internal identifier from GitLab for the project.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "description": {
                     "description": "Description of the project. This is `0` if no description is filled in.",
@@ -40,8 +39,7 @@
                 },
                 "star_count": {
                     "description": "Number of people who gave the project a star.",
-                    "type": "string",
-                    "pattern": "^\\d+$"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 }
             }
         }

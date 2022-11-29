@@ -19,8 +19,7 @@
                 },
                 "version_id": {
                     "description": "Identifier of the version, either a hexadecimal SHA hash or an incremental version number.",
-                    "type": "string",
-                    "pattern": "^[a-f0-9]+$"
+                    "$ref": "../utils.json#/$defs/version"
                 },
                 "file": {
                     "description": "Path to the file as it is named after the change.",
@@ -33,21 +32,17 @@
                 },
                 "insertions": {
                     "description": "Number of lines added to the file.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "deletions": {
                     "description": "Number of files removed from the file.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "size": {
                     "description": "Size in bytes of the file or the change.",
-                    "$ref": "#/$defs/diffstat"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 }
             }
-        },
-        "diffstat": {
-            "type": "string",
-            "pattern": "^\\d+$"
         }
     }
 }

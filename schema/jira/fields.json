@@ -1,0 +1,101 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/fields.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira field mapping",
+    "$ref": "#/$defs/jira_fields",
+    "$defs": {
+        "jira_fields": {
+            "type": "object",
+            "patternProperties": {
+                ".+": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "oneOf": [
+                                {"$ref": "#/$defs/type"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "#/$defs/type"}
+                                }
+                            ],
+                            "description": "Type of the field in order to parse it to a common format."
+                        },
+                        "special_parser": {
+                            "type": "string",
+                            "enum": [
+                                "comment", "components", "issuelinks",
+                                "subtasks"
+                            ],
+                            "description": "Parser for a complicated field."
+                        },
+                        "field": {
+                            "type": "string",
+                            "description": "Name of the field as a secondary field within Jira."
+                        },
+                        "fields": {
+                            "type": "object",
+                            "patternProperties": {
+                                ".+": {
+                                    "type": "string"
+                                }
+                            },
+                            "description": "Mapping of the exported names for subfield and the properties within Jira."
+                        },
+                        "changelog_name": {
+                            "type": "string",
+                            "description": "Name of the field from a specific change within Jira."
+                        },
+                        "changelog_primary": {
+                            "type": "string",
+                            "description": "Name of the field from a changelog within Jira."
+                        },
+                        "property": {
+                            "type": "string",
+                            "description": "If provided, the property name to use within the `field`."
+                        },
+                        "primary": {
+                            "type": "string",
+                            "description": "Name of the field as a primary field within Jira."
+                        },
+                        "table": {
+                            "oneOf": [
+                                {"type": "string"},
+                                {
+                                    "type": "object",
+                                    "patternProperties": {
+                                        ".+": {"$ref": "#/$defs/type"}
+                                    }
+                                }
+                            ],
+                            "description": "Name of the table to export the auxiliary data to, or a table specification with property names and types for the properties."
+                        },
+                        "table_options": {
+                            "type": "object",
+                            "properties": {
+                                "merge_update": {
+                                    "type": "boolean",
+                                    "description": "Whether to keep existing data."
+                                },
+                                "encrypt_fields": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Subfields to encrypt the values of."
+                                }
+                            },
+                            "description": "Options for the table where the auxiliary data is stored in."
+                        }
+                    }
+                }
+            }
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "int", "identifier", "str", "boolean", "date", "unicode",
+                "sprint", "developer", "decimal", "id_list", "version", "rank",
+                "issue_key", "flag", "ready_status", "labels", "project",
+                "status_category"
+            ]
+        }
+    }
+}

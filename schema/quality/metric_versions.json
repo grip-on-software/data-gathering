@@ -1,0 +1,34 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/metric_versions.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Quality control metric target versions",
+    "$ref": "#/$defs/metric_versions",
+    "$defs": {
+        "metric_verions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Commit message of the version."
+                    },
+                    "developer": {
+                        "type": "string",
+                        "description": "Name of the developer who made the version of the metrics."
+                    },
+                    "version_id": {
+                        "type": "string",
+                        "format": "^[a-f0-9]+$",
+                        "description": "Identifier of the version, either a hexadecimal SHA hash or an incremental version number."
+                    },
+                    "commit_date": {
+                        "$ref": "../utils.json#/$defs/datetime",
+                        "description": "Moment when the version was committed."
+                    }
+                },
+                "required": ["version_id", "commit_date"]
+            }
+        }
+    }
+}

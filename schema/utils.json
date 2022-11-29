@@ -8,10 +8,30 @@
             "type": "string",
             "enum": ["0", "1"]
         },
+        "positive_integer": {
+            "type": "string",
+            "pattern": "^\\d+$"
+        },
+        "integer": {
+            "type": "string",
+            "pattern": "^-?\\d+$"
+        },
+        "positive_float": {
+            "type": "string",
+            "pattern": "^\\d+(\.\\d+)?$"
+        },
+        "float": {
+            "type": "string",
+            "pattern": "^-?\\d+(\.\\d+)?$"
+        },
         "datetime": {
             "type": "string",
             "format": "date-time",
             "pattern": "^\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d$"
+        },
+        "version": {
+            "type": "string",
+            "pattern": "^[a-f0-9]+$"
         }
     }
 }

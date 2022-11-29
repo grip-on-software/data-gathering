@@ -60,7 +60,7 @@
         "fields": ["Microsoft.VSTS.Common.Priority", "Wigo4it.PrioRegie"]
     },
     "rank_change": {
-        "type": "difference",
+        "type": "integer",
         "field": "Microsoft.VSTS.Common.BacklogPriority"
     },
     "additional_information": {
@@ -80,11 +80,11 @@
         "field": "Microsoft.VSTS.Common.BusinessValue"
     },
     "duedate": {
-        "type": "",
+        "type": "timestamp",
         "field": "Microsoft.VSTS.Scheduling.TargetDate"
     },
     "story_points": {
-        "type": "integer",
+        "type": "decimal",
         "field": "Microsoft.VSTS.Scheduling.Effort"
     },
     "topdesk_number": {

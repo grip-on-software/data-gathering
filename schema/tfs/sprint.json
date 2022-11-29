@@ -1,0 +1,39 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/tfs/sprint.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TFS sprints",
+    "$ref": "#/$defs/tfs_sprints",
+    "$defs": {
+        "tfs_sprints": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/tfs_sprint"}
+        },
+        "tfs_sprint": {
+            "description": "Auxiliary information about a TFS/VSTS/Azure DevOps sprint.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "repo_name": {
+                    "description": "Name of the repository.",
+                    "type": "string"
+                },
+                "team_name": {
+                    "description": "Name of the team.",
+                    "type": "string"
+                },
+                "sprint_name": {
+                    "description": "Name of the sprint.",
+                    "type": "string"
+                },
+                "start_date": {
+                    "description": "Moment when the sprint starts.",
+                    "$ref": "../utils.json#/$defs/datetime"
+                },
+                "end_date": {
+                    "description": "Moment when the sprint ends.",
+                    "$ref": "../utils.json#/$defs/datetime"
+                }
+            }
+        }
+    }
+}

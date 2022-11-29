@@ -1,0 +1,41 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/tfs/fields.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Azure DevOps field mapping",
+    "$ref": "#/$defs/vsts_fields",
+    "$defs": {
+        "vsts_fields": {
+            "type": "object",
+            "patternProperties": {
+                ".+": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "string", "integer", "timestamp", "unicode",
+                                "decimal", "developer", "tags"
+                            ],
+                            "description": "Type of the field in order to parse it to a common format."
+                        },
+                        "field": {
+                            "oneOf": [
+                                {"$ref": "#/$defs/field"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "#/$defs/field"}
+                                }
+                            ],
+                            "description": "One or more field names which can be a source for the field."
+                        }
+                    },
+                    "required": ["type"]
+                }
+            }
+        },
+        "field": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9.]+$"
+        }
+    }
+}

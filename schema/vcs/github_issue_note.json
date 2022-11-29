@@ -1,40 +1,28 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/merge_request_note.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/github_issue_note.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Version control review system merge request notes",
-    "$ref": "#/$defs/merge_request_notes",
+    "title": "GitHub issue notes",
+    "$ref": "#/$defs/github_issue_notes",
     "$defs": {
-        "merge_request_notes": {
+        "github_issue_notes": {
             "type": "array",
-            "items": {"$ref": "#/$defs/merge_request_note"}
+            "items": {"$ref": "#/$defs/github_issue_note"}
         },
-        "merge_request_note": {
+        "github_issue_note": {
             "type": "object",
-            "description": "A note or comment on a merge or pull request from a review system, such as GitLab, GitHub or TFS/VSTS/Azure DevOps.",
+            "description": "A note on an issue from a GitHub repository.",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
                     "type": "string"
                 },
-                "merge_request_id": {
-                    "description": "Identifier of the request.",
-                    "$ref": "../utils.json#/$defs/positive_integer"
-                },
-                "thread_id": {
-                    "description": "Identifier of the thread that the note is made in. This is `0` if the system does not support note threads.",
-                    "$ref": "../utils.json#/$defs/positive_integer"
-                },
                 "note_id": {
                     "description": "Identifier of the note.",
                     "$ref": "../utils.json#/$defs/positive_integer"
                 },
-                "parent_id": {
-                    "description": "Identifier of the note to which this note is a reply. This is `0` if the system does not support replying to notes.",
-                    "$ref": "../utils.json#/$defs/positive_integer"
-                },
                 "author": {
-                    "description": "Name of the author of the note. This can also be an account name.",
+                    "description": "Account name of the author of the note.",
                     "type": "string"
                 },
                 "author_username": {
@@ -53,6 +41,10 @@
                     "description": "Moment when the note is updated.",
                     "$ref": "../utils.json#/$defs/datetime"
                 },
+                "issue_id": {
+                    "description": "Identifier of the issue.",
+                    "$ref": "../utils.json#/$defs/positive_integer"
+                },
                 "encrypted": {
                     "description": "Whether the personal information of the author is encrypted.",
                     "$ref": "../utils.json#/$defs/boolean"
@@ -61,3 +53,4 @@
         }
     }
 }
+
