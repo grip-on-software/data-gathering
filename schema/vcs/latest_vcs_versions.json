@@ -1,0 +1,17 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/latest_vcs_versions.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Version control system update tracker",
+    "$ref": "#/$defs/latest_vcs_versions",
+    "$defs": {
+        "latest_vcs_versions": {
+            "type": "object",
+            "patternProperties": {
+                ".+": {
+                    "$ref": "../utils.json#/$defs/version",
+                    "description": "Most recent version collected for the repository."
+                }
+            }
+        }
+    }
+}

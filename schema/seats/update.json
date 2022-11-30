@@ -1,0 +1,15 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/seats/update.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Seat count update tracker",
+    "$ref": "#/$defs/update",
+    "$defs": {
+        "update": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "description": "Filename of the worksheet that was included in an update."
+            }
+        }
+    }
+}
