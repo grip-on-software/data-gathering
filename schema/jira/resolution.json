@@ -1,0 +1,31 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/resolution.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira resolutions",
+    "$ref": "#/$defs/resolutions",
+    "$defs": {
+        "resolutions": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/resolution"}
+        },
+        "resolution": {
+            "description": "Resolution of Jira issue.",
+            "$comment": "Depends on gros/data-gathering jira_fields.json. All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the resolution."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the resolution."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Description of the resolution."
+                }
+            }
+        }
+    }
+}

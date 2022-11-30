@@ -1,0 +1,27 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/test_execution.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira test execution methods",
+    "$ref": "#/$defs/test_executions",
+    "$defs": {
+        "test_executions": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/test_execution"}
+        },
+        "test_execution": {
+            "description": "Test execution method of a Jira issue.",
+            "$comment": "Depends on gros/data-gathering jira_fields.json. All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the test execution method."
+                },
+                "value": {
+                    "type": "string",
+                    "description": "Name of the test execution method state."
+                }
+            }
+        }
+    }
+}

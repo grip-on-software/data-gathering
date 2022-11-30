@@ -1,0 +1,27 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/ready_status.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira ready statuses",
+    "$ref": "#/$defs/ready_statuses",
+    "$defs": {
+        "ready_statuses": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/ready_status"}
+        },
+        "ready_status": {
+            "description": "Ready status of Jira issue.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the ready status."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the ready status."
+                }
+            }
+        }
+    }
+}

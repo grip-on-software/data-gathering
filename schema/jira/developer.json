@@ -1,0 +1,32 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/developer.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira developers",
+    "$ref": "#/$defs/developers",
+    "$defs": {
+        "developers": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/developer"}
+        },
+        "developer": {
+            "description": "A user within Jira.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Account name of the developer."
+                },
+                "display_name": {
+                    "type": "string",
+                    "description": "Full name of the developer."
+                },
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email address of the developer."
+                }
+            }
+        }
+    }
+}

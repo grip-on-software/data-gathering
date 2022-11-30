@@ -1,0 +1,49 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/sprint.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira sprints",
+    "$ref": "#/$defs/sprints",
+    "$defs": {
+        "sprints": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/sprint"}
+        },
+        "sprint": {
+            "description": "A Jira sprint.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the sprint."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the sprint."
+                },
+                "start_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the sprint starts."
+                },
+                "end_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the sprint ends."
+                },
+                "complete_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the sprint is completed, with all issues that are in the sprint resolved."
+                },
+                "goal": {
+                    "type": "string",
+                    "description": "Description of the primary goal of the sprint."
+                },
+                "board_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the board which contains the sprint."
+                }
+            },
+            "required": ["id", "name"]
+        }
+    }
+}
+

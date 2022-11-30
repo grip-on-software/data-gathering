@@ -1,0 +1,53 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/version.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira fix versions",
+    "$ref": "#/$defs/fix_versions",
+    "$defs": {
+        "fix_versions": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/fix_version"}
+        },
+        "fix_version": {
+            "description": "A release version in Jira.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the version."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the version."
+                },
+                "description": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Description of the version."
+                },
+                "start_date": {
+                    "type": "string",
+                    "oneOf": [
+                        {"format": "date"},
+                        {"const": "0"}
+                    ],
+                    "default": "0",
+                    "description": "Day when the first changes to the version are made. This is `0` if the start date is not known."
+                },
+                "release_date": {
+                    "type": "string",
+                    "oneOf": [
+                        {"format": "date"},
+                        {"const": "0"}
+                    ],
+                    "description": "Day when the version is (planned to be) released. This is `0` if the release date is not known."
+                },
+                "released": {
+                    "$ref": "../utils.json#/$defs/jira_boolean",
+                    "description": "Whether the version has been released."
+                }
+            }
+        }
+    }
+}

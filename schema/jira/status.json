@@ -1,0 +1,36 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/status.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira statuses",
+    "$ref": "#/$defs/statuses",
+    "$defs": {
+        "statuses": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/status"}
+        },
+        "status": {
+            "description": "Status of a Jira issue.",
+            "$comment": "Depends on gros/data-gathering jira_fields.json. Most fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the status."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the status."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Description of the status."
+                },
+                "statusCategory": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Identifier of the category to which the status belongs."
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/subtasks.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira subtask links",
+    "$ref": "#/$defs/subtasks",
+    "$defs": {
+        "subtasks": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/subtask"}
+        },
+        "subtask": {
+            "description": "Subtask link of a Jira issue.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "from_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "The parent issue."
+                },
+                "to_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "The subtask issue."
+                }
+            }
+        }
+    }
+}

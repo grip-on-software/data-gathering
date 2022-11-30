@@ -1,0 +1,35 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/status_category.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira status categories",
+    "$ref": "#/$defs/status_categories",
+    "$defs": {
+        "status_categories": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/status_category"}
+        },
+        "status_category": {
+            "description": "Category of a status of a Jira issue.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Internal identifier of the status category."
+                },
+                "key": {
+                    "type": "string",
+                    "description": "Class name of the status category."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the status category."
+                },
+                "color": {
+                    "type": "string",
+                    "description": "Name of a color representing the status category."
+                }
+            }
+        }
+    }
+}

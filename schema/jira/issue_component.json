@@ -1,0 +1,43 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/issue_component.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira issue components",
+    "$ref": "#/$defs/issue_components",
+    "$defs": {
+        "issue_components": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/issue_component"}
+        },
+        "issue_component": {
+            "description": "Component of a Jira issue.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "issue_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the issue."
+                },
+                "component_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the component."
+                },
+                "start_date": {
+                    "type": "string",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/datetime"},
+                        {"const": "0"}
+                    ],
+                    "description": "Moment when the component was added to the issue. This is `0` when the component was added when the issue was created."
+                },
+                "end_date": {
+                    "type": "string",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/datetime"},
+                        {"const": "0"}
+                    ],
+                    "description": "Moment when the component was removed from the issue. This is `0` when the component is still related to the issue."
+                }
+            }
+        }
+    }
+}

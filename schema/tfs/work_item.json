@@ -10,7 +10,7 @@
         },
         "tfs_work_item": {
             "description": "Auxiliary information about a version of a TFS/VSTS/Azure DevOps work item.",
-            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "$comment": "Depends on gros/data-gathering vsts_fields.json. All fields are strings for cross-compatibility with older importers.",
             "type": "object",
             "properties": {
                 "issue_id": {
@@ -43,11 +43,11 @@
                 },
                 "updated": {
                     "$ref": "../utils.json#/$defs/datetime",
-                    "description": "Moment when the version was changed for the work item."
+                    "description": "Moment when the work item was changed for this version."
                 },
                 "updated_by": {
                     "type": "string",
-                    "description": "Name of the developer who made the version change to the work item."
+                    "description": "Name of the developer who made the change to the work item for this version."
                 },
                 "title": {
                     "type": "string",

@@ -8,6 +8,10 @@
             "type": "string",
             "enum": ["0", "1"]
         },
+        "jira_boolean": {
+            "type": "string",
+            "enum": ["-1", "1"]
+        },
         "positive_integer": {
             "type": "string",
             "pattern": "^\\d+$"
@@ -28,6 +32,14 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d$"
+        },
+        "jira_project": {
+            "type": "string",
+            "pattern": "^[A-Z]+$"
+        },
+        "jira_issue": {
+            "type": "string",
+            "pattern": "^[A-Z]+-\\d+$"
         },
         "version": {
             "type": "string",

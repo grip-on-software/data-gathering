@@ -1,0 +1,31 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/component.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira components",
+    "$ref": "#/$defs/components",
+    "$defs": {
+        "components": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/component"}
+        },
+        "component": {
+            "description": "A Jira component.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the component."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the component."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Description of the component. This is `0` when the component has no description."
+                }
+            }
+        }
+    }
+}

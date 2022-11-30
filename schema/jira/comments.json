@@ -1,0 +1,47 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/comments.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira comments",
+    "$ref": "#/$defs/comments",
+    "$defs": {
+        "comments": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/comments"}
+        },
+        "comment": {
+            "description": "A Jira comment.",
+            "$comment": "Depends on gros/data-gathering jira_fields.json. All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the comment."
+                },
+                "issue_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the issue that is commented on."
+                },
+                "comment": {
+                    "type": "string",
+                    "description": "Jira-specific syntax-based body of the comment."
+                },
+                "author": {
+                    "type": "string",
+                    "description": "Account name of the developer who made the comment."
+                },
+                "created_at": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the comment is created."
+                },
+                "updater": {
+                    "type": "string",
+                    "description": "Account name of the developer who changed the comment most recently."
+                },
+                "updated_at": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the comment is changed most recently."
+                }
+            }
+        }
+    }
+}

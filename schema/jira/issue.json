@@ -1,0 +1,205 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/issue.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira issues",
+    "$ref": "#/$defs/issues",
+    "$defs": {
+        "issues": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/issue"}
+        },
+        "issue": {
+            "description": "Fields from a version of a Jira issue.",
+            "$comment": "Depends on gros/data-gathering jira_fields.json. All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "issue_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the issue."
+                },
+                "changelog_id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Sequential number of the version of the issue."
+                },
+                "key": {
+                    "$ref": "../utils.json#/$defs/jira_issue",
+                    "description": "Identifier of the issue."
+                },
+                "issuetype": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the type of the issue."
+                },
+                "priority": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the priority of the issue."
+                },
+                "resolution": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the resolution of the issue."
+                },
+                "fixVersions": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the first version in which the resolved issue is included."
+                },
+                "versions": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the first affected version in which the issue is confirmed."
+                },
+                "bugfix": {
+                    "$ref": "../utils.json#/$defs/jira_boolean",
+                    "description": "Whether the issue is a bug fix."
+                },
+                "approved": {
+                    "$ref": "../utils.json#/$defs/jira_boolean",
+                    "description": "Whether the issue is approved by the team."
+                },
+                "approved_by_po": {
+                    "$ref": "../utils.json#/$defs/jira_boolean",
+                    "description": "Whether the issue is approved by the Product Owner."
+                },
+                "watchers": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of developers who follow updates of the issue."
+                },
+                "created": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the issue is created."
+                },
+                "updated": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the issue was changed for this version."
+                },
+                "description": {
+                    "type": "text",
+                    "description": "Jira-specific syntax-based description of the issue."
+                },
+                "duedate": {
+                    "type": "string",
+                    "oneOf": [
+                        {"format": "date"},
+                        {"const": "0"}
+                    ],
+                    "description": "Day when the issue is targeted to be completed." 
+                },
+                "project": {
+                    "$ref": "../utils.json#/$defs/jira_project",
+                    "description": "Project key of the project that the issue is in during this version."
+                },
+                "status": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the status of the issue."
+                },
+                "reporter": {
+                    "type": "string",
+                    "description": "Account name of the developer who created or reported the issue."
+                },
+                "assignee": {
+                    "type": "string",
+                    "description": "Account name of the developer who is assigned to resolve the issue."
+                },
+                "additional_information": {
+                    "type": "string",
+                    "description": "Jira-specific syntax-based information description."
+                },
+                "review_comments": {
+                    "type": "string",
+                    "description": "Jira-specific syntax-based review description."
+                },
+                "storypoint": {
+                    "$ref": "../utils.json#/$defs/positive_float",
+                    "description": "Number of points assigned to an issue based on developer assessment of difficulty."
+                },
+                "resolution_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the issue is marked as resolved."
+                },
+                "sprint": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the first sprint that the issue is worked in."
+                },
+                "updated_by": {
+                    "type": "string",
+                    "description": "Name of the developer who made the change to the issue for this version."
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Summary of the issue."
+                },
+                "attachment": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of files uploaded as attachments to the issue." 
+                },
+                "rank_change": {
+                    "type": "string",
+                    "enum": ["-1", "0", "1"],
+                    "description": "Whether the issue was moved higer or lower on the backlog during this version. `-1` means ranked lower, `0` means no change, and `1` means ranked higher."
+                },
+                "environment": {
+                    "type": "string",
+                    "description": "Name of the environment that is affected by the issue."
+                },
+                "epic": {
+                    "type": "string",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/jira_issue"},
+                        {"const": "0"}
+                    ],
+                    "description": "Key of an issue that acts as the epic, with more links to related issues. This is `0` if there is no related epic."
+                },
+                "flagged": {
+                    "$ref": "../utils.json#/$defs/boolean",
+                    "description": "Whether the issue is marked as being blocked by an impediment. This is `0` if no flag is used, and `1` if the issue is flagged."
+                },
+                "ready_status": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the ready status of the issue."
+                },
+                "ready_status_reason": {
+                    "type": "string",
+                    "description": "Description of the reason why the issue has the ready status."
+                },
+                "labels": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of labels provided to the issue."
+                },
+                "external_project": {
+                    "$ref": "../utils.json#/$defs/jira_project",
+                    "description": "Project key of the project that the issue is created for, when it is created on a support team board."
+                },
+                "expected_ltcs": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of logical test cases that are needed to sufficiently test the implementation of the issue's solution."
+                },
+                "expected_phtcs": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of physical test cases that are needed to sufficiently test the implementation of the issue's solution."
+                },
+                "test_given": {
+                    "type": "string",
+                    "description": "Description of a Given part of the test model for the test case."
+                },
+                "test_when": {
+                    "type": "string",
+                    "description": "Description of a When part of the test model for the test case."
+                },
+                "test_then": {
+                    "type": "string",
+                    "description": "Description of a Then part of the test model for the test case."
+                },
+                "test_execution": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the test execution model for the issue."
+                },
+                "test_execution_time": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Units of time that the test execution for the issue takes."
+                },
+                "encryption": {
+                    "description": "Whether the personal information fields related to the reporter, assignee and updater are encrypted.",
+                    "$ref": "../utils.json#/$defs/boolean"
+                }
+            },
+            "required": ["issue_id", "changelog_id"]
+        }
+    }
+}

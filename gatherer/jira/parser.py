@@ -338,6 +338,10 @@ class Status_Category_Parser(Field_Parser):
 
     def parse(self, value: Any) -> Optional[str]:
         if value is not None:
+            # Note: `value.id` is an integer, so return type and parameter type
+            # for `Table.append` are technically incorrect. Error is hidden due
+            # to the `Any` type. The importer now expects integers for these
+            # tables (status and status_category).
             self.jira.get_table("status_category").append({
                 "id": value.id,
                 "key": str(value.key),

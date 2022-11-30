@@ -1,0 +1,35 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/relationshiptype.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira link relationship types",
+    "$ref": "#/$defs/relationshiptypes",
+    "$defs": {
+        "relationshiptypes": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/relationshiptype"}
+        },
+        "relationshiptype": {
+            "description": "Jira link relationship type.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the relationship type."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the relationship type."
+                },
+                "inward": {
+                    "type": "string",
+                    "description": "Phrase used to describe an inward link that has the relationship type."
+                },
+                "outward": {
+                    "type": "string",
+                    "description": "Phrase used to describe an outward link that has the relationship type."
+                }
+            }
+        }
+    }
+}

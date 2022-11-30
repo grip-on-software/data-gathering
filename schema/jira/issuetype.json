@@ -1,0 +1,31 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/issuetype.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira issue types",
+    "$ref": "#/$defs/issuetypes",
+    "$defs": {
+        "issuetypes": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/issuetype"}
+        },
+        "issuetype": {
+            "description": "Type of Jira issue.",
+            "$comment": "Depends on gros/data-gathering jira_fields.json. All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Internal identifier of the issue type."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the issue type."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Description of the issue type."
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,51 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/jira/issuelinks.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Jira issue links",
+    "$ref": "#/$defs/issuelinks",
+    "$defs": {
+        "issuelinks": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/issuelink"}
+        },
+        "issuelink": {
+            "description": "A directed link between two Jira issues.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "from_key": {
+                    "$ref": "../utils.json#/$defs/jira_issue",
+                    "description": "The issue from which the link is extracted."
+                },
+                "to_key": {
+                    "$ref": "../utils.json#/$defs/jira_issue",
+                    "description": "The issue that is involved in the extracted link."
+                },
+                "relationshiptype": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Identifier of the type of the link relationship."
+                },
+                "outward": {
+                    "$ref": "../utils.json#/$defs/jira_boolean",
+                    "description": "Whether the link is outward from the issue where the link is extracted. When this is `1`, it is directed from the `from_key` to the `to_key`. When this is `-1`, it is directed from the `to_key` to the `from_key`."
+                },
+                "start_date": {
+                    "type": "string",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/datetime"},
+                        {"const": "0"}
+                    ],
+                    "description": "Moment when the link was created. When this is `0`, the link exists since the creation of the extracted issue."
+                },
+                "end_date": {
+                    "type": "string",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/datetime"},
+                        {"const": "0"}
+                    ],
+                    "description": "Moment when the link was created. When this is `0`, the link still exists."
+                }
+            }
+        }
+    }
+}
