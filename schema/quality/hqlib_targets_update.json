@@ -1,0 +1,14 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/hqlib_targets_update.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Quality report metrics default targets update tracker",
+    "$ref": "#/$defs/hqlib_targets_update",
+    "$defs": {
+        "hqlib_targets_update": {
+            "oneOf": [
+                {"$ref": "../utils.json#/$defs/version"},
+                {"type": "null"}
+            ]
+        }
+    }
+}

@@ -1,0 +1,43 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/bigboat/status.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "BigBoat statuses",
+    "$ref": "#/$defs/statuses",
+    "$defs": {
+        "statuses": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/status"}
+        },
+        "status": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the health status metric."
+                },
+                "checked_time": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the health status was measured."
+                },
+                "ok": {
+                    "type": "boolean",
+                    "description": "Whether the health status is considered good, and does not impact the performance of the BigBoat dashboard."
+                },
+                "value": {
+                    "oneOf": [
+                        {"type": "float"},
+                        {"type": "null"}
+                    ],
+                    "description": "Value of the health status metric. This is `null` if there is no numeric value for the metric or it is unknown."
+                },
+                "max": {
+                    "oneOf": [
+                        {"type": "float"},
+                        {"type": "null"}
+                    ],
+                    "description": "Maximum reachable value of the health status metric. This is `null` if there is no numeric maximum for the metric or it is unknown."
+                }
+            }
+        }
+    }
+}

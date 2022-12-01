@@ -40,6 +40,7 @@ secrets.json
 secrets.*.json
 tracker/
 update/
+!schema/*/*.json
 
 # filter-sourcecode.sh
 filter.txt

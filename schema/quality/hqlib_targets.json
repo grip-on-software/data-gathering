@@ -1,0 +1,48 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/hqlib_targets.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Quality report metrics default targets",
+    "$ref": "#/$defs/hqlib_targets",
+    "$defs": {
+        "hqlib_targets": {
+            "type": "array",
+            "items": {"$ref": "#/$def/target"}
+        },
+        "target": {
+            "description": "A default target for a metric from a specific version of the Quality report repository.",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "type": "object",
+            "properties": {
+                "class_name": {
+                    "type": "string",
+                    "description": "Base name of the metric."
+                },
+                "version_id": {
+                    "$ref": "../utils.json#/$defs/version",
+                    "description": "Version in which the default target was committed to the quality report repository."
+                },
+                "commit_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the default target was committed to the quality report repository."
+                },
+                "direction": {
+                    "type": "string",
+                    "enum": ["-1", "1"],
+                    "description": "The direction in which the metric value should improve in order to become better. `-1` means a lower value is better, `1` means a higher value is better."
+                },
+                "perfect_value": {
+                    "$ref": "../utils.json#/$defs/float",
+                    "description": "Target value where the metric cannot be improved further."
+                },
+                "target_value": {
+                    "$ref": "../utils.json#/$defs/float",
+                    "description": "Target value where the metric is good when the value is equal or better than this target."
+                },
+                "low_target_value": {
+                    "$ref": "../utils.json#/$defs/float",
+                    "description": "Target value where the metric is not good when it is worse than the target value, but better than this low target, and thus not yet critical."
+                }
+            }
+        }
+    }
+}
