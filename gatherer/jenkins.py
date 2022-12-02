@@ -317,7 +317,7 @@ class Jenkins(Base):
 
         return [View(self, **view) for view in self.data['views']]
 
-    def get_job(self, name: str, url: Optional[str] = None) -> 'Job':
+    def get_job(self, name: str, url: BaseUrl = None) -> 'Job':
         """
         Retrieve a job from the Jenkins instance by its name.
 
