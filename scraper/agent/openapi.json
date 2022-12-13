@@ -1,0 +1,135 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Scraper API",
+        "description": "API for Grip on Software data gathering agents.",
+        "version": "0.0.3",
+        "contact": {
+            "name": "Grip on Software",
+            "url": "https://gros.liacs.nl"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+        }
+    },
+    "paths": {
+        "/status": {
+            "get": {
+                "summary": "Get scraper status",
+                "description": "Retrieve information about the scraper status.",
+                "responses": {
+                    "200": {
+                        "description": "Running status",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "running": {
+                                        "value": {
+                                            "ok": true,
+                                            "message": "Scrape process is running"
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/scraper/status.json#/$defs/status"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Halted status",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "halted": {
+                                        "value": {
+                                            "ok": true,
+                                            "message": "No scrape process is running"
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/scraper/status.json#/$defs/status"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/scrape": {
+            "post": {
+                "summary": "Start scrape",
+                "description": "Run a scrape process.",
+                "responses": {
+                    "201": {
+                        "description": "Started process",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "started": {
+                                        "value": {
+                                            "ok": true
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/scraper/scrape.json#/$defs/scrape_ok"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Process environment error",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "path": {
+                                        "value": {
+                                            "ok": false,
+                                            "error": {
+                                                "status": "500 Internal Server Error",
+                                                "message": "Cannot find scraper at /home/agent/scraper/agent/scrape.sh"
+                                            },
+                                            "version": {
+                                                "gros-data-gathering-agent": "0.0.3"
+                                            }
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/scraper/scrape.json#/$defs/scrape_error"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Process conflict or error",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "conflict": {
+                                        "value": {
+                                            "ok": false,
+                                            "error": {
+                                                "status": "503 Service Unavailable",
+                                                "message": "Another scrape process is already running"
+                                            },
+                                            "version": {
+                                                "gros-data-gathering-agent": "0.0.3"
+                                            }
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/scraper/scrape.json#/$defs/scrape_error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

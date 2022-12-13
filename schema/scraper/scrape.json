@@ -1,0 +1,63 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/scraper/scrape.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Data gathering scraper scrape response",
+    "$ref": "#/$defs/scrape_error",
+    "$defs": {
+        "scrape_ok": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean",
+                    "description": "Whether the scrape is successfully started."
+                }
+            },
+            "required": ["ok"]
+        },
+        "scrape_error": {
+            "allOf": [
+                {"$ref": "#/$defs/scrape_ok"}
+            ],
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "object",
+                    "description": "Information about the error during the attempt to start the scrape, if there was one.",
+                    "properties": {
+                        "status": {
+                            "type": "string",
+                            "pattern": "^\\d\\d\\d \\w+$",
+                            "description": "HTTP status line for the error."
+                        },
+                        "message": {
+                            "type": "string",
+                            "description": "Description of the error."
+                        },
+                        "traceback": {
+                            "oneOf": [
+                                {"type": "null"},
+                                {"type": "string"}
+                            ],
+                            "description": "Python traceback lines of locations in source code where the error took place, if tracebacks are shown."
+                        }
+                    },
+                    "required": ["status", "message"]
+                },
+                "version": {
+                    "type": "object",
+                    "description": "Version numbers of components involved in the scrape attempt, if it failed to start.",
+                    "properties": {
+                        "gros-data-gathering-agent": {
+                            "type": "string",
+                            "description": "Version number of the data gathering agent module."
+                        },
+                        "cherrypy": {
+                            "type": "string",
+                            "description": "Version number of the CherryPy server module."
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

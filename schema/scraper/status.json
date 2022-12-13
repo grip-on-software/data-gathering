@@ -1,0 +1,22 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/scraper/status.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Data gathering scraper status response",
+    "$ref": "#/$defs/status",
+    "$defs": {
+        "status": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean",
+                    "description": "Whether the status of the scraper is good."
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Description of the status."
+                }
+            },
+            "required": ["ok", "message"]
+        }
+    }
+}
