@@ -79,8 +79,7 @@ class Controller:
             permissions = self.FILE_PERMISSIONS
 
         # Create empty file
-        with Path(path).open('w', encoding='utf-8'):
-            pass
+        Path(path).touch()
 
         subprocess.check_call(['sudo', 'chmod', permissions, str(path)])
         self._update_owner(agent_key, path, user=user)

@@ -47,7 +47,7 @@ def parse_args() -> Namespace:
     parser.add_argument('--host', default=config.get('database', 'host'),
                         help='host name of the database to connect to')
     parser.add_argument('--database', default=config.get('database', 'name'),
-                        help='database name to retrieve from')
+                        help='database name to import into')
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
     Log_Setup.parse_args(args)

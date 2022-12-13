@@ -20,6 +20,7 @@ limitations under the License.
 import os
 from pathlib import Path
 import subprocess
+import time
 import Pyro4
 from gatherer.config import Configuration
 from gatherer.jenkins import Jenkins
@@ -49,8 +50,10 @@ class Exporter:
             'CLEANUP_EXPORT': '1'
         })
         args = ['/bin/bash', 'controller-export.sh', directory, project_key]
-        with subprocess.Popen(args, stdout=None, stderr=None, env=environment):
-            pass
+        with subprocess.Popen(args, stdout=None, stderr=None,
+                              env=environment) as process:
+            time.sleep(0.1)
+            process.poll()
 
     def start_scrape(self, project_key: str) -> None:
         """

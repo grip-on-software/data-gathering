@@ -307,6 +307,37 @@ def get_git_repositories(project: Project, repo_directory: Path,
 
     return repos
 
+def process(project: Project, repo: Git_Repository, repo_directory: Path,
+            api: Optional[gitlab.Gitlab], args: Namespace) -> None:
+    """
+    Process a project's Git repository for archival/filtering.
+    """
+
+    repo_name = repo.repo_name.lower().replace('/', '-')
+    repo_path = repo_directory / repo_name
+    git_url = f'{args.url}{project.gitlab_group_name}/{repo_name}.git'
+    source = Source.from_type('git', name=repo_name, url=git_url)
+    git_repo = Git_Repository(source, repo_path)
+
+    archive = Repository_Archive(project, git_repo, gitlab_api=api,
+                                 dry_run=args.dry_run)
+
+    if args.bfg:
+        archive.filter_sourcecode(args.bfg, args.filter)
+
+    if args.delete:
+        archive.delete()
+    if args.create or args.upload:
+        archive.create()
+        if args.upload:
+            archive.upload()
+
+    if args.user:
+        archive.update_user(args.user, args.level)
+
+    if args.agent:
+        archive.upload_agent(args.agent, args.ssh, args.key)
+
 def main() -> None:
     """
     Main entry point.
@@ -334,31 +365,8 @@ def main() -> None:
         api = gitlab.Gitlab(args.url, private_token=args.token)
 
     for repo in project_repos:
+        process(project, repo, repo_directory, api, args)
         logging.info('Processing repository %s', repo.repo_name)
-        repo_name = repo.repo_name.lower().replace('/', '-')
-        repo_path = repo_directory / repo_name
-        git_url = f'{args.url}{project.gitlab_group_name}/{repo_name}.git'
-        source = Source.from_type('git', name=repo_name, url=git_url)
-        git_repo = Git_Repository(source, repo_path)
-
-        archive = Repository_Archive(project, git_repo, gitlab_api=api,
-                                     dry_run=args.dry_run)
-
-        if args.bfg:
-            archive.filter_sourcecode(args.bfg, args.filter)
-
-        if args.delete:
-            archive.delete()
-        if args.create or args.upload:
-            archive.create()
-            if args.upload:
-                archive.upload()
-
-        if args.user:
-            archive.update_user(args.user, args.level)
-
-        if args.agent:
-            archive.upload_agent(args.agent, args.ssh, args.key)
 
 if __name__ == "__main__":
     main()
