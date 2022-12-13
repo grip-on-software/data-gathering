@@ -42,7 +42,8 @@ tracker/
 update/
 !schema/*/*.json
 
-# filter-sourcecode.sh
+# maintenance/filter-sourcecode.sh
+bfg.jar
 filter.txt
 
 # Repositories from gathering quality reporting data

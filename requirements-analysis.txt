@@ -1,5 +1,6 @@
 # Install dependencies for all scripts and modules
 -r requirements-jenkins.txt
+-r requirements-daemon.txt
 # Linter dependencies
 pylint
 # Typing/mypy dependencies
@@ -7,3 +8,4 @@ mypy<0.981
 types-python-dateutil
 types-requests>=2.27.27
 types-PyYAML
+types-setuptools

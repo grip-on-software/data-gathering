@@ -24,7 +24,9 @@ dependencies which must be installed. Each of these steps can be done
 separately or in combination with one another:
 
 - Run `pip install -r requirements.txt` to install the dependencies for the 
-  data gathering scripts.
+  data gathering scripts. Additionally, `pip install -I python-gitlab>=1.10.0` 
+  installs a proper version for data gathering (but not for the outdated 
+  Quality report dependency).
   - If you want to gather Topdesk or LDAP data: run `pip install -r 
     requirements-jenkins.txt`, which also ensures that the normal dependencies 
     are installed.
@@ -130,12 +132,18 @@ run to retrieve seat counts for projects from a spreadsheet (see the
 
 There are also a few tools for inspecting data or setting up sources:
 
-- `scraper/hqlib_targets.py`: Extract default metric norms from the quality 
-  reporting library repository.
-- `init_gitlab.py`: Set up repositories for filtered or archived source code.
-- `retrieve_salts.py`: Retrieve project salts from the database.
-- `update_jira_mails.py`: Update email addresses in legacy dropin developer 
-  data from Jira.
+- `scraper/hqlib_targets.py`: Extract default metric norms from the outdated 
+  Quality report library repository.
+- `maintenance/import_bigboat_status.py`: Import line-delimited JSON status 
+  information dumps into a database.
+- `maintenance/init_gitlab.py`: Set up repositories for filtered or archived 
+  source code.
+- `maintenance/retrieve_salts.py`: Retrieve project salts from the database.
+- `maintenance/update_jira_mails.py`: Update email addresses in legacy dropin 
+  developer data from Jira.
+- `maintenance/filter-sourcecode.sh`: Retrieve and filter source code 
+  repositories of a project so that it is unintelligible but can still be used 
+  for code size metrics.
 
 All of these scripts and tools make use of the `gatherer` library, contained 
 within this repository, which supplies abstracted and standardized access to 
