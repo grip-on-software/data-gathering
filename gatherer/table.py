@@ -66,16 +66,17 @@ class Table:
             return username
 
         for search_set in self._secrets['usernames']:
-            if 'pattern' in search_set:
-                pattern = search_set['pattern']
-                replace = search_set['replace'].replace('$', '\\')
-            else:
-                pattern = re.escape(search_set['prefix'])
-                replace = ''
+            pattern = re.escape(search_set['prefix']).replace('%', '.*') \
+                .replace('_', '.')
+            replace = ''
 
             if re.match(pattern, username):
+                if 'pattern' in search_set:
+                    pattern = search_set['pattern']
+                    replace = search_set.get('replace', '').replace('$', '\\')
+
                 username = re.sub(pattern, replace, username)
-                if 'mutate' in search_set and search_set['mutate'] == 'lower':
+                if search_set.get('mutate') == 'lower':
                     username = username.lower()
 
                 return username
