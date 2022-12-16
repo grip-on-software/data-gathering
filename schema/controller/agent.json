@@ -1,0 +1,28 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/controller/agent.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Controller agent secrets response",
+    "$ref": "#/$defs/secrets",
+    "$defs": {
+        "secrets": {
+            "type": "object",
+            "properties": {
+                "salts": {
+                    "type": "object",
+                    "description": "Encryption keys for the project that the agent retrieves.",
+                    "properties": {
+                        "salt": {"type": "string"},
+                        "pepper": {"type": "string"}
+                    },
+                    "required": ["salt", "pepper"]
+                },
+                "usernames": {
+                    "type": "array",
+                    "description": "Mappings of prefixes and patterns/replacements of username parts which are to be replaced by the agent prior to encryption when collecting data for the project.",
+                    "items": {"$ref": "../../monetdb-import/vcsdev_to_dev.json#/$defs/link_pattern"}
+                }
+            },
+            "required": ["salts"]
+        }
+    }
+}

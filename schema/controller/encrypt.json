@@ -1,0 +1,23 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/controller/encrypt.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Controller encrypt response",
+    "$ref": "#/$defs/encrypt",
+    "$defs": {
+        "encrypt": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]+$",
+                    "description": "Encrypted variant of the provided value."
+                },
+                "encryption": {
+                    "type": "integer",
+                    "enum": [1, 2],
+                    "description": "The encryption level of the encrypted value. `1` means project-level encryption, `2` means global encryption."
+                }
+            }
+        }
+    }
+}

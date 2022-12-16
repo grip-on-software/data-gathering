@@ -25,14 +25,14 @@
                 },
                 "value": {
                     "oneOf": [
-                        {"type": "float"},
+                        {"type": "number"},
                         {"type": "null"}
                     ],
                     "description": "Value of the health status metric. This is `null` if there is no numeric value for the metric or it is unknown."
                 },
                 "max": {
                     "oneOf": [
-                        {"type": "float"},
+                        {"type": "number"},
                         {"type": "null"}
                     ],
                     "description": "Maximum reachable value of the health status metric. This is `null` if there is no numeric maximum for the metric or it is unknown."

@@ -1,0 +1,21 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/controller/version.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Controller version update check response",
+    "$ref": "#/$defs/version",
+    "$defs": {
+        "version": {
+            "type": "object",
+            "properties": {
+                "up_to_date": {
+                    "type": "boolean",
+                    "description": "Whether the version of the agent is up to date."
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Version of the controller."
+                }
+            }
+        }
+    }
+}

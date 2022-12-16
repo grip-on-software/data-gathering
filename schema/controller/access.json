@@ -1,0 +1,19 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/controller/access.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Controller accessible projects response",
+    "$ref": "#/$defs/access",
+    "$defs": {
+        "access": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "oneOf": [
+                    {"const": "*"},
+                    {"$ref": "../utils.json#/$defs/jira_project"}
+                ],
+                "description": "Project key that is relevant to the origin of the request."
+            }
+        }
+    }
+}

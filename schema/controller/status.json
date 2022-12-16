@@ -1,0 +1,27 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/controller/status.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Controller status response",
+    "$ref": "#/$defs/controller_status",
+    "$defs": {
+        "controller_status": {
+            "type": "object",
+            "patternProperties": {
+                ".+": {
+                    "type": "object",
+                    "properties": {
+                        "ok": {
+                            "type": "boolean",
+                            "description": "Whether the controller component is available."
+                        },
+                        "message": {
+                            "type": "string",
+                            "description": "Description of the status of the controller component."
+                        }
+                    },
+                    "required": ["ok"]
+                }
+            }
+        }
+    }
+}

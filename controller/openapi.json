@@ -1,0 +1,383 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Controller API",
+        "description": "API for Grip on Software data gathering controller.",
+        "version": "0.0.3",
+        "contact": {
+            "name": "Grip on Software",
+            "url": "https://gros.liacs.nl"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+        }
+    },
+    "components": {
+        "parameters": {
+            "ProjectParam": {
+                "name": "project",
+                "in": "query",
+                "description": "Identifier of the project that data is retrieved for.",
+                "required": true,
+                "schema": {
+                    "$ref": "schema/data-gathering/utils.json#/$defs/jira_project"
+                }
+            },
+            "AgentParam": {
+                "name": "agent",
+                "in": "query",
+                "description": "Identifier of the project that the agent is registered for. May be different from `project` when the agent retrieves data for multiple projects. Defaults to `project`.",
+                "required": false,
+                "schema": {
+                    "$ref": "schema/data-gathering/utils.json#/$defs/jira_project"
+                }
+            }
+        }
+    },
+    "paths": {
+        "/auth/access.py": {
+            "get": {
+                "summary": "Get accessible projects",
+                "description": "Retrieve a list of project keys that are relevant to the origin of the request.",
+                "responses": {
+                    "200": {
+                        "description": "Accessible projects",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "all": {
+                                        "value": ["*"]
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/controller/access.json#/$defs/access"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/agent.py": {
+            "post": {
+                "summary": "Register agent",
+                "description": "Provide registration information for an agent and receive encryption fields.",
+                "parameters": [
+                    {"$ref": "#/components/parameters/ProjectParam"},
+                    {"$ref": "#/components/parameters/AgentParam"}
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "public_key": {
+                                        "type": "string",
+                                        "description": "Public key of the agent."
+                                    }
+                                },
+                                "required": ["public_key"]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated agent",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "secrets": {
+                                        "value": {
+                                            "salts": {
+                                                "salt": "$2b$12$3ari/VaQu3U/CqYkbYEfmO",
+                                                "pepper": "$2b$12$eXZs9UA8/l9Ds7th9fk.Fe"
+                                            },
+                                            "usernames": [
+                                                {
+                                                    "prefix": "ORG%",
+                                                    "pattern": "ORG(\\w+)",
+                                                    "replace": "$1"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/controller/agent.json#/$defs/secrets"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Cannot update agent",
+                        "content": {
+                            "text/plain": {
+                                "examples": {
+                                    "locked": {
+                                        "value": "Could not lock the agent for updating: RuntimeError('Another process has acquired the lock')"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/encrypt.py": {
+            "get": {
+                "summary": "Get encrypted value",
+                "description": "Convert a value to encrypted variant for matching with encrypted data.",
+                "parameters": [
+                    {"$ref": "#/components/parameters/ProjectParam"}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Encrypted value",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "encrypted": {
+                                        "value": {
+                                            "value": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+                                            "encryption": 2
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/controller/encrypt.json#/$defs/encrypt"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/export.py": {
+            "post": {
+                "summary": "Mark exported data as ready",
+                "description": "Indicate that exported data from a project which was uploaded by an agent via SSH is ready for further processing.",
+                "parameters": [
+                    {"$ref": "#/components/parameters/ProjectParam"}
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent": {
+                                        "$ref": "schema/data-gathering/controller/export.json#/$defs/agent"
+                                    },
+                                    "files": {
+                                        "$ref": "schema/data-gathering/controller/export.json#/$defs/files"
+                                    }
+                                }
+                            },
+                            "examples": {
+                                "export": {
+                                    "value": {
+                                        "agent": {
+                                            "user": "agent-TEST",
+                                            "key": "TEST",
+                                            "hostname": "gros-data-gathering-agent.test",
+                                            "version": "gatherer/0.0.3 requests/2"
+                                        },
+                                        "files": {
+                                            "export": ["data.json", "data_comments.json"],
+                                            "update": ["jira-updated.txt"],
+                                            "other": null
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Accepted export"
+                    }
+                }
+            }
+        },
+        "/auth/log.py": {
+            "post": {
+                "summary": "Send log message",
+                "description": "Provide a log packet compatible with Python's logging HTTP handler describing an event that occurred at an agent.",
+                "parameters": [
+                    {"$ref": "#/components/parameters/ProjectParam"}
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "schema/data-gathering/controller/log.json#/$defs/log"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Accepted log"
+                    },
+                    "204": {
+                        "description": "Ignored log"
+                    }
+                }
+            }
+        },
+        "/auth/status.py": {
+            "get": {
+                "summary": "Get controller status",
+                "description": "Obtain status of components that allow an agent to interact with the controller.",
+                "parameters": [
+                    {"$ref": "#/components/parameters/ProjectParam"},
+                    {"$ref": "#/components/parameters/AgentParam"}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK status",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "ok": {
+                                        "value": {
+                                            "database": {
+                                                "ok": true
+                                            },
+                                            "total": {
+                                                "ok": true,
+                                                "message": "Everything OK"
+                                            }
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/controller/status.json#/$defs/controller_status"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Not OK status",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "ok": {
+                                        "value": {
+                                            "database": {
+                                                "ok": false,
+                                                "message": "Project is not yet registered in the database"
+                                            },
+                                            "total": {
+                                                "ok": false,
+                                                "message": "Some parts are not OK"
+                                            }
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/controller/status.json/#$defs/controller_status"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "summary": "Submit BigBoat status",
+                "description": "Provide status metrics from a BigBoat instance that is monitored by the agent.",
+                "parameters": [
+                    {"$ref": "#/components/parameters/ProjectParam"}
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "status": {
+                                        "description": "Statuses that the agent collected for the BigBoat instance.",
+                                        "$ref": "schema/data-gathering/bigboat/status.json#/$defs/statuses"
+                                    },
+                                    "source": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "description": "Base URL of the BigBoat instance."
+                                    }
+                                },
+                                "required": ["status"]
+                            },
+                            "encoding": {
+                                "status": {
+                                    "contentType": "application/json"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Accepted status"
+                    }
+                }
+            }
+        },
+        "/auth/version.py": {
+            "get": {
+                "summary": "Check agent version update",
+                "description": "Retrieve information about potential update for the agent by comparing the agent version with the controller version.",
+                "parameters": [
+                    {
+                        "name": "version",
+                        "in": "query",
+                        "description": "Version of the agent.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^([^-]*(-.+)?-)?[0-9a-f]{40}$"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Comparable version",
+                        "content": {
+                            "application/json": {
+                                "examples": {
+                                    "up_to_date": {
+                                        "value": {
+                                            "up_to_date": true,
+                                            "version": "083a89664af6e8181f6dbb4d0d2dee82a76c183a"
+                                        }
+                                    }
+                                },
+                                "schema": {
+                                    "$ref": "schema/data-gathering/controller/version.json#/$defs/version"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Comparison error",
+                        "content": {
+                            "text/plain": {
+                                "examples": {
+                                    "version_mismatch": {
+                                        "value": "Can only compare version 0.0.3"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

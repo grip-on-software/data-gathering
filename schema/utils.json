@@ -22,11 +22,11 @@
         },
         "positive_float": {
             "type": "string",
-            "pattern": "^\\d+(\.\\d+)?$"
+            "pattern": "^\\d+(\\.\\d+)?$"
         },
         "float": {
             "type": "string",
-            "pattern": "^-?\\d+(\.\\d+)?$"
+            "pattern": "^-?\\d+(\\.\\d+)?$"
         },
         "datetime": {
             "type": "string",
