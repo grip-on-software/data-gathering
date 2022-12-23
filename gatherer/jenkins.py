@@ -238,7 +238,7 @@ class Jenkins(Base):
                  verify: Union[bool, str] = True) -> None:
         super().__init__(self, host)
 
-        if username is not None:
+        if username is not None and password is not None:
             auth: Optional[HTTPBasicAuth] = HTTPBasicAuth(username, password)
         else:
             auth = None
