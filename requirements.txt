@@ -15,7 +15,7 @@ requests_ntlm
 ordered-set
 # gatherer.project_definition
 git+https://github.com/wekan/wekan-python-api-client.git@master#egg=wekanapi&subdirectory=src
-quality_report>=2.84.2
+git+https://github.com/ICTU/quality-report.git@master#egg=quality_report&subdirectory=backend
 # gatherer.database
 pymonetdb
 # gatherer.files
