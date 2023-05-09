@@ -34,8 +34,8 @@ pipeline {
     stages {
         stage('Start') {
             when {
-                expression {
-                    currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) == null
+                not {
+                    triggeredBy 'TimerTrigger'
                 }
             }
             steps {
@@ -109,8 +109,8 @@ pipeline {
         }
         stage('Status') {
             when {
-                expression {
-                    currentBuild.rawBuild.getCause(hudson.triggers.TimerTrigger$TimerTriggerCause) == null
+                not {
+                    triggeredBy 'TimerTrigger'
                 }
             }
             steps {
