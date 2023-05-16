@@ -34,11 +34,11 @@ used by software development teams and projects in a distributed environment,
 as part of a pipeline where the gathered data is stored in a database for
 analysis purposes. Sources include issue trackers (Jira), version control
 systems (Git and Subversion) and associated review systems (GitHub, GitLab,
-and Team Foundation Server), quality report systems (SonarQube and HQ), 
+and Azure DevOps/TFS/VSTS), quality report systems (SonarQube and HQ), 
 build automation servers (Jenkins) and reservation systems (Topdesk).''',
           author='Leon Helwerda',
           author_email='l.s.helwerda@liacs.leidenuniv.nl',
-          url='',
+          url='https://github.com/grip-on-software/data-gathering',
           license='Apache 2.0',
           packages=find_packages(),
           package_data={'gatherer': ['py.typed']},
@@ -50,9 +50,9 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               # gatherer.jira
               'jira>=2.0.1.0rc1',
               # gatherer.git
-              'gitpython', 'PyGithub', 'python-gitlab',
+              'gitpython>=2.1.8', 'PyGithub>1.40', 'python-gitlab>1.10.0',
               # gatherer.svn
-              'svn',
+              'svn>=0.3.45',
               # gatherer.request
               'requests', 'requests_ntlm', 'ordered-set',
               # gatherer.database
@@ -62,9 +62,30 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               # gatherer.salt
               'bcrypt'
           ],
+          python_requires='>=3.6',
           dependency_links=[],
-          classifiers=[],
-          keywords=[])
+          classifiers=[
+              'Development Status :: 3 - Alpha',
+              'Environment :: Console',
+              'Environment :: Web Environment',
+              'Intended Audience :: Developers',
+              'Intended Audience :: Information Technology',
+              'Topic :: Software Development :: Bug Tracking',
+              'Topic :: Software Development :: Build Tools',
+              'Topic :: Software Development :: Quality Assurance',
+              'Topic :: Software Development :: Version Control :: Git',
+              'Topic :: System :: Distributed Computing',
+              'Topic :: System :: Monitoring',
+              'License :: OSI Approved :: Apache Software License',
+              'Programming Language :: Python :: 3',
+              'Programming Language :: Python :: 3.6',
+              'Programming Language :: Python :: 3.7',
+              'Programming Language :: Python :: 3.8',
+              'Programming Language :: Python :: 3.9',
+              'Programming Language :: Python :: 3.10',
+              'Programming Language :: Python :: 3.11'
+          ],
+          keywords='gros software development process data gathering')
 
 if __name__ == '__main__':
     main()
