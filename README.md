@@ -659,7 +659,7 @@ from writing them into the configuration files (if at all):
   the public key to, assuming they are GitLab hosts, when the sources have not 
   been located yet.
 
-### JIRA and Azure DevOps
+### Issue trackers (Jira and Azure DevOps)
 
 In order to properly convert fields from different issue trackers, projects 
 with custom fields, and preserve semantics between them, two files called 
@@ -668,6 +668,12 @@ data fields from the internal field names in the issue trackers. The files are
 by default configured to help with common situations found in two organizations 
 (ICTU and Wigo4it). Customization of these files may be relevant when another 
 organization is used.
+
+In order to validate a (customized) field mapping, the schema files are of use. 
+For example, by installing the `check-jsonschema` PyPI package, you can run 
+`check-jsonschema --schemafile schema/jira/fields.json jira_fields.json` (Jira) 
+or `check-jsonschema--schemafile schema/tfs/fields.json vsts_fields.json` 
+(Azure DevOps) to check validity. 
 
 ### Seats
 
