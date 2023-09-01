@@ -4,7 +4,7 @@
     "title": "TopDesk room meeting reservations",
     "$ref": "#/$defs/reservations",
     "$defs": {
-        "counts": {
+        "reservations": {
             "type": "array",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "items": {

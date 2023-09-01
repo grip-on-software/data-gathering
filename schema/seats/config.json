@@ -2,9 +2,9 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/seats/config.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Seat count configuration",
-    "$ref": "#/$defs/config",
+    "$ref": "#/$defs/seats_config",
     "$defs": {
-        "config": {
+        "seats_config": {
             "type": "object",
             "properties": {
                 "sheet": {

@@ -2,12 +2,12 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/quality/update.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Quality control update tracker",
-    "$ref": "#/$defs/update",
+    "$ref": "#/$defs/quality_update",
     "$defs": {
-        "update": {
+        "quality_update": {
             "type": "object",
             "properties": {
-                "sources": {"$ref": "../project/sources.json#/$defs/sources"},
+                "sources": {"$ref": "../project/sources.json#/$defs/quality_project_sources"},
                 "versions": {
                     "type": "object",
                     "patternProperties": {
@@ -21,20 +21,20 @@
         },
         "metric_options_update": {
             "allOf": [
-                {"$ref": "#/$defs/update"}
+                {"$ref": "#/$defs/quality_update"}
             ],
             "properties": {
                 "targets": {
                     "type": "object",
                     "patternProperties": {
-                        ".+": {"$ref": "./metric_targets.json#/$defs/metric_target"}
+                        ".+": {"$ref": "metric_targets.json#/$defs/quality_metric_target"}
                     }
                 }
             }
         },
         "project_sources_update": {
             "allOf": [
-                {"$ref": "#/$defs/update"}
+                {"$ref": "#/$defs/quality_update"}
             ],
             "properties": {
                 "targets": {
@@ -44,7 +44,7 @@
         },
         "project_meta_update": {
             "allOf": [
-                {"$ref": "#/$defs/update"}
+                {"$ref": "#/$defs/quality_update"}
             ],
             "properties": {
                 "targets": {

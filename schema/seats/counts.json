@@ -2,9 +2,9 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/seats/counts.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Seat counts",
-    "$ref": "#/$defs/counts",
+    "$ref": "#/$defs/seats_counts",
     "$defs": {
-        "counts": {
+        "seats_counts": {
             "type": "array",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "items": {

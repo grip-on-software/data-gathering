@@ -6,7 +6,7 @@
     "$defs": {
         "github_issues": {
             "type": "array",
-            "items": {"$ref": "#/$defs/github_isues"}
+            "items": {"$ref": "#/$defs/github_issue"}
         },
         "github_issue": {
             "description": "An issue from a GitHub repository.",

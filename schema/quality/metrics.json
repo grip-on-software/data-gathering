@@ -14,7 +14,7 @@
                     "type": "array",
                     "items": {
                         "anyOf": [
-                            {"$ref": "metric_names.json#$/defs/metric_name"}
+                            {"$ref": "metric_names.json#/$defs/metric_name"}
                         ],
                         "type": "object",
                         "$comment": "All fields are strings for cross-compatibility with older importers.",

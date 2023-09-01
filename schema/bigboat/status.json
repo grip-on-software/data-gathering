@@ -2,14 +2,15 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/bigboat/status.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "BigBoat statuses",
-    "$ref": "#/$defs/statuses",
+    "$ref": "#/$defs/bigboat_statuses",
     "$defs": {
-        "statuses": {
+        "bigboat_statuses": {
             "type": "array",
-            "items": {"$ref": "#/$defs/status"}
+            "items": {"$ref": "#/$defs/bigboat_status_measurement"}
         },
-        "status": {
+        "bigboat_status_measurement": {
             "type": "object",
+            "description": "A measurement of a BigBoat status metric.",
             "properties": {
                 "name": {
                     "type": "string",

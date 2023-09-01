@@ -2,13 +2,13 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/jira/component.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Jira components",
-    "$ref": "#/$defs/components",
+    "$ref": "#/$defs/jira_components",
     "$defs": {
-        "components": {
+        "jira_components": {
             "type": "array",
-            "items": {"$ref": "#/$defs/component"}
+            "items": {"$ref": "#/$defs/jira_component"}
         },
-        "component": {
+        "jira_component": {
             "description": "A Jira component.",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "type": "object",

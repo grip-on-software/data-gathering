@@ -2,19 +2,19 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/quality/metric_targets.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Quality control metric targets",
-    "$ref": "#/$defs/metric_targets",
+    "$ref": "#/$defs/quality_metric_targets",
     "$defs": {
-        "metric_targets": {
+        "quality_metric_targets": {
             "type": "array",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "items": {
                 "anyOf": [
                     {"$ref": "metric_names.json#/$defs/metric_names"}
                 ],
-                "$ref": "#/$defs/metric_target"
+                "$ref": "#/$defs/quality_metric_target"
             }
         },
-        "metric_target": {
+        "quality_metric_target": {
             "type": "object",
             "properties": {
                 "name": {

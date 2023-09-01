@@ -1,10 +1,10 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/project/sources.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/project/sources.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Project sources",
-    "$ref": "#/$defs/sources",
+    "$ref": "#/$defs/quality_project_sources",
     "$defs": {
-        "sources": {
+        "quality_project_sources": {
             "type": "array",
             "items": {
                 "type": "object",

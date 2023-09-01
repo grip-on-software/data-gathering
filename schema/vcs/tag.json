@@ -2,13 +2,13 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/vcs/tag.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Version control system tags",
-    "$ref": "#/$defs/tags",
+    "$ref": "#/$defs/vcs_tags",
     "$defs": {
-        "tags": {
+        "vcs_tags": {
             "type": "array",
-            "items": {"$ref": "#/$defs/tag"}
+            "items": {"$ref": "#/$defs/vcs_tag"}
         },
-        "tag": {
+        "vcs_tag": {
             "description": "A tag that from a version control system, either Subversion or Git.",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "type": "object",

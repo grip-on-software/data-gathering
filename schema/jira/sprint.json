@@ -2,13 +2,13 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/jira/sprint.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Jira sprints",
-    "$ref": "#/$defs/sprints",
+    "$ref": "#/$defs/jira_sprints",
     "$defs": {
-        "sprints": {
+        "jira_sprints": {
             "type": "array",
-            "items": {"$ref": "#/$defs/sprint"}
+            "items": {"$ref": "#/$defs/jira_sprint"}
         },
-        "sprint": {
+        "jira_sprint": {
             "description": "A Jira sprint.",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "type": "object",

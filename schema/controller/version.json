@@ -6,6 +6,7 @@
     "$defs": {
         "version": {
             "type": "object",
+            "title": "Controller version",
             "properties": {
                 "up_to_date": {
                     "type": "boolean",

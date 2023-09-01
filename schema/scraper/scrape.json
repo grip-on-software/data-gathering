@@ -2,24 +2,30 @@
     "$id": "https://gros.liacs.nl/schema/data-gathering/scraper/scrape.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Data gathering scraper scrape response",
-    "$ref": "#/$defs/scrape_error",
+    "oneOf": [
+        {"$ref": "#/$defs/scrape_ok"},
+        {"$ref": "#/$defs/scrape_error"}
+    ],
     "$defs": {
         "scrape_ok": {
             "type": "object",
             "properties": {
                 "ok": {
                     "type": "boolean",
+                    "const": true,
                     "description": "Whether the scrape is successfully started."
                 }
             },
             "required": ["ok"]
         },
         "scrape_error": {
-            "allOf": [
-                {"$ref": "#/$defs/scrape_ok"}
-            ],
             "type": "object",
             "properties": {
+                "ok": {
+                    "type": "boolean",
+                    "description": "Indication that the scrape did not successfully start.",
+                    "const": false
+                },
                 "error": {
                     "type": "object",
                     "description": "Information about the error during the attempt to start the scrape, if there was one.",
@@ -57,7 +63,8 @@
                         }
                     }
                 }
-            }
+            },
+            "required": ["ok", "error"]
         }
     }
 }

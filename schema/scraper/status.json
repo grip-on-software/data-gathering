@@ -6,6 +6,7 @@
     "$defs": {
         "status": {
             "type": "object",
+            "title": "Scraper status",
             "properties": {
                 "ok": {
                     "type": "boolean",

@@ -58,15 +58,7 @@
                             "description": "Name of the field as a primary field within Jira."
                         },
                         "table": {
-                            "oneOf": [
-                                {"type": "string"},
-                                {
-                                    "type": "object",
-                                    "patternProperties": {
-                                        ".+": {"$ref": "#/$defs/type"}
-                                    }
-                                }
-                            ],
+                            "$ref": "#/$defs/table",
                             "description": "Name of the table to export the auxiliary data to, or a table specification with property names and types for the properties."
                         },
                         "table_options": {
@@ -88,8 +80,21 @@
                 }
             }
         },
+        "table": {
+            "title": "Jira table specification",
+            "oneOf": [
+                {"type": "string"},
+                {
+                    "type": "object",
+                    "patternProperties": {
+                        ".+": {"$ref": "#/$defs/type"}
+                    }
+                }
+            ]
+        },
         "type": {
             "type": "string",
+            "title": "Jira field type",
             "enum": [
                 "int", "identifier", "str", "boolean", "date", "unicode",
                 "sprint", "developer", "decimal", "id_list", "version", "rank",

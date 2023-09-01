@@ -20,10 +20,10 @@
                         },
                         "field": {
                             "oneOf": [
-                                {"$ref": "#/$defs/field"},
+                                {"$ref": "#/$defs/vsts_field"},
                                 {
                                     "type": "array",
-                                    "items": {"$ref": "#/$defs/field"}
+                                    "items": {"$ref": "#/$defs/vsts_field"}
                                 }
                             ],
                             "description": "One or more field names which can be a source for the field."
@@ -33,7 +33,7 @@
                 }
             }
         },
-        "field": {
+        "vsts_field": {
             "type": "string",
             "pattern": "^[A-Za-z0-9.]+$"
         }

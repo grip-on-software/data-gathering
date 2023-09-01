@@ -12,7 +12,7 @@
                     {"const": "*"},
                     {"$ref": "../utils.json#/$defs/jira_project"}
                 ],
-                "description": "Project key that is relevant to the origin of the request."
+                "description": "Project key that is relevant to the origin of the request. With `*`, no specific origin is indicated."
             }
         }
     }

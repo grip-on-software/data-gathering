@@ -1,10 +1,10 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/project/metadata.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/project/metadata.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Project metadata",
-    "$ref": "#/$defs/metadata",
+    "$ref": "#/$defs/project_metadata",
     "$defs": {
-        "metadata": {
+        "project_metadata": {
             "type": "object",
             "properties": {
                 "jira_key": {

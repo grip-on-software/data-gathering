@@ -1,5 +1,5 @@
 {
-    "$id": "https://gros.liacs.nl/schema/data-gathering/quality/project/environments.json",
+    "$id": "https://gros.liacs.nl/schema/data-gathering/project/environments.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Project source environments",
     "$ref": "#/$defs/environments",

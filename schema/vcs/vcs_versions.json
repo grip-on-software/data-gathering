@@ -6,9 +6,9 @@
     "$defs": {
         "vcs_versions": {
             "type": "array",
-            "items": {"$ref": "#/$defs/version"}
+            "items": {"$ref": "#/$defs/vcs_version"}
         },
-        "version": {
+        "vcs_version": {
             "description": "A version from a version control system, either a Subversion or Git commit.",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "type": "object",
@@ -68,7 +68,7 @@
                 },
                 "insertions": {
                     "description": "Number of added lines in the version.",
-                    "$ref": "../utils.json#/$defs/positive_integeryy"
+                    "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "deletions": {
                     "description": "Number of removed lines in the version.",
