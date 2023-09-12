@@ -70,7 +70,7 @@
                     "description": "Moment when the issue was changed for this version."
                 },
                 "description": {
-                    "type": "text",
+                    "type": "string",
                     "description": "Jira-specific syntax-based description of the issue."
                 },
                 "duedate": {

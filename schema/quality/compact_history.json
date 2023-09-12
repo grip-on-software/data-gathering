@@ -54,7 +54,7 @@
                                         "description": "Severity category of the metric."
                                     },
                                     "value": {
-                                        "type": ["integer", "float", "null"],
+                                        "type": ["number", "null"],
                                         "description": "Value of the metric."
                                     }
                                 }
