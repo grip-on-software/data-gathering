@@ -207,8 +207,8 @@ class Base(metaclass=ABCMeta):
         if self.DELETE_URL is None:
             raise TypeError("This object does not support deletion")
 
-        request = self.instance.session.post('{self.base_url}{self.DELETE_URL}',
-                                             timeout=self.instance.timeout)
+        url = f'{self.base_url}{self.DELETE_URL}'
+        request = self.instance.session.post(url, timeout=self.instance.timeout)
         request.raise_for_status()
 
     def __eq__(self, other: object) -> bool:
