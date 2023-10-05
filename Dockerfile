@@ -1,4 +1,4 @@
-FROM python:3.7-alpine3.17
+FROM python:3.12-alpine3.18
 
 # Install dependencies
 COPY requirements.txt setup.py /tmp/
