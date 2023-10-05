@@ -81,9 +81,7 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               'Programming Language :: Python :: 3',
               'Programming Language :: Python :: 3.6',
               'Programming Language :: Python :: 3.7',
-              'Programming Language :: Python :: 3.8',
-              'Programming Language :: Python :: 3.9',
-              'Programming Language :: Python :: 3.10'
+              'Programming Language :: Python :: 3.8'
           ],
           keywords='gros software development process data gathering')
 
