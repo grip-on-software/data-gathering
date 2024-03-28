@@ -3,19 +3,43 @@ Software development process data gathering
 
 The scripts and modules in this repository gather data from different sources 
 that are used by software development teams and projects, as well as control 
-a distributed setup of data gathering. The scripts are part of a larger 
-pipeline where the gathered data is made available for analysis purposes 
-through a database setup.
+a distributed setup of data gathering. The "scraper" scripts are part of 
+a larger pipeline where the gathered data is made available for analysis 
+purposes through a database setup.
 
 The scripts read data from a source based on the requested project and any 
 additional parameters (command-line arguments, settings and credentials). 
 Formatted data is then exported as a JSON file, which is usually a list of 
-objects with properties.
+objects with properties. The data can be imported into a MonetDB database.
+
+The modules are able to be deployed in different software development ecosystem 
+setups. There are several ways to use the data gathering scripts and modules, 
+depending on the situation that they are used in:
+
+- Manually: After installation and configuration, calling the appropriate 
+  scripts should provide exported data available for further processing.
+- Docker: The installation can be streamlined by using a Docker image.
+- Jenkins: Either using the Docker image or a virtual environment, a Jenkins 
+  job from a central instance can obtain updated data of projects and provide 
+  it to the MonetDB database.
+- Agent: A Docker image can be deployed in a separate network to acquire 
+  updated data for a limited number of projects, based on frequent intervals 
+  with pre-flight checks (a 'Daemon' mode) and send the data to a controller.
+- Controller: A central instance can handle pre-flight checks, receive exported 
+  data from agents and provide it to the MonetDB database. The controller runs 
+  some daemon servers to track agent data and make web interfaces available.
+- Module: Certain components of this Python package are usable as a wrapper to 
+  check status of certain services, such as Jenkins or Git, in other 
+  applications, such as a deployment quality gate.
 
 ## Installation
 
-The data gathering scripts and modules require Python version 3.6+. The scripts 
-have been tested on MacOS 10.14+, Ubuntu 16.04+ and CentOS 7.3+.
+The data gathering scripts and modules require Python version 3.6+. Due to 
+dependencies for building the Alpine Linux-based Docker image, Python 3.8 is 
+the recommended version; later versions are unsupported.
+
+The scripts have been tested on MacOS 10.14+, Ubuntu 16.04+, CentOS 7.3+ as 
+well as on some Windows versions.
 
 The scripts and modules are two separate concepts with regard to installation: 
 the data gathering module `gatherer` must be installed so that the scripts can 
@@ -24,17 +48,18 @@ dependencies which must be installed. Each of these steps can be done
 separately or in combination with one another:
 
 - Run `pip install -r requirements.txt` to install the dependencies for the 
-  data gathering scripts. Additionally, `pip install -I python-gitlab>=1.10.0` 
-  installs a proper version for data gathering (but not for the outdated 
-  Quality report dependency).
-  - If you want to gather Topdesk or LDAP data: run `pip install -r 
-    requirements-jenkins.txt`, which also ensures that the normal dependencies 
-    are installed.
+  data gathering scripts. Next, `pip install -I 'python-gitlab>=1.10.0'` 
+  installs a proper version for our data gathering; there will be some warnings 
+  about it being incompatible with the outdated Quality-report dependency, but 
+  these warnings can be ignored.
+  - If you want to gather data from spreadsheets with seat counts, Topdesk or 
+    LDAP: run `pip install -r requirements-jenkins.txt`, which also ensures 
+    that the normal dependencies are installed.
   - For the controller: run `pip install -r requirements-daemon.txt`, which 
     also ensures that the normal dependencies are installed.
-  - In order to make use of static code analysis, run `pip install -r 
-    requirements-analysis.txt`, which installs dependencies for Pylint and mypy 
-    (typing extensions).
+  - For static code analysis: run `pip install -r requirements-analysis.txt`, 
+    which installs dependencies for Pylint and mypy (typing extensions) as well 
+    as all the other dependencies, even those in Jenkins and controller setups.
 - Run `python setup.py install` to install the module and any missing 
   dependencies for the data gathering module. Note that some versions of 
   `setuptools`, which is used in this step, are unable to use wheels or eggs 
@@ -46,12 +71,13 @@ separately or in combination with one another:
   to add additional parameters, such as `--extra-index-url` for a private 
   repository and `--process-dependency-links` to obtain Git dependencies.
 
-We recommend creating a virtual environment to manage the dependencies. 
-Otherwise, add `--user` to the commands above if you do not have access to the 
-system libraries, or do not want to store the libraries in that path. For the 
-controller, a virtualenv must be created beneath `/usr/local/envs` (create this 
-directory) named `controller` with the dependencies above. Next, continue with 
-the following steps:
+We recommend creating a virtual environment to manage the dependencies. Make 
+sure that `python` runs the Python version in the virtual environment. Another 
+option is to add `--user` to the commands above if you do not have access to 
+the system libraries, or do not want to store the libraries in that path. For 
+the controller setup, a virtual environment must be created beneath 
+`/usr/local/envs` (create this directory) named `controller` with the 
+dependencies above. Next, continue with the following steps:
 
 - Configure the agent, controller or development environment using the settings 
   and credentials files as explained in the [configuration](#configuration) 
@@ -61,7 +87,8 @@ the following steps:
 
 Some scripts and controller services interact with a database for update 
 trackers, project salts and status information storage. This database must be 
-a MonetDB instance pre-installed in the environment where.
+a MonetDB instance pre-installed in the environment where the controller is 
+able to access it directly.
 
 ## Data sources
 
@@ -188,6 +215,9 @@ a deployment interface:
 - `controller/exporter_daemon.py` and `controller/export.sh`: Internal daemon 
   for handling agent's collected data to import into the database.
 
+Other files in the repository are mostly used for build process and validation 
+of, e.g., code style and output file formats (the `schema/` directory).
+
 ## Docker
 
 The data gathering scripts can be run on a centralized machine with the 
@@ -237,7 +267,7 @@ the configuration and environment files via shared volumes.
 More details regarding the specific configuration of the environment within the 
 Docker instance can be found in the [environment](#environment) section.
 
-## Scraper web API
+## Scraper agent web API
 
 In the [Docker instance](#docker) of the agent when running the 'Daemon' mode, 
 one can make use of a web API to collect status information about the agent and 
@@ -268,6 +298,9 @@ components and libraries as keys and version strings as values, and a key
 - `traceback`: If display of tracebacks is enabled, then the error traceback is 
   provided as a string. Otherwise, the value is `null`.
 
+More details on the scraper API are found in the schemas or in the [Swagger 
+UI](https://gros.liacs.nl/swagger/?urls.primaryName=Data%20gathering%20scraper%20agent%20API%20%28view%20only%29).
+
 ## Controller API
 
 The controller is meant to run on a host that is accessible by the scraper 
@@ -296,6 +329,9 @@ directory. The following endpoints exist:
   If the agent is POSTing data to this endpoint, then instead store status 
   information in a database or other centralized location.
 - `version.py`: Check whether a provided version is up to date.
+
+More details on the controller API are found in the schemas or in the [Swagger 
+UI](https://gros.liacs.nl/swagger/?urls.primaryName=Data%20gathering%20controller%20API%20%28view%20only%29).
 
 ## Configuration
 
@@ -673,7 +709,7 @@ In order to validate a (customized) field mapping, the schema files are of use.
 For example, by installing the `check-jsonschema` PyPI package, you can run 
 `check-jsonschema --schemafile schema/jira/fields.json jira_fields.json` (Jira) 
 or `check-jsonschema--schemafile schema/tfs/fields.json vsts_fields.json` 
-(Azure DevOps) to check validity. 
+(Azure DevOps) to check validity.
 
 ### Seats
 
@@ -699,12 +735,14 @@ and lists. The following keys are necessary:
 ### Topdesk
 
 For `topdesk_to_json.py`, the presence of a `topdesk.cfg` configuration file is 
-necessary. The projects section has option names corresponding to Jira project 
-keys and values corresponding to the project representation pass number in the 
-CSV dump. The names section have internal identifiers for the columns in the 
-CSV dump as options, and their associated values are the actual names in the 
-CSV dump. The whitelist section contains a global whitelist, which is a regular 
-expression that matches descriptions of items that are relevant events. The 
-project-specific whitelist(s) instead match event descriptions that are 
-specifically relevant to the project. The blacklist section can only have 
-a global blacklist that filters irrelevant events based on their description.
+necessary. The `projects` section has option names corresponding to Jira 
+project keys and values corresponding to the project representation pass number 
+in the CSV dump. The `names` section have internal identifiers for the columns 
+in the CSV dump as options, and their associated values are the actual names in 
+the CSV dump. The `whitelist` section contains a global allow list under the 
+option name `all`, which is a regular expression that matches descriptions of 
+items that are relevant events. The section may also have project-specific 
+allow list(s), which instead match event descriptions that are specifically 
+relevant to the project. The `blacklist` section contains a global deny list 
+under the option name `all` that filters irrelevant events based on their 
+description. There is no project-specific deny list.
