@@ -20,7 +20,7 @@ limitations under the License.
 
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from jira import Issue
-from .base import Base_Jira_Field, Base_Changelog_Field, TableKey
+from .base import Base_Jira_Field, Base_Changelog_Field, TableKey, TableKeyError
 from .parser import Field_Parser
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
@@ -111,7 +111,7 @@ class Primary_Field(Jira_Field):
 
     @property
     def table_key(self) -> TableKey:
-        raise Exception(f"Primary field '{self.name}' is not keyable at this moment")
+        raise TableKeyError(f"Primary field '{self.name}' is not keyable at this moment")
 
 class Payload_Field(Jira_Field):
     """
@@ -196,7 +196,7 @@ class Changelog_Primary_Field(Jira_Field, Base_Changelog_Field):
 
     @property
     def table_key(self) -> TableKey:
-        raise Exception("Changelog fields are not keyable at this moment")
+        raise TableKeyError("Changelog fields are not keyable at this moment")
 
 class Changelog_Field(Jira_Field, Base_Changelog_Field):
     """
@@ -230,4 +230,4 @@ class Changelog_Field(Jira_Field, Base_Changelog_Field):
 
     @property
     def table_key(self) -> TableKey:
-        raise Exception("Changelog fields are not keyable at this moment")
+        raise TableKeyError("Changelog fields are not keyable at this moment")

@@ -30,6 +30,11 @@ else:
 
 TableKey = Optional[Union[str, Tuple[str, ...]]]
 
+class TableKeyError(Exception):
+    """
+    Error when requesting a table key.
+    """
+
 class Table_Source(metaclass=ABCMeta):
     """
     Abstract mixin class that indicates that subclasses might provide
@@ -42,6 +47,9 @@ class Table_Source(metaclass=ABCMeta):
         """
         Key to use for assigning unique rows to a table with parsed values of
         this type, or `None` if there are no keys in the table for this type.
+
+        If this type is not meant to be used in a key at all, then accessing
+        this property raises a `TableKeyError`.
 
         Note that actual registration of the table is dependent on other data
         sources, and thus the key may be different than this property.

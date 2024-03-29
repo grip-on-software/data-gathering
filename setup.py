@@ -63,7 +63,7 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               # gatherer.salt
               'bcrypt'
           ],
-          python_requires='>=3.6',
+          python_requires='>=3.7',
           dependency_links=[],
           classifiers=[
               'Development Status :: 3 - Alpha',

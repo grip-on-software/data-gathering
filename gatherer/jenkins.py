@@ -32,7 +32,7 @@ from .request import Session
 
 BaseUrl = Optional[Union[str, Dict[str, str]]]
 
-class NoneMapping(Mapping[str, None]): # pylint: disable=no-init
+class NoneMapping(Mapping[str, None]):
     """
     An empty mapping that returns `None` for all key lookups.
     """

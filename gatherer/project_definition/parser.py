@@ -72,33 +72,36 @@ class Project_Definition_Parser(Definition_Parser):
         self.domain_objects = self.get_mock_domain_objects(domain, self.DOMAIN)
 
     @staticmethod
-    def filter_member(member: Any, module_name: str) -> bool:
+    def filter_member(member: Any, name: str) -> bool:
         """
-        Check whether a given member of a module is within the domain of objects
-        that we need to mock or replace to be able to read the project
-        definition.
+        Check whether a given `member` attribute of a module named `name` is
+        within the domain of objects that we need to mock or replace to be able
+        to read the project definition.
         """
 
-        if inspect.isclass(member) and member.__module__.startswith(module_name):
+        if inspect.isclass(member) and member.__module__.startswith(name):
             return True
 
         return False
 
-    def get_mock_domain_objects(self, module: ModuleType, module_name: str) \
+    def get_mock_domain_objects(self, module: ModuleType, name: str) \
             -> Dict[str, Mock]:
         """
-        Create a dictionary of class names and their mocks and replacements.
+        Create a dictionary of class names and their mocks and replacements for
+        classes defined in the `module` with name `name`.
 
         These classes live within a quality reporting module, such as domain
         or metric_source.
         """
 
         domain_objects: Dict[str, Mock] = {}
-        module_filter = lambda member: self.filter_member(member, module_name)
-        for name, member in inspect.getmembers(module, module_filter):
-            replacement = Compatibility.get_replacement(name, member)
+        members = inspect.getmembers(module,
+                                     lambda member: self.filter_member(member,
+                                                                       name))
+        for class_name, member in members:
+            replacement = Compatibility.get_replacement(class_name, member)
             if isinstance(replacement, Mock):
-                domain_objects[name] = replacement
+                domain_objects[class_name] = replacement
 
         return domain_objects
 

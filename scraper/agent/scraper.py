@@ -32,7 +32,6 @@ import gatherer
 Status = Dict[str, Union[bool, str]]
 
 class Scraper:
-    # pylint: disable=no-self-use
     """
     Scraper listener.
     """
@@ -50,8 +49,8 @@ class Scraper:
             ], stdout=None, stderr=None)
         except subprocess.CalledProcessError:
             return False
-        else:
-            return True
+
+        return True
 
     def _check_host(self) -> None:
         if self._domain is not None:

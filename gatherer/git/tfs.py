@@ -170,8 +170,7 @@ class TFS_Project:
 
             if result['count'] > 0:
                 had_value = True
-                for value in result['value']:
-                    yield value
+                yield from result['value']
 
             limiter.update()
 
@@ -190,8 +189,7 @@ class TFS_Project:
             is_last_batch = result['isLastBatch'] and result['values']
             url = result['nextLink']
 
-            for value in result['values']:
-                yield value
+            yield from result['values']
 
     def repositories(self) -> List[Result]:
         """

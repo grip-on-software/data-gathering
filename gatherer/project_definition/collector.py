@@ -81,7 +81,7 @@ class Collector:
 
     def use_update_data(self, data: Optional[Dict[str, Any]]) \
             -> Optional[Dict[str, Any]]:
-        # pylint: disable=no-self-use,unused-argument
+        # pylint: disable=unused-argument
         """
         Determine whether the provided data should be included in the update
         tracker.

@@ -165,8 +165,8 @@ class Subversion_Repository(Version_Control_Repository):
             self.repo.info()
         except svn.exception.SvnException:
             return True
-        else:
-            return False
+
+        return False
 
     def update(self, shallow: bool = False, checkout: bool = True,
                branch: Optional[str] = None) -> None:
