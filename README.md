@@ -1,16 +1,17 @@
 Software development process data gathering
 ===========================================
 
-The scripts and modules in this repository gather data from different sources 
-that are used by software development teams and projects, as well as control 
-a distributed setup of data gathering. The "scraper" scripts are part of 
-a larger pipeline where the gathered data is made available for analysis 
-purposes through a database setup.
+The Python scripts and modules in this repository gather data from different 
+sources that are used by software development teams and projects, as well as 
+control a distributed setup of data gathering. The "scraper" scripts are part 
+of Grip on Software, a research project involving a larger pipeline where the 
+gathered data is made available for analysis purposes through a database setup.
 
-The scripts read data from a source based on the requested project and any 
+Each script reads data from a source based on the requested project and any 
 additional parameters (command-line arguments, settings and credentials). 
 Formatted data is then exported as a JSON file, which is usually a list of 
-objects with properties. The data can be imported into a MonetDB database.
+objects with properties, according to a defined schema. The exported data is 
+suited for import into a MonetDB database.
 
 The modules are able to be deployed in different software development ecosystem 
 setups. There are several ways to use the data gathering scripts and modules, 
@@ -695,6 +696,18 @@ from writing them into the configuration files (if at all):
   the public key to, assuming they are GitLab hosts, when the sources have not 
   been located yet.
 
+In addition, the following environment variables change the configuration of 
+all the modes in which the data gathering modules are used:
+
+- `$GATHERER_SETTINGS_FILE`: The path to the `settings.cfg` file.
+- `$GATHERER_CREDENTIALS_FILE`: The path to the `credentials.cfg` file.
+- `$GATHERER_URL_BLACKLIST`: A comma-separated deny list of URL patterns that 
+  should not be attempted to connect with. The URL patterns may contain 
+  asterisks (`*`) to match any number of characters in that component of the 
+  URL (scheme, host or path), other types of patterns are not supported. 
+  Sources that are located at matched URLs are not connected by modules, to 
+  avoid long timeouts or firewalls.
+
 ### Issue trackers (Jira and Azure DevOps)
 
 In order to properly convert fields from different issue trackers, projects 
@@ -746,3 +759,37 @@ allow list(s), which instead match event descriptions that are specifically
 relevant to the project. The `blacklist` section contains a global deny list 
 under the option name `all` that filters irrelevant events based on their 
 description. There is no project-specific deny list.
+
+## Testing
+
+Currently, the modules do not come with unit tests, instead depending on the 
+correctness of dependencies to provide with accurate data from sources and 
+testing the actual system in non-production settings. Plans exist to include 
+some unit tests in the future.
+
+The Python scripts and modules conform to code style and typing standards which 
+may be checked using Pylint and mypy, respectively, after following the 
+[installation](#installation) instructions for static code analysis.
+
+For Pylint:
+
+```
+python -m pylint gatherer scraper controller maintenance setup.py --exit-zero \
+    --reports=n \
+    --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
+    -d duplicate-code
+```
+
+For mypy:
+
+```
+mypy gatherer scraper controller maintenance setup.py \
+    --html-report mypy-report --cobertura-xml-report mypy-report \
+    --junit-xml mypy-report/junit.xml --no-incremental --show-traceback
+```
+
+Finally, the schemas in the `schema/` directory allow validation of certain 
+configuration files as well as all the exported artifacts against the schema. 
+For example, the Jira and Azure DevOps field mapping specifications are able to 
+be checked; see the [issue trackers](#issue-trackers-jira-and-azure-devops) 
+section for an example.
