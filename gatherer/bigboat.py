@@ -148,20 +148,19 @@ class Statuses:
 
     def add_batch(self, statuses: Iterable[Mapping[str, Any]]) -> bool:
         """
-        Add new statuses to the batch, and optionally update the database with the
-        current batch if it becomes too large. Returns whether the loaded data is
-        still intact, i.e., the status records are either in the batch or in the
-        database; misconfigurations result in `False`.
+        Add new statuses to the batch, and optionally update the database with
+        the current batch if it becomes too large. Returns whether the provided
+        data is still intact, i.e., the status records are either in the batch
+        or in the database; misconfigurations result in `False`.
         """
 
         if len(self._statuses) > self.MAX_BATCH_SIZE:
-            result = self.update()
+            if not self.update():
+                return False
             self._statuses = []
-        else:
-            result = True
 
         self._statuses.extend(statuses)
-        return result
+        return True
 
     def update(self) -> bool:
         """
@@ -197,7 +196,7 @@ class Statuses:
         return True
 
     def _insert_source(self) -> None:
-        if self._source is not None:
+        if self._source is None:
             return
 
         if self.database is None:

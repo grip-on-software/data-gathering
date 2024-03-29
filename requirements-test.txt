@@ -1,0 +1,6 @@
+# Install dependencies for all modules
+-r requirements.txt
+# Test dependencies
+coverage
+requests-mock
+unittest-xml-reporting
