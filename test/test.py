@@ -19,6 +19,7 @@ limitations under the License.
 """
 
 
+import os
 import sys
 import unittest
 import xmlrunner
@@ -27,6 +28,9 @@ def run_tests() -> int:
     """
     Run unit tests and write XML reports.
     """
+
+    os.environ['GATHERER_SETTINGS_FILE'] = 'settings.cfg.example'
+    os.environ['GATHERER_CREDENTIALS_FILE'] = 'credentials.cfg.example'
 
     loader = unittest.TestLoader()
     tests = loader.discover('test/suite', pattern='*.py')
