@@ -209,7 +209,7 @@ class Sources(MutableSet):
             sources_data.append(source.export())
 
         if self._sources_path is not None:
-            with open(self._sources_path, 'w', encoding='utf-8') as sources_file:
+            with self._sources_path.open('w', encoding='utf-8') as sources_file:
                 json.dump(sources_data, sources_file)
 
         return sources_data
@@ -229,7 +229,7 @@ class Sources(MutableSet):
                 "environment": environment,
                 "version": source.version
             })
-        with open(environments_path, 'w', encoding='utf-8') as environments_file:
+        with environments_path.open('w', encoding='utf-8') as environments_file:
             json.dump(environment_data, environments_file)
 
     def __repr__(self) -> str:

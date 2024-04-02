@@ -22,10 +22,6 @@ import unittest
 from unittest.mock import patch
 from gatherer.config import Configuration
 
-@patch.dict('os.environ', {
-    'GATHERER_SETTINGS_FILE': 'settings.cfg.example',
-    'GATHERER_CREDENTIALS_FILE': 'credentials.cfg.example'
-})
 class ConfigurationTest(unittest.TestCase):
     """
     Tests for access to options and sections of configuration files.

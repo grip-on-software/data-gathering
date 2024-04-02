@@ -340,7 +340,7 @@ class Project(Project_Meta):
         source = self.sources.find_source_type(TFS)
         if source is None:
             return None
-        if source.tfs_collections is not None:
+        if source.tfs_collections and source.tfs_collections[0] != '':
             return source.tfs_collections[0]
 
         return self._project_key

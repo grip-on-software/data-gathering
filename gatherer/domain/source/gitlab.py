@@ -83,17 +83,18 @@ class GitLab(Git):
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super()._update_credentials()
         orig_host = orig_parts.netloc
+        credentials = Configuration.get_credentials()
 
         # Check which group to use in the GitLab API.
         if self.has_option(orig_host, 'group'):
-            self._gitlab_group = self._credentials.get(orig_host, 'group')
+            self._gitlab_group = credentials.get(orig_host, 'group')
 
         # Retrieve the actual namespace of the source.
         path = orig_parts.path.strip('/')
         if self.has_option(host, 'strip'):
             # Use the strip path to add the web base URL and remove from the
             # provided URL path.
-            host_path = self._credentials.get(host, 'strip')
+            host_path = credentials.get(host, 'strip')
             if path.startswith(host_path):
                 path = path[len(host_path):].lstrip('/')
         else:
@@ -110,7 +111,7 @@ class GitLab(Git):
         # Find the GitLab token and URL without authentication for connecting
         # to the GitLab API.
         if self._has_gitlab_token(host):
-            self._gitlab_token = self._credentials.get(host, 'gitlab_token')
+            self._gitlab_token = credentials.get(host, 'gitlab_token')
 
         scheme = self._get_web_protocol(host, orig_parts.scheme)
 

@@ -28,7 +28,7 @@ class DatabaseTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        patcher = patch('pymonetdb.connect')
+        patcher = patch('pymonetdb.connect', autospec=True)
         connector = patcher.start()
         self.addCleanup(patcher.stop)
         self.database = Database()

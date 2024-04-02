@@ -47,7 +47,7 @@ class StatusesTest(unittest.TestCase):
                   encoding='utf-8') as data_file:
             self.assertEqual(statuses.export(), json.load(data_file))
 
-    @patch('gatherer.bigboat.Database')
+    @patch('gatherer.bigboat.Database', autospec=True)
     def test_database(self, database: MagicMock) -> None:
         """
         Test the `database` property.
@@ -62,7 +62,7 @@ class StatusesTest(unittest.TestCase):
         self.assertIsNone(problem.database)
         database.reset_mock(side_effect=True)
 
-    @patch('gatherer.bigboat.Database')
+    @patch('gatherer.bigboat.Database', autospec=True)
     def test_project_id(self, database: MagicMock) -> None:
         """
         Test the `project_id` property.
@@ -81,7 +81,7 @@ class StatusesTest(unittest.TestCase):
         problem = Statuses(self.project)
         self.assertIsNone(problem.project_id)
 
-    @patch('gatherer.bigboat.Database')
+    @patch('gatherer.bigboat.Database', autospec=True)
     def test_add_batch(self, database: MagicMock) -> None:
         """
         Test adding new statuses to a batch and optional update of the database.
@@ -121,7 +121,7 @@ class StatusesTest(unittest.TestCase):
             self.assertFalse(problem.add_batch([data[0]]))
             self.assertEqual(problem.export(), data)
 
-    @patch('gatherer.bigboat.Database')
+    @patch('gatherer.bigboat.Database', autospec=True)
     def test_update(self, database: MagicMock) -> None:
         """
         Test adding rows to the database, also for source information.

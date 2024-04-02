@@ -378,8 +378,8 @@ the setting is not used in this environment.
     be accessed. VCS URLs can be automatically converted to SSH if the 
     credentials require so.
   - `path` (`$DEFINITIONS_PATH`): The local directory to check out the 
-    repository to. May contain a formatter parameter `{}` which is replaced by 
-    the project's quality dashboard name.
+    repository to. The default value has a subpath at the end with a formatter 
+    parameter `{}` which is replaced by the project's quality dashboard name.
   - `base` (`$DEFINITIONS_BASE`): The name of the base library/path that is 
     required to parse the project definitions.
   - `base_url` (`$DEFINITIONS_BASE_URL`): The HTTP(S) URL from which the 
@@ -618,7 +618,7 @@ unauthenticated access to to disable access to the service completely.
   obtain auxiliary data from GitHub.
 - `github_bots` (`$SOURCE_GITHUB_BOTS`): Comma-separated list of GitHub user 
   login names whose comments are excluded from the import of auxiliary data.
-- `gitlab_token` (`$SOURCE_GITLAB_TOKEN` and `$DEFINITONS_GITLAB_TOKEN`): API 
+- `gitlab_token` (`$SOURCE_GITLAB_TOKEN` and `$DEFINITIONS_GITLAB_TOKEN`): API 
   token for GitLab instances in order to obtain auxiliary data from GitLab or 
   interface with its authorization scheme.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 

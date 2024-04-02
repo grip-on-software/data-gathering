@@ -47,7 +47,8 @@ class Jira(Source):
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super()._update_credentials()
         if self.has_option(host, 'agile_rest_path'):
-            self._agile_path = self._credentials.get(host, 'agile_rest_path')
+            credentials = Configuration.get_credentials()
+            self._agile_path = credentials.get(host, 'agile_rest_path')
 
         return orig_parts, host
 

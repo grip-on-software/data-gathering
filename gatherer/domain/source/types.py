@@ -107,8 +107,6 @@ class Source: # pylint: disable=too-many-instance-attributes
     HTTP_PROTOCOLS = ('http', 'https')
     SSH_PROTOCOL = 'ssh'
 
-    _credentials = Configuration.get_credentials()
-
     def __init__(self, source_type: str, name: str = '', url: str = '',
                  follow_host_change: bool = True) -> None:
         self._name = name
@@ -134,7 +132,7 @@ class Source: # pylint: disable=too-many-instance-attributes
     def _get_changed_host(cls, host: str) -> str:
         # Retrieve the changed host in the credentials configuration.
         if cls.has_option(host, 'host'):
-            return cls._credentials.get(host, 'host')
+            return Configuration.get_credentials().get(host, 'host')
 
         return host
 
@@ -142,8 +140,9 @@ class Source: # pylint: disable=too-many-instance-attributes
         # Retrieve the changed host in the credentials configuration
         # Split the host into hostname and port if necessary.
         port: Optional[int] = None
+        credentials = Configuration.get_credentials()
         if self._follow_host_change and self.has_option(host, 'host'):
-            host = self._credentials.get(host, 'host')
+            host = credentials.get(host, 'host')
             split_host = host.split(':', 1)
             hostname = split_host[0]
             try:
@@ -161,7 +160,7 @@ class Source: # pylint: disable=too-many-instance-attributes
                 pass
 
         if self.has_option(host, 'port'):
-            port = int(self._credentials.get(host, 'port'))
+            port = int(credentials.get(host, 'port'))
 
         return hostname, port
 
@@ -175,7 +174,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         # Retrieve the protocol to use to send requests to the source.
         # This must be either HTTP or HTTPS.
         if self.has_option(host, 'protocol'):
-            scheme = self._credentials.get(host, 'protocol')
+            scheme = Configuration.get_credentials().get(host, 'protocol')
         if scheme not in self.HTTP_PROTOCOLS:
             scheme = default_scheme
 
@@ -209,10 +208,11 @@ class Source: # pylint: disable=too-many-instance-attributes
         # username is used.
         key = f'username.{protocol}'
         username: Optional[str] = None
-        if self._credentials.has_option(host, key):
-            username = self._credentials.get(host, key)
-        elif self._credentials.has_option(host, 'username'):
-            username = self._credentials.get(host, 'username')
+        credentials = Configuration.get_credentials()
+        if credentials.has_option(host, key):
+            username = credentials.get(host, key)
+        elif credentials.has_option(host, 'username'):
+            username = credentials.get(host, 'username')
 
         if not Configuration.has_value(username):
             username = orig_parts.username
@@ -220,6 +220,8 @@ class Source: # pylint: disable=too-many-instance-attributes
         return username
 
     def _update_ssh_credentials(self, host: str, orig_parts: SplitResult) -> None:
+        credentials = Configuration.get_credentials()
+
         # Use SSH (ssh://user@host:port/path).
         username = self._get_username('ssh', host, orig_parts)
         if username is None:
@@ -230,7 +232,7 @@ class Source: # pylint: disable=too-many-instance-attributes
 
         # If 'env' is given, set a credentials path to an identity key.
         if self.has_option(host, 'env'):
-            credentials_env = self._credentials.get(host, 'env')
+            credentials_env = credentials.get(host, 'env')
             self.credentials_path = os.getenv(credentials_env)
 
         auth = f'{username}{"@"}{hostname}'
@@ -239,7 +241,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         # If 'strip' exists, then this value is stripped from the
         # beginning of the path if the original protocol is HTTP/HTTPS.
         if orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'strip'):
-            strip = self._credentials.get(host, 'strip')
+            strip = credentials.get(host, 'strip')
             if path.startswith(strip):
                 path = path[len(strip):]
             elif path.startswith(f'/{strip}'):
@@ -257,7 +259,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         hostname, port = self._get_host_parts(host, orig_parts)
 
         # Add a password to the URL for basic authentication.
-        password = quote(self._credentials.get(host, 'password'))
+        password = quote(Configuration.get_credentials().get(host, 'password'))
 
         full_host = f'{username}:{password}{"@"}{hostname}'
         if port is not None:
@@ -273,7 +275,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         orig_parts = urlsplit(self._plain_url)
         host = self._format_host_section(orig_parts)
 
-        if self._credentials.has_section(host):
+        if Configuration.get_credentials().has_section(host):
             # Additional authentication options depending on protocol to use
             if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
                 self._update_ssh_credentials(host, orig_parts)
@@ -455,7 +457,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         if self._host is None or not self.has_option(self._host, option):
             return None
 
-        return self._credentials.get(self._host, option)
+        return Configuration.get_credentials().get(self._host, option)
 
     @classmethod
     def has_option(cls, host: str, option: str) -> bool:
@@ -468,10 +470,11 @@ class Source: # pylint: disable=too-many-instance-attributes
         returned.
         """
 
-        if not cls._credentials.has_option(host, option):
+        credentials = Configuration.get_credentials()
+        if not credentials.has_option(host, option):
             return False
 
-        value = cls._credentials.get(host, option)
+        value = credentials.get(host, option)
         return Configuration.has_value(value)
 
     def check_credentials_environment(self) -> bool:

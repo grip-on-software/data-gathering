@@ -74,14 +74,14 @@ class TFS(Git):
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super()._update_credentials()
+        credentials = Configuration.get_credentials()
 
         # Ensure we have a HTTP/HTTPS URL to the web host for API purposes.
         # This includes altering the web port to the one that TFS listens to.
         scheme = self._get_web_protocol(host, orig_parts.scheme)
         if self.has_option(host, 'web_port'):
             hostname = self._get_host_parts(host, orig_parts)[0]
-            web_port = self._credentials.get(host, 'web_port')
-            web_host = f'{hostname}:{web_port}'
+            web_host = f"{hostname}:{credentials.get(host, 'web_port')}"
         else:
             web_host = host
 
@@ -103,8 +103,8 @@ class TFS(Git):
             self._tfs_collections = (tfs_path,)
 
         # Store credentials separately to provide to the API.
-        self._tfs_user = self._credentials.get(host, 'username')
-        self._tfs_password = self._credentials.get(host, 'password')
+        self._tfs_user = credentials.get(host, 'username')
+        self._tfs_password = credentials.get(host, 'password')
 
         url_parts = urlsplit(self.url)
         if url_parts.scheme == self.SSH_PROTOCOL and \
