@@ -41,7 +41,7 @@ class GitHub(Git):
         self._github_url: str = ''
         self._github_token: Optional[str] = None
         self._github_api: Optional[github.Github] = None
-        self._github_api_url: str = github.MainClass.DEFAULT_BASE_URL
+        self._github_api_url: str = github.Consts.DEFAULT_BASE_URL
         self._github_owner: str = ''
         self._github_repo: Optional[github.Repository.Repository] = None
         self._github_team: Optional[str] = kwargs.pop('github_team', None)
@@ -152,8 +152,9 @@ class GitHub(Git):
 
         if self._github_api is None:
             logging.info('Setting up GitHub API')
+            auth = github.Auth.Token(self.github_token)
             unsafe = self.get_option('unsafe_hosts')
-            self._github_api = github.Github(self.github_token,
+            self._github_api = github.Github(auth=auth,
                                              base_url=self._github_api_url,
                                              verify=not unsafe)
 

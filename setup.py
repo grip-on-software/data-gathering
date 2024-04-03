@@ -63,7 +63,7 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               # gatherer.salt
               'bcrypt'
           ],
-          python_requires='>=3.6',
+          python_requires='>=3.7',
           dependency_links=[],
           classifiers=[
               'Development Status :: 3 - Alpha',
@@ -79,7 +79,6 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               'Topic :: System :: Monitoring',
               'License :: OSI Approved :: Apache Software License',
               'Programming Language :: Python :: 3',
-              'Programming Language :: Python :: 3.6',
               'Programming Language :: Python :: 3.7',
               'Programming Language :: Python :: 3.8'
           ],

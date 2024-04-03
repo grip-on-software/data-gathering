@@ -33,7 +33,7 @@ class Field_Parser(Table_Source):
 
     def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
-        # pylint: disable=unused-argument,no-self-use
+        # pylint: disable=unused-argument
         """
         Parse a changelog item and its parsed value.
 

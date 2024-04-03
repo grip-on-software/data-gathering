@@ -80,7 +80,7 @@ class Gatherer:
         days = int(self._config.get('schedule', 'days'))
         drift = int(self._config.get('schedule', 'drift'))
         odd = (today.timetuple().tm_yday / days) % 2
-        toggle = (odd - 1 * (1 - odd))
+        toggle = odd - 1 * (1 - odd)
         offset = toggle * (hash(project_key) % (drift * 2) - drift)
 
         return timedelta(days=days, minutes=offset)

@@ -35,9 +35,10 @@ depending on the situation that they are used in:
 
 ## Installation
 
-The data gathering scripts and modules require Python version 3.6+. Due to 
+The data gathering scripts and modules require Python version 3.7+. Due to 
 dependencies for building the Alpine Linux-based Docker image, Python 3.8 is 
-the recommended version; later versions are unsupported.
+the recommended version; later versions are unsupported. Version 0.0.3 is the 
+last version to support Python 3.6.
 
 The scripts have been tested on MacOS 10.14+, Ubuntu 16.04+, CentOS 7.3+ as 
 well as on some Windows versions.
