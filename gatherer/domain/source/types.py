@@ -508,7 +508,7 @@ class Source: # pylint: disable=too-many-instance-attributes
                         public_key: str, dry_run: bool = False) -> None:
         """
         Update the source to accept a public key as an identity for obtaining
-        access to information or perform actions on the source.
+        access to information or performing actions on the source.
 
         The `project` is a `Project` domain object providing details about the
         project for which this key is being added. The `public_key` is a string

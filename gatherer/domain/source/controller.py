@@ -18,8 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import logging
 import json
+import logging
+from pathlib import Path
 from typing import Any, Dict, Hashable, Optional, Union
 from ...config import Configuration
 from ...request import Session
@@ -86,5 +87,6 @@ class Controller(Source):
         received from the controller API.
         """
 
-        with open('secrets.json', 'w', encoding='utf-8') as secrets_file:
+        path = Path('secrets.json')
+        with path.open('w', encoding='utf-8') as secrets_file:
             json.dump(secrets, secrets_file)

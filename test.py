@@ -22,7 +22,9 @@ limitations under the License.
 import os
 import sys
 import unittest
+import requests_mock
 import xmlrunner
+from gatherer.log import Log_Setup
 
 def run_tests() -> int:
     """
@@ -31,6 +33,10 @@ def run_tests() -> int:
 
     os.environ['GATHERER_SETTINGS_FILE'] = 'settings.cfg.example'
     os.environ['GATHERER_CREDENTIALS_FILE'] = 'credentials.cfg.example'
+
+    requests_mock.mock.case_sensitive = True
+
+    Log_Setup.init_logging('CRITICAL')
 
     loader = unittest.TestLoader()
     tests = loader.discover('test/suite', pattern='*.py')
