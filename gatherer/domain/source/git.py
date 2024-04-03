@@ -57,7 +57,7 @@ class Git(Source):
         if port is not None:
             return super()._format_ssh_url(hostname, auth, port, path)
 
-        return f'{auth}:{path}'
+        return f"{auth}:{path.lstrip('/')}"
 
     @property
     def repository_class(self) -> Type[Git_Repository]:
@@ -65,7 +65,7 @@ class Git(Source):
 
     @property
     def path_name(self) -> str:
-        path_name = self.get_path_name(self.url)
+        path_name = self.get_path_name(self.plain_url)
         if path_name is None:
             return super().path_name
 

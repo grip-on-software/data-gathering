@@ -319,7 +319,7 @@ class Source: # pylint: disable=too-many-instance-attributes
     def url(self) -> str:
         """
         Retrieve the final URL, after following host changes and including
-        credentials where applicable
+        credentials where applicable.
         """
 
         return self._url
