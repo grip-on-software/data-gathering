@@ -23,14 +23,18 @@ from gatherer.config import Configuration
 from gatherer.domain.project import Project
 from gatherer.domain.source import Source
 
-class ControllerTest(unittest.TestCase):
+class GitTest(unittest.TestCase):
     """
-    Tests for agent controller source.
+    Tests for git source repository.
     """
 
     def setUp(self) -> None:
         self.source = Source.from_type('git', name='test-git',
                                        url='git@git.test:repo.git')
+        Configuration.clear()
+
+    def tearDown(self) -> None:
+        Configuration.clear()
 
     def test_url(self) -> None:
         """

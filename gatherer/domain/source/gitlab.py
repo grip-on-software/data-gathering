@@ -106,7 +106,7 @@ class GitLab(Git):
         # Check whether the host was changed and a custom gitlab group exists
         # for this host change.
         if self._follow_host_change and host != orig_host:
-            path = self._update_group_url(path)
+            path = self._update_group_url(path, host)
 
         # Find the GitLab token and URL without authentication for connecting
         # to the GitLab API.
@@ -122,20 +122,25 @@ class GitLab(Git):
 
         return orig_parts, host
 
-    def _update_group_url(self, repo_path: str) -> str:
+    def _update_group_url(self, repo_path: str, host: str) -> str:
         if self._gitlab_group is None:
             return repo_path
         if self._gitlab_namespace == self._gitlab_group:
             return repo_path
 
         # Parse the current URL to update its path.
-        url_parts = urlsplit(self._url)
+        url_parts = urlsplit(self._alter_git_url(self._url))
         repo_path_name = repo_path.split('/', 1)[1]
         path = f'{self._gitlab_group}/{self._gitlab_namespace}-{repo_path_name}'
         # Track the new namespace and use the new URL.
         self._gitlab_namespace = self._gitlab_group
-        self._url = self._create_url(url_parts.scheme, url_parts.netloc, path,
-                                     url_parts.query, url_parts.fragment)
+        if url_parts.scheme == self.SSH_PROTOCOL:
+            self._url = self._format_ssh_url(host, url_parts.netloc,
+                                             url_parts.port, path)
+        else:
+            self._url = self._create_url(url_parts.scheme, url_parts.netloc,
+                                         path, url_parts.query,
+                                         url_parts.fragment)
         return path
 
     @property

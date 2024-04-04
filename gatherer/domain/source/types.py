@@ -136,7 +136,8 @@ class Source: # pylint: disable=too-many-instance-attributes
 
         return host
 
-    def _get_host_parts(self, host: str, parts: SplitResult) -> Tuple[str, Optional[int]]:
+    def _get_host_parts(self, host: str, parts: SplitResult) -> \
+            Tuple[str, Optional[int], str]:
         # Retrieve the changed host in the credentials configuration
         # Split the host into hostname and port if necessary.
         port: Optional[int] = None
@@ -151,7 +152,7 @@ class Source: # pylint: disable=too-many-instance-attributes
                 pass
         else:
             if parts.hostname is None:
-                return '', None
+                return '', None, ''
 
             hostname = parts.hostname
             try:
@@ -162,7 +163,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         if self.has_option(host, 'port'):
             port = int(credentials.get(host, 'port'))
 
-        return hostname, port
+        return hostname, port, host
 
     @staticmethod
     def _create_url(*parts: AnyStr) -> str:
@@ -191,6 +192,8 @@ class Source: # pylint: disable=too-many-instance-attributes
     @classmethod
     def _format_host_section(cls, parts: SplitResult) -> str:
         if parts.hostname is None:
+            # Cannot do anything with this URL component, so provide an invalid
+            # configuration section.
             return ''
 
         if parts.port is None:
@@ -219,27 +222,25 @@ class Source: # pylint: disable=too-many-instance-attributes
 
         return username
 
-    def _update_ssh_credentials(self, host: str, orig_parts: SplitResult) -> None:
+    def _update_ssh_credentials(self, hostname: str, port: Optional[int],
+                                host: str, orig_parts: SplitResult) -> None:
         credentials = Configuration.get_credentials()
 
         # Use SSH (ssh://user@host:port/path).
-        username = self._get_username('ssh', host, orig_parts)
-        if username is None:
-            return
-
-        # Parse the host parts and potentially follow host changes.
-        hostname, port = self._get_host_parts(host, orig_parts)
-
         # If 'env' is given, set a credentials path to an identity key.
         if self.has_option(host, 'env'):
             credentials_env = credentials.get(host, 'env')
             self.credentials_path = os.getenv(credentials_env)
 
-        auth = f'{username}{"@"}{hostname}'
-        path = orig_parts.path
+        username = self._get_username('ssh', host, orig_parts)
+        if username is None:
+            auth = hostname
+        else:
+            auth = f'{username}{"@"}{hostname}'
 
         # If 'strip' exists, then this value is stripped from the
         # beginning of the path if the original protocol is HTTP/HTTPS.
+        path = orig_parts.path
         if orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'strip'):
             strip = credentials.get(host, 'strip')
             if path.startswith(strip):
@@ -249,19 +250,18 @@ class Source: # pylint: disable=too-many-instance-attributes
 
         self._url = self._format_ssh_url(hostname, auth, port, path)
 
-    def _update_http_credentials(self, host: str, orig_parts: SplitResult) -> None:
+    def _update_http_credentials(self, hostname: str, port: Optional[int],
+                                 host: str, orig_parts: SplitResult) -> None:
         # Use HTTP(s) (http://username:password@host:port/path).
         username = self._get_username('http', host, orig_parts)
-        if username is None:
-            return
+        if username is None or not self.has_option(host, 'password'):
+            full_host = hostname
+        else:
+            # Add a password to the URL for basic authentication.
+            credentials = Configuration.get_credentials()
+            password = quote(credentials.get(host, 'password'))
+            full_host = f'{username}:{password}{"@"}{hostname}'
 
-        # Parse the host parts and potentially follow host changes.
-        hostname, port = self._get_host_parts(host, orig_parts)
-
-        # Add a password to the URL for basic authentication.
-        password = quote(Configuration.get_credentials().get(host, 'password'))
-
-        full_host = f'{username}:{password}{"@"}{hostname}'
         if port is not None:
             full_host = f'{full_host}:{port}'
 
@@ -276,11 +276,14 @@ class Source: # pylint: disable=too-many-instance-attributes
         host = self._format_host_section(orig_parts)
 
         if Configuration.get_credentials().has_section(host):
+            # Parse the host parts and potentially follow host changes.
+            hostname, port, host = self._get_host_parts(host, orig_parts)
+
             # Additional authentication options depending on protocol to use
             if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
-                self._update_ssh_credentials(host, orig_parts)
-            elif orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'password'):
-                self._update_http_credentials(host, orig_parts)
+                self._update_ssh_credentials(hostname, port, host, orig_parts)
+            elif orig_parts.scheme in self.HTTP_PROTOCOLS:
+                self._update_http_credentials(hostname, port, host, orig_parts)
 
         return orig_parts, host
 
