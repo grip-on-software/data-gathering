@@ -222,6 +222,12 @@ class GitHub_Repository(Git_Repository, Review_System):
     def _format_issue(self, issue: IssueLike) -> Dict[str, str]:
         author_username = self._get_username(issue.user)
         assignee_username = self._get_username(issue.assignee)
+        created_at = format_date(convert_local_datetime(issue.created_at))
+        if issue.updated_at is not None:
+            updated_at = format_date(convert_local_datetime(issue.updated_at))
+        else:
+            updated_at = created_at
+
         return {
             'repo_name': str(self._repo_name),
             'id': str(issue.number),
@@ -232,8 +238,8 @@ class GitHub_Repository(Git_Repository, Review_System):
             'author_username': author_username,
             'assignee': assignee_username,
             'assignee_username': assignee_username,
-            'created_at': format_date(convert_local_datetime(issue.created_at)),
-            'updated_at': format_date(convert_local_datetime(issue.updated_at))
+            'created_at': created_at,
+            'updated_at': updated_at 
         }
 
     def add_pull_request(self, pull_request: github.PullRequest.PullRequest) \
@@ -245,7 +251,9 @@ class GitHub_Repository(Git_Repository, Review_System):
         associated with the pull request.
         """
 
-        if not self._is_newer(pull_request.updated_at):
+        updated = pull_request.updated_at \
+            if pull_request.updated_at is not None else pull_request.created_at
+        if not self._is_newer(updated):
             return False, []
 
         reviews = pull_request.get_reviews()

@@ -152,7 +152,9 @@ class GitHub(Git):
 
         if self._github_api is None:
             logging.info('Setting up GitHub API')
-            auth = github.Auth.Token(self.github_token)
+            auth: Optional[github.Auth.Token] = None
+            if self.github_token is not None:
+                auth = github.Auth.Token(self.github_token)
             unsafe = self.get_option('unsafe_hosts')
             self._github_api = github.Github(auth=auth,
                                              base_url=self._github_api_url,
