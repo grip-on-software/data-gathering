@@ -39,7 +39,7 @@ def run_tests() -> int:
     Log_Setup.init_logging('CRITICAL')
 
     loader = unittest.TestLoader()
-    tests = loader.discover('test/suite', pattern='*.py')
+    tests = loader.discover('test', pattern='*.py')
     runner = xmlrunner.XMLTestRunner(output='test-reports')
     result = runner.run(tests)
     return 0 if result.wasSuccessful() else 1

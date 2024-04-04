@@ -16,6 +16,7 @@ env.*
 mypy-report/
 pylint-report.txt
 .coverage
+htmlcov/
 
 # Deployer
 deployment.json
