@@ -579,13 +579,16 @@ The two sections by default use separate credentials.
 These sections may be edited and additional sections may be added for 
 project(s) that have more sources, such as multiple VCS hosts, Jenkins hosts or 
 Jira hosts. All options may be set to falsy values, e.g., to perform 
-unauthenticated access to to disable access to the service completely.
+unauthenticated access or to disable access to the service completely.
 
 - `env` (`$SOURCE_CREDENTIALS_ENV` and `$DEFINITIONS_CREDENTIALS_ENV`): Name of 
   the environment variable that contains the path to the SSH identity file. 
-  This option is only used by Git. The references variable's value must have 
-  a valid path to actually succeed in using SSH access. The path may be 
-  symbolic, e.g., `~/.ssh/id_rsa`.
+  This option is only used by sources that are accessible with SSH, namely Git 
+  and review systems based on it (GitHub, GitLab, TFS). The referenced 
+  environment variable's value must be set to a valid path to actually succeed 
+  in using SSH access. The path may be symbolic, e.g., `~/.ssh/id_rsa`. 
+  Connections to retrieve the Git repository always use SSH if this option is 
+  set, even if the source is initially given with an HTTP/HTTPS URL.
 - `username` (`$SOURCE_USERNAME` and `$DEFINITIONS_USERNAME`): Username to log 
   in to the version control system. This may differ by protocol used, and as 
   such one may additionally define `username.ssh` and `username.http` which 
@@ -593,7 +596,7 @@ unauthenticated access to to disable access to the service completely.
   'git' but it is the username when accessing via HTTP(S).
 - `password` (`$SOURCE_PASSWORD` and `$DEFINITIONS_PASSWORD`): Password to log 
   in to the version control system. Ignored if we connect to the version 
-  control system using SSH. This happens when `env` is not a falsy value.
+  control system using SSH, e.g., when `env` is not a falsy value.
 - `port` (`$SOURCE_PORT`): Override the port used by the source. This can be 
   used to redirect HTTP(s) or SSH to an alternative port, which may be useful 
   if the source information is stale or if there is a proxy or firewall 
@@ -623,10 +626,10 @@ unauthenticated access to to disable access to the service completely.
   interface with its authorization scheme.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
   is a Team Foundation Server and thus has auxiliary data aside from the Git 
-  repository. If this is true, then any collections found based on the initial
-  source that we have are collected, otherwise the value must be a collection
-  name starting with `tfs/`. Any projects within or beneath the collection may
-  then be gathered.
+  repository. If this is true, then any collections are discovered based on the 
+  initial source that we have are collected, otherwise the value must be 
+  a collection name starting with `tfs/`. Any projects within or beneath the 
+  collection may then be gathered.
 - `group` (`$SOURCE_GITLAB_GROUP`): The name of the custom GitLab group. Used 
   for group URL updates when the repositories are archived, and for API queries 
   for finding more repositories.
@@ -650,6 +653,13 @@ unauthenticated access to to disable access to the service completely.
   commit sizes from repositories at this source.
 - `agile_rest_path` (used by `jira` source type): The REST path to use for Jira 
   Agile requests. Set to `agile` in order to use the public API.
+- `host`: The hostname and optional port to use instead of the host in the 
+  configuration section. If this is set to a non-falsy value, then most other 
+  options in the section are ignored and the options from the referenced 
+  section are used, which must exist. The referenced hostname and port are used 
+  in URLs to connect to the source. Depending on the source, the original 
+  protocol scheme and further path components are used as is, barring other 
+  options like `strip`. Recursive redirections of this kind are not supported.
 
 ### Environment
 
