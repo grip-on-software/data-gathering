@@ -87,7 +87,7 @@ class GitHubTest(unittest.TestCase):
         Test retrieving the repository information from the GitHub API.
         """
 
-        if not isinstance(self.source, GitHub):
+        if not isinstance(self.source, GitHub): # pragma: no cover
             self.fail("Incorrect source")
             return
 

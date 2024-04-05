@@ -149,7 +149,7 @@ class GitLabTest(unittest.TestCase):
         Test retrieving an instance of the GitLab API connection.
         """
 
-        if not isinstance(self.source, GitLab):
+        if not isinstance(self.source, GitLab): # pragma: no cover
             self.fail("Incorrect source")
             return
 
