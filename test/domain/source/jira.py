@@ -68,6 +68,11 @@ class JiraTest(unittest.TestCase):
         attrs = {'server_info.return_value': {'version': '1.2.3'}}
         api.return_value.configure_mock(**attrs)
         self.assertEqual(source.version, '1.2.3')
+        api.return_value.server_info.assert_called_once_with()
+
+        # The version is not requested again.
+        self.assertEqual(source.version, '1.2.3')
+        api.return_value.server_info.assert_called_once_with()
 
     def test_jira_agile_path(self) -> None:
         """
@@ -110,3 +115,21 @@ class JiraTest(unittest.TestCase):
         # not perform another authentication.
         self.assertEqual(self.source.jira_api, api.return_value)
         api.assert_not_called()
+
+        credentials = Configuration.get_credentials()
+        credentials.add_section('api-jira.test')
+        credentials.set('api-jira.test', 'agile_rest_path', '/api/agile/')
+        credentials.set('api-jira.test', 'username', 'jirauser')
+        credentials.set('api-jira.test', 'password', 'jirapass')
+
+        source = Source.from_type('jira', name='api-jira',
+                                  url='https://api-jira.test/')
+        if not isinstance(source, Jira): # pragma: no cover
+            self.fail("Incorrect source")
+            return
+
+        self.assertEqual(source.jira_api, api.return_value)
+        api.assert_called_once_with({
+            'server': 'https://api-jira.test',
+            'agile_rest_path': '/api/agile/'
+        }, basic_auth=('jirauser', 'jirapass'), max_retries=0)
