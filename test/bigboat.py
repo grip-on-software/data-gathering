@@ -21,7 +21,7 @@ limitations under the License.
 import json
 import unittest
 from unittest.mock import patch, MagicMock
-from gatherer.bigboat import Statuses
+from gatherer.bigboat import Statuses, StatusesIter, StatusesSequence
 from gatherer.domain.project import Project
 from gatherer.utils import convert_local_datetime, format_date, get_utc_datetime
 
@@ -41,7 +41,7 @@ class StatusesTest(unittest.TestCase):
 
         with open('test/sample/bigboat_api_status.json', 'r',
                   encoding='utf-8') as api_file:
-            status = json.load(api_file)
+            status: StatusesIter = json.load(api_file)
         statuses = Statuses.from_api(self.project, status)
         with open('test/sample/bigboat_api_data.json', 'r',
                   encoding='utf-8') as data_file:
@@ -89,7 +89,7 @@ class StatusesTest(unittest.TestCase):
 
         with open('test/sample/data_bigboat.json', 'r', encoding='utf-8') as \
             statuses_file:
-            data = json.load(statuses_file)
+            data: StatusesSequence = json.load(statuses_file)
 
         statuses = Statuses(self.project)
         self.assertTrue(statuses.add_batch(data))
@@ -144,7 +144,7 @@ class StatusesTest(unittest.TestCase):
 
         with open('test/sample/bigboat_api_status.json', 'r',
                   encoding='utf-8') as api_file:
-            status = json.load(api_file)
+            status: StatusesIter = json.load(api_file)
         api = Statuses.from_api(self.project, status)
         self.assertTrue(api.update())
         batch = database.return_value.execute_many
@@ -152,7 +152,7 @@ class StatusesTest(unittest.TestCase):
 
         with open('test/sample/bigboat_api_data.json', 'r',
                   encoding='utf-8') as data_file:
-            data = json.load(data_file)
+            data: StatusesSequence = json.load(data_file)
 
         self.assertEqual(batch.call_args.args[1], [
             [
@@ -176,7 +176,7 @@ class StatusesTest(unittest.TestCase):
         statuses = Statuses(self.project)
         with open('test/sample/data_bigboat.json', 'r', encoding='utf-8') as \
             statuses_file:
-            data = json.load(statuses_file)
+            data: StatusesIter = json.load(statuses_file)
             statuses.add_batch(data)
 
         self.assertEqual(statuses.export(), data)
