@@ -1,3 +1,7 @@
 [run]
 branch = True
 source = gatherer,test
+[report]
+exclude_also =
+	if TYPE_CHECKING:
+	raise NotImplementedError

@@ -44,7 +44,7 @@ S_type = Type['Source']
 
 class Source_Types:
     """
-    Holder for source type registration
+    Holder of source type registrations.
     """
 
     _validated_types: ClassVar[Dict[str, List[Tuple[S_type, Validator]]]] = {}
@@ -196,10 +196,15 @@ class Source: # pylint: disable=too-many-instance-attributes
             # configuration section.
             return ''
 
-        if parts.port is None:
+        try:
+            # Handle ValueError from accessing parts.port at all
+            if parts.port is None:
+                raise ValueError('Port is not available')
+
+            return f'{parts.hostname}:{parts.port}'
+        except ValueError:
             return parts.hostname
 
-        return f'{parts.hostname}:{parts.port}'
 
     def _get_username(self, protocol: str, host: str, orig_parts: SplitResult) -> Optional[str]:
         # Order of preference:
@@ -275,15 +280,14 @@ class Source: # pylint: disable=too-many-instance-attributes
         orig_parts = urlsplit(self._plain_url)
         host = self._format_host_section(orig_parts)
 
-        if Configuration.get_credentials().has_section(host):
-            # Parse the host parts and potentially follow host changes.
-            hostname, port, host = self._get_host_parts(host, orig_parts)
+        # Parse the host parts and potentially follow host changes.
+        hostname, port, host = self._get_host_parts(host, orig_parts)
 
-            # Additional authentication options depending on protocol to use
-            if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
-                self._update_ssh_credentials(hostname, port, host, orig_parts)
-            elif orig_parts.scheme in self.HTTP_PROTOCOLS:
-                self._update_http_credentials(hostname, port, host, orig_parts)
+        # Additional authentication options depending on protocol to use
+        if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
+            self._update_ssh_credentials(hostname, port, host, orig_parts)
+        elif orig_parts.scheme in self.HTTP_PROTOCOLS:
+            self._update_http_credentials(hostname, port, host, orig_parts)
 
         return orig_parts, host
 
