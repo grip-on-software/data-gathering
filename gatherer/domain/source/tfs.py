@@ -19,7 +19,7 @@ limitations under the License.
 """
 
 import logging
-from typing import Hashable, List, Optional, Tuple, Type
+from typing import cast, Hashable, List, Optional, Tuple, Type
 from urllib.parse import unquote, urlsplit, SplitResult
 from requests.exceptions import ConnectionError as ConnectError, Timeout
 from .types import Source, Source_Types
@@ -79,17 +79,18 @@ class TFS(Git):
         # Ensure we have a HTTP/HTTPS URL to the web host for API purposes.
         # This includes altering the web port to the one that TFS listens to.
         scheme = self._get_web_protocol(host, orig_parts.scheme)
+        web_host = host
         if self.has_option(host, 'web_port'):
-            hostname = self._get_host_parts(host, orig_parts)[0]
-            web_host = f"{hostname}:{credentials.get(host, 'web_port')}"
-        else:
-            web_host = host
+            # Combine hostname (after following host changes) without port
+            # with the web port
+            web_host = ':'.join((self._get_host_parts(host, orig_parts)[0],
+                                 credentials.get(host, 'web_port')))
 
         self._tfs_host = self._create_url(scheme, web_host, '', '', '')
 
         # Retrieve the TFS collection
-        path = orig_parts.path.lstrip('/')
-        path_parts = path.split('/_git/', 1)
+        orig_path = orig_parts.path.lstrip('/')
+        path_parts = orig_path.split('/_git/', 1)
         tfs_path = path_parts[0]
         if len(path_parts) > 1:
             self._tfs_repo = path_parts[1].rstrip('/')
@@ -97,28 +98,38 @@ class TFS(Git):
         tfs_parts = tfs_path.split('/')
         num_parts = 2 if tfs_parts[0] == 'tfs' else 1
         if len(tfs_parts) > num_parts:
-            collection = '/'.join(tfs_parts[:num_parts])
-            self._tfs_collections = (collection, tfs_parts[num_parts])
+            # Combine the prefixes and have the final collection separate
+            self._tfs_collections = ('/'.join(tfs_parts[:num_parts]),
+                                     tfs_parts[num_parts])
         else:
             self._tfs_collections = (tfs_path,)
 
         # Store credentials separately to provide to the API.
-        self._tfs_user = credentials.get(host, 'username')
-        self._tfs_password = credentials.get(host, 'password')
+        user = self._get_username('http', host, orig_parts)
+        if user is not None:
+            self._tfs_user = user
+        if self.has_option(host, 'password'):
+            self._tfs_password = credentials.get(host, 'password')
 
-        url_parts = urlsplit(self.url)
-        if url_parts.scheme == self.SSH_PROTOCOL and \
-            url_parts.username is not None and url_parts.hostname is not None:
-            # Do not use a port specifier.
-            netloc = f'{url_parts.username}{"@"}{url_parts.hostname}'
-        else:
-            netloc = url_parts.netloc
+        url_parts = urlsplit(self._alter_git_url(self.url))
 
         # Remove trailing slashes since they are optional and the TFS API
         # returns remote URLs without slashes.
         # Also lowercase the path to match insensitively (as TFS does).
-        self._url = self._create_url(url_parts.scheme, netloc,
-                                     url_parts.path.rstrip('/').lower(), '', '')
+        path = url_parts.path.rstrip('/').lower()
+
+        if url_parts.scheme == self.SSH_PROTOCOL:
+            if url_parts.username is not None and \
+                url_parts.hostname is not None:
+                # Do not use a port specifier.
+                auth = f'{url_parts.username}{"@"}{url_parts.hostname}'
+            else:
+                auth = url_parts.netloc
+
+            self._url = self._format_ssh_url(host, auth, None, path)
+        else:
+            self._url = self._create_url(url_parts.scheme, url_parts.netloc,
+                                         path, '', '')
 
         return orig_parts, host
 
@@ -220,9 +231,9 @@ class TFVC(TFS):
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
                  follow_host_change: bool = True) -> None:
+        self._tfvc_project: str = ''
         super().__init__(source_type, name=name, url=url,
                          follow_host_change=follow_host_change)
-        self._tfvc_project: str = ''
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super()._update_credentials()
@@ -267,10 +278,7 @@ class TFVC(TFS):
     def get_sources(self) -> List[Source]:
         sources: List[Source] = []
         try:
-            if not isinstance(self.tfs_api, TFVC_Project):
-                raise RuntimeError('Expected TFVC API')
-
-            projects = self.tfs_api.projects()
+            projects = cast(TFVC_Project, self.tfs_api).projects()
         except (RuntimeError, ConnectError, Timeout):
             logging.exception('Could not set up TFVC API')
             return sources

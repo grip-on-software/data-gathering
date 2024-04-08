@@ -30,7 +30,8 @@ class Git(Source):
     Git source repository.
     """
 
-    GIT_URL_REGEX = re.compile(r'(?P<netloc>[^@]+@[^:]+):/?(?P<path>.+)')
+    GIT_URL_REGEX = re.compile(r'''(?P<netloc>(?:[^@/]+@)?[^:/]+):
+                                   /?(?P<path>[^/].*)''', re.X)
 
     @classmethod
     def _alter_git_url(cls, url: str) -> str:
