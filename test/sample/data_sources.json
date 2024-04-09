@@ -1,0 +1,22 @@
+[
+    {
+        "type": "sonar",
+        "name": "SonarQube",
+        "url": "http://sonar.test/"
+    },
+    {
+        "type": "jira",
+        "name": "(TEST) Jira Test Project",
+        "url": "https://jira.test/"
+    },
+    {
+        "type": "jenkins",
+        "name": "Build Quality System",
+        "url": "http://jenkins.test/"
+    },
+    {
+        "type": "git",
+        "name": "Repository",
+        "url": "http://git.test/repo.git"
+    }
+]

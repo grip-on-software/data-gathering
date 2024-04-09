@@ -32,7 +32,7 @@ class Example(Source):
     """
 
     def update_identity(self, project: Project, public_key: str,
-                        dry_run: bool = False) -> None:
+                        dry_run: bool = False) -> None: # pragma: no cover
         raise RuntimeError('Example source')
 
 class SourceTypesTest(unittest.TestCase):
