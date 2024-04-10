@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, \
     Tuple, Union
 from urllib.parse import quote, urlencode
+from requests.adapters import BaseAdapter
 from requests.auth import HTTPBasicAuth
 from requests.models import Response
 from .config import Configuration
@@ -41,8 +42,7 @@ class NoneMapping(Mapping[str, None]):
         return None
 
     def __iter__(self) -> Iterator[str]:
-        while False:
-            yield
+        return iter(())
 
     def __len__(self) -> int:
         return 0
@@ -81,8 +81,8 @@ class Base(metaclass=ABCMeta):
         self._query = query
         self._data: Mapping[str, Any] = {}
         self._has_data = False
+        self._default_exists = exists
         self._exists = exists
-        self._version: Optional[str] = None
 
     @property
     def base_url(self) -> str:
@@ -113,10 +113,9 @@ class Base(metaclass=ABCMeta):
 
         self._query = query
 
-    def _retrieve(self) -> None:
+    def _retrieve(self) -> Response:
         url = f'{self.base_url}api/json?{urlencode(self._query)}'
         request = self.instance.session.get(url, timeout=self.instance.timeout)
-        self._version = request.headers.get('X-Jenkins', '')
         if Session.is_code(request, 'not_found'):
             self._exists = False
             self._data = NoneMapping()
@@ -124,6 +123,7 @@ class Base(metaclass=ABCMeta):
             self._data = request.json()
             self._has_data = True
             self._exists = True
+        return request
 
     @property
     def data(self) -> Mapping[str, Any]:
@@ -145,7 +145,8 @@ class Base(metaclass=ABCMeta):
         Returns `True` if and only if the current data is from the object's API
         endpoint itself. This property returns `False` if the data is from
         another API endpoint, e.g., a parent object, if the data has been
-        invalidated or if the dat has not been retrieved at all.
+        invalidated, the object did not exist at the API or if the data has not
+        been retrieved at all.
         """
 
         return self._has_data
@@ -158,14 +159,7 @@ class Base(metaclass=ABCMeta):
         If the version is not provided, then this is the empty string.
         """
 
-        if self._version is None:
-            if self._instance == self:
-                self._version = ''
-                self._retrieve()
-            else:
-                return self._instance.version
-
-        return self._version
+        return self._instance.version
 
     def invalidate(self) -> None:
         """
@@ -174,7 +168,7 @@ class Base(metaclass=ABCMeta):
 
         self._has_data = False
         self._data = {}
-        self._version = None
+        self._exists = self._default_exists
 
     @property
     def instance(self) -> 'Jenkins':
@@ -245,14 +239,22 @@ class Jenkins(Base):
             auth = None
 
         self._session = Session(verify=verify, auth=auth)
-        self.timeout: Optional[int] = None
+        # Ensure nodes' display names are canonical
+        self._session.headers.update({'Accept-Language': 'en'})
 
-        self._add_crumb_header()
+        self.timeout: Optional[int] = None
+        self._has_crumb = False
+        self._version: Optional[str] = None
+
+    def _retrieve(self) -> Response:
+        response = super()._retrieve()
+        self._version = response.headers.get('X-Jenkins', '')
+        return response
 
     @classmethod
     def from_config(cls, config: RawConfigParser) -> 'Jenkins':
         """
-        Create a Jenkins instance based on a settings from a 'jenkins' section
+        Create a Jenkins instance based on settings from a 'jenkins' section
         that has been read by the configuration parser `config`.
         """
 
@@ -271,13 +273,31 @@ class Jenkins(Base):
 
         return cls(host, username=username, password=password, verify=verify)
 
+    def mount(self, adapter: BaseAdapter, prefix: Optional[str] = None) -> None:
+        """
+        Mount an adapter that handles connections to the Jenkins instance in
+        the session. If `prefix` is not provided, then URLs matching the base
+        URL of the Jenkins instance are handled by the `adapter`.
+        """
+
+        if prefix is None:
+            prefix = self.base_url
+
+        self._session.mount(prefix, adapter)
+
     def _add_crumb_header(self) -> None:
         request = self._session.get(f'{self.base_url}crumbIssuer/api/json',
                                     timeout=3)
         if Session.is_code(request, 'not_found'):
+            # This Jenkins instance does not have a crumb issuer?
+            self._has_crumb = True
             return
 
+        self._version = request.headers.get('X-Jenkins', '')
+
         request.raise_for_status()
+
+        self._has_crumb = True
         crumb_data: Dict[str, str] = request.json()
         headers = {crumb_data['crumbRequestField']: crumb_data['crumb']}
         self._session.headers.update(headers)
@@ -287,10 +307,21 @@ class Jenkins(Base):
         return self
 
     @property
+    def version(self) -> str:
+        if self._version is None:
+            self._version = ''
+            self._retrieve()
+
+        return self._version
+
+    @property
     def session(self) -> Session:
         """
         Retrieve the (authenticated) requests session.
         """
+
+        if not self._has_crumb:
+            self._add_crumb_header()
 
         return self._session
 
@@ -358,7 +389,6 @@ class Nodes(Base, Sequence['Node']):
     def __init__(self, instance: Jenkins) -> None:
         url = f'{instance.base_url}computer/'
         super().__init__(instance, url, exists=True)
-        self.instance.session.headers.update({'Accept-Language': 'en'})
         self._nodes: Optional[List['Node']] = None
 
     @property
@@ -379,6 +409,9 @@ class Nodes(Base, Sequence['Node']):
             return self.base_url == other.base_url
 
         return False
+
+    def __hash__(self) -> int:
+        return hash(self.base_url)
 
     def __getitem__(self, index: Any) -> Any:
         return self.nodes[index]
@@ -422,6 +455,9 @@ class Node(Base):
 
         return False
 
+    def __hash__(self) -> int:
+        return hash(self.base_url)
+
 class View(Base):
     """
     View on a Jenkins instance.
@@ -436,7 +472,7 @@ class View(Base):
 
         super().__init__(instance, url, exists=exists)
         if self._base_url is None:
-            self._base_url = f'{instance.base_url}view/{quote(name)}'
+            self._base_url = f'{instance.base_url}view/{quote(name)}/'
 
         self._name = name
         self._data = kwargs
@@ -463,6 +499,9 @@ class View(Base):
 
         return False
 
+    def __hash__(self) -> int:
+        return hash(self.base_url)
+
 class Job(Base):
     """
     Job on a Jenkins instance.
@@ -479,7 +518,10 @@ class Job(Base):
         # Collect actual instance for multibranch workflow jobs
         base = instance
         if isinstance(instance, Job):
+            self._base: Optional['Job'] = instance
             instance = instance.instance
+        else:
+            self._base = None
 
         super().__init__(instance, url, exists=exists)
         if self._base_url is None:
@@ -496,6 +538,15 @@ class Job(Base):
         """
 
         return self._name
+
+    @property
+    def base(self) -> Optional['Job']:
+        """
+        Retrieve the parent of the multibranch pipeline job. This is `None` if
+        the job has no parent.
+        """
+
+        return self._base
 
     @property
     def builds(self) -> List['Build']:
@@ -616,8 +667,12 @@ class Job(Base):
 
         exists: Optional[bool] = None
         if self.has_data:
-            numbers = [build['number'] for build in self.data['builds']]
-            exists = number in numbers
+            for build in self.data['builds']:
+                if number == build['number']:
+                    exists = True
+                    break
+            else:
+                exists = False
 
         return Build(self, number=number, exists=exists)
 
@@ -662,20 +717,22 @@ class Job(Base):
     def default_parameters(self) -> List[Dict[str, str]]:
         """
         Retrieve a list of dictionaries containing a 'name' and 'value'
-        entry for every parameter defined for a parameterized job.
+        entry for every parameter defined for a parameterized job. All values
+        are converted to strings, including boolean ones.
         """
 
         parameters: List[Dict[str, str]] = []
-        for action in self.data['actions']:
-            if 'parameterDefinitions' in action:
-                for parameter in action['parameterDefinitions']:
-                    value = str(parameter['defaultParameterValue']['value'])
-                    parameters.append({
-                        "name": str(parameter['name']),
-                        "value": value
-                    })
+        for key in ('actions', 'property'):
+            for action in self.data.get(key, []):
+                if 'parameterDefinitions' in action:
+                    for parameter in action['parameterDefinitions']:
+                        value = str(parameter['defaultParameterValue']['value'])
+                        parameters.append({
+                            "name": str(parameter['name']),
+                            "value": value
+                        })
 
-                return parameters
+                    return parameters
 
         return parameters
 
@@ -706,9 +763,13 @@ class Job(Base):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Job):
-            return self.instance == other.instance and self.name == other.name
+            return self.instance == other.instance and \
+                self.base == other.base and self.name == other.name
 
         return False
+
+    def __hash__(self) -> int:
+        return hash(self.base_url)
 
 class Build(Base):
     """
@@ -743,8 +804,10 @@ class Build(Base):
         """
 
         if self._number is None:
-            self._number = int(self.data['number'])
-            if self._number is None:
+            try:
+                self._number = int(self.data['number'])
+            except (KeyError, TypeError):
+                # Missing data, so future build with no number set
                 return 0
 
         return self._number
@@ -786,13 +849,13 @@ class Build(Base):
 
         return NotImplemented
 
-    def __lte__(self, other: object) -> bool:
+    def __le__(self, other: object) -> bool:
         if isinstance(other, Build) and self._related(other):
             return self.number <= other.number
 
         return NotImplemented
 
-    def __gte__(self, other: object) -> bool:
+    def __ge__(self, other: object) -> bool:
         if isinstance(other, Build) and self._related(other):
             return self.number >= other.number
 
