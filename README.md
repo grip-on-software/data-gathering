@@ -693,10 +693,10 @@ from writing them into the configuration files (if at all):
   web API uses this to force a scrape run upon request, but it is otherwise
   honored for both 'Daemon' and 'Jenkins-style' modes.
 - `$AGENT_LOGGING`: If provided, then this indicates to the logging mechanism
-  that additional arguments and functionality should be provided to upload 
-  logging to a logger server on the controller host. Aside from this 
-  functionality, the 'Daemon' mode of the agent always uploads the entire log 
-  to the controller at the end of the scrape.
+  that additional arguments and functionality should be provided to upload log 
+  messages at WARNING level or above to a logger server on the controller host. 
+  Aside from this functionality, the 'Daemon' mode of the agent always uploads 
+  the entire log to the controller at the end of a scrape for a project.
 - `$JIRA_KEY`: The Jira project key to use for the entire scrape operation. 
   This is required to generate and spread keys to the VCS sources and 
   controller, as well as to actually perform the collection. It may be provided 
