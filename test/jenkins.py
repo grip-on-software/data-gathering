@@ -647,7 +647,9 @@ class JobTest(unittest.TestCase):
         self.job.build()
         self.assertTrue(matcher.called_once)
 
-        matcher.reset()
+        # Test building with parameters
+        # Missing type hint for requests_mock._Matcher.reset
+        self.adapter.reset()
         self.job.build(parameters=[
             {
                 'name': 'VARIABLE_NAME',
@@ -660,6 +662,7 @@ class JobTest(unittest.TestCase):
         ], token='my-token')
         self.assertTrue(matcher.called_once)
 
+        # Dictionary based build with parameters
         params = self.adapter.register_uri('POST',
                                            '/job/test-job/buildWithParameters')
         self.job.build(parameters={'VARIABLE_NAME': 'jobtest',
