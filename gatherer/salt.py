@@ -22,6 +22,7 @@ import hashlib
 from types import TracebackType
 from typing import Any, Optional, Tuple, Type, TYPE_CHECKING
 import bcrypt
+import pymonetdb
 from .database import Database
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
@@ -43,7 +44,8 @@ class Salt:
     @staticmethod
     def encrypt(value: bytes, salt: bytes, pepper: bytes) -> str:
         """
-        Encode the string `value` using the provided `salt` and `pepper` hashes.
+        Encode the `value` using the provided `salt` and `pepper` encryption
+        tokens.
         """
 
         return hashlib.sha256(salt + value + pepper).hexdigest()
@@ -66,13 +68,19 @@ class Salt:
             self._database = None
 
     @property
-    def database(self) -> Database:
+    def database(self) -> Optional[Database]:
         """
         Retrieve the database connection.
+
+        This is `None` if the connection could not be established due to
+        misconfiguration or unresponsive database.
         """
 
         if self._database is None:
-            self._database = Database(**self._options)
+            try:
+                self._database = Database(**self._options)
+            except (EnvironmentError, pymonetdb.Error):
+                pass
 
         return self._database
 
@@ -85,7 +93,7 @@ class Salt:
         if self._project_id is not None:
             return self._project_id
 
-        if self._project is None:
+        if self._project is None or self.database is None:
             self._project_id = 0
             return self._project_id
 
@@ -112,11 +120,15 @@ class Salt:
 
     def get(self) -> Tuple[str, str]:
         """
-        Retrieve the project-specific salts.
+        Retrieve the project-specific salts from the database.
 
+        If the database is not available then a `RuntimeError` is raised.
         If the salts are not available for the project then a `ValueError` is
         raised.
         """
+
+        if self.database is None:
+            raise RuntimeError('No database connection available')
 
         result = self.database.execute('''SELECT salt, pepper
                                           FROM gros.project_salt
@@ -132,6 +144,8 @@ class Salt:
     def update(self) -> Tuple[str, str]:
         """
         Generate and update the project-specific salts.
+
+        If the database is not available then a `RuntimeError` is raised.
         """
 
         salt = bcrypt.gensalt().decode('utf-8')
@@ -141,6 +155,9 @@ class Salt:
         return salt, pepper
 
     def _update(self, salt: str, pepper: str) -> None:
+        if self.database is None:
+            raise RuntimeError('No database connection available')
+
         self.database.execute('''INSERT INTO gros.project_salt(project_id,salt,pepper)
                                  VALUES (%s,%s,%s)''',
                               parameters=[self.project_id, salt, pepper],
