@@ -32,7 +32,8 @@ class Jira(Source):
     """
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
-                 follow_host_change: bool = True, **kwargs: str) -> None:
+                 follow_host_change: bool = True,
+                 **kwargs: Optional[str]) -> None:
         self._username: Optional[str] = kwargs.pop('username', None)
         self._password: Optional[str] = kwargs.pop('password', None)
         self._agile_path = str(JIRA.DEFAULT_OPTIONS["agile_rest_path"])

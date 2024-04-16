@@ -88,7 +88,6 @@ class TFSTest(unittest.TestCase):
                                 url='user@prop-tfs.test:tfs/nest/col/_git/repo')
         if not isinstance(prop, TFS): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         self.assertEqual(prop.environment, ('http://prop-tfs.test:8080',
                                             'tfs/nest', 'col'))
@@ -110,7 +109,6 @@ class TFSTest(unittest.TestCase):
 
         if not isinstance(self.source, TFS): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         with patch.dict('os.environ',
                         {'GATHERER_URL_BLACKLIST': 'http://tfs.test'}):
@@ -180,7 +178,6 @@ class TFVCTest(unittest.TestCase):
 
         if not isinstance(self.source, TFVC): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         self.assertEqual(self.source.tfvc_project, 'bar')
 
@@ -203,7 +200,6 @@ class TFVCTest(unittest.TestCase):
 
         if not isinstance(self.source, TFVC): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         Configuration.clear()
 

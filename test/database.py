@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Any, Dict
+from typing import Dict, List, Optional
 import unittest
 from unittest.mock import patch
 from gatherer.database import Database
@@ -55,7 +55,9 @@ class DatabaseTest(unittest.TestCase):
         Test retrieving the project ID from the database.
         """
 
-        attrs: Dict[str, Any] = {'fetchone.return_value': ['99']}
+        attrs: Dict[str, Optional[List[str]]] = {
+            'fetchone.return_value': ['99']
+        }
         self.cursor.configure_mock(**attrs)
         self.assertEqual(self.database.get_project_id('TEST'), 99)
         self.cursor.execute.assert_called_once()
@@ -71,7 +73,9 @@ class DatabaseTest(unittest.TestCase):
         Test adding the project to the database.
         """
 
-        attrs: Dict[str, Any] = {'fetchone.return_value': ['99']}
+        attrs: Dict[str, Optional[List[str]]] = {
+            'fetchone.return_value': ['99']
+        }
         self.cursor.configure_mock(**attrs)
         self.assertEqual(self.database.set_project_id('TEST'), 99)
 

@@ -20,8 +20,8 @@ limitations under the License.
 
 import os
 from pathlib import Path
-from typing import Any, AnyStr, Callable, ClassVar, Dict, Hashable, List, \
-    Optional, Tuple, Type, Union, TYPE_CHECKING
+from typing import AnyStr, Callable, ClassVar, Dict, Hashable, List, Optional, \
+    Tuple, Type, Union, TYPE_CHECKING
 from urllib.parse import quote, urlsplit, urlunsplit, SplitResult
 from ...config import Configuration
 from ...version_control.repo import Version_Control_Repository
@@ -75,7 +75,9 @@ class Source_Types:
         return decorator
 
     @classmethod
-    def get_source(cls, source_type: str, **source_data: Any) -> 'Source':
+    def get_source(cls, source_type: str, name: str = '', url: str = '',
+                   follow_host_change: bool = True,
+                   **source_data: Optional[str]) -> 'Source':
         """
         Retrieve an object that represents a fully-instantiated source with
         a certain type.
@@ -84,7 +86,9 @@ class Source_Types:
         source_class = None
         if source_type in cls._validated_types:
             for candidate_class, validator in cls._validated_types[source_type]:
-                if validator(candidate_class, **source_data):
+                if validator(candidate_class, name=name, url=url,
+                             follow_host_change=follow_host_change,
+                             **source_data):
                     source_class = candidate_class
                     break
 
@@ -94,7 +98,9 @@ class Source_Types:
         if source_class is None:
             raise Source_Type_Error(f"Source type '{source_type}' is not supported")
 
-        return source_class(source_type, **source_data)
+        return source_class(source_type, name=name, url=url,
+                            follow_host_change=follow_host_change,
+                            **source_data)
 
 # Seven instance attributes in __init__, but pylint incorrectly counts
 # a property setter in use to be an instance attribute as well
@@ -119,14 +125,18 @@ class Source: # pylint: disable=too-many-instance-attributes
         self._host = self._update_credentials()[1]
 
     @classmethod
-    def from_type(cls, source_type: str, **kwargs: Any) -> 'Source':
+    def from_type(cls, source_type: str, name: str = '', url: str ='',
+                  follow_host_change: bool = True,
+                  **kwargs: Optional[str]) -> 'Source':
         """
         Create a fully-instantiated source object from its source type.
 
         Returns an object of the appropriate type.
         """
 
-        return Source_Types.get_source(source_type, **kwargs)
+        return Source_Types.get_source(source_type, name=name, url=url,
+                                       follow_host_change=follow_host_change,
+                                       **kwargs)
 
     @classmethod
     def _get_changed_host(cls, host: str) -> str:

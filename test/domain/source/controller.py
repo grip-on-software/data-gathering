@@ -22,7 +22,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import requests_mock
 from gatherer.domain.project import Project
-from gatherer.domain.source import Source
+from gatherer.domain.source import Source, Controller
 
 class ControllerTest(unittest.TestCase):
     """
@@ -40,6 +40,25 @@ class ControllerTest(unittest.TestCase):
         """
 
         self.assertEqual(self.source.environment, self.prefix)
+
+    def test_certificate(self) -> None:
+
+        """
+        Test retrieving the certificate path to verify the source against.
+        """
+
+        if not isinstance(self.source, Controller): # pragma: no cover
+            self.fail("Incorrect source")
+
+        self.assertEqual(self.source.certificate, True)
+
+        source = Source.from_type('controller', name='test-controller',
+                                  url=f'{self.prefix}/',
+                                  certificate='certs/README.md')
+        if not isinstance(source, Controller): # pragma: no cover
+            self.fail("Incorrect source")
+
+        self.assertEqual(source.certificate, 'certs/README.md')
 
     @requests_mock.Mocker()
     @patch('gatherer.domain.source.controller.json', autospec=True)

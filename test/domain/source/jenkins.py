@@ -76,7 +76,6 @@ class JenkinsTest(unittest.TestCase):
 
         if not isinstance(self.source, Jenkins): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         with patch.dict('os.environ',
                         {'GATHERER_URL_BLACKLIST': 'https://jenkins.test'}):

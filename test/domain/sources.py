@@ -20,6 +20,7 @@ limitations under the License.
 
 import json
 from pathlib import Path
+from typing import Dict, List
 import unittest
 from unittest.mock import patch, MagicMock
 from gatherer.domain.source import Source, Controller
@@ -41,12 +42,14 @@ class SourcesTest(unittest.TestCase):
         sources_path = Path('test/sample/data_sources.json')
         self.sources.load_file(sources_path)
         with sources_path.open('r', encoding='utf-8') as sources_file:
-            sources = json.load(sources_file)
+            sources: List[Dict[str, str]] = json.load(sources_file)
             source_types = set()
             for source_data in sources:
                 source_type = source_data.pop('type')
                 source_types.add(source_type)
-                self.assertIn(Source.from_type(source_type, **source_data),
+                self.assertIn(Source.from_type(source_type,
+                                               name=source_data['name'],
+                                               url=source_data['url']),
                               self.sources)
             for source in self.sources:
                 self.assertIn(source.type, source_types)
@@ -61,17 +64,29 @@ class SourcesTest(unittest.TestCase):
         Test importing source dictionaries into the collection.
         """
 
-        self.sources.load_sources([
+        source_data = [
             {
                 "type": "subversion",
                 "name": "Trunk",
                 "url": "http://svn.test/repo/trunk"
             }
-        ])
-        self.assertIn(Source.from_type('subversion', name='Trunk',
-                                       url='http://svn.test/repo/trunk'),
-                      self.sources)
+        ]
+        source = Source.from_type('subversion', name='Trunk',
+                                  url='http://svn.test/repo/trunk')
+
+        self.sources.load_sources(source_data)
+        self.assertIn(source, self.sources)
         self.assertEqual(len(self.sources), 1)
+
+        # Another way to import sources from the set constructor signature.
+        sources = Sources(source_data)
+        self.assertIn(source, sources)
+        self.assertEqual(sources, self.sources)
+
+        # Sources are also constructable using set operations.
+        conjunction = Sources() | sources
+        self.assertIn(source, conjunction)
+        self.assertEqual(conjunction, sources)
 
     def test_get(self) -> None:
         """
@@ -226,32 +241,33 @@ class SourcesTest(unittest.TestCase):
         for generated in self.sources.find_sources_by_type(Controller):
             self.assertIn(generated, sources[1:])
 
-    @patch('gatherer.domain.sources.Path', autospec=True)
-    def test_export(self, path: MagicMock) -> None:
+    def test_export(self) -> None:
         """
         Test exporting a list of dictionaries of sources in the collection.
         """
 
+        attrs = {'exists.return_value': False}
+        path = MagicMock(spec=Path)
+        path.configure_mock(**attrs)
+
         self.assertEqual(self.sources.export(), [])
-        path.return_value.open.assert_not_called()
+        path.open.assert_not_called()
         sources_path = Path('test/sample/data_sources.json')
         self.sources.load_file(sources_path)
         with sources_path.open('r', encoding='utf-8') as sources_file:
-            sources = json.load(sources_file)
+            sources: List[Dict[str, str]] = json.load(sources_file)
             source_types = {source['type'] for source in sources}
 
         export_sources = self.sources.export()
-        path.return_value.open.assert_not_called()
+        path.open.assert_not_called()
         for export_source in export_sources:
             self.assertIn(export_source['type'], source_types)
         self.assertEqual(len(export_sources), len(sources))
 
         # Now actually provide a path to write to
-        attrs = {'exists.return_value': False}
-        path.return_value.configure_mock(**attrs)
-        sources = Sources(sources_path=path('test/sample/export.json'))
-        sources.export()
-        path.return_value.open.assert_called_once()
+        exportable = Sources(path)
+        exportable.export()
+        path.open.assert_called_once()
 
     @patch('gatherer.domain.sources.Path', autospec=True)
     def test_export_environments(self, path: MagicMock) -> None:

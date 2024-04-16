@@ -34,7 +34,7 @@ class Controller(Source):
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
                  follow_host_change: bool = True,
-                 certificate: Union[str, bool] = True) -> None:
+                 certificate: Optional[str] = None) -> None:
         super().__init__(source_type, name=name, url=url,
                          follow_host_change=follow_host_change)
         self._certificate = certificate
@@ -51,6 +51,9 @@ class Controller(Source):
         If no certificate was passed, then certificate verification is enabled
         with the default certificate bundle.
         """
+
+        if self._certificate is None:
+            return True
 
         return self._certificate
 

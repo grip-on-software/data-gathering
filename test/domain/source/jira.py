@@ -87,7 +87,6 @@ class JiraTest(unittest.TestCase):
                                   url='https://agile-jira.test/')
         if not isinstance(source, Jira): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         self.assertEqual(source.jira_agile_path, '/api/example/')
 
@@ -99,7 +98,6 @@ class JiraTest(unittest.TestCase):
 
         if not isinstance(self.source, Jira): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         with patch.dict('os.environ',
                         {'GATHERER_URL_BLACKLIST': 'https://jira.test'}):
@@ -126,7 +124,6 @@ class JiraTest(unittest.TestCase):
                                   url='https://api-jira.test/')
         if not isinstance(source, Jira): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         self.assertEqual(source.jira_api, api.return_value)
         api.assert_called_once_with({

@@ -19,7 +19,7 @@ limitations under the License.
 """
 
 from io import StringIO
-from typing import Any, Dict
+from typing import Dict, Union
 import unittest
 from unittest.mock import patch, MagicMock
 import requests
@@ -50,7 +50,7 @@ class SessionTest(unittest.TestCase):
         Test creating a Session with headers and other options.
         """
 
-        attrs: Dict[str, Any] = {'exists.return_value': False}
+        attrs: Dict[str, Union[bool, StringIO]] = {'exists.return_value': False}
         path.return_value.configure_mock(**attrs)
 
         auth = HTTPBasicAuth('sessionuser', 'sessionpass')

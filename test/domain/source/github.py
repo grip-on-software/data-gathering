@@ -89,7 +89,6 @@ class GitHubTest(unittest.TestCase):
 
         if not isinstance(self.source, GitHub): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         self.assertEqual(self.source.github_repo,
                          self.api.get_repo.return_value)

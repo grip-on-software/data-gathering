@@ -192,6 +192,9 @@ class Sources_Collector(Collector):
         return self._parser_class(path=self._data.path, **self._options)
 
     def _build_metric_source(self, name: str, url: SourceUrl, source_type: str) -> None:
+        if url is None:
+            return
+
         try:
             if isinstance(url, tuple):
                 domain_type = url[2]

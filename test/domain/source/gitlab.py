@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Any, Dict
+from typing import Dict, List, Type, Union
 import unittest
 from unittest.mock import patch, MagicMock
 from gitlab.exceptions import GitlabAuthenticationError
@@ -131,7 +131,9 @@ class GitLabTest(unittest.TestCase):
         self.assertEqual(self.source.version, '')
         api.side_effect = None
 
-        attrs: Dict[str, Any] = {'version.return_value': ['unknown']}
+        attrs: Dict[str, Union[List[str], Type[Exception]]] = {
+            'version.return_value': ['unknown']
+        }
         api.return_value.configure_mock(**attrs)
         self.assertEqual(self.source.version, '')
 
@@ -151,7 +153,6 @@ class GitLabTest(unittest.TestCase):
 
         if not isinstance(self.source, GitLab): # pragma: no cover
             self.fail("Incorrect source")
-            return
 
         with patch.dict('os.environ',
                         {'GATHERER_URL_BLACKLIST': 'https://gitlab.test'}):

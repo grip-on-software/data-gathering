@@ -20,28 +20,32 @@ limitations under the License.
 
 from collections.abc import MutableSet
 from pathlib import Path
-from typing import Dict, Hashable, Iterator, Optional, List, MutableMapping, \
-    Sequence, Set, Type, TypeVar
+from typing import Dict, Hashable, Iterable, Iterator, Optional, List, Set, \
+    Type, TypeVar, Union
 import json
 from .source import Source
 
 S_co = TypeVar('S_co', bound=Source, covariant=True)
+SourceData = Union[Dict[str, str], Source]
 
 class Sources(MutableSet):
     """
     Collection of sources related to a project.
     """
 
-    def __init__(self, sources_path: Optional[Path] = None,
+    def __init__(self,
+                 sources: Optional[Union[Path, Iterable[SourceData]]] = None,
                  follow_host_change: bool = True) -> None:
-        # pylint: disable=super-init-not-called
-        self._sources_path = sources_path
+        self._sources_path: Optional[Path] = None
         self._follow_host_change = follow_host_change
 
         self.clear()
 
-        if self._sources_path is not None:
+        if isinstance(sources, Path):
+            self._sources_path = sources
             self.load_file(self._sources_path)
+        elif sources is not None:
+            self.load_sources(sources)
 
     def load_file(self, sources_path: Path) -> None:
         """
@@ -50,19 +54,23 @@ class Sources(MutableSet):
 
         if sources_path.exists():
             with sources_path.open('r', encoding='utf-8') as sources_file:
-                sources = json.load(sources_file)
+                sources: List[Dict[str, str]] = json.load(sources_file)
                 self.load_sources(sources)
 
-    def load_sources(self, sources_data: Sequence[MutableMapping[str, str]]) -> None:
+    def load_sources(self, sources_data: Iterable[SourceData]) -> None:
         """
         Import a sequence of source dictionaries into the collection.
         """
 
         for source_data in sources_data:
-            source_type = source_data.pop('type')
-            source = Source.from_type(source_type,
-                                      follow_host_change=self._follow_host_change,
-                                      **source_data)
+            if isinstance(source_data, Source):
+                source = source_data
+            else:
+                data = source_data.copy()
+                source_type = data.pop('type')
+                source = Source.from_type(source_type,
+                                          follow_host_change=self._follow_host_change,
+                                          **data)
             self.add(source)
 
     def get(self) -> Set[Source]:

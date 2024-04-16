@@ -38,7 +38,8 @@ class GitHub(Git):
     """
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
-                 follow_host_change: bool = True, **kwargs: str) -> None:
+                 follow_host_change: bool = True,
+                 **kwargs: Optional[str]) -> None:
         self._github_url: str = ''
         self._github_token: Optional[str] = None
         self._github_api: Optional[github.Github] = None
@@ -186,8 +187,7 @@ class GitHub(Git):
             source = Source.from_type('github',
                                       name=repo.name,
                                       url=repo.clone_url,
-                                      github_team=self._github_team,
-                                      github_repo=repo)
+                                      github_team=self._github_team)
             sources.append(source)
 
         return sources

@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Any, Dict, List
+from typing import Dict, List, Optional, Union
 import unittest
 from unittest.mock import patch, MagicMock
 from gatherer.domain.project import Project
@@ -90,7 +90,7 @@ class SaltTest(unittest.TestCase):
         Test retrieving or generating and updating the project-specific salts.
         """
 
-        attrs: Dict[str, Any] = {
+        attrs: Dict[str, Optional[Union[int, List[str]]]] = {
             'get_project_id.return_value': 42,
             'execute.return_value': ['salt', 'pepper']
         }
@@ -108,7 +108,7 @@ class SaltTest(unittest.TestCase):
         database.return_value.configure_mock(**attrs)
         result = salt.execute()
         self.assertEqual(execute.call_count, 2)
-        expected: List[Any] = [42]
+        expected: List[Union[int, str]] = [42]
         expected.extend(result)
         self.assertEqual(execute.call_args.kwargs['parameters'], expected)
 
@@ -118,7 +118,7 @@ class SaltTest(unittest.TestCase):
         Test retrieving the project-specific salts from the database.
         """
 
-        attrs: Dict[str, Any] = {
+        attrs: Dict[str, Optional[Union[int, List[str]]]] = {
             'get_project_id.return_value': 42,
             'execute.return_value': ['salt', 'pepper']
         }
@@ -160,7 +160,7 @@ class SaltTest(unittest.TestCase):
         salt = Salt(Project('TEST'))
         result = salt.update()
         execute.assert_called_once()
-        expected: List[Any] = [42]
+        expected: List[Union[int, str]] = [42]
         expected.extend(result)
         self.assertEqual(execute.call_args.kwargs['parameters'], expected)
 

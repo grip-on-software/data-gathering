@@ -22,10 +22,14 @@ import json
 import os
 from pathlib import Path, PurePath
 import subprocess
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union, \
+    TYPE_CHECKING
 import Pyro4
 
-PathLike = Union[str, os.PathLike]
+if TYPE_CHECKING:
+    PathLike = Union[str, os.PathLike[str]]
+else:
+    PathLike = Union[str, os.PathLike]
 
 @Pyro4.expose
 class Controller:
