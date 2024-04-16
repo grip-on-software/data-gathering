@@ -85,7 +85,7 @@ class Database:
 
     def execute(self, query: str, parameters: Sequence[Any],
                 update: bool = False, one: bool = False) -> \
-                Optional[Union[List[Sequence], Sequence]]:
+                Optional[Union[List[Sequence[Any]], Sequence[Any]]]:
         """
         Perform a selection or update query.
 

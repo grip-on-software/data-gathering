@@ -70,8 +70,11 @@ class Update_Tracker:
     def update_file(self, filename: str, contents: str, update_date: datetime) -> None:
         """
         Check whether an update tracker file from a remote source is updated
-        more recently than our local version, or the local version is missing,
-        and update the local state if so.
+        more recently than our local version stored in the `filename` in the
+        project's export directory. If the `update_date` is newer than the
+        local file or the local file is missing, then the local state is updated
+        with the `contents` from the remote source and the `update_date` as file
+        modification time.
         """
 
         logging.debug('Filename: %s, remote updated: %s', filename, update_date)
@@ -152,6 +155,7 @@ class Database_Tracker(Update_Tracker):
             if project_id is None:
                 logging.warning("Project '%s' is not in the database",
                                 self._project.key)
+                return
 
             database.execute('''UPDATE gros.update_tracker
                                 SET contents=%s
