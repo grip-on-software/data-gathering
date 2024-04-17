@@ -36,8 +36,8 @@ else:
 
 class Iterator_Limiter:
     """
-    Class which keeps handles batches of queries and keeps track of iterator
-    count, in order to limit batch processing.
+    Class which handles batches of queries and keeps track of iterator count,
+    in order to limit batch processing.
     """
 
     def __init__(self, size: int = 1000, maximum: int = 10000000) -> None:
@@ -48,8 +48,11 @@ class Iterator_Limiter:
 
     def check(self, had_content: bool) -> bool:
         """
-        Check whether a loop condition to continue retrieving iterator data
-        should still evaluate to true.
+        Check whether we should continue retrieving iterator data. The return
+        value can be used as a loop condition which evaluates to true if the
+        limit is not yet reached. `had_content` is a boolean which indicates
+        whether the iteration actually produced new data and as such may have
+        another iteration with data.
         """
 
         if had_content and self._size != 0 and not self.reached_limit():
@@ -75,12 +78,15 @@ class Iterator_Limiter:
         self._skip += self._size
         self._page += 1
         if self.reached_limit():
-            self._size = self._max - self._skip
+            self._size = max(1, self._max - self._skip)
 
     @property
     def size(self) -> int:
         """
         Retrieve the size of the next batch query.
+
+        If the iterator has reached its limits or is close to it, then this is
+        lower than the initial size.
         """
 
         return self._size
@@ -103,7 +109,7 @@ class Iterator_Limiter:
 
 class Sprint_Data:
     """
-    Object that loads sprint data and allows matching timestamps to sprints
+    Class that loads sprint data and allows matching timestamps to sprints
     based on their date ranges.
 
     Only works after jira_to_json.py has retrieved the sprint data or if
@@ -148,19 +154,19 @@ class Sprint_Data:
                     sprint_ids: Optional[Sequence[int]] = None) -> Optional[int]:
         """
         Retrieve a sprint ID of a sprint that encompasses the given `time`,
-        which is a `datetime` object or a date string in standard
-        YYYY-MM-DD HH-MM-SS format.
+        which is a `datetime` object.
+
+        If multiple candidate sprints encompass the given moment, then the
+        sprint whose start date is closest to the moment (but still before it)
+        is selected and its ID is returned.
 
         If `sprint_ids` is given, then only consider the given sprint IDs for
         matching. If no sprint exists according to these criteria, then `None`
         is returned.
         """
 
-        if isinstance(time, datetime):
-            if time.tzinfo is None or time.tzinfo.utcoffset(time) is None:
-                time = time.replace(tzinfo=dateutil.tz.tzlocal())
-        else:
-            time = get_local_datetime(time)
+        if time.tzinfo is None or time.tzinfo.utcoffset(time) is None:
+            time = time.replace(tzinfo=dateutil.tz.tzlocal())
 
         return self._bisect(time, sprint_ids=sprint_ids, overlap=True)
 
@@ -266,7 +272,7 @@ def format_date(date: datetime, date_format: str = '%Y-%m-%d %H:%M:%S') -> str:
 
 def parse_utc_date(date: str) -> str:
     """
-    Convert a ISO8601 date string to a standard date string.
+    Convert an ISO8601 date string to a standard date string.
     The date string must have a zone identifier.
 
     The standard format used by the gatherer is YYYY-MM-DD HH:MM:SS.
