@@ -250,10 +250,14 @@ class Sprint_Parser(Field_Parser):
 
     def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
-        if change['from'] is None or change['from'] == '':
+        if change['from'] is None:
             return None
 
-        return change['from']
+        sprint = str(change['from'])
+        if sprint == '':
+            return None
+
+        return value
 
     @property
     def table_name(self) -> Optional[str]:
@@ -459,9 +463,10 @@ class Rank_Parser(Field_Parser):
     def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         # Encode the rank change as "-1" or "1".
-        if change["toString"] == "Ranked higher":
+        rank = str(change["toString"])
+        if rank == "Ranked higher":
             return str(1)
-        if change["toString"] == "Ranked lower":
+        if rank == "Ranked lower":
             return str(-1)
 
         return value
@@ -473,10 +478,10 @@ class Issue_Key_Parser(String_Parser):
 
     def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
-        if change["fromString"] is not None:
-            return change["fromString"]
+        if change["fromString"] is None:
+            return None
 
-        return None
+        return str(change["fromString"])
 
 class Flag_Parser(Field_Parser):
     """
@@ -499,7 +504,7 @@ class Ready_Status_Parser(Field_Parser):
     def _add_to_table(self, encoded_id: str, html: str) -> None:
         match = re.match(r'<font .*><b>(.*)</b></font>', html)
         if match:
-            name = match.group(1)
+            name = str(match.group(1))
             self.jira.get_table("ready_status").append({
                 "id": encoded_id,
                 "name": name
@@ -513,7 +518,7 @@ class Ready_Status_Parser(Field_Parser):
 
         if hasattr(value, 'id') and hasattr(value, 'value'):
             encoded_value = str(value.id)
-            self._add_to_table(encoded_value, value.value)
+            self._add_to_table(encoded_value, str(value.value))
 
         return encoded_value
 
@@ -521,7 +526,7 @@ class Ready_Status_Parser(Field_Parser):
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         if change["from"] is not None:
             value = str(change["from"])
-            self._add_to_table(value, change["fromString"])
+            self._add_to_table(value, str(change["fromString"]))
 
         return value
 

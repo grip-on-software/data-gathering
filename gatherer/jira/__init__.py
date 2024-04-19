@@ -23,7 +23,8 @@ import logging
 import os
 import re
 from copy import copy
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Callable, Dict, List, Optional, Tuple, Type, TypeVar, \
+    Union, overload
 
 from jira import Issue, JIRA, JIRAError
 from .base import Base_Jira_Field, Table_Source
@@ -41,11 +42,30 @@ from ..table import Table, Key_Table, Link_Table
 from ..domain import Project, source
 
 Data = Dict[str, str]
-FieldValue = Union[str, List[str], Dict[str, Union[str, bool]]]
+#TableMap = Dict[str, str]
+TableOptions = Dict[str, Union[str, bool, List[str]]]
+FieldValue = Union[str, List[str], TableOptions]
 Field = Dict[str, FieldValue]
+FieldSpec = Dict[str, Field]
+Option = TypeVar('Option')
 Prefetcher = Callable[[Query], None]
 
 __all__ = ["Jira"]
+
+@overload
+def _check_option(data: TableOptions, field: str, check_type: Type[Option]) \
+        -> Optional[Option]:
+    ...
+
+@overload
+def _check_option(data: TableOptions, field: str, check_type: Type[Option],
+                  default: Option) -> Option:
+    ...
+
+def _check_option(data, field, check_type, default=None):
+    if field in data and isinstance(data[field], check_type):
+        return data[field]
+    return default
 
 class Jira:
     """
@@ -166,7 +186,7 @@ class Jira:
         jira_fields = []
 
         with open('jira_fields.json', 'r', encoding='utf-8') as fields_file:
-            fields = json.load(fields_file)
+            fields: FieldSpec = json.load(fields_file)
 
         for name, data in fields.items():
             field = self._make_issue_field(name, data)
@@ -230,21 +250,33 @@ class Jira:
         if isinstance(data["table"], str):
             table_name = data["table"]
 
-        table_options: Dict[str, Any] = {}
+        options: TableOptions = {}
         if "table_options" in data and isinstance(data["table_options"], dict):
-            table_options = data["table_options"]
+            options = data["table_options"]
 
         if table_name is None:
             return
 
+        filename = _check_option(options, "filename", str)
+        merge_update = _check_option(options, "merge_update", bool, False)
+        encrypt_fields: Optional[List[str]] = _check_option(options,
+                                                            "encrypt_fields",
+                                                            list)
+
         if key is None:
-            self._tables[table_name] = Table(table_name, **table_options)
+            self._tables[table_name] = Table(table_name, filename=filename,
+                                             merge_update=merge_update,
+                                             encrypt_fields=encrypt_fields)
         elif isinstance(key, tuple):
             self._tables[table_name] = Link_Table(table_name, key,
-                                                  **table_options)
+                                                  filename=filename,
+                                                  merge_update=merge_update,
+                                                  encrypt_fields=encrypt_fields)
         else:
             self._tables[table_name] = Key_Table(table_name, key,
-                                                 **table_options)
+                                                 filename=filename,
+                                                 merge_update=merge_update,
+                                                 encrypt_fields=encrypt_fields)
 
     def register_prefetcher(self, method: Prefetcher) -> None:
         """
@@ -366,20 +398,19 @@ class Jira:
 
     def _add_source(self, jira_source: source.Source, api: JIRA) -> None:
         # Replace the source URL with the one provided by the API if possible
-        myself = api.myself()
+        myself = str(api.myself()['self'])
         regex = api.JIRA_BASE_URL.replace('{', '(?P<').replace('}', '>.*?)')
-        match = re.match(regex, str(myself['self']))
+        match = re.match(regex, myself)
         if match:
             try:
-                name = api.project(self._project.jira_key).name
+                name = str(api.project(self._project.jira_key).name)
             except JIRAError:
                 logging.exception('Could not extract name for %s',
                                   self._project.key)
                 name = self._project.key
 
-            jira_source = source.Source.from_type('jira',
-                                                  name=name,
-                                                  url=match.group('server'))
+            server = str(match.group('server'))
+            jira_source = source.Source.from_type('jira', name=name, url=server)
         else:
             logging.warning('Could not extract JIRA base URL from API')
 

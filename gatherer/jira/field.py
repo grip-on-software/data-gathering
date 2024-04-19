@@ -206,9 +206,9 @@ class Changelog_Field(Jira_Field, Base_Changelog_Field):
     def fetch(self, issue: Any) -> Optional[str]:
         data = issue.__dict__
         if data['from'] is not None:
-            return data['from']
+            return str(data['from'])
         if data['fromString'] is not None:
-            return data['fromString']
+            return str(data['fromString'])
 
         return None
 

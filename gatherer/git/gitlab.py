@@ -22,13 +22,14 @@ limitations under the License.
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, cast, TYPE_CHECKING
-from git import Commit, GitCommandError
+from typing import Dict, List, Optional, Type, cast, TYPE_CHECKING
+from git import GitCommandError
 import gitlab.v4.objects
 from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
 from .repo import Git_Repository, RepositorySourceException
 from ..table import Table, Key_Table
-from ..utils import get_local_datetime, parse_utc_date, parse_unicode
+from ..utils import get_local_datetime, parse_utc_date, parse_unicode, \
+    Sprint_Data
 from ..version_control.repo import Version_Control_Repository, PathLike, Version
 from ..version_control.review import Review_System
 if TYPE_CHECKING:
@@ -129,8 +130,9 @@ class GitLab_Repository(Git_Repository, Review_System):
         Review_System.AUXILIARY_TABLES | {'gitlab_repo', 'vcs_event'}
 
     def __init__(self, source: Source, repo_directory: PathLike,
-                 project: Optional[Project] = None, **kwargs: Any) -> None:
-        super().__init__(source, repo_directory, project=project, **kwargs)
+                 sprints: Optional[Sprint_Data] = None,
+                 project: Optional[Project] = None) -> None:
+        super().__init__(source, repo_directory, sprints=sprints, project=project)
         self._repo_project: Optional[gitlab.v4.objects.Project] = None
         has_commit_comments = self._source.get_option('has_commit_comments')
         self._has_commit_comments = has_commit_comments is not None
@@ -282,14 +284,21 @@ class GitLab_Repository(Git_Repository, Review_System):
         return self._repo_project
 
     def get_data(self, from_revision: Optional[Version] = None,
-                 to_revision: Optional[Version] = None, force: bool = False,
-                 **kwargs: Any) -> List[Dict[str, str]]:
+                 to_revision: Optional[Version] = None,
+                 force: bool = False,
+                 stats: bool = True,
+                 comments: bool = False) -> List[Dict[str, str]]:
         # Check if we can retrieve the data from legacy dropin files.
         has_dropins = self._check_dropin_files(self.project)
 
-        versions = super().get_data(from_revision, to_revision,
-                                    comments=has_dropins, force=force,
-                                    **kwargs)
+        versions = super().get_data(from_revision, to_revision, force=force)
+
+        if self._has_commit_comments and comments:
+            for version in versions:
+                commit = self.repo_project.commits.get(version['version_id'],
+                                                       lazy=True)
+                for comment in commit.comments.list(as_list=False):
+                    self.add_commit_comment(comment, version['version_id'])
 
         self.fill_repo_table(self.repo_project)
         if not has_dropins:
@@ -513,14 +522,3 @@ class GitLab_Repository(Git_Repository, Review_System):
                 commit_event = event_data.copy()
                 commit_event['version_id'] = str(commit_id)
                 self._tables["vcs_event"].append(commit_event)
-
-    def _parse_version(self, commit: Commit, stats: bool = True, **kwargs: Any) -> Dict[str, str]:
-        data = super()._parse_version(commit, stats=stats, **kwargs)
-
-        if self._has_commit_comments and kwargs.get('comments'):
-            project_commit = self.repo_project.commits.get(commit.hexsha,
-                                                           lazy=True)
-            for comment in project_commit.comments.list(as_list=False):
-                self.add_commit_comment(comment, commit.hexsha)
-
-        return data

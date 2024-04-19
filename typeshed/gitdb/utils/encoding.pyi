@@ -6,7 +6,6 @@ from typing import Any
 
 string_types: Any
 text_type = str
-text_type = unicode
 
 def force_bytes(data: Any, encoding: str = ...): ...
 def force_text(data: Any, encoding: str = ...): ...

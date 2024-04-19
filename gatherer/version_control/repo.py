@@ -20,7 +20,6 @@ limitations under the License.
 
 from datetime import datetime
 from enum import Enum, unique
-import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union, TYPE_CHECKING
@@ -99,11 +98,7 @@ class Version_Control_Repository:
 
     def __init__(self, source: Source, repo_directory: PathLike,
                  sprints: Optional[Sprint_Data] = None,
-                 project: Optional[Project] = None,
-                 **kwargs: Any) -> None:
-        if kwargs:
-            logging.debug('Unused repository arguments: %r', kwargs)
-
+                 project: Optional[Project] = None) -> None:
         self._source = source
         self._repo_name = source.name
         self._repo_directory = Path(repo_directory)
@@ -393,7 +388,8 @@ class Version_Control_Repository:
     def get_versions(self, filename: str = '',
                      from_revision: Optional[Version] = None,
                      to_revision: Optional[Version] = None,
-                     descending: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
+                     descending: bool = False,
+                     stats: bool = True) -> List[Dict[str, str]]:
         """
         Retrieve metadata about each version in the repository, or those that
         change a specific file path `filename`.
@@ -414,7 +410,8 @@ class Version_Control_Repository:
 
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None,
-                 force: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
+                 force: bool = False,
+                 stats: bool = True) -> List[Dict[str, str]]:
         """
         Retrieve version and auxiliary data from the repository.
 
@@ -424,23 +421,12 @@ class Version_Control_Repository:
 
         try:
             return self.get_versions(from_revision=from_revision,
-                                     to_revision=to_revision, **kwargs)
+                                     to_revision=to_revision, stats=stats)
         except (RepositoryDataException, RepositorySourceException):
             if force:
                 self._cleanup()
 
             raise
-
-    def _parse_version(self, commit: Any, stats: bool = True, **kwargs: Any):
-        """
-        Internal method to parse information retrieved from the back end into
-        a dictionary of version information. `commit` is a generic object with
-        properties specific to the VCS. `stats` indicates whether we should
-        also fill the dictionary with difference statistics and populate tables
-        with auxiliary data.
-        """
-
-        raise NotImplementedError("Must be implemented by subclasses")
 
     def _get_sprint_id(self, commit_datetime: datetime) -> str:
         if self._sprints is not None:

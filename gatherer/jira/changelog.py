@@ -19,7 +19,8 @@ limitations under the License.
 """
 
 import logging
-from typing import Dict, List, Mapping, MutableMapping, Optional, Type, TYPE_CHECKING
+from typing import Dict, List, Mapping, MutableMapping, Optional, Type, \
+    TYPE_CHECKING
 from jira import Issue
 from .base import Base_Jira_Field, Base_Changelog_Field
 from .field import Changelog_Primary_Field, Changelog_Field
@@ -76,9 +77,8 @@ class Changelog:
         but it requires more postprocessing to be used in the output data.
         """
 
-        changelog = issue.changelog.histories
         issue_diffs: Dict[str, Dict[str, Optional[str]]] = {}
-        for changes in changelog:
+        for changes in issue.changelog.histories:
             diffs: Dict[str, Optional[str]] = {}
 
             for field in self._changelog_primary_fields.values():

@@ -75,11 +75,17 @@ class Query:
 
         self._latest_update = format_date(datetime.now(),
                                           date_format=self.DATE_FORMAT)
-        return self._api.search_issues(self._query,
-                                       startAt=self._iterator_limiter.skip,
-                                       maxResults=self._iterator_limiter.size,
-                                       expand='attachment,changelog',
-                                       fields=self._search_fields)
+        result = self._api.search_issues(self._query,
+                                         startAt=self._iterator_limiter.skip,
+                                         maxResults=self._iterator_limiter.size,
+                                         expand='attachment,changelog',
+                                         fields=self._search_fields,
+                                         json_result=False)
+
+        if isinstance(result, dict): # pragma: no cover
+            raise TypeError('Incorrect issue search API response')
+
+        return result
 
     @property
     def api(self) -> JIRA:

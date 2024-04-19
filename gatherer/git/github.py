@@ -20,13 +20,13 @@ limitations under the License.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast, TYPE_CHECKING
+from typing import Dict, List, Optional, Set, Tuple, Union, cast, TYPE_CHECKING
 import dateutil.tz
 import github
 from .repo import Git_Repository
 from ..table import Table, Key_Table, Link_Table
 from ..utils import convert_utc_datetime, format_date, get_local_datetime, \
-    convert_local_datetime, parse_unicode
+    convert_local_datetime, parse_unicode, Sprint_Data
 from ..version_control.repo import PathLike, Version
 from ..version_control.review import Review_System
 if TYPE_CHECKING:
@@ -68,8 +68,9 @@ class GitHub_Repository(Git_Repository, Review_System):
         }
 
     def __init__(self, source: GitHub, repo_directory: PathLike,
-                 project: Optional[Project] = None, **kwargs: Any) -> None:
-        super().__init__(source, repo_directory, project=project, **kwargs)
+                 sprints: Optional[Sprint_Data] = None,
+                 project: Optional[Project] = None) -> None:
+        super().__init__(source, repo_directory, sprints=sprints, project=project)
 
         bots = source.get_option('github_bots')
         if bots is None:
@@ -136,9 +137,9 @@ class GitHub_Repository(Git_Repository, Review_System):
 
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None, force: bool = False,
-                 **kwargs: Any) -> List[Dict[str, str]]:
+                 stats: bool = True) -> List[Dict[str, str]]:
         versions = super().get_data(from_revision, to_revision, force=force,
-                                    **kwargs)
+                                    stats=stats)
 
         self.fill_repo_table(self.source.github_repo)
         self._get_pull_requests()
@@ -290,7 +291,7 @@ class GitHub_Repository(Git_Repository, Review_System):
         if issue.pull_request is not None:
             pulls_url = re.sub('{/[^}]+}', r'/(\d+)',
                                self.source.github_repo.pulls_url)
-            pull_request_url: str = issue.pull_request.raw_data['url']
+            pull_request_url = str(issue.pull_request.raw_data['url'])
             match = re.match(pulls_url, pull_request_url)
             if match:
                 pull_request_id = int(match.group(1))
@@ -365,18 +366,20 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         return True
 
-    def _add_commit_comment(self, comment: CommentLike, **kwargs: Any) -> None:
+    def _add_commit_comment(self, comment: CommentLike, request_id: int = 0,
+                            line: int = 0, end_line: int = 0,
+                            line_type: Optional[str] = None) -> None:
         note = self._format_note(comment)
         note.update({
             'thread_id': str(0),
             'parent_id': str(0),
-            'merge_request_id': str(kwargs.get('request_id', 0)),
+            'merge_request_id': str(request_id),
             'created_date': note['created_at'],
             'updated_date': note['updated_at'],
             'file': comment.path,
-            'line': str(kwargs.get('line', 0)),
-            'end_line': str(kwargs.get('end_line', 0)),
-            'line_type': str(kwargs.get('line_type', 0)),
+            'line': str(line),
+            'end_line': str(end_line),
+            'line_type': line_type if line_type is not None else str(0),
             'commit_id': comment.commit_id
         })
         del note['created_at']
@@ -417,9 +420,6 @@ class GitHub_Repository(Git_Repository, Review_System):
 
         # We store the most recent line indexes to which the comment applies.
         position = comment.position
-        if position is None:
-            position = comment.original_position
-
         if comment.diff_hunk is not None and comment.diff_hunk.startswith('@@'):
             lines = comment.diff_hunk.split('\n')
             match = re.match(r'@@ -(\d+),(\d+) \+(\d+),(\d+) @@', lines[0])

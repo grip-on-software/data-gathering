@@ -31,14 +31,15 @@ import svn.remote
 
 from .difference import Difference
 from ..table import Table, Key_Table
-from ..utils import format_date, parse_unicode, Iterator_Limiter
+from ..utils import format_date, parse_unicode, Iterator_Limiter, Sprint_Data
 from ..version_control.repo import Version_Control_Repository, \
     RepositoryDataException, RepositorySourceException, FileNotFoundException, \
     PathLike, Version
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
-    from ..domain import Source
+    from ..domain import Project, Source
 else:
+    Project = object
     Source = object
 
 LogEntry = NamedTuple('LogEntry', [('date', datetime),
@@ -71,8 +72,10 @@ class Subversion_Repository(Version_Control_Repository):
     # Maximum number of commits to obtain
     MAX_SIZE = 10000
 
-    def __init__(self, source: Source, repo_directory: PathLike, **kwargs: Any):
-        super().__init__(source, repo_directory, **kwargs)
+    def __init__(self, source: Source, repo_directory: PathLike,
+                 sprints: Optional[Sprint_Data] = None,
+                 project: Optional[Project] = None):
+        super().__init__(source, repo_directory, sprints=sprints, project=project)
         self._repo: Optional[svn.common.CommonClient] = None
         self._version_info: Optional[Tuple[int, ...]] = None
         self._reset_limiter()
@@ -251,9 +254,9 @@ class Subversion_Repository(Version_Control_Repository):
 
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None, force: bool = False,
-                 **kwargs: Any) -> List[Dict[str, str]]:
+                 stats: bool = True) -> List[Dict[str, str]]:
         versions = super().get_data(from_revision, to_revision, force=force,
-                                    **kwargs)
+                                    stats=stats)
 
         self._parse_tags()
 
@@ -262,7 +265,8 @@ class Subversion_Repository(Version_Control_Repository):
     def get_versions(self, filename: str = 'trunk',
                      from_revision: Optional[Version] = None,
                      to_revision: Optional[Version] = None,
-                     descending: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
+                     descending: bool = False,
+                     stats: bool = True) -> List[Dict[str, str]]:
         """
         Retrieve data about each version of a specific file path `filename`.
 
@@ -285,7 +289,7 @@ class Subversion_Repository(Version_Control_Repository):
                 for entry in log:
                     had_versions = True
                     new_version = self._parse_version(entry, filename=filename,
-                                                      **kwargs)
+                                                      stats=stats)
                     versions.append(new_version)
 
                 count = self._iterator_limiter.size + self._iterator_limiter.skip
@@ -321,7 +325,16 @@ class Subversion_Repository(Version_Control_Repository):
                       reverse=descending)
 
     def _parse_version(self, commit: LogEntry, stats: bool = True,
-                       **kwargs: Any) -> Dict[str, str]:
+                       filename: str = '') -> Dict[str, str]:
+        """
+        Parse information retrieved from the Subversion back end into version
+        information. `commit` is a log entry regarding a version in Subversion.
+        `stats` indicates whether we should also fill the returned dictionary
+        with difference statistics and populate tables with auxiliary data.
+        `filename` is also passed to the `Subversion_Repository.get_diff_stats`
+        method if `stats` is True.
+        """
+
         # Convert to local timestamp
         commit_date = commit.date.replace(tzinfo=dateutil.tz.tzutc())
         commit_datetime = commit_date.astimezone(dateutil.tz.tzlocal())
@@ -343,7 +356,7 @@ class Subversion_Repository(Version_Control_Repository):
 
         if stats:
             diff_stats = self.get_diff_stats(to_revision=version['version_id'],
-                                             **kwargs)
+                                             filename=filename)
             version.update(diff_stats)
 
         return version

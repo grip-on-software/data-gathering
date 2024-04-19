@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Hashable, Optional, Tuple
+from typing import Any, Dict, Hashable, Optional, Tuple, Union
 from urllib.parse import urlsplit, SplitResult, unquote
 from jira import JIRA
 from jira.exceptions import JIRAError
@@ -93,18 +93,18 @@ class Jira(Source):
             raise RuntimeError(f'JIRA API for {self.plain_url} is blacklisted')
 
         if self._jira_api is None:
-            options = {
-                "server": self.plain_url,
+            options: Dict[str, Union[str, bool, Any]] = {
                 "agile_rest_path": self._agile_path
             }
 
             parts = urlsplit(self.url)
-            auth: Optional[Tuple[str, Optional[str]]] = None
+            auth: Optional[Tuple[str, str]] = None
             if parts.username is not None and parts.password is not None:
                 auth = (unquote(parts.username), unquote(parts.password))
-            elif self._username is not None:
+            elif self._username is not None and self._password is not None:
                 auth = (self._username, self._password)
 
-            self._jira_api = JIRA(options, basic_auth=auth, max_retries=0)
+            self._jira_api = JIRA(server=self.plain_url, options=options,
+                                  basic_auth=auth, max_retries=0)
 
         return self._jira_api

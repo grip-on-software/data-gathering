@@ -309,22 +309,23 @@ def parse(path: str, start: Version, repo: Git_Repository,
         metric_visitor = Metric_Visitor()
         commit = repo.repo.commit(version['version_id'])
         for file_path in commit.stats.files.keys():
-            if not file_path.startswith(path) or '{' in file_path:
+            filename = str(file_path)
+            if not filename.startswith(path) or '{' in filename:
                 continue
 
             try:
-                contents = repo.get_contents(file_path,
+                contents = repo.get_contents(filename,
                                              revision=version['version_id'])
             except FileNotFoundException:
                 logging.exception('Could not find file %s in version %s',
-                                  file_path, version['version_id'])
+                                  filename, version['version_id'])
                 continue
 
             try:
-                parse_tree = ast.parse(contents, file_path, 'exec')
+                parse_tree = ast.parse(contents, filename, 'exec')
             except SyntaxError:
                 logging.exception('Syntax error in file %s in version %s',
-                                  file_path, version['version_id'])
+                                  filename, version['version_id'])
                 continue
 
             metric_visitor.visit(parse_tree)
