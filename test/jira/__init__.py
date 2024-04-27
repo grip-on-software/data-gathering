@@ -1,9 +1,9 @@
 """
-Package for classes and utilities related to extracting data from the JIRA API.
+Test package for extracting data from the JIRA API.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
-Copyright 2017-2023 Leon Helwerda
+Copyright 2017-2024 Leon Helwerda
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,15 +17,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from .collector import Collector as Jira, Data, FieldValue, Field, Prefetcher
-from .update import Updated_Time, Update_Tracker
-
-__all__ = [
-    # Main classes
-    "Jira",
-    # Types that were already available in the package without explicit export
-    "Data", "FieldValue", "Field", "Prefetcher",
-    # Update tracker
-    "Updated_Time", "Update_Tracker"
-]

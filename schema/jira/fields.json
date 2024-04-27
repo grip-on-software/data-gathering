@@ -78,7 +78,8 @@
                         }
                     }
                 }
-            }
+            },
+            "required": ["updated_by", "updated"]
         },
         "table": {
             "title": "Jira table specification",

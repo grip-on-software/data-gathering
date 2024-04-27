@@ -49,7 +49,7 @@ class TableTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.path_mocks: Dict[Tuple[str, ...], MagicMock] = {}
-        patcher = patch('gatherer.table.Path', autspec=True)
+        patcher = patch('gatherer.table.Path')
         self.path = patcher.start()
         self.path.configure_mock(side_effect=self._construct_path)
         self.addCleanup(patcher.stop)

@@ -20,28 +20,72 @@ limitations under the License.
 
 import logging
 from typing import Dict, List, Mapping, MutableMapping, Optional, Type, \
-    TYPE_CHECKING
-from jira import Issue
+    Union, TYPE_CHECKING
+from jira.resources import Issue, UnknownResource, User
+from jira.resilientsession import ResilientSession
 from .base import Base_Jira_Field, Base_Changelog_Field
-from .field import Changelog_Primary_Field, Changelog_Field
+from .field import Changelog_Primary_Field, Changelog_Item_Field
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
-    from . import Jira, Field
+    from .collector import Collector, Field
 else:
-    Jira = object
+    Collector = object
     Field = object
+
+class ChangeItem(UnknownResource):
+    """
+    Type for a difference field in a changelog history entry.
+    """
+
+    def __init__(self, options: Dict[str, str], session: ResilientSession,
+                 raw: Dict[str, Optional[str]]):
+        # pylint: disable=invalid-name
+        self.field: str
+        self.fieldtype: str
+        #self.from: Optional[str]
+        self.fromString: Optional[str]
+        self.to: Optional[str]
+        self.toString: Optional[str]
+        super().__init__(options, session, raw)
+
+class ChangeHistory(UnknownResource):
+    """
+    Type for a changelog history entry.
+    """
+
+    def __init__(self, options: Dict[str, str], session: ResilientSession,
+                 raw: Dict[str, Union[str, Optional[User], List[ChangeItem]]]):
+        self.id: str # pylint: disable=invalid-name
+        self.author: Optional[User] = None
+        self.created: str
+        self.items: List[ChangeItem]
+        super().__init__(options, session, raw)
+
+class Changes(UnknownResource):
+    """
+    Type for an expanded parameter of an issue with changelog histories.
+    """
+
+    def __init__(self, options: Dict[str, str], session: ResilientSession,
+                 raw: Dict[str, List[ChangeHistory]]):
+        # pylint: disable=invalid-name
+        self.startAt: int
+        self.maxResults: int
+        self.total: int
+        self.histories: List[ChangeHistory]
+        super().__init__(options, session, raw)
 
 class Changelog:
     """
     Changelog parser.
     """
 
-    def __init__(self, jira: Jira) -> None:
+    def __init__(self, jira: Collector) -> None:
         self._jira = jira
         self._updated_since = self._jira.updated_since
 
-        self._changelog_fields: Dict[str, Base_Changelog_Field] = {}
-        self._changelog_primary_fields: Dict[str, Base_Changelog_Field] = {}
+        self._primary_fields: Dict[str, Base_Changelog_Field] = {}
+        self._item_fields: Dict[str, Base_Changelog_Field] = {}
 
     def _create_field(self, changelog_class: Type[Base_Changelog_Field],
                       name: str, data: Field,
@@ -52,7 +96,8 @@ class Changelog:
         return changelog_class(self._jira, name, **data)
 
     def import_field_specification(self, name: str, data: Field,
-                                   field: Optional[Base_Jira_Field] = None) -> None:
+                                   field: Optional[Base_Jira_Field] = None) \
+            -> Optional[Base_Changelog_Field]:
         """
         Import a JIRA field specification for a single field.
 
@@ -63,12 +108,37 @@ class Changelog:
             changelog_name = str(data["changelog_primary"])
             primary_field = self._create_field(Changelog_Primary_Field, name,
                                                data, field=field)
-            self._changelog_primary_fields[changelog_name] = primary_field
-        elif "changelog_name" in data:
+            self._primary_fields[changelog_name] = primary_field
+            return primary_field
+
+        if "changelog_name" in data:
             changelog_name = str(data["changelog_name"])
-            changelog_field = self._create_field(Changelog_Field, name, data,
-                                                 field=field)
-            self._changelog_fields[changelog_name] = changelog_field
+            changelog_field = self._create_field(Changelog_Item_Field, name,
+                                                 data, field=field)
+            self._item_fields[changelog_name] = changelog_field
+            return changelog_field
+
+        return None
+
+    def get_primary_field(self, name: str) -> Base_Changelog_Field:
+        """
+        Retrieve a primary changelog field registered under `name`.
+
+        If no primary field is registered under the `name`, then a `KeyError` is
+        raised.
+        """
+
+        return self._primary_fields[name]
+
+    def get_item_field(self, name: str) -> Base_Changelog_Field:
+        """
+        Retrieve a changelog difference item field registered under `name`.
+
+        If no item field is registered under the `name`, then a `KeyError` is
+        raised.
+        """
+
+        return self._item_fields[name]
 
     def fetch_changelog(self, issue: Issue) -> Dict[str, Dict[str, Optional[str]]]:
         """
@@ -77,12 +147,13 @@ class Changelog:
         but it requires more postprocessing to be used in the output data.
         """
 
+        changelog: List[ChangeHistory] = issue.changelog.histories
         issue_diffs: Dict[str, Dict[str, Optional[str]]] = {}
-        for changes in issue.changelog.histories:
+        for changes in changelog:
             diffs: Dict[str, Optional[str]] = {}
 
-            for field in self._changelog_primary_fields.values():
-                value = field.parse_changelog(changes, diffs, issue)
+            for field in self._primary_fields.values():
+                value = field.parse_changelog(changes, diffs, issue, None)
                 diffs[field.name] = value
 
             # Updated date is required for changelog sorting, as well as
@@ -95,9 +166,9 @@ class Changelog:
 
             for item in changes.items:
                 changelog_name = str(item.field)
-                if changelog_name in self._changelog_fields:
-                    field = self._changelog_fields[changelog_name]
-                    value = field.parse_changelog(item, diffs, issue)
+                if changelog_name in self._item_fields:
+                    field = self._item_fields[changelog_name]
+                    value = field.parse_changelog(changes, diffs, issue, item)
                     diffs[field.name] = value
 
             if updated in issue_diffs:
@@ -170,13 +241,15 @@ class Changelog:
                               prev_diffs: MutableMapping[str, Optional[str]]) -> Dict[str, str]:
         self._update_field(prev_diffs, prev_data, "updated")
         self._update_field(prev_diffs, prev_data, "sprint")
-        parser = self._jira.get_type_cast("developer")
+        developer = self._jira.get_type_cast("developer")
+        date = self._jira.get_type_cast("date")
         first_data = {
-            "updated_by": parser.parse(issue.fields.creator)
+            "updated_by": developer.parse(issue.fields.creator),
         }
 
         self._alter_change_metadata(prev_diffs, first_data)
         new_data = self._create_change_transition(prev_data, prev_diffs)
+        new_data["updated"] = str(date.parse(issue.fields.created))
         new_data["changelog_id"] = str(0)
         return new_data
 

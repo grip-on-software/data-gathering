@@ -5,3 +5,4 @@ source = gatherer,test
 exclude_also =
 	if TYPE_CHECKING:
 	raise NotImplementedError
+	\.\.\.

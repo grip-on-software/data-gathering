@@ -20,6 +20,7 @@ limitations under the License.
 
 
 import os
+from pathlib import Path
 import sys
 import unittest
 import requests_mock
@@ -39,7 +40,8 @@ def run_tests() -> int:
     Log_Setup.init_logging('CRITICAL')
 
     loader = unittest.TestLoader()
-    tests = loader.discover('test', pattern='*.py')
+    tests = loader.discover('test', pattern='*.py',
+                            top_level_dir=Path(__file__).parent)
     runner = xmlrunner.XMLTestRunner(output='test-reports')
     result = runner.run(tests)
     return 0 if result.wasSuccessful() else 1
