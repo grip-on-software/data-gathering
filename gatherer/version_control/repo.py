@@ -165,7 +165,7 @@ class Version_Control_Repository:
         return []
 
     @property
-    def repo(self) -> object:
+    def repo(self) -> Any:
         """
         Property that retrieves the back-end repository interface (lazy-loaded).
 
@@ -176,7 +176,7 @@ class Version_Control_Repository:
         raise NotImplementedError("Must be implemented by subclass")
 
     @repo.setter
-    def repo(self, repo: object) -> None:
+    def repo(self, repo: Any) -> None:
         """
         Property that changes the back-end repository interface.
 

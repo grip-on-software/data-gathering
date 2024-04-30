@@ -2,9 +2,9 @@
 -r requirements-jenkins.txt
 -r requirements-daemon.txt
 # Linter dependencies
-pylint
+pylint==3.1.0
 # Typing/mypy dependencies
-mypy<0.981
+mypy==1.10.0
 types-python-dateutil
 types-requests>=2.27.27
 types-PyYAML
