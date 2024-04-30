@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from subprocess import CalledProcessError
 from typing import Dict, List, Optional, Union
 import unittest
@@ -48,7 +48,7 @@ class UpdateTrackerTest(unittest.TestCase):
 
         # No local file, so needs an update.
         tracker.update_file('test-update.txt', '12345',
-                            datetime(2024, 4, 15, 5, 0, 0))
+                            datetime(2024, 4, 15, 3, 0, 0, tzinfo=timezone.utc))
         path.return_value.exists.assert_called_once_with()
         path.return_value.open.assert_called_once_with('w', encoding='utf-8')
         file = path.return_value.open.return_value.__enter__.return_value
@@ -68,7 +68,8 @@ class UpdateTrackerTest(unittest.TestCase):
         path.return_value.configure_mock(**attrs)
 
         # Already up to date.
-        tracker.update_file('test-update.txt', '67890', datetime(2024, 4, 14))
+        tracker.update_file('test-update.txt', '67890',
+                            datetime(2024, 4, 14, tzinfo=timezone.utc))
         path.return_value.exists.assert_called_once_with()
         path.return_value.open.assert_not_called()
         utime.assert_not_called()
@@ -77,7 +78,8 @@ class UpdateTrackerTest(unittest.TestCase):
 
         # Updating file from remote tracker file.
         tracker.update_file('test-update.txt', '67890',
-                            datetime(2024, 4, 15, 10, 55, 0))
+                            datetime(2024, 4, 15, 8, 55, 17,
+                                     tzinfo=timezone.utc))
         path.return_value.exists.assert_called_once_with()
         path.return_value.open.assert_called_once_with('w', encoding='utf-8')
         file = path.return_value.open.return_value.__enter__.return_value
@@ -85,7 +87,7 @@ class UpdateTrackerTest(unittest.TestCase):
         utime.assert_called_once()
         self.assertEqual(utime.call_args.args[0],
                          path('export/TEST/test-update.txt'))
-        self.assertEqual(utime.call_args.args[1][1], 1713171300)
+        self.assertEqual(utime.call_args.args[1][1], 1713171317)
 
 class DatabaseTrackerTest(unittest.TestCase):
     """

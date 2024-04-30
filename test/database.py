@@ -32,7 +32,7 @@ class DatabaseTest(unittest.TestCase):
         patcher = patch('pymonetdb.connect', autospec=True)
         connector = patcher.start()
         self.addCleanup(patcher.stop)
-        self.database = Database()
+        self.database = Database(database='gros_test')
         self.connection = connector.return_value
         self.cursor = self.connection.cursor.return_value
 
@@ -47,6 +47,18 @@ class DatabaseTest(unittest.TestCase):
 
         # Closing an already closed connection does nothing.
         self.database.close()
+        self.connection.close.assert_called_once_with()
+        self.cursor.close.assert_called_once_with()
+
+    def test_context(self) -> None:
+        """
+        Test using the database as a context manager.
+        """
+
+        with Database(database='gros_test') as database:
+            self.assertTrue(database.open)
+
+        self.assertFalse(database.open)
         self.connection.close.assert_called_once_with()
         self.cursor.close.assert_called_once_with()
 

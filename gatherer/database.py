@@ -54,6 +54,14 @@ class Database:
             self._connection.close()
             self._open = False
 
+    @property
+    def open(self) -> bool:
+        """
+        Retrieve whether the database connection is open.
+        """
+
+        return self._open
+
     def get_project_id(self, project_key: str) -> Optional[int]:
         """
         Retrieve the project ID from the database, or `None` if it is not

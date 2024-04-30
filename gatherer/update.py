@@ -28,6 +28,7 @@ import tempfile
 from typing import Iterable, List, Optional, Union
 from .database import Database
 from .domain import Project
+from .utils import convert_local_datetime
 
 class Update_Tracker:
     """
@@ -77,6 +78,7 @@ class Update_Tracker:
         modification time.
         """
 
+        update_date = convert_local_datetime(update_date)
         logging.debug('Filename: %s, remote updated: %s', filename, update_date)
 
         path = Path(self._project.export_key, filename)
@@ -84,7 +86,7 @@ class Update_Tracker:
         if path.exists():
             file_date = datetime.fromtimestamp(path.stat().st_mtime)
             logging.debug('FS updated: %s', file_date)
-            if file_date >= update_date:
+            if convert_local_datetime(file_date) >= update_date:
                 logging.info('Update tracker %s: Already up to date.', filename)
                 update = False
 
@@ -93,8 +95,8 @@ class Update_Tracker:
             with path.open('w', encoding='utf-8') as tracker_file:
                 tracker_file.write(contents)
 
-            times = (int(datetime.now().strftime('%s')),
-                     int(update_date.strftime('%s')))
+            times = (int(datetime.now().timestamp()),
+                     int(update_date.timestamp()))
             os.utime(path, times)
 
 class Database_Tracker(Update_Tracker):

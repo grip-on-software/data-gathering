@@ -41,6 +41,7 @@ data_hqlib.json
 hqlib_targets_update.json
 secrets.json
 secrets.*.json
+!test/sample/secrets.json
 tracker/
 update/
 !schema/*/*.json
