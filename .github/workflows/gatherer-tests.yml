@@ -26,8 +26,9 @@ jobs:
           pip install coveralls
       - name: Unit test and coverage
         run: |
-          coverage run tests.py
-          coverage xml -i --include=gatherer/*
+          coverage run --source=gatherer,test tests.py
+          coverage report -m
+          coverage xml -i
       - name: Adjust source paths in coverage for Sonar
         run: sed -i "s/<source>\/home\/runner\/work\/data-gathering\/data-gathering/<source>\/github\/workspace/g" /home/runner/work/data-gathering/data-gathering/coverage.xml
       - name: SonarCloud Scan
