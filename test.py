@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-
+from argparse import ArgumentParser, Namespace
 import os
 from pathlib import Path
 import sys
@@ -27,22 +27,45 @@ import requests_mock
 import xmlrunner
 from gatherer.log import Log_Setup
 
+def parse_args() -> Namespace:
+    """
+    Parse command line arguments.
+    """
+
+    parser = ArgumentParser(description="Perform unit test runs")
+    parser.add_argument("--include", default="*.py",
+                        help="Glob pattern for test file names to run")
+    parser.add_argument("--method", default="test_",
+                        help="Prefix of methods to run (must start with test_)")
+    parser.add_argument("--output", default="test-reports",
+                        help="Directory to write JUnit XML output files to")
+    Log_Setup.add_argument(parser, 'CRITICAL')
+    args = parser.parse_args()
+    Log_Setup.parse_args(args)
+    return args
+
 def run_tests() -> int:
     """
     Run unit tests and write XML reports.
     """
+
+    args = parse_args()
 
     os.environ['GATHERER_SETTINGS_FILE'] = 'settings.cfg.example'
     os.environ['GATHERER_CREDENTIALS_FILE'] = 'credentials.cfg.example'
 
     requests_mock.mock.case_sensitive = True
 
-    Log_Setup.init_logging('CRITICAL')
-
     loader = unittest.TestLoader()
-    tests = loader.discover('test', pattern='*.py',
+    method = str(args.method)
+    if method.startswith('test_'):
+        loader.testMethodPrefix = method
+    else:
+        loader.testMethodPrefix = 'test_'
+
+    tests = loader.discover('test', pattern=args.include,
                             top_level_dir=Path(__file__).parent)
-    runner = xmlrunner.XMLTestRunner(output='test-reports')
+    runner = xmlrunner.XMLTestRunner(output=args.output)
     result = runner.run(tests)
     return 0 if result.wasSuccessful() else 1
 

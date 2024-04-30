@@ -95,7 +95,7 @@ class LogSetupTest(unittest.TestCase):
 
         parser = ArgumentParser()
         Log_Setup.add_argument(parser)
-        Log_Setup.parse_args(parser.parse_args())
+        Log_Setup.parse_args(parser.parse_args([]))
         init.assert_called_once_with('WARNING')
         add.assert_not_called()
 
