@@ -1,6 +1,15 @@
 Software development process data gathering
 ===========================================
 
+[![PyPI](https://img.shields.io/pypi/v/gros-gatherer.svg)](https://pypi.python.org/pypi/gros-gatherer)
+[![Build 
+status](https://github.com/grip-on-software/data-gathering/actions/workflows/gatherer-tests.yml/badge.svg)](https://github.com/grip-on-software/data-gathering/actions/workflows/gatherer-tests.yml)
+[![Coverage 
+Status](https://coveralls.io/repos/github/grip-on-software/data-gathering/badge.svg?branch=master)](https://coveralls.io/github/grip-on-software/data-gathering?branch=master)
+[![Quality Gate
+Status](https://sonarcloud.io/api/project_badges/measure?project=grip-on-software_data-gathering&metric=alert_status)](https://sonarcloud.io/project/overview?id=grip-on-software_data-gathering)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10911862.svg)](https://doi.org/10.5281/zenodo.10911862)
+
 The Python scripts and modules in this repository gather data from different 
 sources that are used by software development teams and projects, as well as 
 control a distributed setup of data gathering. The "scraper" scripts are part 
@@ -787,6 +796,13 @@ report formats, for example:
   modules in the output.
 - `coverage html` for a HTML report in the `htmlcov/` directory.
 - `coverage xml -i` for an XML output suitable for, e.g., SonarQube.
+
+[GitHub Actions](https://github.com/grip-on-software/data-gathering/actions) is 
+used to run the unit tests and report on coverage on commits and pull requests. 
+This includes quality gate scans tracked by 
+[SonarCloud](https://sonarcloud.io/project/overview?id=grip-on-software_data-gathering) 
+and [Coveralls](https://coveralls.io/github/grip-on-software/data-gathering) 
+for coverage history.
 
 The Python scripts and modules conform to code style and typing standards which 
 may be checked using Pylint and mypy, respectively, after following the 

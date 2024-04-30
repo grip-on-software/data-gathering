@@ -10,6 +10,7 @@ env.*
 !.isort.cfg
 !setup.cfg
 *.yml
+!.github/workflows/*.yml
 *.log
 *.xml
 .mypy_cache/
