@@ -41,7 +41,7 @@ from ..domain.project import Project
 from ..domain.source import Source, Jira
 
 Data = Dict[str, str]
-#TableMap = Dict[str, str]
+# The mapping from table field to type parser is also seen as table options.
 TableOptions = Dict[str, Union[str, bool, List[str]]]
 FieldValue = Union[str, List[str], TableOptions]
 Field = Dict[str, FieldValue]

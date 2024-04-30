@@ -293,14 +293,13 @@ class GitLab_Repository(Git_Repository, Review_System):
 
         versions = super().get_data(from_revision, to_revision, force=force)
 
-        if self._has_commit_comments and comments:
-            for version in versions:
-                commit = self.repo_project.commits.get(version['version_id'],
-                                                       lazy=True)
-                for comment in commit.comments.list(as_list=False):
-                    self.add_commit_comment(comment, version['version_id'])
+        # Retrieve commit comments if requested.
+        if comments:
+            self.get_commit_comments(versions)
 
         self.fill_repo_table(self.repo_project)
+
+        # Retrieve push events and merge requests, including notes.
         if not has_dropins:
             for event in self.repo_project.events.list(as_list=False):
                 self.add_event(event)
@@ -314,6 +313,22 @@ class GitLab_Repository(Git_Repository, Review_System):
         self.set_latest_date()
 
         return versions
+
+    def get_commit_comments(self, versions: List[Dict[str, str]]) -> None:
+        """
+        Retrieve commit comments for specific `versions`, a sequence of version
+        data dictionaries which have at least a `version_id` key with the commit
+        hashes to retrieve commit comments for.
+
+        The commit comments are added to the auxiliary review system table.
+        """
+
+        if self._has_commit_comments:
+            for version in versions:
+                commit = self.repo_project.commits.get(version['version_id'],
+                                                       lazy=True)
+                for comment in commit.comments.list(as_list=False):
+                    self.add_commit_comment(comment, version['version_id'])
 
     def fill_repo_table(self, repo_project: gitlab.v4.objects.Project) -> None:
         """
