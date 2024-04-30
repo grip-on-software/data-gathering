@@ -20,9 +20,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install libxml2-dev libxslt1-dev
-      - run: pip install -r requirements-test.txt
-      - run: pip install coveralls
-      - run: coverage run tests.py
+      - name: Install dependencies for test
+        run: |
+          pip install -r requirements-test.txt
+          pip install coveralls
+      - name: Unit test and coverage
+        run: |
+          coverage run tests.py
+          coverage xml -i --include=gatherer/*
+      - name: Adjust source paths in coverage for Sonar
+        run: sed -i "s/<source>\/home\/runner\/work\/data-gathering\/data-gathering/<source>\/github\/workspace/g" /home/runner/work/data-gathering/data-gathering/coverage.xml
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@v2.1.1
         env:
