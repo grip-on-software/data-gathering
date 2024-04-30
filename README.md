@@ -777,9 +777,9 @@ Some of the modules come with unit tests, while also depending on the
 correctness of dependencies to provide with accurate data from sources and 
 testing the actual system in non-production settings. To run unit tests, first 
 install the test dependencies with `pip install -r requirements-test.txt` which 
-also installs all the dependencies for the modules. Then `coverage run test.py` 
+also installs all dependencies for the modules. Then `coverage run tests.py` 
 provides test results in the output, with XML versions compatible with, e.g., 
-JUnit and SonarQube availabe in the `test-reports/` directory. Detailed 
+JUnit and SonarQube available in the `test-reports/` directory. Detailed 
 information on test coverage is also obtainable after a test run in various 
 report formats, for example:
 
@@ -795,8 +795,8 @@ may be checked using Pylint and mypy, respectively, after following the
 For Pylint:
 
 ```
-python -m pylint gatherer scraper controller maintenance test setup.py \
-    --exit-zero --reports=n \
+python3 -m pylint gatherer scraper controller maintenance test setup.py \
+    tests.py --exit-zero --reports=n \
     --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
     -d duplicate-code
 ```
@@ -804,7 +804,7 @@ python -m pylint gatherer scraper controller maintenance test setup.py \
 For mypy:
 
 ```
-mypy gatherer scraper controller maintenance test setup.py \
+mypy gatherer scraper controller maintenance test setup.py tests.py \
     --html-report mypy-report --cobertura-xml-report mypy-report \
     --junit-xml mypy-report/junit.xml --no-incremental --show-traceback
 ```

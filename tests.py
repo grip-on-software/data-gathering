@@ -64,7 +64,7 @@ def run_tests() -> int:
         loader.testMethodPrefix = 'test_'
 
     tests = loader.discover('test', pattern=args.include,
-                            top_level_dir=Path(__file__).parent)
+                            top_level_dir=str(Path(__file__).parent))
     runner = xmlrunner.XMLTestRunner(output=args.output)
     result = runner.run(tests)
     return 0 if result.wasSuccessful() else 1
