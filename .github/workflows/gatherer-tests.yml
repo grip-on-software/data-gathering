@@ -16,27 +16,37 @@ jobs:
       - uses: actions/setup-python@v5.1.0
         with:
           python-version: "${{ matrix.python }}"
-      - name: Install development packages for some stale dependencies
+      - name: Install development packages for some dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libxml2-dev libxslt1-dev
+          sudo apt-get install libxml2-dev libxslt1-dev libldap-dev libsasl2-dev
       - name: Install dependencies for test
-        run: |
-          pip install -r requirements-test.txt
-          pip install coveralls
+        run: pip install -r requirements-test.txt
       - name: Unit test and coverage
         run: |
           coverage run --source=gatherer,test tests.py
           coverage report -m
-          coverage xml -i
+          coverage xml -i -o test-reports/cobertura.xml
+      - name: Mypy typing coverage
+        run: |
+          pip install -r requirements-analysis.txt
+          mypy gatherer scraper controller maintenance test setup.py tests.py \
+            --cobertura-xml-report mypy-report \
+            --junit-xml mypy-report/TEST-junit.xml \
+            --no-incremental --show-traceback
       - name: Adjust source paths in coverage for Sonar
-        run: sed -i "s/<source>\/home\/runner\/work\/data-gathering\/data-gathering/<source>\/github\/workspace/g" /home/runner/work/data-gathering/data-gathering/coverage.xml
+        run: |
+          sed -i "s/<source>\/home\/runner\/work\/data-gathering\/data-gathering/<source>\/github\/workspace/g" \
+            test-reports/cobertura.xml mypy-report/cobertura.xml
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@v2.1.1
         env:
           SONAR_TOKEN: "${{ secrets.SONAR_TOKEN }}"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-      - run: coveralls
+      - name: Coveralls upload
+        run: |
+          pip install coveralls
+          coveralls
         if: "${{ success() }}"
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
