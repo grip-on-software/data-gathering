@@ -23,6 +23,7 @@ import os
 from pathlib import Path
 import sys
 import unittest
+from unittest.signals import installHandler
 import requests_mock
 import xmlrunner
 from gatherer.log import Log_Setup
@@ -33,12 +34,22 @@ def parse_args() -> Namespace:
     """
 
     parser = ArgumentParser(description="Perform unit test runs")
-    parser.add_argument("--include", default="*.py",
+    parser.add_argument("--include", "-p", default="*.py",
                         help="Glob pattern for test file names to run")
     parser.add_argument("--method", default="test_",
                         help="Prefix of methods to run (must start with test_)")
+    parser.add_argument("--qual", "-k", action="append",
+                        help="Wildcard pattern of package.Class.method to run")
     parser.add_argument("--output", default="test-reports",
                         help="Directory to write JUnit XML output files to")
+    parser.add_argument("--no-output", action="store_const", dest="output",
+                        const="", help="Do not write JUnit XML output files")
+    parser.add_argument("--buffer", "-b", action="store_true", default=False,
+                        help="Buffer output (including logs) during tests")
+    parser.add_argument("--catch", "-c", action="store_true", default=False,
+                        help="Finish current test and show results on Ctrl-C")
+    parser.add_argument("--failfast", "-f", action="store_true", default=False,
+                        help="Stop the test run on the first error or failure")
     Log_Setup.add_argument(parser, 'CRITICAL')
     args = parser.parse_args()
     Log_Setup.parse_args(args)
@@ -62,10 +73,25 @@ def run_tests() -> int:
         loader.testMethodPrefix = method
     else:
         loader.testMethodPrefix = 'test_'
+    if args.qual:
+        loader.testNamePatterns = [
+            qual if '*' in qual else f'*{qual}*' for qual in args.qual
+        ]
+    if args.catch:
+        installHandler()
 
     tests = loader.discover('test', pattern=args.include,
                             top_level_dir=str(Path(__file__).parent))
-    runner = xmlrunner.XMLTestRunner(output=args.output)
+    if args.output == '':
+        print(file=sys.stderr)
+        print('Running tests...', file=sys.stderr)
+        print(unittest.TextTestResult.separator2, file=sys.stderr)
+        runner = unittest.TextTestRunner(buffer=args.buffer,
+                                         failfast=args.failfast)
+    else:
+        runner = xmlrunner.XMLTestRunner(output=args.output,
+                                         buffer=args.buffer,
+                                         failfast=args.failfast)
     result = runner.run(tests)
     return 0 if result.wasSuccessful() else 1
 

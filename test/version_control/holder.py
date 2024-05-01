@@ -59,6 +59,12 @@ class RepositoriesHolderTest(unittest.TestCase):
         self.holder = Repositories_Holder(self.project, 'repos')
 
         self.latest_path = Path('test/sample/latest_vcs_versions.json')
+        self._write_files()
+
+    def tearDown(self) -> None:
+        self._write_files()
+
+    def _write_files(self) -> None:
         self.latest_path.write_text('{"testrepo": "1234567890abcdef"}',
                                     encoding='utf-8')
         for tracker in ('vcs_test_tracker.json', 'vcs_extra.json'):

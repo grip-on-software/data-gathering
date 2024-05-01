@@ -102,7 +102,7 @@ class LogSetupTest(unittest.TestCase):
         with patch.dict('os.environ', {'AGENT_LOGGING': 'true'}):
             Log_Setup.add_upload_arguments(parser)
             parser.add_argument('--project', default='TEST')
-            Log_Setup.parse_args(parser.parse_args())
+            Log_Setup.parse_args(parser.parse_args([]))
             add.assert_called_once_with('$SSH_HOST', '$SSH_HTTPS_CERT', 'TEST')
 
     @patch('gatherer.log.HTTPHandler', autospec=True)
