@@ -22,13 +22,13 @@ from datetime import datetime
 import logging
 from typing import Iterable, Optional, TYPE_CHECKING
 from jira import Issue, JIRA
-from ..domain import source
+from ..domain.source import Jira
 from ..utils import format_date, Iterator_Limiter
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
-    from . import Jira
+    from .collector import Collector
 else:
-    Jira = object
+    Collector = object
 
 class Query:
     """
@@ -39,7 +39,7 @@ class Query:
     QUERY_FORMAT = 'project={0} AND updated > "{1}"'
 
 
-    def __init__(self, jira: Jira, jira_source: source.Jira,
+    def __init__(self, jira: Collector, jira_source: Jira,
                  query: Optional[str] = None) -> None:
         self._jira = jira
         self._api = jira_source.jira_api
@@ -54,7 +54,7 @@ class Query:
         logging.info('Using query %s', self._query)
 
         self._search_fields = self._jira.search_fields
-        self._latest_update = str(0)
+        self._latest_update = updated_since
 
         self._iterator_limiter = Iterator_Limiter(size=100, maximum=100000)
 
@@ -67,7 +67,9 @@ class Query:
 
     def perform_batched_query(self, had_issues: bool) -> Iterable[Issue]:
         """
-        Retrieve a batch of issue results from the JIRA API.
+        Retrieve a batch of issue results from the JIRA API. `had_issues`
+        indicates whether a previous batch had a usable result or that this is
+        the first batch request for this query.
         """
 
         if not self._iterator_limiter.check(had_issues):
@@ -75,11 +77,25 @@ class Query:
 
         self._latest_update = format_date(datetime.now(),
                                           date_format=self.DATE_FORMAT)
-        return self._api.search_issues(self._query,
-                                       startAt=self._iterator_limiter.skip,
-                                       maxResults=self._iterator_limiter.size,
-                                       expand='attachment,changelog',
-                                       fields=self._search_fields)
+        result = self._api.search_issues(self._query,
+                                         startAt=self._iterator_limiter.skip,
+                                         maxResults=self._iterator_limiter.size,
+                                         expand='attachment,changelog',
+                                         fields=self._search_fields,
+                                         json_result=False)
+
+        if isinstance(result, dict): # pragma: no cover
+            raise TypeError('Incorrect issue search API response')
+
+        return result
+
+    @property
+    def query(self) -> str:
+        """
+        Retrieve the JQL query to be used to search issues.
+        """
+
+        return self._query
 
     @property
     def api(self) -> JIRA:
@@ -96,3 +112,11 @@ class Query:
         """
 
         return self._latest_update
+
+    @property
+    def iterator_limiter(self) -> Iterator_Limiter:
+        """
+        Retrieve the iterator limiter for the query.
+        """
+
+        return self._iterator_limiter

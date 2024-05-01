@@ -34,12 +34,18 @@ class Log_Setup:
     # False-positive warning messages that do not indicate any problem in the
     # agent configuration.
     IGNORE_MESSAGES = [
+        # gatherer.utils.Sprint_Data._import_sprints
         re.compile(r'^Could not load sprint data, no sprint matching possible'),
         re.compile(
+            # controller/auth/status.py:Total_Status.generate
             r'^Controller status: Some parts are not OK: .*'
+            # controller/gatherer_daemon.py:Gatherer.get_tracker_status
             r'Status \'tracker\': Next scheduled gather moment is in'
         ),
+        # scraper/bigboat_to_json.py:main
         re.compile(r'No BigBoat (host|API key) defined for \w+'),
+        # gatherer.version_control.holder.Repositories_Holder.get_repositories
+        # based on Source objects made in scraper/generate_key.py:make_source
         re.compile(r'Cannot retrieve repository source for dummy repository on')
     ]
 
@@ -98,7 +104,8 @@ class Log_Setup:
 
         cls.init_logging(args.log)
         agent_log = os.getenv('AGENT_LOGGING')
-        if agent_log is not None and hasattr(args, 'project') and hasattr(args, 'ssh') and args.ssh:
+        if agent_log is not None and hasattr(args, 'project') and \
+            hasattr(args, 'ssh') and args.ssh:
             cls.add_agent_handler(args.ssh, args.cert, args.project)
 
     @staticmethod

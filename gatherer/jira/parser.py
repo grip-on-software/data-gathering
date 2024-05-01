@@ -4,22 +4,23 @@ Type specific parsers that convert field values to correct format.
 
 import logging
 import re
-from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Mapping, Optional, TYPE_CHECKING
+from jira.resources import User
 from .base import Table_Source, TableKey
 from .query import Query
 from ..utils import parse_date, parse_unicode
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
-    from . import Jira
+    from .collector import Collector
 else:
-    Jira = object
+    Collector = object
 
 class Field_Parser(Table_Source):
     """
     Parser for JIRA fields. Different versions for each type exist.
     """
 
-    def __init__(self, jira: Jira) -> None:
+    def __init__(self, jira: Collector) -> None:
         self.jira = jira
 
     def parse(self, value: Any) -> Optional[str]:
@@ -31,7 +32,8 @@ class Field_Parser(Table_Source):
 
         raise NotImplementedError("Must be overridden in subclass")
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         # pylint: disable=unused-argument
         """
@@ -106,7 +108,8 @@ class Boolean_Parser(String_Parser):
 
         return value
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         return self.parse(change["fromString"])
 
@@ -143,14 +146,14 @@ class Sprint_Parser(Field_Parser):
     ID is correct for this issue version.
     """
 
-    def __init__(self, jira: Jira) -> None:
+    def __init__(self, jira: Collector) -> None:
         super().__init__(jira)
         self.jira.register_prefetcher(self.prefetch)
 
     def prefetch(self, query: Query) -> None:
         """
         Retrieve data about all sprints for the project registered
-        in Jira using the query API, and store the data in a table.
+        in JIRA using the query API, and store the data in a table.
         """
 
         project_key = self.jira.project.jira_key
@@ -177,7 +180,7 @@ class Sprint_Parser(Field_Parser):
         prev_key = ""
         for part in sprint_parts:
             try:
-                pair = part.split('=')
+                pair = part.split('=', 2)
                 if len(pair) == 1 and prev_key != '':
                     sprint_data[prev_key] = f"{sprint_data[prev_key]},{part}"
                 else:
@@ -230,9 +233,9 @@ class Sprint_Parser(Field_Parser):
             "name": str(sprint_data["name"]),
         }
 
-        if self._has(sprint_data, "endDate"):
-            row["start_date"] = parse_date(sprint_data["startDate"])
         if self._has(sprint_data, "startDate"):
+            row["start_date"] = parse_date(sprint_data["startDate"])
+        if self._has(sprint_data, "endDate"):
             row["end_date"] = parse_date(sprint_data["endDate"])
         if self._has(sprint_data, "completeDate"):
             row["complete_date"] = parse_date(sprint_data["completeDate"])
@@ -248,12 +251,17 @@ class Sprint_Parser(Field_Parser):
 
         return sprint_id
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
-        if change['from'] is None or change['from'] == '':
+        if change['from'] is None:
             return None
 
-        return change['from']
+        sprint = str(change['from'])
+        if sprint == '':
+            return None
+
+        return value
 
     @property
     def table_name(self) -> Optional[str]:
@@ -280,7 +288,7 @@ class Developer_Parser(Field_Parser):
     their account name and usually the display name.
     """
 
-    def __init__(self, jira: Jira) -> None:
+    def __init__(self, jira: Collector) -> None:
         super().__init__(jira)
         self.jira.register_prefetcher(self.prefetch)
 
@@ -291,14 +299,15 @@ class Developer_Parser(Field_Parser):
         """
 
         project_key = self.jira.project_key
-        users = query.api.search_assignable_users_for_projects('', project_key)
+        users: List[User] = \
+            query.api.search_assignable_users_for_projects('', project_key)
         for user in users:
             self.parse(user)
 
     def parse(self, value: Any) -> Optional[str]:
-        if value is not None and hasattr(value, "name"):
+        if value is not None and getattr(value, "name", None) is not None:
             encoded_name = parse_unicode(value.name)
-            if value.name is not None and hasattr(value, "displayName"):
+            if hasattr(value, "displayName"):
                 self.jira.get_table("developer").append({
                     "name": encoded_name,
                     "display_name": parse_unicode(value.displayName),
@@ -325,7 +334,7 @@ class Status_Category_Parser(Field_Parser):
     Parser for subfields containing the status category.
     """
 
-    def __init__(self, jira: Jira) -> None:
+    def __init__(self, jira: Collector) -> None:
         super().__init__(jira)
         self.jira.register_table({
             "table": {
@@ -378,7 +387,8 @@ class ID_List_Parser(Field_Parser):
         id_list = [item.id for item in value]
         return str(len(id_list))
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         diff = -1 if value == str(0) else +1
         attachments = diffs.get("attachment", None)
@@ -393,14 +403,14 @@ class Version_Parser(Field_Parser):
     which is affected by the issue.
     """
 
-    def __init__(self, jira: Jira) -> None:
+    def __init__(self, jira: Collector) -> None:
         super().__init__(jira)
         self.jira.register_prefetcher(self.prefetch)
 
     def prefetch(self, query: Query) -> None:
         """
         Retrieve data about all fix version releases for the project registered
-        in Jira using the query API, and store the data in a table.
+        in JIRA using the query API, and store the data in a table.
         """
 
         versions = query.api.project_versions(self.jira.project_key)
@@ -456,12 +466,14 @@ class Rank_Parser(Field_Parser):
     def parse(self, value: Any) -> Optional[str]:
         return None
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         # Encode the rank change as "-1" or "1".
-        if change["toString"] == "Ranked higher":
+        rank = str(change["toString"])
+        if rank == "Ranked higher":
             return str(1)
-        if change["toString"] == "Ranked lower":
+        if rank == "Ranked lower":
             return str(-1)
 
         return value
@@ -471,12 +483,13 @@ class Issue_Key_Parser(String_Parser):
     Parser for fields that link to another issue.
     """
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
-        if change["fromString"] is not None:
-            return change["fromString"]
+        if change["fromString"] is None:
+            return None
 
-        return None
+        return str(change["fromString"])
 
 class Flag_Parser(Field_Parser):
     """
@@ -499,7 +512,7 @@ class Ready_Status_Parser(Field_Parser):
     def _add_to_table(self, encoded_id: str, html: str) -> None:
         match = re.match(r'<font .*><b>(.*)</b></font>', html)
         if match:
-            name = match.group(1)
+            name = str(match.group(1))
             self.jira.get_table("ready_status").append({
                 "id": encoded_id,
                 "name": name
@@ -513,15 +526,16 @@ class Ready_Status_Parser(Field_Parser):
 
         if hasattr(value, 'id') and hasattr(value, 'value'):
             encoded_value = str(value.id)
-            self._add_to_table(encoded_value, value.value)
+            self._add_to_table(encoded_value, str(value.value))
 
         return encoded_value
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         if change["from"] is not None:
             value = str(change["from"])
-            self._add_to_table(value, change["fromString"])
+            self._add_to_table(value, str(change["fromString"]))
 
         return value
 
@@ -552,7 +566,7 @@ class Project_Parser(Field_Parser):
     Parser for fields that hold a project.
     """
 
-    def __init__(self, jira: Jira) -> None:
+    def __init__(self, jira: Collector) -> None:
         super().__init__(jira)
 
         self._projects: Dict[str, str] = {}
@@ -584,11 +598,20 @@ class Project_Parser(Field_Parser):
 
         return None
 
-    def parse_changelog(self, change: Mapping[str, Any], value: Optional[str],
+    def get_projects(self) -> Dict[str, str]:
+        """
+        Retrieve prefetched projects.
+        """
+
+        return self._projects.copy()
+
+    def parse_changelog(self, change: Mapping[str, Optional[str]],
+                        value: Optional[str],
                         diffs: Dict[str, Optional[str]]) -> Optional[str]:
         if change["from"] is not None:
             project_id = str(change["from"])
-            if project_id in self._projects:
+            if project_id in self._projects and \
+                self._projects[project_id] != self.jira.project.jira_key:
                 return self._projects[project_id]
 
             logging.info('Unknown old external project ID %s', project_id)

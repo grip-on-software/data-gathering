@@ -1,6 +1,15 @@
 Software development process data gathering
 ===========================================
 
+[![PyPI](https://img.shields.io/pypi/v/gros-gatherer.svg)](https://pypi.python.org/pypi/gros-gatherer)
+[![Build 
+status](https://github.com/grip-on-software/data-gathering/actions/workflows/gatherer-tests.yml/badge.svg)](https://github.com/grip-on-software/data-gathering/actions/workflows/gatherer-tests.yml)
+[![Coverage 
+Status](https://coveralls.io/repos/github/grip-on-software/data-gathering/badge.svg?branch=master)](https://coveralls.io/github/grip-on-software/data-gathering?branch=master)
+[![Quality Gate
+Status](https://sonarcloud.io/api/project_badges/measure?project=grip-on-software_data-gathering&metric=alert_status)](https://sonarcloud.io/project/overview?id=grip-on-software_data-gathering)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10911862.svg)](https://doi.org/10.5281/zenodo.10911862)
+
 The Python scripts and modules in this repository gather data from different 
 sources that are used by software development teams and projects, as well as 
 control a distributed setup of data gathering. The "scraper" scripts are part 
@@ -378,8 +387,8 @@ the setting is not used in this environment.
     be accessed. VCS URLs can be automatically converted to SSH if the 
     credentials require so.
   - `path` (`$DEFINITIONS_PATH`): The local directory to check out the 
-    repository to. May contain a formatter parameter `{}` which is replaced by 
-    the project's quality dashboard name.
+    repository to. The default value has a subpath at the end with a formatter 
+    parameter `{}` which is replaced by the project's quality dashboard name.
   - `base` (`$DEFINITIONS_BASE`): The name of the base library/path that is 
     required to parse the project definitions.
   - `base_url` (`$DEFINITIONS_BASE_URL`): The HTTP(S) URL from which the 
@@ -579,13 +588,16 @@ The two sections by default use separate credentials.
 These sections may be edited and additional sections may be added for 
 project(s) that have more sources, such as multiple VCS hosts, Jenkins hosts or 
 Jira hosts. All options may be set to falsy values, e.g., to perform 
-unauthenticated access to to disable access to the service completely.
+unauthenticated access or to disable access to the service completely.
 
 - `env` (`$SOURCE_CREDENTIALS_ENV` and `$DEFINITIONS_CREDENTIALS_ENV`): Name of 
   the environment variable that contains the path to the SSH identity file. 
-  This option is only used by Git. The references variable's value must have 
-  a valid path to actually succeed in using SSH access. The path may be 
-  symbolic, e.g., `~/.ssh/id_rsa`.
+  This option is only used by sources that are accessible with SSH, namely Git 
+  and review systems based on it (GitHub, GitLab, TFS). The referenced 
+  environment variable's value must be set to a valid path to actually succeed 
+  in using SSH access. The path may be symbolic, e.g., `~/.ssh/id_rsa`. 
+  Connections to retrieve the Git repository always use SSH if this option is 
+  set, even if the source is initially given with an HTTP/HTTPS URL.
 - `username` (`$SOURCE_USERNAME` and `$DEFINITIONS_USERNAME`): Username to log 
   in to the version control system. This may differ by protocol used, and as 
   such one may additionally define `username.ssh` and `username.http` which 
@@ -593,7 +605,7 @@ unauthenticated access to to disable access to the service completely.
   'git' but it is the username when accessing via HTTP(S).
 - `password` (`$SOURCE_PASSWORD` and `$DEFINITIONS_PASSWORD`): Password to log 
   in to the version control system. Ignored if we connect to the version 
-  control system using SSH. This happens when `env` is not a falsy value.
+  control system using SSH, e.g., when `env` is not a falsy value.
 - `port` (`$SOURCE_PORT`): Override the port used by the source. This can be 
   used to redirect HTTP(s) or SSH to an alternative port, which may be useful 
   if the source information is stale or if there is a proxy or firewall 
@@ -618,15 +630,15 @@ unauthenticated access to to disable access to the service completely.
   obtain auxiliary data from GitHub.
 - `github_bots` (`$SOURCE_GITHUB_BOTS`): Comma-separated list of GitHub user 
   login names whose comments are excluded from the import of auxiliary data.
-- `gitlab_token` (`$SOURCE_GITLAB_TOKEN` and `$DEFINITONS_GITLAB_TOKEN`): API 
+- `gitlab_token` (`$SOURCE_GITLAB_TOKEN` and `$DEFINITIONS_GITLAB_TOKEN`): API 
   token for GitLab instances in order to obtain auxiliary data from GitLab or 
   interface with its authorization scheme.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
   is a Team Foundation Server and thus has auxiliary data aside from the Git 
-  repository. If this is true, then any collections found based on the initial
-  source that we have are collected, otherwise the value must be a collection
-  name starting with `tfs/`. Any projects within or beneath the collection may
-  then be gathered.
+  repository. If this is true, then any collections are discovered based on the 
+  initial source that we have are collected, otherwise the value must be 
+  a collection name starting with `tfs/`. Any projects within or beneath the 
+  collection may then be gathered.
 - `group` (`$SOURCE_GITLAB_GROUP`): The name of the custom GitLab group. Used 
   for group URL updates when the repositories are archived, and for API queries 
   for finding more repositories.
@@ -650,6 +662,13 @@ unauthenticated access to to disable access to the service completely.
   commit sizes from repositories at this source.
 - `agile_rest_path` (used by `jira` source type): The REST path to use for Jira 
   Agile requests. Set to `agile` in order to use the public API.
+- `host`: The hostname and optional port to use instead of the host in the 
+  configuration section. If this is set to a non-falsy value, then most other 
+  options in the section are ignored and the options from the referenced 
+  section are used, which must exist. The referenced hostname and port are used 
+  in URLs to connect to the source. Depending on the source, the original 
+  protocol scheme and further path components are used as is, barring other 
+  options like `strip`. Recursive redirections of this kind are not supported.
 
 ### Environment
 
@@ -683,10 +702,10 @@ from writing them into the configuration files (if at all):
   web API uses this to force a scrape run upon request, but it is otherwise
   honored for both 'Daemon' and 'Jenkins-style' modes.
 - `$AGENT_LOGGING`: If provided, then this indicates to the logging mechanism
-  that additional arguments and functionality should be provided to upload 
-  logging to a logger server on the controller host. Aside from this 
-  functionality, the 'Daemon' mode of the agent always uploads the entire log 
-  to the controller at the end of the scrape.
+  that additional arguments and functionality should be provided to upload log 
+  messages at WARNING level or above to a logger server on the controller host. 
+  Aside from this functionality, the 'Daemon' mode of the agent always uploads 
+  the entire log to the controller at the end of a scrape for a project.
 - `$JIRA_KEY`: The Jira project key to use for the entire scrape operation. 
   This is required to generate and spread keys to the VCS sources and 
   controller, as well as to actually perform the collection. It may be provided 
@@ -763,10 +782,27 @@ description. There is no project-specific deny list.
 
 ## Testing
 
-Currently, the modules do not come with unit tests, instead depending on the 
+Some of the modules come with unit tests, while also depending on the 
 correctness of dependencies to provide with accurate data from sources and 
-testing the actual system in non-production settings. Plans exist to include 
-some unit tests in the future.
+testing the actual system in non-production settings. To run unit tests, first 
+install the test dependencies with `pip install -r requirements-test.txt` which 
+also installs all dependencies for the modules. Then `coverage run tests.py` 
+provides test results in the output, with XML versions compatible with, e.g., 
+JUnit and SonarQube available in the `test-reports/` directory. Detailed 
+information on test coverage is also obtainable after a test run in various 
+report formats, for example:
+
+- `coverage report -m` for a report on missed statements and branches in the 
+  modules in the output.
+- `coverage html` for a HTML report in the `htmlcov/` directory.
+- `coverage xml -i` for an XML output suitable for, e.g., SonarQube.
+
+[GitHub Actions](https://github.com/grip-on-software/data-gathering/actions) is 
+used to run the unit tests and report on coverage on commits and pull requests. 
+This includes quality gate scans tracked by 
+[SonarCloud](https://sonarcloud.io/project/overview?id=grip-on-software_data-gathering) 
+and [Coveralls](https://coveralls.io/github/grip-on-software/data-gathering) 
+for coverage history.
 
 The Python scripts and modules conform to code style and typing standards which 
 may be checked using Pylint and mypy, respectively, after following the 
@@ -775,8 +811,8 @@ may be checked using Pylint and mypy, respectively, after following the
 For Pylint:
 
 ```
-python -m pylint gatherer scraper controller maintenance setup.py --exit-zero \
-    --reports=n \
+python3 -m pylint gatherer scraper controller maintenance test setup.py \
+    tests.py --exit-zero --reports=n \
     --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
     -d duplicate-code
 ```
@@ -784,10 +820,13 @@ python -m pylint gatherer scraper controller maintenance setup.py --exit-zero \
 For mypy:
 
 ```
-mypy gatherer scraper controller maintenance setup.py \
+mypy gatherer scraper controller maintenance test setup.py tests.py \
     --html-report mypy-report --cobertura-xml-report mypy-report \
     --junit-xml mypy-report/junit.xml --no-incremental --show-traceback
 ```
+
+This provides potential errors in the output and typing coverage reports in 
+various formats in the `mypy-report/` directory.
 
 Finally, the schemas in the `schema/` directory allow validation of certain 
 configuration files as well as all the exported artifacts against the schema. 

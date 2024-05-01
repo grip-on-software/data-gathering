@@ -10,11 +10,14 @@ env.*
 !.isort.cfg
 !setup.cfg
 *.yml
+!.github/workflows/*.yml
 *.log
 *.xml
 .mypy_cache/
 mypy-report/
 pylint-report.txt
+.coverage
+htmlcov/
 
 # Deployer
 deployment.json
@@ -38,6 +41,7 @@ data_hqlib.json
 hqlib_targets_update.json
 secrets.json
 secrets.*.json
+!test/sample/secrets.json
 tracker/
 update/
 !schema/*/*.json

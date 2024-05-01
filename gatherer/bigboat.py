@@ -19,7 +19,7 @@ limitations under the License.
 """
 
 from types import TracebackType
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, Type, Union
+from typing import Any, Iterable, Mapping, MutableSequence, Optional, Type, Union
 import pymonetdb
 from .database import Database
 from .domain import Project
@@ -27,6 +27,8 @@ from .utils import convert_local_datetime, format_date, get_utc_datetime, parse_
 
 DetailsValue = Union[float, int]
 Details = Mapping[str, Union[DetailsValue, Mapping[str, DetailsValue]]]
+StatusesIter = Iterable[Mapping[str, Any]]
+StatusesSequence = MutableSequence[Mapping[str, Any]]
 
 class Statuses:
     """
@@ -36,7 +38,7 @@ class Statuses:
     MAX_BATCH_SIZE = 100
 
     def __init__(self, project: Project,
-                 statuses: Optional[Sequence[Mapping[str, Any]]] = None,
+                 statuses: Optional[StatusesIter] = None,
                  source: Optional[str] = None, **options: Any) -> None:
         self._project = project
         self._project_id: Optional[int] = None
@@ -45,7 +47,7 @@ class Statuses:
         self._options = options
 
         if statuses is None:
-            self._statuses: List[Mapping[str, Any]] = []
+            self._statuses: StatusesSequence = []
         else:
             self._statuses = list(statuses)
 
@@ -91,7 +93,7 @@ class Statuses:
         return None
 
     @classmethod
-    def from_api(cls, project: Project, statuses: Sequence[Mapping[str, Any]]) -> 'Statuses':
+    def from_api(cls, project: Project, statuses: StatusesIter) -> 'Statuses':
         """
         Convert an API result list of statuses into a list of dictionaries
         containing the relevant and status information, using the same keys
@@ -146,22 +148,21 @@ class Statuses:
 
         return self._project_id
 
-    def add_batch(self, statuses: Iterable[Mapping[str, Any]]) -> bool:
+    def add_batch(self, statuses: StatusesIter) -> bool:
         """
-        Add new statuses to the batch, and optionally update the database with the
-        current batch if it becomes too large. Returns whether the loaded data is
-        still intact, i.e., the status records are either in the batch or in the
-        database; misconfigurations result in `False`.
+        Add new statuses to the batch, and optionally update the database with
+        the current batch if it becomes too large. Returns whether the provided
+        data is still intact, i.e., the status records are either in the batch
+        or in the database; misconfigurations result in `False`.
         """
 
         if len(self._statuses) > self.MAX_BATCH_SIZE:
-            result = self.update()
+            if not self.update():
+                return False
             self._statuses = []
-        else:
-            result = True
 
         self._statuses.extend(statuses)
-        return result
+        return True
 
     def update(self) -> bool:
         """
@@ -197,7 +198,7 @@ class Statuses:
         return True
 
     def _insert_source(self) -> None:
-        if self._source is not None:
+        if self._source is None:
             return
 
         if self.database is None:
@@ -214,7 +215,7 @@ class Statuses:
                               VALUES (%s, %s, %s, %s)'''
             self.database.execute(update_query, parameters, update=True)
 
-    def export(self) -> Sequence[Mapping[str, Any]]:
+    def export(self) -> StatusesSequence:
         """
         Retrieve a list of dictionaries containing status records, suitable for
         export in JSON.

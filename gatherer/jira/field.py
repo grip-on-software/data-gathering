@@ -18,57 +18,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from abc import ABCMeta
+from typing import Dict, List, Optional, TYPE_CHECKING
 from jira import Issue
-from .base import Base_Jira_Field, Base_Changelog_Field, TableKey, TableKeyError
+from .base import Base_Jira_Field, Base_Issue_Field, Base_Changelog_Field, \
+    TableKey, TableKeyError
 from .parser import Field_Parser
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
-    from . import Jira, FieldValue
+    from .collector import FieldValue
+    from .changelog import ChangeHistory, ChangeItem
 else:
-    Jira = object
     FieldValue = object
+    ChangeHistory = object
+    ChangeItem = object
 
 ###
-# Field definitions
+# Issue field definitions
 ###
 
-class Jira_Field(Base_Jira_Field):
+class Jira_Field(Base_Jira_Field, metaclass=ABCMeta):
     """
-    Field parser for the issue field data returned by the JIRA REST API.
+    Abstract class for issue and changelog fields from Jira which may have type
+    cast parsers and tables.
     """
-
-    def fetch(self, issue: Any) -> Optional[str]:
-        """
-        Retrieve the raw data from the issue.
-
-        This method is responsible for determining the correct field to use, and
-        to preprocess it as much as possible (such as extracting an ID from its
-        subproperties). The returned value is not yet parsed according to the
-        type of the field.
-        """
-
-        raise NotImplementedError("Subclasses must extend this method")
-
-    def parse(self, issue: Any) -> Optional[str]:
-        """
-        Retrieve the field from the issue and parse it so that it receives the
-        correct type and format.
-        """
-
-        field = self.fetch(issue)
-        return self.cast(field)
-
-    def cast(self, field: Optional[str]) -> Optional[str]:
-        """
-        Use the appropriate type cast to convert the fetched field to a string
-        representation of the field.
-        """
-
-        for parser in self.get_types():
-            field = parser.parse(field)
-
-        return field
 
     def get_types(self) -> List[Field_Parser]:
         """
@@ -96,13 +69,50 @@ class Jira_Field(Base_Jira_Field):
 
         return None
 
-class Primary_Field(Jira_Field):
+    def cast(self, field: Optional[str]) -> Optional[str]:
+        """
+        Use the appropriate type cast to convert the fetched field to a string
+        representation of the field.
+        """
+
+        for parser in self.get_types():
+            field = parser.parse(field)
+
+        return field
+
+class Issue_Field(Jira_Field, Base_Issue_Field):
+    """
+    Field parser for the issue field data returned by the JIRA REST API.
+    """
+
+    def fetch(self, issue: Issue) -> Optional[str]:
+        """
+        Retrieve the raw data from the issue.
+
+        This method is responsible for determining the correct field to use, and
+        to preprocess it as much as possible (such as extracting an ID from its
+        subproperties). The returned value is not yet parsed according to the
+        type of the field.
+        """
+
+        raise NotImplementedError("Subclasses must extend this method")
+
+    def parse(self, issue: Issue) -> Optional[str]:
+        """
+        Retrieve the field from the issue and parse it so that it receives the
+        correct type and format.
+        """
+
+        field = self.fetch(issue)
+        return self.cast(field)
+
+class Primary_Field(Issue_Field):
     """
     A field in the JIRA response that contains primary information of the issue,
     such as the ID or key of the issue.
     """
 
-    def fetch(self, issue: Any) -> Optional[str]:
+    def fetch(self, issue: Issue) -> Optional[str]:
         return getattr(issue, str(self.data["primary"]))
 
     @property
@@ -113,17 +123,14 @@ class Primary_Field(Jira_Field):
     def table_key(self) -> TableKey:
         raise TableKeyError(f"Primary field '{self.name}' is not keyable at this moment")
 
-class Payload_Field(Jira_Field):
+class Payload_Field(Issue_Field):
     """
     A field in the JIRA's main payload response, which are the editable fields
     as well as metadata fields for the issue.
     """
 
-    def fetch(self, issue: Any) -> Optional[str]:
-        if hasattr(issue.fields, str(self.data["field"])):
-            return getattr(issue.fields, str(self.data["field"]))
-
-        return None
+    def fetch(self, issue: Issue) -> Optional[str]:
+        return getattr(issue.fields, str(self.data["field"]), None)
 
     @property
     def search_field(self) -> Optional[str]:
@@ -139,14 +146,11 @@ class Property_Field(Payload_Field):
     identifying value for that field in the issue.
     """
 
-    def fetch(self, issue: Any) -> Optional[str]:
+    def fetch(self, issue: Issue) -> Optional[str]:
         field = super().fetch(issue)
-        if hasattr(field, str(self.data["property"])):
-            return getattr(field, str(self.data["property"]))
+        return getattr(field, str(self.data["property"]), None)
 
-        return None
-
-    def parse(self, issue: Any) -> Optional[str]:
+    def parse(self, issue: Issue) -> Optional[str]:
         field = super().parse(issue)
         if field is None:
             return None
@@ -175,20 +179,37 @@ class Property_Field(Payload_Field):
     def table_key(self) -> TableKey:
         return str(self.data["property"])
 
-class Changelog_Primary_Field(Jira_Field, Base_Changelog_Field):
+###
+# Changelog field definitions
+###
+
+class Changelog_Field(Jira_Field, Base_Changelog_Field):
     """
-    A field in the change items in the changelog of the JIRA response.
+    Field parser for the issue field data returned by the JIRA REST API.
     """
 
-    def fetch(self, issue: Any) -> Optional[str]:
-        if hasattr(issue, str(self.data["changelog_primary"])):
-            return getattr(issue, str(self.data["changelog_primary"]))
+    def fetch(self, entry: ChangeHistory, item: Optional[ChangeItem]) \
+            -> Optional[str]:
+        """
+        Retrieve the raw data from the changelog history entry.
 
-        return None
+        This method is responsible for determining the correct field to use, and
+        to preprocess it as much as possible, such as safely selecting the field
+        from the data or picking the most relevant item from a difference field.
+        The returned value is not yet parsed according to the type of the field.
+        """
 
-    def parse_changelog(self, entry: Any, diffs: Dict[str, Optional[str]],
-                        issue: Issue) -> Optional[str]:
-        return self.parse(entry)
+        raise NotImplementedError("Subclasses must extend this method")
+
+    def parse(self, entry: ChangeHistory, item: Optional[ChangeItem]) \
+            -> Optional[str]:
+        """
+        Retrieve the field from the changelog history entry and parse it so that
+        it receives the correct type and format.
+        """
+
+        field = self.fetch(entry, item)
+        return self.cast(field)
 
     @property
     def search_field(self) -> Optional[str]:
@@ -198,36 +219,51 @@ class Changelog_Primary_Field(Jira_Field, Base_Changelog_Field):
     def table_key(self) -> TableKey:
         raise TableKeyError("Changelog fields are not keyable at this moment")
 
-class Changelog_Field(Jira_Field, Base_Changelog_Field):
+class Changelog_Primary_Field(Changelog_Field):
+    """
+    A field in the change entry in the changelog of the JIRA response.
+    """
+
+    def fetch(self, entry: ChangeHistory, item: Optional[ChangeItem]) \
+            -> Optional[str]:
+        return getattr(entry, str(self.data["changelog_primary"]), None)
+
+    def parse_changelog(self, entry: ChangeHistory,
+                        diffs: Dict[str, Optional[str]],
+                        issue: Issue,
+                        item: Optional[ChangeItem]) -> Optional[str]:
+        return self.parse(entry, item)
+
+class Changelog_Item_Field(Changelog_Field):
     """
     A field in the changelog items of the JIRA expanded response.
     """
 
-    def fetch(self, issue: Any) -> Optional[str]:
-        data = issue.__dict__
+    def fetch(self, entry: ChangeHistory, item: Optional[ChangeItem]) \
+            -> Optional[str]:
+        if item is None:
+            return None
+
+        data: Dict[str, Optional[str]] = item.__dict__
         if data['from'] is not None:
-            return data['from']
+            return str(data['from'])
         if data['fromString'] is not None:
-            return data['fromString']
+            return str(data['fromString'])
 
         return None
 
-    def parse_changelog(self, entry: Any, diffs: Dict[str, Optional[str]],
-                        issue: Issue) -> Optional[str]:
+    def parse_changelog(self, entry: ChangeHistory,
+                        diffs: Dict[str, Optional[str]],
+                        issue: Issue,
+                        item: Optional[ChangeItem]) -> Optional[str]:
         """
         Parse changelog information from a changelog entry.
         """
 
-        field = self.parse(entry)
-        for parser in self.get_types():
-            field = parser.parse_changelog(entry.__dict__, field, diffs)
+        field = self.parse(entry, item)
+        if item is not None:
+            data: Dict[str, Optional[str]] = item.__dict__
+            for parser in self.get_types():
+                field = parser.parse_changelog(data, field, diffs)
 
         return field
-
-    @property
-    def search_field(self) -> Optional[str]:
-        return None
-
-    @property
-    def table_key(self) -> TableKey:
-        raise TableKeyError("Changelog fields are not keyable at this moment")

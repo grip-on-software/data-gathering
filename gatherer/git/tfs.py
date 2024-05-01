@@ -37,7 +37,7 @@ from ..table import Table, Key_Table, Link_Table
 from ..vsts.parser import Field_Parser, String_Parser, Int_Parser, \
     Date_Parser, Unicode_Parser, Decimal_Parser, Tags_Parser, Developer_Parser
 from ..utils import get_local_datetime, parse_utc_date, parse_unicode, \
-    Iterator_Limiter
+    Iterator_Limiter, Sprint_Data
 from ..version_control.review import Review_System
 from ..version_control.repo import PathLike, Version
 if TYPE_CHECKING:
@@ -433,8 +433,9 @@ class TFS_Repository(Git_Repository, Review_System):
         Review_System.AUXILIARY_TABLES | {"merge_request_review", "vcs_event"}
 
     def __init__(self, source: Source, repo_directory: PathLike,
-                 project: Optional[Project] = None, **kwargs: Any) -> None:
-        super().__init__(source, repo_directory, project=project, **kwargs)
+                 sprints: Optional[Sprint_Data] = None,
+                 project: Optional[Project] = None) -> None:
+        super().__init__(source, repo_directory, sprints=sprints, project=project)
 
         self._project_id: Optional[str] = None
 
@@ -504,9 +505,9 @@ class TFS_Repository(Git_Repository, Review_System):
 
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None, force: bool = False,
-                 **kwargs: Any) -> List[Result]:
+                 stats: bool = True) -> List[Result]:
         versions = super().get_data(from_revision, to_revision, force=force,
-                                    **kwargs)
+                                    stats=stats)
 
         if self.source.tfs_repo is not None:
             self._get_repo_data()

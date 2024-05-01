@@ -20,8 +20,8 @@ limitations under the License.
 
 import os
 from pathlib import Path
-from typing import Any, AnyStr, Callable, ClassVar, Dict, Hashable, List, \
-    Optional, Tuple, Type, Union, TYPE_CHECKING
+from typing import AnyStr, Callable, ClassVar, Dict, Hashable, List, Optional, \
+    Tuple, Type, Union, TYPE_CHECKING
 from urllib.parse import quote, urlsplit, urlunsplit, SplitResult
 from ...config import Configuration
 from ...version_control.repo import Version_Control_Repository
@@ -44,7 +44,7 @@ S_type = Type['Source']
 
 class Source_Types:
     """
-    Holder for source type registration
+    Holder of source type registrations.
     """
 
     _validated_types: ClassVar[Dict[str, List[Tuple[S_type, Validator]]]] = {}
@@ -75,7 +75,9 @@ class Source_Types:
         return decorator
 
     @classmethod
-    def get_source(cls, source_type: str, **source_data: Any) -> 'Source':
+    def get_source(cls, source_type: str, name: str = '', url: str = '',
+                   follow_host_change: bool = True,
+                   **source_data: Optional[str]) -> 'Source':
         """
         Retrieve an object that represents a fully-instantiated source with
         a certain type.
@@ -84,7 +86,9 @@ class Source_Types:
         source_class = None
         if source_type in cls._validated_types:
             for candidate_class, validator in cls._validated_types[source_type]:
-                if validator(candidate_class, **source_data):
+                if validator(candidate_class, name=name, url=url,
+                             follow_host_change=follow_host_change,
+                             **source_data):
                     source_class = candidate_class
                     break
 
@@ -94,7 +98,9 @@ class Source_Types:
         if source_class is None:
             raise Source_Type_Error(f"Source type '{source_type}' is not supported")
 
-        return source_class(source_type, **source_data)
+        return source_class(source_type, name=name, url=url,
+                            follow_host_change=follow_host_change,
+                            **source_data)
 
 # Seven instance attributes in __init__, but pylint incorrectly counts
 # a property setter in use to be an instance attribute as well
@@ -106,8 +112,6 @@ class Source: # pylint: disable=too-many-instance-attributes
 
     HTTP_PROTOCOLS = ('http', 'https')
     SSH_PROTOCOL = 'ssh'
-
-    _credentials = Configuration.get_credentials()
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
                  follow_host_change: bool = True) -> None:
@@ -121,29 +125,35 @@ class Source: # pylint: disable=too-many-instance-attributes
         self._host = self._update_credentials()[1]
 
     @classmethod
-    def from_type(cls, source_type: str, **kwargs: Any) -> 'Source':
+    def from_type(cls, source_type: str, name: str = '', url: str ='',
+                  follow_host_change: bool = True,
+                  **kwargs: Optional[str]) -> 'Source':
         """
         Create a fully-instantiated source object from its source type.
 
         Returns an object of the appropriate type.
         """
 
-        return Source_Types.get_source(source_type, **kwargs)
+        return Source_Types.get_source(source_type, name=name, url=url,
+                                       follow_host_change=follow_host_change,
+                                       **kwargs)
 
     @classmethod
     def _get_changed_host(cls, host: str) -> str:
         # Retrieve the changed host in the credentials configuration.
         if cls.has_option(host, 'host'):
-            return cls._credentials.get(host, 'host')
+            return Configuration.get_credentials().get(host, 'host')
 
         return host
 
-    def _get_host_parts(self, host: str, parts: SplitResult) -> Tuple[str, Optional[int]]:
+    def _get_host_parts(self, host: str, parts: SplitResult) -> \
+            Tuple[str, Optional[int], str]:
         # Retrieve the changed host in the credentials configuration
         # Split the host into hostname and port if necessary.
         port: Optional[int] = None
+        credentials = Configuration.get_credentials()
         if self._follow_host_change and self.has_option(host, 'host'):
-            host = self._credentials.get(host, 'host')
+            host = credentials.get(host, 'host')
             split_host = host.split(':', 1)
             hostname = split_host[0]
             try:
@@ -152,7 +162,7 @@ class Source: # pylint: disable=too-many-instance-attributes
                 pass
         else:
             if parts.hostname is None:
-                return '', None
+                return '', None, ''
 
             hostname = parts.hostname
             try:
@@ -161,9 +171,9 @@ class Source: # pylint: disable=too-many-instance-attributes
                 pass
 
         if self.has_option(host, 'port'):
-            port = int(self._credentials.get(host, 'port'))
+            port = int(credentials.get(host, 'port'))
 
-        return hostname, port
+        return hostname, port, host
 
     @staticmethod
     def _create_url(*parts: AnyStr) -> str:
@@ -175,7 +185,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         # Retrieve the protocol to use to send requests to the source.
         # This must be either HTTP or HTTPS.
         if self.has_option(host, 'protocol'):
-            scheme = self._credentials.get(host, 'protocol')
+            scheme = Configuration.get_credentials().get(host, 'protocol')
         if scheme not in self.HTTP_PROTOCOLS:
             scheme = default_scheme
 
@@ -192,12 +202,19 @@ class Source: # pylint: disable=too-many-instance-attributes
     @classmethod
     def _format_host_section(cls, parts: SplitResult) -> str:
         if parts.hostname is None:
+            # Cannot do anything with this URL component, so provide an invalid
+            # configuration section.
             return ''
 
-        if parts.port is None:
+        try:
+            # Handle ValueError from accessing parts.port at all
+            if parts.port is None:
+                raise ValueError('Port is not available')
+
+            return f'{parts.hostname}:{parts.port}'
+        except ValueError:
             return parts.hostname
 
-        return f'{parts.hostname}:{parts.port}'
 
     def _get_username(self, protocol: str, host: str, orig_parts: SplitResult) -> Optional[str]:
         # Order of preference:
@@ -209,37 +226,38 @@ class Source: # pylint: disable=too-many-instance-attributes
         # username is used.
         key = f'username.{protocol}'
         username: Optional[str] = None
-        if self._credentials.has_option(host, key):
-            username = self._credentials.get(host, key)
-        elif self._credentials.has_option(host, 'username'):
-            username = self._credentials.get(host, 'username')
+        credentials = Configuration.get_credentials()
+        if credentials.has_option(host, key):
+            username = credentials.get(host, key)
+        elif credentials.has_option(host, 'username'):
+            username = credentials.get(host, 'username')
 
         if not Configuration.has_value(username):
             username = orig_parts.username
 
         return username
 
-    def _update_ssh_credentials(self, host: str, orig_parts: SplitResult) -> None:
+    def _update_ssh_credentials(self, hostname: str, port: Optional[int],
+                                host: str, orig_parts: SplitResult) -> None:
+        credentials = Configuration.get_credentials()
+
         # Use SSH (ssh://user@host:port/path).
-        username = self._get_username('ssh', host, orig_parts)
-        if username is None:
-            return
-
-        # Parse the host parts and potentially follow host changes.
-        hostname, port = self._get_host_parts(host, orig_parts)
-
         # If 'env' is given, set a credentials path to an identity key.
         if self.has_option(host, 'env'):
-            credentials_env = self._credentials.get(host, 'env')
+            credentials_env = credentials.get(host, 'env')
             self.credentials_path = os.getenv(credentials_env)
 
-        auth = f'{username}{"@"}{hostname}'
-        path = orig_parts.path
+        username = self._get_username('ssh', host, orig_parts)
+        if username is None:
+            auth = hostname
+        else:
+            auth = f'{username}{"@"}{hostname}'
 
         # If 'strip' exists, then this value is stripped from the
         # beginning of the path if the original protocol is HTTP/HTTPS.
+        path = orig_parts.path
         if orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'strip'):
-            strip = self._credentials.get(host, 'strip')
+            strip = credentials.get(host, 'strip')
             if path.startswith(strip):
                 path = path[len(strip):]
             elif path.startswith(f'/{strip}'):
@@ -247,19 +265,18 @@ class Source: # pylint: disable=too-many-instance-attributes
 
         self._url = self._format_ssh_url(hostname, auth, port, path)
 
-    def _update_http_credentials(self, host: str, orig_parts: SplitResult) -> None:
+    def _update_http_credentials(self, hostname: str, port: Optional[int],
+                                 host: str, orig_parts: SplitResult) -> None:
         # Use HTTP(s) (http://username:password@host:port/path).
         username = self._get_username('http', host, orig_parts)
-        if username is None:
-            return
+        if username is None or not self.has_option(host, 'password'):
+            full_host = hostname
+        else:
+            # Add a password to the URL for basic authentication.
+            credentials = Configuration.get_credentials()
+            password = quote(credentials.get(host, 'password'))
+            full_host = f'{username}:{password}{"@"}{hostname}'
 
-        # Parse the host parts and potentially follow host changes.
-        hostname, port = self._get_host_parts(host, orig_parts)
-
-        # Add a password to the URL for basic authentication.
-        password = quote(self._credentials.get(host, 'password'))
-
-        full_host = f'{username}:{password}{"@"}{hostname}'
         if port is not None:
             full_host = f'{full_host}:{port}'
 
@@ -273,12 +290,14 @@ class Source: # pylint: disable=too-many-instance-attributes
         orig_parts = urlsplit(self._plain_url)
         host = self._format_host_section(orig_parts)
 
-        if self._credentials.has_section(host):
-            # Additional authentication options depending on protocol to use
-            if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
-                self._update_ssh_credentials(host, orig_parts)
-            elif orig_parts.scheme in self.HTTP_PROTOCOLS and self.has_option(host, 'password'):
-                self._update_http_credentials(host, orig_parts)
+        # Parse the host parts and potentially follow host changes.
+        hostname, port, host = self._get_host_parts(host, orig_parts)
+
+        # Additional authentication options depending on protocol to use
+        if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
+            self._update_ssh_credentials(hostname, port, host, orig_parts)
+        elif orig_parts.scheme in self.HTTP_PROTOCOLS:
+            self._update_http_credentials(hostname, port, host, orig_parts)
 
         return orig_parts, host
 
@@ -317,7 +336,7 @@ class Source: # pylint: disable=too-many-instance-attributes
     def url(self) -> str:
         """
         Retrieve the final URL, after following host changes and including
-        credentials where applicable
+        credentials where applicable.
         """
 
         return self._url
@@ -455,7 +474,7 @@ class Source: # pylint: disable=too-many-instance-attributes
         if self._host is None or not self.has_option(self._host, option):
             return None
 
-        return self._credentials.get(self._host, option)
+        return Configuration.get_credentials().get(self._host, option)
 
     @classmethod
     def has_option(cls, host: str, option: str) -> bool:
@@ -468,10 +487,11 @@ class Source: # pylint: disable=too-many-instance-attributes
         returned.
         """
 
-        if not cls._credentials.has_option(host, option):
+        credentials = Configuration.get_credentials()
+        if not credentials.has_option(host, option):
             return False
 
-        value = cls._credentials.get(host, option)
+        value = credentials.get(host, option)
         return Configuration.has_value(value)
 
     def check_credentials_environment(self) -> bool:
@@ -505,7 +525,7 @@ class Source: # pylint: disable=too-many-instance-attributes
                         public_key: str, dry_run: bool = False) -> None:
         """
         Update the source to accept a public key as an identity for obtaining
-        access to information or perform actions on the source.
+        access to information or performing actions on the source.
 
         The `project` is a `Project` domain object providing details about the
         project for which this key is being added. The `public_key` is a string

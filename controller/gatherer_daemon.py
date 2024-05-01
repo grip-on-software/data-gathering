@@ -223,7 +223,7 @@ class Gatherer:
         with Salt(project=project, **self._options) as store:
             try:
                 salt, pepper = store.get()
-            except ValueError:
+            except (RuntimeError, ValueError):
                 return ''
 
             return store.encrypt(value.encode('utf-8'), salt.encode('utf-8'),

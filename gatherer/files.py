@@ -97,7 +97,7 @@ class File_Store:
 
     def get_directory(self, remote_path: str, local_path: str) -> None:
         """
-        Retrieve all files in the direcotry with the remote path `remote_path`
+        Retrieve all files in the directory with the remote path `remote_path`
         and store them in the local path `local_path` which does not yet exist.
         """
         raise NotImplementedError('Must be implemented by subclasses')
@@ -152,7 +152,7 @@ class OwnCloud_Store(File_Store):
         except owncloud.HTTPResponseError as error:
             if error.status_code == 404:
                 raise PathExistenceError(remote_path) from error
-            raise error
+            raise RuntimeError(error.get_resource_body()) from error
 
         extract_path = tempfile.mkdtemp()
         with ZipFile(zip_file_name, 'r') as zip_file:

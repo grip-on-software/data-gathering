@@ -19,7 +19,6 @@ limitations under the License.
 """
 
 from datetime import datetime
-from io import BytesIO
 import logging
 import os
 from pathlib import Path
@@ -27,13 +26,15 @@ import re
 import shutil
 import tempfile
 from typing import Any, AbstractSet, Dict, Iterator, List, MutableSet, \
-    Optional, Pattern, Sequence, Tuple, Union, TYPE_CHECKING
-from git import Git, Repo, Blob, Commit, DiffIndex, TagReference, NULL_TREE, \
-    InvalidGitRepositoryError, NoSuchPathError, GitCommandError
+    Literal, Optional, Pattern, Sequence, Tuple, Union, TYPE_CHECKING
+from git import Git, Repo, Blob, Commit, DiffConstants, DiffIndex, \
+    TagReference, InvalidGitRepositoryError, NoSuchPathError, GitCommandError, \
+    NULL_TREE
 from ordered_set import OrderedSet
 from .progress import Git_Progress
 from ..table import Table, Key_Table
-from ..utils import convert_local_datetime, format_date, parse_unicode, Iterator_Limiter
+from ..utils import convert_local_datetime, format_date, parse_unicode, \
+    Iterator_Limiter, Sprint_Data
 from ..version_control.repo import Change_Type, Version_Control_Repository, \
     RepositoryDataException, RepositorySourceException, FileNotFoundException, \
     PathLike, Version
@@ -135,12 +136,15 @@ class Git_Repository(Version_Control_Repository):
     AUXILIARY_TABLES = {'change_path', 'tag'}
 
     def __init__(self, source: Source, repo_directory: PathLike,
-                 progress: Optional[Union[bool, int]] = None, **kwargs: Any) -> None:
-        super().__init__(source, repo_directory, **kwargs)
+                 sprints: Optional[Sprint_Data] = None,
+                 project: Optional[Project] = None,
+                 progress: Optional[Union[bool, int]] = None) -> None:
+        super().__init__(source, repo_directory, sprints=sprints, project=project)
         self._repo: Optional[Repo] = None
         self._from_date = source.get_option('from_date')
         self._tag = source.get_option('tag')
-        self._prev_head = NULL_TREE
+        self._prev_head: Union[Commit, Literal[DiffConstants.NULL_TREE]] = \
+            NULL_TREE
 
         # If `progress` is `True`, then add progress lines from Git commands to
         # the logging output. If `progress` is a nonzero number, then sample
@@ -319,7 +323,7 @@ class Git_Repository(Version_Control_Repository):
         git.update_environment(**cls._create_environment(source, git))
         # Check if the provided version is up to date compared to master.
         try:
-            remote_refs = git.ls_remote('--heads', source.url, branch)
+            remote_refs = str(git.ls_remote('--heads', source.url, branch))
         except GitCommandError as error:
             raise RepositorySourceException('Could not check up-to-dateness') from error
 
@@ -334,7 +338,7 @@ class Git_Repository(Version_Control_Repository):
         git = Git()
         git.update_environment(**cls._create_environment(source, git))
         try:
-            remote_refs = git.ls_remote('--heads', source.url)
+            remote_refs = str(git.ls_remote('--heads', source.url))
         except GitCommandError as error:
             raise RepositorySourceException('Could not check branches') from error
 
@@ -359,10 +363,7 @@ class Git_Repository(Version_Control_Repository):
         return self._repo
 
     @repo.setter
-    def repo(self, repo: object) -> None:
-        if not isinstance(repo, Repo):
-            raise TypeError('Repository must be a gitpython Repo instance')
-
+    def repo(self, repo: Repo) -> None:
         self._update_environment(repo)
         self._repo = repo
 
@@ -429,7 +430,7 @@ class Git_Repository(Version_Control_Repository):
         return self.repo.head.ref.name
 
     @property
-    def prev_head(self) -> Commit:
+    def prev_head(self) -> Union[Commit, Literal[DiffConstants.NULL_TREE]]:
         """
         Indicator of the previous head state before a pull, fetch/merge, or
         checkout operation, such as when pulling an existing repository.
@@ -437,7 +438,7 @@ class Git_Repository(Version_Control_Repository):
         in before the latest relevant operation.
 
         If no such operation has been done (or the repository was just cloned),
-        then this property returns the NULL_TREE object, which indicates the
+        then this property returns the `NULL_TREE` enum, which indicates the
         empty tree (no commit has been made). The return value is thus suitable
         to use in GitPython difference operations.
         """
@@ -583,11 +584,18 @@ class Git_Repository(Version_Control_Repository):
             kwargs["branch"] = branch
 
         try:
+            if self._progress is not None:
+                progress = self._progress.update
+            else:
+                progress = None
             environment = self._create_environment(self.source)
             self.repo = Repo.clone_from(self.source.url,
                                         str(self.repo_directory),
-                                        progress=self._progress,
+                                        progress=progress,
                                         env=environment,
+                                        multi_options=None,
+                                        allow_unsafe_protocols=False,
+                                        allow_unsafe_options=False,
                                         **kwargs)
         except GitCommandError as error:
             raise RepositorySourceException('Could not clone repository') from error
@@ -628,22 +636,26 @@ class Git_Repository(Version_Control_Repository):
     def get_versions(self, filename: str = '',
                      from_revision: Optional[Version] = None,
                      to_revision: Optional[Version] = None,
-                     descending: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
+                     descending: bool = False,
+                     stats: bool = True) -> List[Dict[str, str]]:
         refspec = self._get_refspec(from_revision, to_revision)
-        return self._parse(refspec, paths=filename, descending=descending, **kwargs)
+        return self._parse(refspec, paths=filename, descending=descending,
+                           stats=stats)
 
     def get_data(self, from_revision: Optional[Version] = None,
                  to_revision: Optional[Version] = None,
-                 force: bool = False, **kwargs: Any) -> List[Dict[str, str]]:
+                 force: bool = False,
+                 stats: bool = True) -> List[Dict[str, str]]:
         versions = super().get_data(from_revision, to_revision, force=force,
-                                    **kwargs)
+                                    stats=stats)
 
         self._parse_tags()
 
         return versions
 
     def _parse(self, refspec: str, paths: Union[str, List[str]] = '',
-               descending: bool = True, **kwargs: Any) -> List[Dict[str, str]]:
+               descending: bool = True,
+               stats: bool = True) -> List[Dict[str, str]]:
         self._reset_limiter()
 
         version_data: List[Dict[str, str]] = []
@@ -657,7 +669,8 @@ class Git_Repository(Version_Control_Repository):
                 for commit in commits:
                     had_commits = True
                     count += 1
-                    version_data.append(self._parse_version(commit, **kwargs))
+                    version_data.append(self._parse_version(commit,
+                                                            stats=stats))
 
                     if count % self.LOG_SIZE == 0:
                         logging.info('Analysed commits up to %d', count)
@@ -673,8 +686,8 @@ class Git_Repository(Version_Control_Repository):
 
         return version_data
 
-    def _parse_version(self, commit: Commit, stats: bool = True,
-                       **kwargs: Any) -> Dict[str, str]:
+    def _parse_version(self, commit: Commit,
+                       stats: bool = True) -> Dict[str, str]:
         """
         Convert one commit instance to a dictionary of properties.
         """
@@ -686,14 +699,21 @@ class Git_Repository(Version_Control_Repository):
         if len(commit.parents) > 1:
             commit_type = 'merge'
 
-        developer = parse_unicode(commit.author.name)
+        if commit.author.name is None:
+            developer = ""
+        else:
+            developer = parse_unicode(commit.author.name)
+
+        message = commit.message if isinstance(commit.message, str) else \
+            commit.message.decode('utf-8')
+
         git_commit = {
             # Primary data
             'repo_name': str(self._repo_name),
             'version_id': str(commit.hexsha),
             'sprint_id': self._get_sprint_id(commit_datetime),
             # Additional data
-            'message': parse_unicode(commit.message),
+            'message': parse_unicode(message),
             'type': commit_type,
             'developer': developer,
             'developer_username': developer,
@@ -737,11 +757,15 @@ class Git_Repository(Version_Control_Repository):
         except StopIteration:
             return str(0)
 
-        merge_message = parse_unicode(merge_commit.message)
+        if isinstance(merge_commit.message, str):
+            merge_message = parse_unicode(merge_commit.message)
+        else:
+            merge_message = parse_unicode(merge_commit.message.decode('utf-8'))
+
         for pattern in self.MERGE_PATTERNS:
             match = pattern.match(merge_message)
             if match:
-                return match.group(1)
+                return str(match.group(1))
 
         return str(0)
 
@@ -865,7 +889,10 @@ class Git_Repository(Version_Control_Repository):
             tagged_datetime = datetime.fromtimestamp(tag_timestamp)
             tag_data['tagged_date'] = format_date(tagged_datetime)
 
-            tag_data['tagger'] = parse_unicode(tag_ref.tag.tagger.name)
+            if tag_ref.tag.tagger.name is None:
+                tag_data['tagger'] = str(0)
+            else:
+                tag_data['tagger'] = parse_unicode(tag_ref.tag.tagger.name)
             tag_data['tagger_email'] = str(tag_ref.tag.tagger.email)
 
         self._tables['tag'].append(tag_data)
@@ -894,6 +921,4 @@ class Git_Repository(Version_Control_Repository):
         if not isinstance(blob, Blob):
             raise FileNotFoundException(f'Path {filename} has no Blob object')
 
-        stream = BytesIO()
-        blob.stream_data(stream)
-        return stream.getvalue()
+        return blob.data_stream.read()

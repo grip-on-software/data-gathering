@@ -25,6 +25,7 @@ import github
 import github.Repository
 from .types import Source, Source_Types
 from .git import Git
+from ...config import Configuration
 from ...git.github import GitHub_Repository
 
 @Source_Types.register('github')
@@ -37,7 +38,8 @@ class GitHub(Git):
     """
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
-                 follow_host_change: bool = True, **kwargs: str) -> None:
+                 follow_host_change: bool = True,
+                 **kwargs: Optional[str]) -> None:
         self._github_url: str = ''
         self._github_token: Optional[str] = None
         self._github_api: Optional[github.Github] = None
@@ -70,6 +72,7 @@ class GitHub(Git):
 
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super()._update_credentials()
+        credentials = Configuration.get_credentials()
 
         # Retrieve the owner from the URL of the source.
         path = orig_parts.path.lstrip('/')
@@ -80,9 +83,9 @@ class GitHub(Git):
         self._github_url = self._create_url(scheme, host, '', '', '')
 
         if self.is_github_host(host):
-            self._github_token = self._credentials.get(host, 'github_token')
+            self._github_token = credentials.get(host, 'github_token')
         if self.has_option(host, 'github_api_url'):
-            self._github_api_url = self._credentials.get(host, 'github_api_url')
+            self._github_api_url = credentials.get(host, 'github_api_url')
 
         return orig_parts, host
 
@@ -184,8 +187,7 @@ class GitHub(Git):
             source = Source.from_type('github',
                                       name=repo.name,
                                       url=repo.clone_url,
-                                      github_team=self._github_team,
-                                      github_repo=repo)
+                                      github_team=self._github_team)
             sources.append(source)
 
         return sources

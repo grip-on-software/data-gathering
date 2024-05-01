@@ -1,0 +1,51 @@
+[
+    {
+        "max": null, 
+        "ok": 1, 
+        "name": "Agent http://agent", 
+        "value": null, 
+        "checked_time": "2017-09-05 15:08:55"
+    }, 
+    {
+        "max": 190, 
+        "ok": 1, 
+        "name": "Available IPs", 
+        "value": 21, 
+        "checked_time": "2017-09-05 15:09:17"
+    }, 
+    {
+        "max": 103872987136, 
+        "ok": 1, 
+        "name": "Datastore: /shared/data", 
+        "value": 24738004992, 
+        "checked_time": "2017-09-05 15:09:17"
+    }, 
+    {
+        "max": 107374182400, 
+        "ok": 1, 
+        "name": "Docker graph: /var/lib/docker", 
+        "value": 15024898048, 
+        "checked_time": "2017-09-05 15:09:17"
+    }, 
+    {
+        "max": 50653577216, 
+        "ok": 1, 
+        "name": "Memory", 
+        "value": 9554780160, 
+        "checked_time": "2017-09-05 15:09:17"
+    }, 
+    {
+        "max": null, 
+        "ok": 1, 
+        "name": "System Load", 
+        "value": 0.4560546875, 
+        "checked_time": "2017-09-05 15:09:17"
+    }, 
+    {
+        "max": null, 
+        "ok": 1, 
+        "name": "System Uptime", 
+        "value": 1924201, 
+        "checked_time": "2017-09-05 15:09:17"
+    }
+]

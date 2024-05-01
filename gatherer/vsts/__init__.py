@@ -1,6 +1,6 @@
 """
-Package for classes related to extracting data from Visual Studio Team Services
-or Team Foundation Server instances.
+Package for classes related to extracting data from Azure DevOps, previously
+Visual Studio Team Services and Team Foundation Server instances.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University

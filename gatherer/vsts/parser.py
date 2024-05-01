@@ -1,5 +1,5 @@
 """
-Parsers for VSTS work item fields.
+Parsers for Azure DevOps (previously VSTS and TFS) work item fields.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -127,8 +127,8 @@ class Decimal_Parser(Field_Parser):
 
 class Developer_Parser(Table_Parser):
     """
-    Parser for fields that contain information about a VSTS user, including
-    their display name and email address.
+    Parser for fields that contain information about a user in Azure DevOps,
+    VSTS or TFS, including their display name and email address.
     """
 
     @property
@@ -163,5 +163,8 @@ class Tags_Parser(Field_Parser):
         return "tags"
 
     def parse(self, value: str) -> Optional[str]:
+        if value == '':
+            return '0'
+
         tags = value.split('; ')
         return str(len(tags))

@@ -19,26 +19,32 @@ limitations under the License.
 """
 
 import logging
-from typing import Any, Callable, Dict, Optional, Tuple, Type, cast, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union, cast, \
+    TYPE_CHECKING
 from jira import Issue
-from .base import Base_Jira_Field, Base_Changelog_Field, Table_Source, TableKey
+from jira.resources import Comment, Component, IssueLink, Resource, \
+    UnknownResource
+from .base import Base_Issue_Field, Base_Changelog_Field, Table_Source, TableKey
 from .query import Query
 from ..table import Table
 from ..utils import get_local_datetime, parse_unicode
+from .changelog import ChangeHistory, ChangeItem
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
-    from . import Jira, FieldValue
+    from .collector import Collector, FieldValue
 else:
-    Jira = object
+    Collector = object
     FieldValue = object
 
+ResourceList = List[Union[Resource, UnknownResource]]
 S_type = Type['Special_Field']
 SearchRows = Tuple[Optional[Dict[str, str]], Optional[Dict[str, str]]]
 
-class Special_Field(Base_Jira_Field):
+class Special_Field(Base_Issue_Field):
     """
-    A special field with additional data that cannot be parsed in conventional
-    ways and is likely stored in a separate table.
+    A special field with additional sequences of data that cannot be parsed in
+    conventional ways and whose represented instances are likely to be stored as
+    rows in a separate table.
     """
 
     _fields: Dict[str, S_type] = {}
@@ -67,18 +73,34 @@ class Special_Field(Base_Jira_Field):
 
         return cls._fields[field_name]
 
-    def parse(self, issue: Any):
+    def fetch(self, issue: Issue) -> Optional[ResourceList]:
+        """
+        Retrieve the field from an issue such that we can iterate over the
+        values in the structure if it is available.
+
+        If the field does not contain a sequence of items (i.e. a JSON array),
+        then this method should be overridden to wrap the item in a list or to
+        fetch the nested structured which does contain the necessary sequence.
+        """
+
+        return getattr(issue.fields, self.name, None)
+
+    def parse(self, issue: Issue) -> Optional[str]:
         """
         Retrieve the field from an issue and collect relevant data within
         appropriate data storage.
         """
 
-        if hasattr(issue.fields, self.name):
-            field = getattr(issue.fields, self.name)
-            if field is not None:
-                self.collect(issue, field)
+        field = self.fetch(issue)
+        if field is None:
+            return None
 
-    def collect(self, issue: Any, field: Any) -> None:
+        self.collect(issue, field)
+
+        # Explicitly indicate that we have no data to store in the main issue.
+        return None
+
+    def collect(self, issue: Issue, field: ResourceList) -> None:
         """
         Retrieve relevant data from the field belonging to the issue,
         and store the data where appropriate.
@@ -100,19 +122,20 @@ class Comment_Field(Special_Field):
     Field parser for the comments of a JIRA issue.
     """
 
-    def __init__(self, jira: Jira, name: str, **info: FieldValue) -> None:
+    def __init__(self, jira: Collector, name: str, **info: FieldValue) -> None:
         super().__init__(jira, name, **info)
         self._table = cast(Dict[str, str], self.data.get("table", {}))
         self._comment_fields = cast(Dict[str, str], self.data.get("fields", {}))
 
-    def collect(self, issue: Any, field: Any) -> None:
-        if not hasattr(field, 'comments'):
-            return
+    def fetch(self, issue: Issue) -> Optional[ResourceList]:
+        field = super().fetch(issue)
+        return getattr(field, 'comments', None)
 
-        for comment in field.comments:
-            self._collect_comment(issue, comment)
+    def collect(self, issue: Issue, field: ResourceList) -> None:
+        for comment in field:
+            self._collect_comment(issue, cast(Comment, comment))
 
-    def _collect_comment(self, issue: Any, comment: Any) -> None:
+    def _collect_comment(self, issue: Issue, comment: Comment) -> None:
         row: Dict[str, str] = {}
         is_newer = False
         for subfield, datatype in self._table.items():
@@ -121,6 +144,7 @@ class Comment_Field(Special_Field):
             else:
                 fieldname = subfield
 
+            value = None
             if hasattr(comment, fieldname):
                 prop = getattr(comment, fieldname)
                 parser = self.jira.get_type_cast(datatype)
@@ -130,8 +154,8 @@ class Comment_Field(Special_Field):
             else:
                 row[subfield] = str(0)
 
-            if datatype == 'date' and self.jira.updated_since.is_newer(row[subfield]):
-                is_newer = True
+            if datatype == 'date' and value is not None:
+                is_newer = is_newer or self.jira.updated_since.is_newer(value)
 
         row["issue_id"] = str(issue.id)
         if is_newer:
@@ -186,11 +210,18 @@ class Special_Changelog_Field(Special_Field, Base_Changelog_Field):
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def parse_changelog(self, entry: Any, diffs: Dict[str, Optional[str]],
-                        issue: Issue):
-        data = entry.__dict__
+    def parse_changelog(self, entry: ChangeHistory,
+                        diffs: Dict[str, Optional[str]],
+                        issue: Issue,
+                        item: Optional[ChangeItem]) -> Optional[str]:
+        if item is None:
+            return None
+
+        data: Dict[str, Optional[str]] = item.__dict__
         self.check_changelog(data, diffs, issue, 'to')
         self.check_changelog(data, diffs, issue, 'from')
+
+        return None
 
     def check_changelog(self, data: Dict[str, Optional[str]],
                         diffs: Dict[str, Optional[str]], issue: Issue,
@@ -262,7 +293,7 @@ class Component_Field(Special_Changelog_Field):
     Field parser for the components related to an issue.
     """
 
-    def __init__(self, jira: Jira, name: str, **info: FieldValue) -> None:
+    def __init__(self, jira: Collector, name: str, **info: FieldValue) -> None:
         super().__init__(jira, name, **info)
         self.jira.register_table({
             "table": {
@@ -274,14 +305,15 @@ class Component_Field(Special_Changelog_Field):
 
     def prefetch(self, query: Query) -> None:
         """
-        Retrieve all components from the query API.
+        Retrieve all components for the project from the JIRA query API.
         """
 
-        components = query.api.project_components(self.jira.project.jira_key)
+        components: List[Component] = \
+            query.api.project_components(self.jira.project.jira_key)
         for component in components:
             self._add_component(component)
 
-    def _add_component(self, component: Any) -> None:
+    def _add_component(self, component: Component) -> None:
         if hasattr(component, "description"):
             description = parse_unicode(component.description)
         else:
@@ -293,9 +325,9 @@ class Component_Field(Special_Changelog_Field):
             "description": description
         })
 
-    def collect(self, issue: Any, field: Any) -> None:
+    def collect(self, issue: Issue, field: ResourceList) -> None:
         for component in field:
-            self._add_component(component)
+            self._add_component(cast(Component, component))
             self.table.append({
                 "issue_id": str(issue.id),
                 "component_id": str(component.id),
@@ -327,7 +359,7 @@ class Issue_Link_Field(Special_Changelog_Field):
     Field parser for the issue links related to an issue.
     """
 
-    def __init__(self, jira: Jira, name: str, **info: FieldValue) -> None:
+    def __init__(self, jira: Collector, name: str, **info: FieldValue) -> None:
         super().__init__(jira, name, **info)
         self._relations: Dict[str, Dict[str, str]] = {}
         self.jira.register_prefetcher(self.prefetch)
@@ -358,16 +390,17 @@ class Issue_Link_Field(Special_Changelog_Field):
                 'outward': outward
             })
 
-    def collect(self, issue: Any, field: Any) -> None:
+    def collect(self, issue: Issue, field: ResourceList) -> None:
         for issuelink in field:
             if not hasattr(issuelink, 'type') or not hasattr(issuelink.type, 'id'):
                 continue
 
 
-            self._check_link(issue, issuelink, outward=True)
-            self._check_link(issue, issuelink, outward=False)
+            self._check_link(issue, cast(IssueLink, issuelink), outward=True)
+            self._check_link(issue, cast(IssueLink, issuelink), outward=False)
 
-    def _check_link(self, issue: Any, issuelink: Any, outward: bool = True) -> None:
+    def _check_link(self, issue: Issue, issuelink: IssueLink,
+                    outward: bool = True) -> None:
         if outward:
             attr = 'outwardIssue'
             direction = str(1)
@@ -438,7 +471,7 @@ class Subtask_Field(Special_Field):
     Field parser for the subtasks related to an issue.
     """
 
-    def collect(self, issue: Any, field: Any) -> None:
+    def collect(self, issue: Issue, field: ResourceList) -> None:
         for subtask in field:
             self.jira.get_table("subtasks").append({
                 'from_id': str(issue.id),

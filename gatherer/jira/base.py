@@ -19,14 +19,17 @@ limitations under the License.
 """
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Dict, Optional, Tuple, Union, TYPE_CHECKING
 from jira import Issue
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
     from . import Jira, FieldValue
+    from .changelog import ChangeHistory, ChangeItem
 else:
     Jira = object
     FieldValue = object
+    ChangeHistory = object
+    ChangeItem = object
 
 TableKey = Optional[Union[str, Tuple[str, ...]]]
 
@@ -73,26 +76,14 @@ class Table_Source(metaclass=ABCMeta):
 
 class Base_Jira_Field(Table_Source):
     """
-    Abstract base class with the minimal required interface from Jira fields.
+    Abstract base class with the minimum required interface for Jira fields
+    from various sources in order to make them obtainable during issue searches.
     """
 
     def __init__(self, jira: Jira, name: str, **data: FieldValue) -> None:
         self.jira = jira
         self.name = name
         self.data = data
-
-    def parse(self, issue: Any) -> Optional[str]:
-        """
-        Retrieve the field from the issue and parse it. Parsing can include
-        type casting using field parsers, or it may perform more intricate
-        steps with larger resources within the issue.
-
-        This method either returns the parsed value, indicating that it is
-        a piece of data related to this issue version, or `None`, indicating
-        that the data was stored or handled elsewhere.
-        """
-
-        raise NotImplementedError("Must be implemented by subclass")
 
     @property
     def search_field(self) -> Optional[str]:
@@ -103,28 +94,48 @@ class Base_Jira_Field(Table_Source):
 
         raise NotImplementedError("Subclasses must extend this property")
 
+class Base_Issue_Field(Base_Jira_Field):
+    """
+    Abstract base class with the minimum required interface for Jira fields from
+    the current issue version.
+    """
+
+    def parse(self, issue: Issue) -> Optional[str]:
+        """
+        Retrieve the field from the issue and parse it. Parsing can include
+        type casting using field parsers, or it may perform more intricate
+        steps with larger resources within the issue.
+
+        This method either returns the parsed value, indicating that it is
+        a piece of data related to the current version of the issue, or `None`,
+        indicating that the data was stored or handled elsewhere.
+        """
+
+        raise NotImplementedError("Must be implemented by subclass")
+
 class Base_Changelog_Field(Base_Jira_Field):
     """
     Abstract base class with the minimum required interface for parsing
     changelog fields from Jira API responses.
     """
 
-    def parse_changelog(self, entry: Any, diffs: Dict[str, Optional[str]],
-                        issue: Issue) -> Optional[str]:
+    def parse_changelog(self, entry: ChangeHistory,
+                        diffs: Dict[str, Optional[str]],
+                        issue: Issue,
+                        item: Optional[ChangeItem]) -> Optional[str]:
         """
         Parse changelog information from a changelog entry.
 
-        The `entry` may be some resource, such as a main changelog entry or
-        specific change item from the changelog entry payload. The caller
-        supplies what it believes the changelog parser can handle best.
-        The `diffs` argument is a reference to the current difference dictionary
-        for inspection by the changelog field or its type cast parsers.
-        Finally, `issue` is the issue resource.
+        The `entry` is the main changelog history entry. The `diffs` argument
+        is a reference to the current difference dictionary for inspection by
+        the changelog field or its type cast parsers. `issue` is the issue
+        resource from which the changelog entry is extracted. Finally, `item`
+        is a change item with difference fields as values, or `None` if the
+        field is registered to parse primary fields only.
 
-        The returned value is an appropriate (preferably string) format of
-        the value in this field before the change, or a custom value that
-        should be handled later on. `None` indicates that the value was handled
-        elsewhere.
+        The returned value is an appropriate format of the value in this field
+        before the change, or a custom value that should be handled later on.
+        `None` indicates that the value was handled elsewhere or not available.
         """
 
         raise NotImplementedError("Must be implemented by subclasses")

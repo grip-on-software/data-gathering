@@ -92,22 +92,25 @@ class Git_Progress(RemoteProgress):
         self._logger = logging.getLogger()
         self._logger.addFilter(Progress_Filter(update_ratio=update_ratio))
 
-    def update(self, op_code: int, cur_count: int,
-               max_count: Optional[int] = None, message: str = '') -> None:
+    def update(self, op_code: int, cur_count: Union[str, float],
+               max_count: Optional[Union[str, float]] = None,
+               message: str = '') -> None:
         stage_op = op_code & RemoteProgress.STAGE_MASK
         action_op = op_code & RemoteProgress.OP_MASK
         if action_op in self._op_codes:
-            log_extra: Dict[str, Union[bool, int, float]] = {
+            log_extra: Dict[str, Optional[Union[bool, int, str, float]]] = {
                 'op_code': action_op,
                 'done': stage_op == RemoteProgress.END,
                 'cur_count': cur_count
             }
             if max_count is not None and max_count != '':
-                ratio = cur_count / float(max_count)
+                cur_count = float(cur_count)
+                max_count = float(max_count)
+                ratio = cur_count / max_count
                 log_extra['ratio'] = ratio
                 count = f'{ratio:>3.0%} ({cur_count:.0f}/{max_count:.0f})'
             else:
-                count = f'{cur_count:.0f}'
+                count = f'{float(cur_count):.0f}'
 
             token = ''
             if stage_op == RemoteProgress.END:

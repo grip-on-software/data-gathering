@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Hashable, Optional, Tuple
+from typing import Any, Dict, Hashable, Optional, Tuple, Union
 from urllib.parse import urlsplit, SplitResult, unquote
 from jira import JIRA
 from jira.exceptions import JIRAError
@@ -32,7 +32,8 @@ class Jira(Source):
     """
 
     def __init__(self, source_type: str, name: str = '', url: str = '',
-                 follow_host_change: bool = True, **kwargs: str) -> None:
+                 follow_host_change: bool = True,
+                 **kwargs: Optional[str]) -> None:
         self._username: Optional[str] = kwargs.pop('username', None)
         self._password: Optional[str] = kwargs.pop('password', None)
         self._agile_path = str(JIRA.DEFAULT_OPTIONS["agile_rest_path"])
@@ -47,7 +48,8 @@ class Jira(Source):
     def _update_credentials(self) -> Tuple[SplitResult, str]:
         orig_parts, host = super()._update_credentials()
         if self.has_option(host, 'agile_rest_path'):
-            self._agile_path = self._credentials.get(host, 'agile_rest_path')
+            credentials = Configuration.get_credentials()
+            self._agile_path = credentials.get(host, 'agile_rest_path')
 
         return orig_parts, host
 
@@ -91,18 +93,18 @@ class Jira(Source):
             raise RuntimeError(f'JIRA API for {self.plain_url} is blacklisted')
 
         if self._jira_api is None:
-            options = {
-                "server": self.plain_url,
+            options: Dict[str, Union[str, bool, Any]] = {
                 "agile_rest_path": self._agile_path
             }
 
             parts = urlsplit(self.url)
-            auth: Optional[Tuple[str, Optional[str]]] = None
+            auth: Optional[Tuple[str, str]] = None
             if parts.username is not None and parts.password is not None:
                 auth = (unquote(parts.username), unquote(parts.password))
-            elif self._username is not None:
+            elif self._username is not None and self._password is not None:
                 auth = (self._username, self._password)
 
-            self._jira_api = JIRA(options, basic_auth=auth, max_retries=0)
+            self._jira_api = JIRA(server=self.plain_url, options=options,
+                                  basic_auth=auth, max_retries=0)
 
         return self._jira_api

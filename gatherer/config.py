@@ -35,6 +35,16 @@ class Configuration:
     _url_blacklist = None
 
     @classmethod
+    def clear(cls) -> None:
+        """
+        Remove any instances created for configuration.
+        """
+
+        cls._settings = None
+        cls._credentials = None
+        cls._url_blacklist = None
+
+    @classmethod
     def get_filename(cls, file_name: str) -> str:
         """
         Retrieve the file name to be used to retrieve the configuration.

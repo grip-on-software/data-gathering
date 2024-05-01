@@ -1,0 +1,16 @@
+[
+    {
+        "name": "Available IPs",
+        "checked_time": "2017-05-08 12:10:42",
+        "ok": true,
+        "value": 19,
+        "max": 190
+    },
+    {
+        "name": "Docker graph: /var/lib/docker",
+        "checked_time": "2017-05-08 12:11:27",
+        "ok": true,
+        "value": 130956759040,
+        "max": 234322399232
+    }
+]
