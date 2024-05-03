@@ -24,6 +24,7 @@ from typing import AnyStr, Callable, ClassVar, Dict, Hashable, List, Optional, \
     Tuple, Type, Union, TYPE_CHECKING
 from urllib.parse import quote, urlsplit, urlunsplit, SplitResult
 from ...config import Configuration
+from ...project_definition.data import Data
 from ...version_control.repo import Version_Control_Repository
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import, unsubscriptable-object
@@ -105,7 +106,7 @@ class Source_Types:
 # Seven instance attributes in __init__, but pylint incorrectly counts
 # a property setter in use to be an instance attribute as well
 # https://github.com/PyCQA/pylint/issues/4100
-class Source: # pylint: disable=too-many-instance-attributes
+class Source:
     """
     Interface for source information about various types of data sources.
     """
@@ -118,11 +119,11 @@ class Source: # pylint: disable=too-many-instance-attributes
         self._name = name
         self._plain_url = url
         self._type = source_type
-        self._follow_host_change = follow_host_change
         self._credentials_path: Optional[PathLike] = None
 
         self._url = url
-        self._host = self._update_credentials()[1]
+        self._host = \
+            self._update_credentials(follow_host_change=follow_host_change)[1]
 
     @classmethod
     def from_type(cls, source_type: str, name: str = '', url: str ='',
@@ -146,13 +147,14 @@ class Source: # pylint: disable=too-many-instance-attributes
 
         return host
 
-    def _get_host_parts(self, host: str, parts: SplitResult) -> \
+    def _get_host_parts(self, host: str, parts: SplitResult,
+                        follow_host_change: bool = True) -> \
             Tuple[str, Optional[int], str]:
         # Retrieve the changed host in the credentials configuration
         # Split the host into hostname and port if necessary.
         port: Optional[int] = None
         credentials = Configuration.get_credentials()
-        if self._follow_host_change and self.has_option(host, 'host'):
+        if follow_host_change and self.has_option(host, 'host'):
             host = credentials.get(host, 'host')
             split_host = host.split(':', 1)
             hostname = split_host[0]
@@ -284,14 +286,17 @@ class Source: # pylint: disable=too-many-instance-attributes
                                      orig_parts.path, orig_parts.query,
                                      orig_parts.fragment)
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
         # Update the URL of a source when hosts change, and add any additional
         # credentials to the URL or source registry.
         orig_parts = urlsplit(self._plain_url)
         host = self._format_host_section(orig_parts)
 
         # Parse the host parts and potentially follow host changes.
-        hostname, port, host = self._get_host_parts(host, orig_parts)
+        hostname, port, host = \
+            self._get_host_parts(host, orig_parts,
+                                 follow_host_change=follow_host_change)
 
         # Additional authentication options depending on protocol to use
         if orig_parts.scheme == self.SSH_PROTOCOL or self.has_option(host, 'env'):
@@ -404,23 +409,24 @@ class Source: # pylint: disable=too-many-instance-attributes
         return self.name
 
     @property
-    def file_name(self) -> Optional[str]:
-        """
-        Retrieve an identifier of the source that can be used as a file name,
-        possibly extracted from the URL.
-
-        If the file name cannot be extracted, then this is `None`.
-        """
-
-        return None
-
-    @property
     def repository_class(self) -> Optional[Type[Version_Control_Repository]]:
         """
         Retrieve the class that implements a version control repository pointing
         to this source.
 
         If this source has no repository, then this property returns `None`.
+        """
+
+        return None
+
+    @property
+    def project_definition_class(self) -> Optional[Type[Data]]:
+        """
+        Retrieve the class that implements a project definitions data collection
+        for this source. This project definition should provide project
+        metadata, sources information and options for quality metrics.
+
+        If this source has no definitions, then this property returns `None`.
         """
 
         return None

@@ -80,8 +80,10 @@ class GitLab(Git):
     def _has_gitlab_token(cls, host: str) -> bool:
         return cls.has_option(host, 'gitlab_token')
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super()._update_credentials()
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
+        orig_parts, host = \
+            super()._update_credentials(follow_host_change=follow_host_change)
         orig_host = orig_parts.netloc
         credentials = Configuration.get_credentials()
 
@@ -105,7 +107,7 @@ class GitLab(Git):
 
         # Check whether the host was changed and a custom gitlab group exists
         # for this host change.
-        if self._follow_host_change and host != orig_host:
+        if follow_host_change and host != orig_host:
             path = self._update_group_url(path, host)
 
         # Find the GitLab token and URL without authentication for connecting
@@ -251,7 +253,7 @@ class GitLab(Git):
 
         if self._gitlab_api is None:
             unsafe = self.get_option('unsafe_hosts')
-            session = Session(verify=unsafe is None)
+            session = Session(verify=not unsafe)
             try:
                 logging.info('Setting up API for %s', self.host)
                 self._gitlab_api = Gitlab(self.host,

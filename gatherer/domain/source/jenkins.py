@@ -75,6 +75,6 @@ class Jenkins(Source):
             self._jenkins_api = JenkinsAPI(self.plain_url,
                                            username=parts.username,
                                            password=parts.password,
-                                           verify=unsafe is None)
+                                           verify=not unsafe)
 
         return self._jenkins_api

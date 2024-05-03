@@ -35,13 +35,13 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default=None,
-                        help="Project definitions repository path or URL")
+                        help="Override quality time source URL")
     parser.add_argument("--context", type=int, default=3,
                         help="Number of context lines for parser problems")
     parser.add_argument("--from-revision", dest="from_revision", default=None,
-                        help="revision to start from gathering definitions")
+                        help="Revision to start from gathering definitions")
     parser.add_argument("--to-revision", dest="to_revision", default=None,
-                        help="revision to stop gathering definitions at")
+                        help="Revision to stop gathering definitions at")
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()

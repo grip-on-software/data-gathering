@@ -48,9 +48,10 @@ class Git(Source):
 
         return url
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
         self._plain_url = self._alter_git_url(self._plain_url)
-        return super()._update_credentials()
+        return super()._update_credentials(follow_host_change=follow_host_change)
 
     def _format_ssh_url(self, hostname: str, auth: str, port: Optional[int],
                         path: str) -> str:

@@ -22,7 +22,6 @@ limitations under the License.
 from argparse import ArgumentParser, Namespace
 import logging
 import os
-
 from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Sources_Collector
 from gatherer.domain import Project
@@ -36,7 +35,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
     parser.add_argument("--repo", default=None,
-                        help="Project definitions repository directory or URL")
+                        help="Override quality time source URL")
     parser.add_argument("--context", type=int, default=3,
                         help="Number of context lines for parser problems")
     parser.add_argument("--all", action="store_true", default=False,

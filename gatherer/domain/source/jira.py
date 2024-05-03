@@ -45,8 +45,10 @@ class Jira(Source):
 
         self._plain_url = self._plain_url.strip('/')
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super()._update_credentials()
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
+        orig_parts, host = \
+            super()._update_credentials(follow_host_change=follow_host_change)
         if self.has_option(host, 'agile_rest_path'):
             credentials = Configuration.get_credentials()
             self._agile_path = credentials.get(host, 'agile_rest_path')
@@ -94,7 +96,8 @@ class Jira(Source):
 
         if self._jira_api is None:
             options: Dict[str, Union[str, bool, Any]] = {
-                "agile_rest_path": self._agile_path
+                "agile_rest_path": self._agile_path,
+                "verify": not self.get_option('unsafe_hosts')
             }
 
             parts = urlsplit(self.url)

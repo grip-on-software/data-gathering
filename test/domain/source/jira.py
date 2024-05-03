@@ -127,5 +127,6 @@ class JiraTest(unittest.TestCase):
 
         self.assertEqual(source.jira_api, api.return_value)
         api.assert_called_once_with(server='https://api-jira.test', options={
-            'agile_rest_path': '/api/agile/'
+            'agile_rest_path': '/api/agile/',
+            'verify': True
         }, basic_auth=('jirauser', 'jirapass'), max_retries=0)

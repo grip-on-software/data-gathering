@@ -72,8 +72,8 @@ class TFS(Git):
 
         return cls.has_option(host, 'tfs')
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super()._update_credentials()
+    def _update_tfs_host(self, orig_parts: SplitResult, host: str,
+                         follow_host_change: bool) -> None:
         credentials = Configuration.get_credentials()
 
         # Ensure we have a HTTP/HTTPS URL to the web host for API purposes.
@@ -83,10 +83,19 @@ class TFS(Git):
         if self.has_option(host, 'web_port'):
             # Combine hostname (after following host changes) without port
             # with the web port
-            web_host = ':'.join((self._get_host_parts(host, orig_parts)[0],
-                                 credentials.get(host, 'web_port')))
+            hostname = self._get_host_parts(host, orig_parts,
+                                            follow_host_change=follow_host_change)[0]
+            web_host = ':'.join((hostname, credentials.get(host, 'web_port')))
 
         self._tfs_host = self._create_url(scheme, web_host, '', '', '')
+
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
+        orig_parts, host = \
+            super()._update_credentials(follow_host_change=follow_host_change)
+
+        self._update_tfs_host(orig_parts, host,
+                              follow_host_change=follow_host_change)
 
         # Retrieve the TFS collection
         orig_path = orig_parts.path.lstrip('/')
@@ -109,6 +118,7 @@ class TFS(Git):
         if user is not None:
             self._tfs_user = user
         if self.has_option(host, 'password'):
+            credentials = Configuration.get_credentials()
             self._tfs_password = credentials.get(host, 'password')
 
         url_parts = urlsplit(self._alter_git_url(self.url))
@@ -235,8 +245,10 @@ class TFVC(TFS):
         super().__init__(source_type, name=name, url=url,
                          follow_host_change=follow_host_change)
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super()._update_credentials()
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
+        orig_parts, host = \
+            super()._update_credentials(follow_host_change=follow_host_change)
 
         self._tfvc_project = self._tfs_collections[-1]
         if len(self._tfs_collections) == 1:

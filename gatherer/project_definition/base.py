@@ -18,9 +18,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from datetime import datetime
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Type, \
+    Union, TYPE_CHECKING
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from ..config import Configuration
 from ..version_control.repo import Version
+if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
+    from ..domain import Project, Source
+else:
+    Project = object
+    Source = object
+
+DataUrl = Optional[Union[str, Dict[str, str]]]
 
 MetricNames = Union[List[str], Dict[str, Optional[Dict[str, str]]]]
 SourceUrl = Optional[Union[str, Tuple[str, str, str]]]
@@ -58,6 +70,53 @@ class Data:
     """
     Abstract base class for a data source of the project definition.
     """
+
+    def __init__(self, project: Project, source: Source, url: DataUrl = None):
+        self._project = project
+
+        self._query: Dict[str, str] = {}
+        if isinstance(url, dict):
+            self._query = url.copy()
+            url = None
+
+        if url is None:
+            self._url = source.plain_url
+        else:
+            self._url = url
+
+        if Configuration.is_url_blacklisted(self._url):
+            raise RuntimeError(f'Cannot use blacklisted URL as a definitions source: {self._url}')
+
+    def get_url(self, path: str = '', query: DataUrl = None) -> str:
+        """
+        Format an URL for the source.
+
+        This may be useful for data sources using the project definition from
+        the remote source, for example via a web API. The `path` should be a
+        path to the API route, relative to the host of the source. The `query`
+        is additional query string parameters for the API route, either in
+        string or key-value dictionary form.
+        """
+
+        parts = urlsplit(self._url)
+        if path == '':
+            path = parts.path
+
+        if query is None:
+            extra_query: Dict[str, str] = {}
+        elif not isinstance(query, dict):
+            # Always take the last in the query
+            extra_query = dict(parse_qsl(query))
+        else:
+            extra_query = query
+
+        # Combine with predetermined query, preferring the parameter
+        final_query = self._query.copy()
+        final_query.update(extra_query)
+
+        final_parts = (parts.scheme, parts.hostname, path,
+                       urlencode(final_query), '')
+        return urlunsplit(final_parts)
 
     def get_versions(self, from_revision: Optional[Version],
                      to_revision: Optional[Version]) -> Iterable[Dict[str, str]]:
@@ -109,6 +168,20 @@ class Data:
         `start_version` or earlier. If no adjustments are necessary, such
         as when parsing only one version, or if all version and metric data wa
         available during the parse, then return `[(version, result)]`.
+        """
+
+        raise NotImplementedError("Must be implemented by subclasses")
+
+    def get_measurements(self, metric: str, version: Dict[str, str],
+                         cutoff_date: Optional[datetime] = None) \
+            -> Iterator[Dict[str, str]]:
+        """
+        Retrieve the measurements for a specific `metric` up to a certain date
+        determined by the `version` and optionally starting from a `cutoff_date`
+        if this is supported by the project definition data.
+
+        Returns an iterator of measurement data, providing dictionaries with
+        measurment data in a standard format.
         """
 
         raise NotImplementedError("Must be implemented by subclasses")

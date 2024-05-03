@@ -139,8 +139,8 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(self.source.environment_type, 'test')
         self.assertIsNone(self.source.environment_url)
         self.assertEqual(self.source.path_name, 't0')
-        self.assertIsNone(self.source.file_name)
         self.assertIsNone(self.source.repository_class)
+        self.assertIsNone(self.source.project_definition_class)
         self.assertEqual(self.source.version, '')
 
         self.assertTrue(self.source.check_credentials_environment())

@@ -44,10 +44,9 @@ depending on the situation that they are used in:
 
 ## Installation
 
-The data gathering scripts and modules require Python version 3.7+. Due to 
-dependencies for building the Alpine Linux-based Docker image, Python 3.8 is 
-the recommended version; later versions are unsupported. Version 0.0.3 is the 
-last version to support Python 3.6.
+The data gathering scripts and modules require Python version 3.8 and higher. 
+Version 0.0.3 is the last version to support Python 3.6 and the old quality 
+reporting source.
 
 The scripts have been tested on MacOS 10.14+, Ubuntu 16.04+, CentOS 7.3+ as 
 well as on some Windows versions.
@@ -58,35 +57,33 @@ always locate the module. Additionally, the scripts and modules have
 dependencies which must be installed. Each of these steps can be done 
 separately or in combination with one another:
 
-- Run `pip install -r requirements.txt` to install the dependencies for the 
-  data gathering scripts. Next, `pip install -I 'python-gitlab>=1.10.0'` 
-  installs a proper version for our data gathering; there will be some warnings 
-  about it being incompatible with the outdated Quality-report dependency, but 
-  these warnings can be ignored.
+- Run `make setup` to install the dependencies for the data gathering modules.
+  - For the agent, `make setup_agent` installs the dependency for the scraper 
+    web API as well as dependencies for the modules.
   - If you want to gather data from spreadsheets with seat counts, Topdesk or 
-    LDAP: run `pip install -r requirements-jenkins.txt`, which also ensures 
-    that the normal dependencies are installed.
-  - For the controller: run `pip install -r requirements-daemon.txt`, which 
-    also ensures that the normal dependencies are installed.
-  - For static code analysis: run `pip install -r requirements-analysis.txt`, 
-    which installs dependencies for Pylint and mypy (typing extensions) as well 
-    as all the other dependencies, even those in Jenkins and controller setups.
-- Run `python setup.py install` to install the module and any missing 
-  dependencies for the data gathering module. Note that some versions of 
+    LDAP: run `make setup_jenkins`, which also ensures that the dependencies 
+    for the modules are installed.
+  - For the controller: run `make setup_daemon`, which also ensures that the 
+    dependencies for the modules are installed.
+  - For static code analysis: run `make setup_analysis`, which installs 
+    dependencies for Pylint and mypy (typing extensions) as well as all the 
+    other dependencies, even those in scraper agent, Jenkins and controller 
+    setups.
+- Run `make install` to install the module from source, including dependencies 
+  for the module if they were not yet installed. Note that some versions of 
   `setuptools`, which is used in this step, are unable to use wheels or eggs 
   even if they are supported by the platform. Due to the additional compilation 
-  time required for some source packages, running both the `pip` and `setup.py` 
-  commands may therefore be faster than only `setup.py`.
-- Instead of running the `setup.py` script from this repository directly, you 
-  can also use `pip install gros-gatherer` to obtain the module. You may need 
-  to add additional parameters, such as `--extra-index-url` for a private 
-  repository and `--process-dependency-links` to obtain Git dependencies.
+  time required for some source packages, running both a command from the 
+  options above and this command is likely faster than only `make setup`.
+- Instead of running the scripts from this repository to install, you can use 
+  `pip install gros-gatherer` to obtain the latest release version of the 
+  module and its dependencies from PyPI.
 
 We recommend creating a virtual environment to manage the dependencies. Make 
-sure that `python` runs the Python version in the virtual environment. Another 
-option is to add `--user` to the commands above if you do not have access to 
-the system libraries, or do not want to store the libraries in that path. For 
-the controller setup, a virtual environment must be created beneath 
+sure that `python` runs the Python version in the virtual environment. 
+Otherwise, the dependencies are installed to the system libraries path or the 
+user's Python libraries path if you do not have access to the system libraries. 
+For the controller setup, a virtual environment must be created beneath 
 `/usr/local/envs` (create this directory) named `controller` with the 
 dependencies above. Next, continue with the following steps:
 
@@ -116,10 +113,12 @@ gatherer can use:
     - Azure DevOps: Tested with TFS versions 2015, 2017 and 2018.
   - Subversion: Tested with server version 1.6 and later and client version 1.7 
     and later.
-- Quality report: Works with version 2.21 or later.
-- Quality Time: Works with rolling (version 0) releases.
-- SonarQube: Works with version 7 and later.
+- Jenkins: Works with LTS versions.
+- Quality Time: Works with rolling releases.
+- SonarQube: Currently not supported directly.
 - BigBoat: Works with BigBoat version 5.0 and later.
+- Additional data is retrievable from seat count spreadsheets, Topdesk and LDAP 
+  servers with proper configuration.
 
 ## Overview
 
@@ -127,17 +126,13 @@ The usual pipeline setup runs the scripts in the following order:
 
 - `scraper/retrieve_importer.py`: Retrieve the Java-based importer application 
   that is used to efficiently import the scraped data into the database.
-- `scraper/retrieve_metrics_repository.py`: Retrieve or update project 
-  definitions and other tools to parse the definitions from repositories.
-- `scraper/retrieve_metrics_base_names.py`: Retrieve base name of live metrics
-  from quality report metadata.
 - `scraper/retrieve_update_trackers.py`: Retrieve update tracker files from 
   a database that is already filled up to a certain period in time, such that 
   the scraper can continue from the indicated checkpoints.
 - `scraper/retrieve_dropins.py`: Retrieve dropin files that may be provided for 
   archived projects, containing already-scraped export data.
-- `scraper/project_sources.py`: Retrieve source data from project definitions, 
-  which is then used for later gathering purposes.
+- `scraper/project_sources.py`: Retrieve source data from project definitions 
+  in Quality-time, which is then used for later gathering purposes.
 - `scraper/jira_to_json.py`: Retrieve issue changes and metadata from a Jira 
   instance.
 - `scraper/environment_sources.py`: Retrieve additional source data from known 
@@ -145,16 +140,14 @@ The usual pipeline setup runs the scripts in the following order:
   already-known repositories live.
 - `scraper/git_to_json.py`: Retrieve version information from version control 
   systems (Git or Subversion), possibly including auxiliary information such as 
-  GitLab/GitHub project data (commit comments, merge requests) and TFS work 
-  item data (also sprints and team members).
+  GitLab or GitHub project data (such as commit comments and merge requests) 
+  and Azure DevOps/VSTS/TFS work item data (also sprints and team members).
 - `scraper/metric_options_to_json.py`: Retrieve changes to metric targets from 
   a changelog of the project definitions.
 - `scraper/history_to_json.py`: Retrieve the history of measurement values for 
   metrics that are collected in the project, or only output a reference to it.
 - `scraper/jenkins_to_json.py`: Retrieve usage statistics from a Jenkins 
   instance.
-- `scraper/sonar_to_json.py`: Retrieve additional or historical metrics 
-  directly from a SonarQube instance.
 
 These scripts are already streamlined in the `scraper/jenkins.sh` script 
 suitable for a Jenkins job, as well as in a number of Docker scripts explained 
@@ -170,8 +163,6 @@ run to retrieve seat counts for projects from a spreadsheet (see the
 
 There are also a few tools for inspecting data or setting up sources:
 
-- `scraper/hqlib_targets.py`: Extract default metric norms from the outdated 
-  Quality report library repository.
 - `maintenance/import_bigboat_status.py`: Import line-delimited JSON status 
   information dumps into a database.
 - `maintenance/init_gitlab.py`: Set up repositories for filtered or archived 
@@ -373,66 +364,12 @@ the setting is not used in this environment.
   - `password` (`$JIRA_PASSWORD`): Password to log in to Jira with. This may 
     also be provided in a credentials section for the instance's network 
     location (domain and optional port).
-- definitions (used by `retrieve_metrics_repository.py` and 
-  `project_sources.py`): Project definitions source. The settings in this 
-  section may be customized per-project by suffixing the option name with 
-  a period and the Jira key of the custom project.
-  - `source_type` (`$DEFINITIONS_TYPE`): Domain source type used by the project 
-    definitions. This may be a version control system that contains the 
-    repository of the definitions, e.g., 'subversion' or 'git'.
-  - `name` (`$DEFINITIONS_NAME`): The source name of the data storage, to give 
-    it a unique name within the sources of the project. The default is
-    'quality-report-definition' and it only shows up in update trackers.
-  - `url` (`$DEFINITONS_URL`): The HTTP(S) URL from which the data storage can 
-    be accessed. VCS URLs can be automatically converted to SSH if the 
-    credentials require so.
-  - `path` (`$DEFINITIONS_PATH`): The local directory to check out the 
-    repository to. The default value has a subpath at the end with a formatter 
-    parameter `{}` which is replaced by the project's quality dashboard name.
-  - `base` (`$DEFINITIONS_BASE`): The name of the base library/path that is 
-    required to parse the project definitions.
-  - `base_url` (`$DEFINITIONS_BASE_URL`): The HTTP(S) URL from which the 
-    repository containing the base library for parsing project definitions can 
-    be accessed. VCS URLs can be converted to SSH.
-  - `required_paths` (`$DEFINITIONS_REQUIRED_PATHS`): If non-empty, paths to 
-    check out in a sparse checkout of a repository. For paths that do not 
-    contain a slash, the quality metrics name is always added to the sparse 
-    checkout.
 - quality-time (used by `project_sources.py`): Quality Time source for
   project definitions and metrics history.
   - `name` (`$QUALITY_TIME_NAME`): The source name of the Quality Time server, 
-    to give it a unique name within the sources of the project. The default is
-    'quality-time-definition' and it only shows up in update trackers.
+    to give it a unique name within the sources of the project.
   - `url` (`$QUALITY_TIME_URL`): The HTTP(S) URL from which the Quality Time 
     main landing UI page can be found.
-- history (used by `history_to_json.py`): Quality dashboard metrics history 
-  dump locations.  The settings in this section may be customized per-project 
-  by suffixing the option name with a period and the Jira project key.
-  - `url` (`$HISTORY_URL`): The HTTP(S) URL from which the history dump can be 
-    accessed, excluding the filename itself. For GitLab repositories, provide 
-    the repository URL containing the dump in the root directory or 
-    a subdirectory with the project's quality dashboard.
-  - `path` (`$HISTORY_PATH`): The local directory where the history dump file 
-    can be found or a GitLab repository containing the dump file should be 
-    checked out to. May contain a formatter parameter `{}` which is replaced by 
-    the project's quality dashboard name; otherwise it is appended 
-    automatically. The path does not include the filename.
-  - `compression` (`$HISTORY_COMPRESSION`): The compression extension to use
-    for the file. This may be added to the filename if it was not provided, and
-    determines the file opening method.
-  - `filename` (`HISTORY_FILENAME`): The file name of the history file to use.
-  - `delete` (`$HISTORY_DELETE`): Whether to delete a local clone of the 
-    repository containing the history file before a shallow fetch/clone.
-    This option may need to be enabled for Git older than 1.9 which does not
-    fully support shallow fetches due to which file updates are not available.
-- metrics (used by `retrieve_metrics_base_names.py`): Quality dashboard report
-  locations containing metadata for live metrics. Not used for Quality Time.
-  - `host` (`$METRICS_HOST`): The HTTP(S) base name from which the metrics data
-    can be obtained for projects in subdirectories by their quality metrics
-    name. A JSON formatted metrics report file `json/metrics.json` must be 
-    available in such a subdirectory.
-  - `url` (`$METRICS_URL`): The HTTP(S) URL from which the metrics metadata can
-    be obtained. This must be a URL to a metrics metadata formatted JSON file.
 - gitlab (used by `init_gitlab.py`): Research GitLab instance where archived 
   repositories can be stored.
   - `url` (`$GITLAB_URL`): Base URL of the GitLab instance.
@@ -504,18 +441,6 @@ the setting is not used in this environment.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
     the Jenkins instance has authorization security. This token must be 
     configured in the build job itself.
-- sonar (used by `sonar_to_json.py`): SonarQube instance where we can retrieve
-  metrics without the use of a quality dashboard definition.
-  - `host` (`$SONAR_HOST`): Base URL of the SonarQube instance.
-  - `username` (`$SONAR_USERNAME`): Username or access token to log in to the
-     SonarQube instance. Use a falsy value to not authenticate to SonarQube.
-  - `password` (`$SONAR_PASSWORD`): Password of the user to log in to the
-    SonarQube instance. Use a falsy value to not authenticate to SonarQube.
-  - `verify` (`$SONAR_VERIFY`): SSL certificate verification for the SonarQube 
-    instance. This option has no effect if the SonarQube `host` URL does not 
-    use HTTPS. Use a falsy value to disable verification (currently not 
-    honored), a path name to specify a specific (self-signed) certificate to 
-    match against, or any other value to enable secure verification.
 - schedule (used by `controller/gatherer_daemon.py`): Schedule imposed by the 
   controller API status preflight checks to let the agents check whether they 
   should collect data.
@@ -630,9 +555,9 @@ unauthenticated access or to disable access to the service completely.
   obtain auxiliary data from GitHub.
 - `github_bots` (`$SOURCE_GITHUB_BOTS`): Comma-separated list of GitHub user 
   login names whose comments are excluded from the import of auxiliary data.
-- `gitlab_token` (`$SOURCE_GITLAB_TOKEN` and `$DEFINITIONS_GITLAB_TOKEN`): API 
-  token for GitLab instances in order to obtain auxiliary data from GitLab or 
-  interface with its authorization scheme.
+- `gitlab_token` (`$SOURCE_GITLAB_TOKEN`): API token for GitLab instances in 
+  order to obtain auxiliary data from GitLab or interface with its 
+  authorization scheme.
 - `tfs` (`$SOURCE_TFS`): Set to a non-falsy value to indicate that the source 
   is a Team Foundation Server and thus has auxiliary data aside from the Git 
   repository. If this is true, then any collections are discovered based on the 
@@ -655,9 +580,9 @@ unauthenticated access or to disable access to the service completely.
 - `strip` (`$SOURCE_STRIP`): Strip an initial part of the path of any source
   repository hosted from this host when converting the source HTTP(s) URL to an 
   SSH URL. Useful for GitLab instances hosted behind path-based proxies.
-- `unsafe_hosts` (`$SOURCE_UNSAFE`): Disable strict HTTPS certificate and SSH 
-  host key verification for the host. This works for Git SSH communication and 
-  Subversion HTTPS requests.
+- `unsafe_hosts` (`$SOURCE_UNSAFE` and `$DEFINITIONS_UNSAFE`): Disable strict 
+  HTTPS certificate and SSH host key verification for the host. This works for 
+  Git SSH communication, Subversion HTTPS requests and some sources with APIs.
 - `skip_stats` (`$SOURCE_SKIP_STATS`): Disable collection of statistics on 
   commit sizes from repositories at this source.
 - `agile_rest_path` (used by `jira` source type): The REST path to use for Jira 

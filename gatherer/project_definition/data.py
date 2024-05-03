@@ -19,96 +19,24 @@ limitations under the License.
 """
 
 from datetime import datetime
-import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
-from urllib.parse import urlencode, urlsplit, urlunsplit
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Type, \
+    Union, TYPE_CHECKING
+from urllib.parse import urlsplit
 import dateutil.parser
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
-from .base import Data, Definition_Parser, UUID
-from . import parser, quality_time
-from ..config import Configuration
-from ..domain import Project, Source
+from .base import Data, DataUrl, Definition_Parser, UUID
+from . import quality_time
 from ..request import Session
 from ..utils import convert_local_datetime, convert_utc_datetime, format_date, \
     get_utc_datetime, parse_date
-from ..version_control.repo import PathLike, Version
-
-class Project_Definition_Data(Data):
-    """
-    Project definition stored as a Python file in a version control system.
-    """
-
-    DEFINITION_FILENAME = 'project_definition.py'
-
-    def __init__(self, project: Project, source: Source,
-                 repo_path: Optional[PathLike] = None):
-        self._project = project
-        quality_name = project.quality_metrics_name
-        if quality_name is None:
-            raise RuntimeError(f'No project definitions for {project.key}')
-
-        if source.repository_class is not None:
-            if repo_path is None:
-                repo_path = str(project.get_key_setting('definitions', 'path',
-                                                        quality_name))
-
-            repo_class = source.repository_class
-            self._repo = repo_class(source, repo_path, project=project)
-
-            if self._repo.is_empty():
-                raise RuntimeError(f'Project definitions repository for '
-                                   f'{project.key} at {repo_path} is empty; '
-                                   f'must be checked out first')
-
-            if quality_name not in str(repo_path):
-                self._filename = f'{quality_name}/{self.DEFINITION_FILENAME}'
-            else:
-                self._filename = self.DEFINITION_FILENAME
-
-    def get_versions(self, from_revision: Optional[Version],
-                     to_revision: Optional[Version]) -> Iterable[Dict[str, str]]:
-        return self._repo.get_versions(self._filename,
-                                       from_revision=from_revision,
-                                       to_revision=to_revision,
-                                       descending=False, stats=False)
-
-    def get_latest_version(self) -> Dict[str, str]:
-        return {"version_id": str(self._repo.get_latest_version())}
-
-    def get_contents(self, version: Dict[str, str]) -> Union[str, bytes]:
-        return self._repo.get_contents(self._filename,
-                                       revision=version['version_id'])
-
-    def get_data_model(self, version: Dict[str, str]) -> Dict[str, Any]:
-        return {}
-
-    def adjust_target_versions(self, version: Dict[str, str],
-                               result: Dict[str, Any],
-                               start_version: Optional[Version]) \
-            -> List[Tuple[Dict[str, str], Dict[str, Any]]]:
-        return [(version, result)]
-
-    @property
-    def path(self) -> str:
-        repo_path = self._repo.repo_directory
-        if self._project.quality_metrics_name is not None and \
-            self._project.quality_metrics_name in str(repo_path):
-            return str(repo_path.resolve().parent)
-
-        return str(repo_path)
-
-    @property
-    def filename(self) -> str:
-        return self._filename
-
-    @property
-    def parsers(self) -> Dict[str, Type[Definition_Parser]]:
-        return {
-            'project_meta': parser.Project_Parser,
-            'project_sources': parser.Sources_Parser,
-            'metric_options': parser.Metric_Options_Parser
-        }
+from ..version_control.repo import Version
+if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
+    from ..domain import Project, Source
+else:
+    Project = object
+    Source = object
 
 class Quality_Time_Data(Data):
     """
@@ -129,22 +57,11 @@ class Quality_Time_Data(Data):
         'comment': 'comment'
     }
 
-    def __init__(self, project: Project, source: Source,
-                 url: Optional[PathLike] = None):
-        self._project = project
-        if url is not None and not isinstance(url, os.PathLike):
-            self._url = url
-        else:
-            self._url = source.plain_url
+    def __init__(self, project: Project, source: Source, url: DataUrl = None):
+        super().__init__(project, source, url)
 
-        if Configuration.is_url_blacklisted(self._url):
-            raise RuntimeError(f'Cannot use blacklisted URL as a definitions source: {self._url}')
-
-        verify: Union[Optional[str], bool] = source.get_option('verify')
-        if verify is None:
-            verify = True
         self._session = Session()
-        self._session.verify = verify
+        self._session.verify = not source.get_option('unsafe_hosts')
         self._delta_description = re.compile(self.DELTA_DESCRIPTION, re.X)
 
     @staticmethod
@@ -169,19 +86,12 @@ class Quality_Time_Data(Data):
     def _format_date(date: datetime) -> str:
         return convert_utc_datetime(date).isoformat()
 
-    def get_url(self, path: str = "reports",
-                query: Optional[Dict[str, str]] = None) -> str:
+    def get_url(self, path: str = "reports", query: DataUrl = None) -> str:
         """
         Format an API URL for the Quality Time server.
         """
 
-        parts = urlsplit(self._url)
-        query_string = ""
-        if query is not None:
-            query_string = urlencode(query)
-        new_parts = (parts.scheme, parts.hostname, f'/api/v3/{path}',
-                     query_string, '')
-        return urlunsplit(new_parts)
+        return super().get_url(f'/api/v3/{path}', query=query)
 
     def get_contents(self, version: Dict[str, str]) -> Union[str, bytes]:
         date = dateutil.parser.parse(version['version_id'])
@@ -272,17 +182,41 @@ class Quality_Time_Data(Data):
         metric[key] = delta['old_value']
         return (new_version, new_result)
 
-    def get_measurements(self, metric_uuid: str, version: Dict[str, str]) \
-            -> List[Dict[str, Any]]:
-        """
-        Retrieve the measurements for a specific metric up to a certain date.
-        """
-
+    def get_measurements(self, metric: str, version: Dict[str, str],
+                         cutoff_date: Optional[datetime] = None) \
+            -> Iterator[Dict[str, str]]:
         date = version['version_id']
-        url = self.get_url(f'measurements/{metric_uuid}', {'report_date': date})
+        url = self.get_url(f'measurements/{metric}', {'report_date': date})
         request = self._session.get(url)
         request.raise_for_status()
-        return request.json()['measurements']
+        for measurement in request.json()['measurements']:
+            data = self._parse_measurement(metric, measurement, cutoff_date)
+            if data is not None:
+                yield data
+
+    @staticmethod
+    def _parse_measurement(metric_uuid: str, measurement: Dict[str, Any],
+                           cutoff_date: Optional[datetime]) \
+            -> Optional[Dict[str, str]]:
+        """
+        Parse a measurement of a Quality Time metric from its API.
+        """
+
+        date = parse_date(str(measurement.get("end")))
+        if cutoff_date is not None and get_utc_datetime(date) <= cutoff_date:
+            return None
+
+        count = measurement.get("count", {})
+        category = count.get("status")
+        value = count.get("value")
+
+        return {
+            'name': metric_uuid,
+            'value': str(value) if value is not None else "-1",
+            'category': str(category) if category is not None else "unknown",
+            'date': date,
+            'since_date': parse_date(str(measurement.get("start")))
+        }
 
     @property
     def filename(self) -> str:

@@ -72,20 +72,19 @@ class ProjectMetaTest(unittest.TestCase):
         """
 
         self.project_meta.make_project_definitions(section='quality-time',
-                                                   project_name='test')
+                                                   project_name=None)
         source.assert_called_once_with('quality-time',
                                        name='$QUALITY_TIME_NAME',
                                        url='$QUALITY_TIME_URL')
         source.reset_mock()
 
-        self.project_meta.make_project_definitions(base=True)
-        source.assert_called_once_with('$DEFINITIONS_TYPE',
-                                       name='$DEFINITIONS_NAME',
-                                       url='$DEFINITIONS_BASE_URL')
-
-        # At least one of 'base' or 'project_name' is necessary.
-        with self.assertRaises(ValueError):
-            self.project_meta.make_project_definitions()
+        settings = self.project_meta.settings
+        settings.set('quality-time', 'url', '$QUALITY_TIME_URL/{}')
+        self.project_meta.make_project_definitions(section='quality-time',
+                                                   project_name='test')
+        source.assert_called_once_with('quality-time',
+                                       name='$QUALITY_TIME_NAME',
+                                       url='$QUALITY_TIME_URL/test')
 
 class ProjectTest(unittest.TestCase):
     """

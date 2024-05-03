@@ -21,14 +21,13 @@ limitations under the License.
 import json
 import logging
 from typing import Any, Dict, Optional, Type
-from .base import Data, Definition_Parser, MetricNames, SourceUrl
-from .data import Project_Definition_Data, Quality_Time_Data
+from .base import Definition_Parser, MetricNames, SourceUrl
 from .metric import Metric_Difference
 from .update import Update_Tracker
 from ..domain import Project, Source
 from ..domain.source.types import Source_Type_Error
 from ..table import Table
-from ..version_control.repo import PathLike, Version
+from ..version_control.repo import Version
 
 class Collector:
     """
@@ -37,18 +36,19 @@ class Collector:
     """
 
     def __init__(self, project: Project, source: Source,
-                 repo_path: Optional[PathLike] = None,
+                 url: Optional[str] = None,
                  target: str = 'project_definition', **options: Any):
         self._project = project
         self._update_tracker = Update_Tracker(self._project, source,
                                               target=target)
         self._options = options
         self._target = target
-        if source.repository_class is not None:
-            self._data: Data = Project_Definition_Data(project, source,
-                                                       repo_path)
-        else:
-            self._data = Quality_Time_Data(project, source, repo_path)
+
+        project_definition_class = source.project_definition_class
+        if project_definition_class is None:
+            raise TypeError('Source does not have a project defitinion class')
+
+        self._data = project_definition_class(project, source, url)
 
     def collect(self, from_revision: Optional[Version] = None,
                 to_revision: Optional[Version] = None) -> None:

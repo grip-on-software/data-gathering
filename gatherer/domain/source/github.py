@@ -70,8 +70,10 @@ class GitHub(Git):
 
         return cls.has_option(host, 'github_token')
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super()._update_credentials()
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
+        orig_parts, host = \
+            super()._update_credentials(follow_host_change=follow_host_change)
         credentials = Configuration.get_credentials()
 
         # Retrieve the owner from the URL of the source.

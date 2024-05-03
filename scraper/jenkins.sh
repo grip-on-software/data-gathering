@@ -134,16 +134,13 @@ currentProject=""
 function error_handler() {
 	log_error "Cleaning up workspace tracking data..."
 	if [ ! -z "$currentProject" ]; then
-		for restoreFile in $restoreFiles
-		do
+		for restoreFile in $restoreFiles; do
 			rm -f "$basePath/$currentProject/$restoreFile"
 		done
 	fi
 	if [ $cleanupRepos = "true" ]; then
-		for project in $listOfProjects
-		do
+		for project in $listOfProjects; do
 			rm -rf "project-git-repos/$project"
-			rm -rf "quality-report-history/$project"
 		done
 	fi
 }
@@ -283,9 +280,8 @@ fi
 # Install Python dependencies
 if [ -z "$SKIP_REQUIREMENTS" ]; then
 	log_info "Installing Python dependencies"
-	pip install -r requirements-jenkins.txt
-	python setup.py install
-	pip install -I python-gitlab
+	make setup_jenkins
+	make install
 fi
 
 # Retrieve Java importer
@@ -308,10 +304,6 @@ do
 	if [ $skipGather = "false" ]; then
 		mkdir -p "project-git-repos/$project"
 
-		# Retrieve quality metrics repository
-		status_handler python scraper/retrieve_metrics_repository.py $project --log $logLevel
-		status_handler python scraper/retrieve_metrics_base_names.py --project $project --log $logLevel
-
 		# Retrieve archived project dropins
 		status_handler python scraper/retrieve_dropins.py $project --log $logLevel $dropinParameters
 
@@ -323,7 +315,6 @@ do
 		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
 		export_handler history_to_json.py $project --export-path --export-url --log $logLevel
 		export_handler jenkins_to_json.py $project --log $logLevel
-		export_handler sonar_to_json.py $project --log $logLevel --no-url --metrics ${SONAR_METRICS}
 		export_handler ldap_to_json.py $project --log $logLevel
 		if [ ! -z "$TOPDESK_FILE" ]; then
 			export_handler topdesk_to_json.py $project --file $TOPDESK_FILE --log $logLevel
@@ -340,13 +331,8 @@ do
 	if [ $cleanupRepos = "true" ]; then
 		log_info "Cleaning up repositories for $project"
 		rm -rf project-git-repos/$project
-		rm -rf quality-report-history
 	fi
 done
-
-if [ $skipGather = "false" ] && [ $cleanupRepos = "true" ]; then
-	python scraper/retrieve_metrics_repository.py $currentProject --delete --all --log $logLevel
-fi
 
 # Clean up retrieved dropins
 rm -rf dropins

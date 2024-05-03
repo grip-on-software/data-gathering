@@ -1,0 +1,4 @@
+# Install normal dependencies
+-r requirements.txt
+# scraper.py
+CherryPy==18.9.0
