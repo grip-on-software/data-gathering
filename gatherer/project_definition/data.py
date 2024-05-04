@@ -21,11 +21,11 @@ limitations under the License.
 from datetime import datetime
 import re
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Type, \
-    Union, TYPE_CHECKING
+    TYPE_CHECKING
 from urllib.parse import urlsplit
 import dateutil.parser
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
-from .base import Data, DataUrl, Definition_Parser, UUID
+from .base import Data, DataUrl, Definition_Parser, MetricNameData, UUID
 from . import quality_time
 from ..request import Session
 from ..utils import convert_local_datetime, convert_utc_datetime, format_date, \
@@ -86,27 +86,31 @@ class Quality_Time_Data(Data):
     def _format_date(date: datetime) -> str:
         return convert_utc_datetime(date).isoformat()
 
-    def get_url(self, path: str = "reports", query: DataUrl = None) -> str:
+    def get_url(self, path: str = "reports", query: DataUrl = None,
+                version: str = 'v3') -> str:
         """
         Format an API URL for the Quality Time server.
         """
 
-        return super().get_url(f'/api/v3/{path}', query=query)
+        return super().get_url(f'/api/{version}/{path}', query=query)
 
-    def get_contents(self, version: Dict[str, str]) -> Union[str, bytes]:
+    def get_contents(self, version: Dict[str, str]) -> Dict[str, Any]:
         date = dateutil.parser.parse(version['version_id'])
-        url = self.get_url('reports', {'report_date': self._format_date(date)})
+        url = self.get_url('report',
+                           {'report_date': self._format_date(date)},
+                           version='internal')
         request = self._session.get(url)
         try:
             request.raise_for_status()
         except (ConnectError, HTTPError, Timeout) as error:
             raise RuntimeError("Could not retrieve reports from Quality Time") from error
-        return request.text
+        return request.json()
 
     def get_data_model(self, version: Dict[str, str]) -> Dict[str, Any]:
         date = dateutil.parser.parse(version['version_id'])
         url = self.get_url('datamodel',
-                           {'report_date': self._format_date(date)})
+                           {'report_date': self._format_date(date)},
+                           version='internal')
         request = self._session.get(url)
         try:
             request.raise_for_status()
@@ -118,7 +122,8 @@ class Quality_Time_Data(Data):
             -> List[Dict[str, str]]:
         date = dateutil.parser.parse(version['version_id'])
         url = self.get_url(f'changelog/metric/{metric}/{count}',
-                           {'report_date': self._format_date(date)})
+                           {'report_date': self._format_date(date)},
+                           version='internal')
         request = self._session.get(url)
         try:
             request.raise_for_status()
@@ -183,20 +188,24 @@ class Quality_Time_Data(Data):
         return (new_version, new_result)
 
     def get_measurements(self, metric: str, version: Dict[str, str],
-                         cutoff_date: Optional[datetime] = None) \
+                         cutoff_date: Optional[datetime] = None,
+                         metric_data: MetricNameData = None) \
             -> Iterator[Dict[str, str]]:
         date = version['version_id']
-        url = self.get_url(f'measurements/{metric}', {'report_date': date})
+        url = self.get_url(f'measurements/{metric}', {'report_date': date},
+                           version='internal')
         request = self._session.get(url)
         request.raise_for_status()
         for measurement in request.json()['measurements']:
-            data = self._parse_measurement(metric, measurement, cutoff_date)
+            data = self._parse_measurement(metric, measurement, cutoff_date,
+                                           metric_data=metric_data)
             if data is not None:
                 yield data
 
     @staticmethod
     def _parse_measurement(metric_uuid: str, measurement: Dict[str, Any],
-                           cutoff_date: Optional[datetime]) \
+                           cutoff_date: Optional[datetime] = None,
+                           metric_data: MetricNameData = None) \
             -> Optional[Dict[str, str]]:
         """
         Parse a measurement of a Quality Time metric from its API.
@@ -206,9 +215,20 @@ class Quality_Time_Data(Data):
         if cutoff_date is not None and get_utc_datetime(date) <= cutoff_date:
             return None
 
-        count = measurement.get("count", {})
+        if metric_data is not None:
+            scale = metric_data.get("scale", "count")
+        else:
+            scale = "count"
+
+        count = measurement.get(scale, {})
         category = count.get("status")
         value = count.get("value")
+        if value is not None:
+            # Ignore values that are not parseable, such as version numbers
+            try:
+                value = int(value)
+            except ValueError:
+                return None
 
         return {
             'name': metric_uuid,

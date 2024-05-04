@@ -101,7 +101,10 @@ able to access it directly.
 ## Data sources
 
 The following list provides the supported version of platforms that the data 
-gatherer can use:
+gatherer can use. The versions listed here are indication of which actual 
+version of the sources have been used in deployments and tests with the modules 
+and do not indicate if this is the only supported version. Later versions are 
+likely supported unless noted otherwise.
 
 - Jira: Tested with Jira 7.9.2 and later with Agile 7.3.1 and later.
 - Version control systems:
@@ -114,7 +117,8 @@ gatherer can use:
   - Subversion: Tested with server version 1.6 and later and client version 1.7 
     and later.
 - Jenkins: Works with LTS versions.
-- Quality Time: Works with rolling releases.
+- Quality-time: Works with version 5.9.0 and later. Note that internal API is 
+  used, so support may break, tested with 5.12.0-rc1.
 - SonarQube: Currently not supported directly.
 - BigBoat: Works with BigBoat version 5.0 and later.
 - Additional data is retrievable from seat count spreadsheets, Topdesk and LDAP 

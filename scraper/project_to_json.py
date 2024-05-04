@@ -34,10 +34,8 @@ def parse_args() -> Namespace:
     description = "Obtain project attributes and metadata"
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--repo", default=None,
-                        help="Repository directory with project definitions")
-    parser.add_argument("--context", type=int, default=3,
-                        help="Number of context lines for parser problems")
+    parser.add_argument("--url", default=None,
+                        help="Override project definition source URL")
 
     Log_Setup.add_argument(parser)
     Log_Setup.add_upload_arguments(parser)
@@ -76,8 +74,7 @@ def main() -> None:
 
     for source in project.project_definitions_sources:
         try:
-            collector = Project_Collector(project, source, repo_path=args.repo,
-                                          context_lines=args.context)
+            collector = Project_Collector(project, source, url=args.url)
             collector.collect_latest()
 
             data.update(collector.meta)

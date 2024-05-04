@@ -34,7 +34,8 @@ else:
 
 DataUrl = Optional[Union[str, Dict[str, str]]]
 
-MetricNames = Union[List[str], Dict[str, Optional[Dict[str, str]]]]
+MetricNameData = Optional[Dict[str, str]]
+MetricNames = Dict[str, MetricNameData]
 SourceUrl = Optional[Union[str, Tuple[str, str, str]]]
 UUID = re.compile('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
 
@@ -50,7 +51,7 @@ class Definition_Parser:
     def __init__(self, **options: Any) -> None:
         pass
 
-    def load_definition(self, filename: str, contents: Union[str, bytes]) -> None:
+    def load_definition(self, filename: str, contents: Dict[str, Any]) -> None:
         """
         Load the contents of a project definition.
         """
@@ -136,10 +137,12 @@ class Data:
 
         raise NotImplementedError("Must be implemented by subclasses")
 
-    def get_contents(self, version: Dict[str, str]) -> Union[str, bytes]:
+    def get_contents(self, version: Dict[str, str]) -> Dict[str, Any]:
         """
         Retrieve the contents of a project definition based on the version
-        metadata for that version of the definition.
+        metadata for that version of the definition. This is then usable as
+        the basis for parsing various information from the definition, although
+        parser may themselves collect more information if necessary.
         """
 
         raise NotImplementedError("Must be implemented by subclasses")
@@ -173,12 +176,15 @@ class Data:
         raise NotImplementedError("Must be implemented by subclasses")
 
     def get_measurements(self, metric: str, version: Dict[str, str],
-                         cutoff_date: Optional[datetime] = None) \
+                         cutoff_date: Optional[datetime] = None,
+                         metric_data: MetricNameData = None) \
             -> Iterator[Dict[str, str]]:
         """
         Retrieve the measurements for a specific `metric` up to a certain date
         determined by the `version` and optionally starting from a `cutoff_date`
-        if this is supported by the project definition data.
+        if this is supported by the project definition data. Basic information
+        about the metric, such as the name parts, may be provided in the
+        `metric_data` for more exact measurement collection.
 
         Returns an iterator of measurement data, providing dictionaries with
         measurment data in a standard format.

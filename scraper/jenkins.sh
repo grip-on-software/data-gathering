@@ -313,7 +313,7 @@ do
 		export_handler environment_sources.py $project --log $logLevel
 		export_handler git_to_json.py $project --log $logLevel
 		export_handler metric_options_to_json.py $project --context -1 --log $logLevel
-		export_handler history_to_json.py $project --export-path --export-url --log $logLevel
+		export_handler history_to_json.py $project --log $logLevel
 		export_handler jenkins_to_json.py $project --log $logLevel
 		export_handler ldap_to_json.py $project --log $logLevel
 		if [ ! -z "$TOPDESK_FILE" ]; then

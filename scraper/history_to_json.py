@@ -33,7 +33,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple, Type, \
 from gatherer.domain import Project, Source
 from gatherer.domain.source import Quality_Time
 from gatherer.log import Log_Setup
-from gatherer.project_definition.base import MetricNames, UUID
+from gatherer.project_definition.base import MetricNames, MetricNameData, UUID
 from gatherer.project_definition.data import Quality_Time_Data
 from gatherer.utils import get_utc_datetime, parse_date
 
@@ -85,21 +85,21 @@ def read_quality_time_measurements(project: Project, source: Source,
 
     cutoff_date = get_utc_datetime(start_date.strip())
     version = data.get_latest_version()
-    for metric_uuid in metrics:
+    for metric_uuid, metric in metrics.items():
         if not UUID.match(metric_uuid):
             continue
 
         metric_data.extend(fetch_quality_time_measurements(data, metric_uuid,
                                                            version,
                                                            cutoff_date,
-                                                           metrics))
+                                                           metric))
 
     return metric_data, version['version_id']
 
 def fetch_quality_time_measurements(data: Quality_Time_Data, metric_uuid: str,
                                     version: Dict[str, str],
                                     cutoff_date: datetime,
-                                    metrics: MetricNames) \
+                                    metric: MetricNameData) \
         -> List[Dict[str, str]]:
     """
     Retrieve the measurements of a Quality Time metric from its source.
@@ -107,11 +107,10 @@ def fetch_quality_time_measurements(data: Quality_Time_Data, metric_uuid: str,
 
     metric_data: List[Dict[str, str]] = []
     for measurement in data.get_measurements(metric_uuid, version,
-                                             cutoff_date=cutoff_date):
-        if isinstance(metrics, dict):
-            metric = metrics[metric_uuid]
-            if isinstance(metric, dict):
-                measurement.update(metric)
+                                             cutoff_date=cutoff_date,
+                                             metric_data=metric):
+        if metric is not None:
+            measurement.update(metric)
 
         metric_data.append(measurement)
 

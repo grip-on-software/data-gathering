@@ -18,7 +18,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import json
 from typing import Any, Dict, List, Optional, Sequence, Set, Union
 from .base import SourceUrl, Definition_Parser, UUID
 from ..utils import parse_date
@@ -39,10 +38,9 @@ class Quality_Time_Parser(Definition_Parser):
         self.reports: List[Report] = []
         self.data: Dict[str, Any] = {}
 
-    def load_definition(self, filename: str, contents: Union[str, bytes]) -> None:
+    def load_definition(self, filename: str, contents: Dict[str, Any]) -> None:
         try:
-            definition = json.loads(contents)
-            self.reports = definition.get("reports", [])
+            self.reports = contents.get("reports", [])
             if UUID.match(filename):
                 self.reports = [
                     report for report in self.reports
@@ -206,6 +204,7 @@ class Metric_Options_Parser(Quality_Time_Parser):
         metric_data = {
             "base_name": metric_type,
             "domain_name": subject_name,
+            "scale": str(metric.get("scale", "count")),
             "number_of_sources": str(len(metric_sources)) \
                 if isinstance(metric_sources, dict) else "0"
         }

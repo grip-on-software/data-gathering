@@ -18,14 +18,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Hashable, Optional
+from typing import Hashable, Optional, Type
 from .types import Source, Source_Types, Project
+from ...project_definition.data import Quality_Time_Data
 
 @Source_Types.register('quality-time')
 class Quality_Time(Source):
     """
     Quality Time source.
     """
+
+    @property
+    def project_definition_class(self) -> Type[Quality_Time_Data]:
+        return Quality_Time_Data
 
     @property
     def environment(self) -> Optional[Hashable]:

@@ -34,10 +34,8 @@ def parse_args() -> Namespace:
     description = "Obtain quality metric project definition and output JSON"
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--repo", default=None,
-                        help="Override quality time source URL")
-    parser.add_argument("--context", type=int, default=3,
-                        help="Number of context lines for parser problems")
+    parser.add_argument("--url", default=None,
+                        help="Override project definitions source URL")
     parser.add_argument("--from-revision", dest="from_revision", default=None,
                         help="Revision to start from gathering definitions")
     parser.add_argument("--to-revision", dest="to_revision", default=None,
@@ -64,9 +62,7 @@ def main() -> None:
 
     for source in project.project_definitions_sources:
         try:
-            collector = Metric_Options_Collector(project, source,
-                                                 repo_path=args.repo,
-                                                 context_lines=args.context)
+            collector = Metric_Options_Collector(project, source, url=args.url)
             collector.collect(args.from_revision, args.to_revision)
         except RuntimeError:
             logging.exception('Could not collect metric options of %s',

@@ -277,34 +277,24 @@ class Metric_Options_Collector(Collector):
         if data is None:
             data = self._diff.previous_metric_targets
 
-        metric_names: Dict[str, Optional[Dict[str, str]]] = {
+        metric_names: MetricNames = {
             name: {
                 'base_name': str(metric.get('base_name')),
                 'domain_name': str(metric.get('domain_name')),
-                'domain_type': str(metric.get('domain_type', ''))
+                'domain_type': str(metric.get('domain_type', '')),
+                'scale': str(metric.get('scale', 'count'))
             } if 'base_name' in metric else None
             for name, metric in data.items()
-            if int(metric.get('number_of_sources', 1)) <= 1
         }
         metric_names_path = self._project.export_key / 'metric_names.json'
         if metric_names_path.exists():
             with metric_names_path.open('r', encoding='utf-8') as metric_names_file:
                 existing_names: MetricNames = json.load(metric_names_file)
-                if isinstance(existing_names, list):
-                    existing_names = {
-                        name: metric_names.get(name) for name in existing_names
-                    }
-                metric_names.update(existing_names)
+                existing_names.update(metric_names)
+                metric_names = existing_names
 
         with metric_names_path.open('w', encoding='utf-8') as metric_names_file:
             json.dump(metric_names, metric_names_file)
-
-        source = Source.from_type('metric_options',
-                                  name=self._source.name,
-                                  url=self._source.plain_url)
-        if not self._project.sources.has_url(source.plain_url):
-            self._project.sources.add(source)
-            self._project.export_sources()
 
         super().finish(end_revision, data=data)
 
