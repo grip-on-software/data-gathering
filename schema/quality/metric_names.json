@@ -29,6 +29,11 @@
                 "domain_type": {
                     "type": "string",
                     "description": "Type of the measured object."
+                },
+                "scale": {
+                    "type": "string",
+                    "enum": ["count", "percentage", "version_number"],
+                    "description": "Scale of the measured object.\n\n- count: The measurement happens by counting items.\n- percentage: The measurement leads to a fraction of items compared to its total.\n- version_number: The measurement provides a software version."
                 }
             }
         }

@@ -2,23 +2,9 @@
 server = $JIRA_SERVER
 username = $JIRA_USER
 password = $JIRA_PASSWORD
-[definitions]
-source_type = $DEFINITIONS_TYPE
-name = $DEFINITIONS_NAME
-url = $DEFINITIONS_URL
-path = $DEFINITIONS_PATH/{}
-base = $DEFINITIONS_BASE
-base_url = $DEFINITIONS_BASE_URL
-required_paths = $DEFINITIONS_REQUIRED_PATHS
 [quality-time]
 name = $QUALITY_TIME_NAME
 url = $QUALITY_TIME_URL
-[history]
-url = $HISTORY_URL
-path = $HISTORY_PATH
-compression = $HISTORY_COMPRESSION
-filename = $HISTORY_FILENAME
-delete = $HISTORY_DELETE
 [metrics]
 url = $METRICS_URL
 host = $METRICS_HOST
@@ -58,11 +44,6 @@ password = $JENKINS_PASSWORD
 verify = $JENKINS_VERIFY
 scrape = $JENKINS_JOB
 token = $JENKINS_TOKEN
-[sonar]
-host = $SONAR_HOST
-username = $SONAR_USERNAME
-password = $SONAR_PASSWORD
-verify = $SONAR_VERIFY
 [schedule]
 days = $SCHEDULE_DAYS
 drift = $SCHEDULE_DRIFT
