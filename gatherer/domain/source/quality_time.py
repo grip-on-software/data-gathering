@@ -18,9 +18,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Hashable, Optional, Type
+import logging
+from typing import Hashable, Optional, Type, Union
+from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from .types import Source, Source_Types, Project
-from ...project_definition.data import Quality_Time_Data
+from ...config import Configuration
+from ...project_definition.quality_time.data import Quality_Time_Data
+from ...request import Session
 
 @Source_Types.register('quality-time')
 class Quality_Time(Source):
@@ -39,6 +43,24 @@ class Quality_Time(Source):
     @property
     def environment_url(self) -> Optional[str]:
         return self.plain_url
+
+    @property
+    def version(self) -> str:
+        if Configuration.is_url_blacklisted(self.url):
+            return ''
+
+        try:
+            logging.info("Checking server version of %s", self.plain_url)
+            verify: Union[Optional[str], bool] = self.get_option('verify')
+            if verify is None:
+                verify = True
+            session = Session()
+            session.verify = verify
+            url = f'{self.url.rstrip("/")}/api/v3/server'
+            response = session.get(url, timeout=3)
+            return response.json()['version']
+        except (ConnectError, HTTPError, Timeout, KeyError):
+            return ''
 
     def update_identity(self, project: Project, public_key: str,
                         dry_run: bool = False) -> None:

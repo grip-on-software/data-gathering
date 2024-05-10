@@ -19,8 +19,11 @@
                     },
                     "version_id": {
                         "type": "string",
-                        "format": "^[a-f0-9]+$",
-                        "description": "Identifier of the version, either a hexadecimal SHA hash or an incremental version number."
+                        "oneOf": [
+                            {"$ref": "../utils.json#/$defs/version"},
+                            {"format": "date-time"}
+                        ],
+                        "description": "Identifier of the version, either a hexadecimal SHA hash, an incremental version number or a timestamp formatted in ISO 8601 with timezone."
                     },
                     "commit_date": {
                         "$ref": "../utils.json#/$defs/datetime",

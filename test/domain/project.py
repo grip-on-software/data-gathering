@@ -32,10 +32,12 @@ class ProjectMetaTest(unittest.TestCase):
 
     def setUp(self) -> None:
         Configuration.clear()
+        Project_Meta.clear_settings()
         self.project_meta = Project_Meta()
 
     def tearDown(self) -> None:
         Configuration.clear()
+        Project_Meta.clear_settings()
 
     def test_get_key_setting(self) -> None:
         """
@@ -50,9 +52,11 @@ class ProjectMetaTest(unittest.TestCase):
             self.project_meta.get_key_setting('jira', 'invalid-option')
 
         # Formatter arguments
-        self.assertEqual(self.project_meta.get_key_setting('definitions',
-                                                           'path', 'Test'),
-                         '$DEFINITIONS_PATH/Test')
+        self.project_meta.settings.set('quality-time', 'url',
+                                       '$QUALITY_TIME_URL/{}')
+        self.assertEqual(self.project_meta.get_key_setting('quality-time',
+                                                           'url', 'Test'),
+                         '$QUALITY_TIME_URL/Test')
 
     def test_settings(self) -> None:
         """

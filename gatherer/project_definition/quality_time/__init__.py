@@ -1,5 +1,5 @@
 """
-Data gathering package for project definitions and metric sources.
+Data gathering package for Quality-time project definitions and metric sources.
 
 Project definitions are Python scripts that define a number of domain objects,
 such as projects, products and teams. Additionally, they specify options for
@@ -7,7 +7,7 @@ quality metrics, namely custom targets.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
-Copyright 2017-2023 Leon Helwerda
+Copyright 2017-2024 Leon Helwerda
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

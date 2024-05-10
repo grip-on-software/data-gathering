@@ -21,9 +21,9 @@ limitations under the License.
 import json
 import os
 from typing import Any, Dict, Optional
+from .base import Revision
 from ..domain import Project, Source
 from ..domain.sources import Sources
-from ..version_control.repo import Version
 
 class Update_Tracker:
     """
@@ -40,10 +40,12 @@ class Update_Tracker:
 
         self._file_loaded = False
         self._previous_data = None
+        # Sources and versions per source URL to be added to the tracker
         self._sources = Sources()
-        self._versions: Dict[str, Version] = {}
+        self._versions: Dict[str, Revision] = {}
 
-    def get_start_revision(self, from_revision: Optional[Version] = None) -> Optional[Version]:
+    def get_start_revision(self, from_revision: Optional[Revision] = None) \
+            -> Optional[Revision]:
         """
         Retrieve the revision from which we should retrieve new versions from.
 
@@ -56,10 +58,7 @@ class Update_Tracker:
 
         self._read()
 
-        if self._sources.has_url(self._source.url):
-            return self._versions[self._source.plain_url]
-
-        return None
+        return self._versions.get(self._source.plain_url)
 
     def get_previous_data(self) -> Dict[str, Any]:
         """
@@ -89,7 +88,7 @@ class Update_Tracker:
 
         self._file_loaded = True
 
-    def set_end(self, end_revision: Optional[Version],
+    def set_end(self, end_revision: Optional[Revision],
                 previous_data: Optional[Dict[str, Any]]) -> None:
         """
         Store the new current state of the data retrieval from the project
@@ -99,14 +98,14 @@ class Update_Tracker:
         if the next update has changes.
         """
 
+        self._project.sources.add(self._source)
+        self._sources.add(self._source)
+
         if end_revision is None:
             # Mark as up to date to this time.
             os.utime(self._filename, None)
         else:
             self._read()
-
-            if not self._sources.has_url(self._source.url):
-                self._sources.add(self._source)
 
             self._versions[self._source.plain_url] = end_revision
 

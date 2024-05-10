@@ -24,7 +24,7 @@ from typing import AnyStr, Callable, ClassVar, Dict, Hashable, List, Optional, \
     Tuple, Type, Union, TYPE_CHECKING
 from urllib.parse import quote, urlsplit, urlunsplit, SplitResult
 from ...config import Configuration
-from ...project_definition.data import Data
+from ...project_definition.base import Data
 from ...version_control.repo import Version_Control_Repository
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import, unsubscriptable-object

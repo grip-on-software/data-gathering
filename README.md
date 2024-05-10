@@ -65,6 +65,8 @@ separately or in combination with one another:
     for the modules are installed.
   - For the controller: run `make setup_daemon`, which also ensures that the 
     dependencies for the modules are installed.
+  - For tests: run `make setup_test`, which also installs the dependencies for 
+    the modules.
   - For static code analysis: run `make setup_analysis`, which installs 
     dependencies for Pylint and mypy (typing extensions) as well as all the 
     other dependencies, even those in scraper agent, Jenkins and controller 
@@ -147,7 +149,7 @@ The usual pipeline setup runs the scripts in the following order:
   GitLab or GitHub project data (such as commit comments and merge requests) 
   and Azure DevOps/VSTS/TFS work item data (also sprints and team members).
 - `scraper/metric_options_to_json.py`: Retrieve changes to metric targets from 
-  a changelog of the project definitions.
+  a changelog of the project definitions as well as the default metric targets.
 - `scraper/history_to_json.py`: Retrieve the history of measurement values for 
   metrics that are collected in the project, or only output a reference to it.
 - `scraper/jenkins_to_json.py`: Retrieve usage statistics from a Jenkins 
@@ -159,7 +161,7 @@ in the [Docker](#docker) section. Depending on the environment, the selected
 scripts to run or the files to produce for an importer, some scripts may be 
 skipped through these scripts.
 
-Additionally `scraper/topdesk_to_json.py` can be manually run to retrieve 
+Additionally, `scraper/topdesk_to_json.py` can be manually run to retrieve 
 reservation data related to projects from a CSV dump (see the 
 [Topdesk](#topdesk) section), and `scraper/seats_to_json.py` can be manually 
 run to retrieve seat counts for projects from a spreadsheet (see the 
@@ -714,17 +716,21 @@ description. There is no project-specific deny list.
 Some of the modules come with unit tests, while also depending on the 
 correctness of dependencies to provide with accurate data from sources and 
 testing the actual system in non-production settings. To run unit tests, first 
-install the test dependencies with `pip install -r requirements-test.txt` which 
-also installs all dependencies for the modules. Then `coverage run tests.py` 
-provides test results in the output, with XML versions compatible with, e.g., 
-JUnit and SonarQube available in the `test-reports/` directory. Detailed 
-information on test coverage is also obtainable after a test run in various 
-report formats, for example:
+install the test dependencies with `make setup_test` which also installs all 
+dependencies for the modules, as mentioned in the [installation](#installation) 
+instructions. Then `coverage run tests.py` provides test results in the output, 
+with XML versions compatible with, e.g., JUnit and SonarQube available in the 
+`test-reports/` directory. Detailed information on test coverage is also 
+obtainable after a test run in various report formats, for example:
 
 - `coverage report -m` for a report on missed statements and branches in the 
   modules in the output.
 - `coverage html` for a HTML report in the `htmlcov/` directory.
 - `coverage xml -i` for an XML output suitable for, e.g., SonarQube.
+
+To perform all the steps except the HTML report, run `make coverage`. If you do 
+not need XML outputs (each test class writes an XML file by default), then run 
+`make test` to just report on test successes and failures.
 
 [GitHub Actions](https://github.com/grip-on-software/data-gathering/actions) is 
 used to run the unit tests and report on coverage on commits and pull requests. 
@@ -734,28 +740,12 @@ and [Coveralls](https://coveralls.io/github/grip-on-software/data-gathering)
 for coverage history.
 
 The Python scripts and modules conform to code style and typing standards which 
-may be checked using Pylint and mypy, respectively, after following the 
-[installation](#installation) instructions for static code analysis.
-
-For Pylint:
-
-```
-python3 -m pylint gatherer scraper controller maintenance test setup.py \
-    tests.py --exit-zero --reports=n \
-    --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-    -d duplicate-code
-```
-
-For mypy:
-
-```
-mypy gatherer scraper controller maintenance test setup.py tests.py \
-    --html-report mypy-report --cobertura-xml-report mypy-report \
-    --junit-xml mypy-report/junit.xml --no-incremental --show-traceback
-```
-
-This provides potential errors in the output and typing coverage reports in 
-various formats in the `mypy-report/` directory.
+may be checked using Pylint with `make pylint` and mypy with `make mypy`, 
+respectively, after following the [installation](#installation) instructions 
+for static code analysis (i.e., running `make setup_analysis`). The command for 
+mypy provides potential errors in the output and typing coverage reports in 
+several formats, including HTML and XML (compatible with JUnit and  SonarQube) 
+in the `mypy-report/` directory.
 
 Finally, the schemas in the `schema/` directory allow validation of certain 
 configuration files as well as all the exported artifacts against the schema. 

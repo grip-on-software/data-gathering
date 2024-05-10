@@ -19,8 +19,9 @@ limitations under the License.
 """
 
 from typing import Any, Dict, List, Optional, Sequence, Set, Union
-from .base import SourceUrl, Definition_Parser, UUID
-from ..utils import parse_date
+from ..base import Definition_Parser, Measurement_Parser, Metric_Parser, \
+    MetricNameData, SourceUrl, Version, UUID
+from ...utils import parse_date
 
 Source = Dict[str, Union[str, Dict[str, Union[str, List[str]]]]]
 Metric = Dict[str, Union[str, Dict[str, Source]]]
@@ -28,13 +29,13 @@ Subject = Dict[str, Union[str, Dict[str, Metric]]]
 Report = Dict[str, Union[str, Dict[str, Subject]]]
 # Dict[str, str], Dict[str, int], Dict[str, Dict[str, int]]
 
-class Quality_Time_Parser(Definition_Parser):
+class Quality_Time_Report_Parser(Definition_Parser):
     """
-    Abstract Quality Time parser.
+    Abstract Quality-time parser that makes use of several reports.
     """
 
-    def __init__(self, **options: Any) -> None:
-        super().__init__(**options)
+    def __init__(self, version: Optional[Version] = None) -> None:
+        super().__init__(version=version)
         self.reports: List[Report] = []
         self.data: Dict[str, Any] = {}
 
@@ -62,18 +63,18 @@ class Quality_Time_Parser(Definition_Parser):
 
         raise NotImplementedError("Must be implemented by subclasses")
 
-class Project_Parser(Quality_Time_Parser):
+class Project_Parser(Quality_Time_Report_Parser):
     """
-    A Quality Time report parser that retrieves the project name.
+    A Quality-time report parser that retrieves the project name.
     """
 
     def parse_report(self, index: int, report: Report) -> None:
         if index == 0:
             self.data['quality_display_name'] = report.get("title", "")
 
-class Sources_Parser(Quality_Time_Parser):
+class Sources_Parser(Quality_Time_Report_Parser):
     """
-    A Quality Time parser that extracts source URLs for the metrics specified in
+    A Quality-time parser that extracts source URLs for the metrics specified in
     the report.
     """
 
@@ -142,19 +143,88 @@ class Sources_Parser(Quality_Time_Parser):
 
         return source_url
 
-class Metric_Options_Parser(Quality_Time_Parser):
+class Measurements_Parser(Measurement_Parser):
     """
-    A Quality Time parser that extracts targets from the metrics specified in
-    the report.
+    A Quality-time parser that formats measurements of metrics to a standard
+    table format.
     """
 
-    def __init__(self, data_model: Optional[Dict[str, Any]] = None,
-                 **options: Any) -> None:
-        super().__init__(**options)
-        if data_model is None:
-            self._data_model: Dict[str, Any] = {}
+    def parse(self) -> Dict[str, Any]:
+        if self._measurements is None or self._version is None:
+            return {}
+
+        result = []
+        for measurement in self._measurements:
+            metric = str(measurement.pop('metric_uuid'))
+            row = self._parse_measurement(metric, measurement,
+                                          self._metrics.get(metric))
+            if row is not None:
+                result.append(row)
+
+        return {self._version['version_id']: result}
+
+    @staticmethod
+    def _parse_measurement(metric_uuid: str, measurement: Dict[str, Any],
+                           metric_data: MetricNameData = None) \
+            -> Optional[Dict[str, str]]:
+        """
+        Parse a measurement of a Quality-time metric from its API.
+        """
+
+        if metric_data is not None:
+            scale = metric_data.get("scale", "count")
         else:
-            self._data_model = data_model
+            scale = "count"
+
+        count: Dict[str, Optional[str]] = measurement.get(scale, {})
+        category = count.get("status")
+        value = count.get("value")
+        if value is not None:
+            # Ignore values that are not parseable, such as version numbers
+            try:
+                int(value)
+            except ValueError:
+                return None
+
+        return {
+            'name': metric_uuid,
+            'value': str(value) if value is not None else "-1",
+            'category': str(category) if category is not None else "unknown",
+            'date': str(measurement.get("end")),
+            'since_date': parse_date(str(measurement.get("start")))
+        }
+
+class Metric_Defaults_Parser(Metric_Parser):
+    """
+    A Quality-time parser that extracts default metric properties from the
+    data model.
+    """
+
+    def parse(self) -> Dict[str, Any]:
+        if self._version is None:
+            return {}
+
+        result = []
+        metrics = self._data_model.get("metrics", {})
+        date = self._data_model.get("timestamp", self._version['version_id'])
+        for metric_type, metric in metrics.items():
+            result.append({
+                "base_name": metric_type,
+                "version_id": date,
+                "commit_date": parse_date(date),
+                "direction": "1" if metric.get("direction") == ">" else "-1",
+                "target_value": metric.get("target"),
+                "low_target_value": metric.get("near_target"),
+                "scale": metric.get("default_scale", "count")
+            })
+
+        return {self._version['version_id']: result}
+
+class Metric_Options_Parser(Metric_Parser, Quality_Time_Report_Parser):
+    """
+    A Quality-time parser that extracts targets from the metrics specified in
+    the report.
+    """
 
     def parse_report(self, index: int, report: Dict[str, Any]) -> None:
         metrics = self._data_model.get("metrics", {})
@@ -170,11 +240,11 @@ class Metric_Options_Parser(Quality_Time_Parser):
 
             subject_name = subject.get("name", name)
             subject_type = subject.get("type", "software")
-            metrics = subject.get("metrics", {})
-            if not isinstance(metrics, dict):
+            report_metrics = subject.get("metrics", {})
+            if not isinstance(report_metrics, dict):
                 continue
 
-            for uuid, metric in metrics.items():
+            for uuid, metric in report_metrics.items():
                 metric_data = self._parse_metric(metric, subject_name, metrics)
                 metric_data.update({
                     "report_uuid": report_uuid,

@@ -45,6 +45,14 @@ class Project_Meta:
         cls._settings = Configuration.get_settings()
         return cls._settings
 
+    @classmethod
+    def clear_settings(cls) -> None:
+        """
+        Remove cached settings.
+        """
+
+        cls._settings = None
+
     def get_key_setting(self, section: str, key: str, *format_values: str,
                         **format_args: Union[str, bool]) -> str:
         """

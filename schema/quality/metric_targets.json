@@ -39,7 +39,11 @@
                     "description": "Reason for adjustment of the metric targets."
                 },
                 "revision": {
-                    "$ref": "../utils.json#/$defs/version",
+                    "type": "string",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/version"},
+                        {"format": "date-time"}
+                    ],
                     "description": "Identifier of the version in which the change to the metric targets was made."
                 },
                 "default": {
