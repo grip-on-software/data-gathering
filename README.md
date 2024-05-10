@@ -121,7 +121,10 @@ likely supported unless noted otherwise.
 - Jenkins: Works with LTS versions.
 - Quality-time: Works with version 5.9.0 and later. Note that internal API is 
   used, so support may break, tested with 5.12.0-rc1.
-- SonarQube: Currently not supported directly.
+- SonarQube: Works with version 8.0 and later. Organization support for 
+  SonarCloud included; for later versions, you may need to set the URL to 
+  a specific component to avoid collecting from the entire intance. Note that 
+  some internal APIs may be used, so support may break.
 - BigBoat: Works with BigBoat version 5.0 and later.
 - Additional data is retrievable from seat count spreadsheets, Topdesk and LDAP 
   servers with proper configuration.
@@ -447,6 +450,12 @@ the setting is not used in this environment.
   - `token` (`$JENKINS_TOKEN`): Custom token to trigger the job remotely when 
     the Jenkins instance has authorization security. This token must be 
     configured in the build job itself.
+- sonar (used by `project_sources.py`): SonarQube instance where we can 
+  retrieve metrics and potentially project definitions.
+  - `name` (`$SONAR_NAME`): The source name of the SonarQube server, to give it 
+    a unique name within the sources of the project.
+  - `url` (`$SONAR_URL`): The HTTP(S) URL from which the SonarQube main landing 
+    UI page can be found.
 - schedule (used by `controller/gatherer_daemon.py`): Schedule imposed by the 
   controller API status preflight checks to let the agents check whether they 
   should collect data.

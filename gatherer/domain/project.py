@@ -382,7 +382,7 @@ class Project(Project_Meta):
                 return self._project_definitions
 
             project = self.quality_metrics_name
-            for section in ('quality-time',):
+            for section in ('quality-time', 'sonar'):
                 try:
                     source = self.make_project_definitions(section=section,
                                                            project_name=project)

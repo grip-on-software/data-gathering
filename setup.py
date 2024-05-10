@@ -55,6 +55,8 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               'ordered-set==4.1.0',
               # gatherer.svn
               'svn==1.0.1',
+              # gatherer.project_definition.sonar.data
+              'packaging==24.0',
               # gatherer.request
               'requests==2.31.0', 'requests_ntlm==1.2.0',
               # gatherer.database
