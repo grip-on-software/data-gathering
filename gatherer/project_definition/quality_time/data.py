@@ -120,6 +120,9 @@ class Quality_Time_Data(Data):
             raise RuntimeError("Could not retrieve data model") from error
         return request.json()
 
+    def update_source_definitions(self, contents: Dict[str, Any]) -> None:
+        pass
+
     def _get_changelog(self, metric: str, count: int, version: Version) \
             -> List[Dict[str, str]]:
         date = dateutil.parser.parse(version['version_id'])
@@ -136,7 +139,7 @@ class Quality_Time_Data(Data):
 
     def adjust_target_versions(self, version: Version, result: Dict[str, Any],
                                from_revision: Optional[Revision] = None) \
-            -> List[Tuple[Version, Dict[str, Any]]]:
+            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
         if from_revision is not None:
             start_date = get_utc_datetime(parse_date(str(from_revision)))
         else:
@@ -156,7 +159,7 @@ class Quality_Time_Data(Data):
     def _adjust_changelog(self, changelog: List[Dict[str, str]],
                           start_date: datetime, metric_uuid: str,
                           metric: Dict[str, str]) \
-            -> List[Tuple[Version, Dict[str, Any]]]:
+            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
         versions = []
         for change in changelog:
             match = self._delta_description.match(change.get("delta", ""))

@@ -42,6 +42,7 @@ class Sonar_Data(Data):
     """
 
     START_DATE = datetime(1970, 1, 1, 0, 0, 0)
+    MAX_URL_LENGTH = 2048
 
     def __init__(self, project: Project, source: Source, url: DataUrl = None):
         super().__init__(project, source, url)
@@ -84,7 +85,7 @@ class Sonar_Data(Data):
 
     @staticmethod
     def _format_date(date: datetime) -> str:
-        return convert_local_datetime(date).isoformat()
+        return convert_local_datetime(date).strftime('%Y-%m-%dT%H:%M:%S%z')
 
     def get_paginated(self, merge_key: str, path: str = '',
                       query: DataUrl = None, paging: Optional[str] = 'paging',
@@ -146,33 +147,146 @@ class Sonar_Data(Data):
                 's': 'analysisDate',
                 'asc': 'no'
             }
+            if self.filename != '':
+                query['filter'] = f'query="{self.filename}"'
             data = self.get_paginated('components',
                                       'api/components/search_projects', query)
         except (ConnectError, HTTPError, Timeout) as error:
             raise RuntimeError("Could not retrieve metric defaults from Sonar") from error
         return data
 
+    def update_source_definitions(self, contents: Dict[str, Any]) -> None:
+        for component in contents['components']:
+            url = self.get_url('api/navigation/component', {
+                'component': component['key']
+            })
+            try:
+                request = self._session.get(url)
+                request.raise_for_status()
+                component.update(request.json())
+            except (ConnectError, HTTPError, Timeout) as error:
+                raise RuntimeError("Could not update source definitionsfrom Sonar") from error
+
     def get_data_model(self, version: Version) -> Dict[str, Any]:
         try:
-            data = self.get_paginated('metrics', 'api/metrics/search', size=120)
+            data = self.get_paginated('metrics', 'api/metrics/search',
+                                      paging=None, size=120)
         except (ConnectError, HTTPError, Timeout) as error:
             raise RuntimeError("Could not retrieve metric defaults from Sonar") from error
-        return data['metrics']
+
+        # Ignore hidden metrics and non-qualitative/raw metrics
+        return {
+            metric['key']: metric for metric in data['metrics']
+            if not metric.get("hidden", False) and metric.get("qualitative")
+        }
+
+    @staticmethod
+    def _get_metric_components(metrics: MetricNames) \
+            -> Dict[str, Dict[str, Dict[str, str]]]:
+        components: Dict[str, Dict[str, Dict[str, str]]] = {}
+        for metric in metrics.values():
+            if metric is not None:
+                components.setdefault(metric['domain_name'], {})
+                components[metric['domain_name']][metric['base_name']] = metric
+
+        return components
 
     def adjust_target_versions(self, version: Version, result: Dict[str, Any],
                                from_revision: Optional[Revision] = None) \
-            -> List[Tuple[Version, Dict[str, Any]]]:
+            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
         # Quality gates are not versioned
         # Rules in quality profiles are (api/qualityprofiles/changelog),
         # but difficult to connect these to profile/gate metrics
+        # We did not collect any versions or metric target changes earlier,
+        # because they are not part of the projects definitions, so do so now
+        components = self._get_metric_components(result)
+
+        for component, component_metrics in components.items():
+            url = self.get_url('api/qualitygates/get_by_project', {
+                'project': component
+            })
+            try:
+                request = self._session.get(url)
+                request.raise_for_status()
+            except (ConnectError, HTTPError, Timeout) as error:
+                raise RuntimeError("Could not update source definitionsfrom Sonar") from error
+
+            quality_gate = request.json()['qualityGate']
+            if quality_gate['default']:
+                continue
+
+            details_url = self.get_url('api/qualitygates/show', {
+                'name': quality_gate['url']
+            })
+            try:
+                details_request = self._session.get(details_url)
+                details_request.raise_for_status()
+            except (ConnectError, HTTPError, Timeout) as error:
+                raise RuntimeError("Could not update source definitionsfrom Sonar") from error
+
+            for condition in details_request.json()['conditions']:
+                if condition['metric'] in component_metrics:
+                    metric = component_metrics[condition['metric']]
+                    metric['target'] = condition['error']
+                    metric.pop('default', None)
+
         return [(version, result)]
+
+    def _select_metrics(self, names: List[str], url_length: int) -> List[str]:
+        comma = len('%2C')
+        url_length += len('&metrics=') + len(names[-1])
+        grouped_names = []
+        while url_length < self.MAX_URL_LENGTH:
+            name = names.pop()
+            grouped_names.append(name)
+            if names:
+                url_length += comma + len(names[-1])
+            else:
+                break
+
+        return grouped_names
 
     def get_measurements(self, metrics: Optional[MetricNames], version: Version,
                          from_revision: Optional[Revision] = None) \
             -> List[Dict[str, str]]:
-        # api/measures/search_history for specific component identified within
-        # the "metric_data" parameter?
-        return []
+        if metrics is None:
+            raise RuntimeError('No metric names available for measurements')
+
+        result: List[Dict[str, str]] = []
+        query = {
+            'to': version['version_id']
+        }
+        if from_revision is not None:
+            query['from'] = str(from_revision)
+
+        # api/measures/search_history for each specific component
+        # Note that the new_* metrics do not have measures history, so if those
+        # are in use in the quality gate then we cannot get old measurements.
+        # https://community.sonarsource.com/t/47308
+        components = self._get_metric_components(metrics)
+        for component, component_metrics in components.items():
+            names = [
+                metric_name for metric_name in component_metrics.keys()
+                if not metric_name.startswith('new_')
+            ]
+            query['component'] = component
+            url = self.get_url('api/measures/search_history', query)
+            url_length = len(url) + len('&p=ABC&ps=XYZ')
+            while names:
+                query['metrics'] = ','.join(self._select_metrics(names,
+                                                                 url_length))
+                measurements = self.get_paginated('measures',
+                                                  'api/measures/search_history',
+                                                  query)
+                for metric_measurements in measurements['measures']:
+                    for history in metric_measurements['history']:
+                        history.update({
+                            'base_name': metric_measurements['metric'],
+                            'domain_name': component
+                        })
+                        result.append(history)
+
+        return result
 
     @property
     def filename(self) -> str:
@@ -186,5 +300,21 @@ class Sonar_Data(Data):
     @property
     def parsers(self) -> Dict[str, Type[Parser]]:
         return {
-            'project_meta': parser.Project_Parser
+            # Project meta parser uses information from the following endpoint:
+            # - api/components/search_projects "organizations" (paginated)
+            # -> get_contents
+            'project_meta': parser.Project_Parser,
+            # The "alm" property from api/navigation/component (each "project")
+            # -> get_contents + update_source_definitions
+            'project_sources': parser.Sources_Parser,
+            # - api/measures/search_history (paginated)
+            # -> get_measurements based on metric_names
+            'measurements': parser.Measurements_Parser,
+            # Metric defaults: api/metrics/search (paginated)
+            # -> get_data_model
+            'metric_defaults': parser.Metric_Defaults_Parser,
+            # - api/metrics/search
+            # - api/qualitygates/get_by_project + api/qualitygates/show
+            # -> get_data_model + adjust_target_versions
+            'metric_options': parser.Metric_Options_Parser
         }

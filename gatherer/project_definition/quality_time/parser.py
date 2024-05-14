@@ -145,8 +145,8 @@ class Sources_Parser(Quality_Time_Report_Parser):
 
 class Measurements_Parser(Measurement_Parser):
     """
-    A Quality-time parser that formats measurements of metrics to a standard
-    table format.
+    A Quality-time parser that formats measurements of metrics in a standard
+    table-like structure.
     """
 
     def parse(self) -> Dict[str, Any]:

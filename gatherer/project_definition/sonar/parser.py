@@ -19,9 +19,14 @@ limitations under the License.
 """
 
 from typing import Any, Dict, List, Optional, Union
-from ..base import Definition_Parser, Version
+from ..base import Definition_Parser, Measurement_Parser, Metric_Parser, \
+    MetricNameData, Version
+from ...utils import parse_date
 
 Component = Dict[str, Union[str, bool, List[str]]]
+
+def _make_metric_name(metric_data: Dict[str, str], domain_name: str) -> str:
+    return f"{metric_data['base_name']}_{domain_name}"
 
 class Sonar_Definition_Parser(Definition_Parser):
     """
@@ -74,3 +79,151 @@ class Project_Parser(Sonar_Definition_Parser):
     def parse_component(self, index: int, component: Component) -> None:
         if index == 0:
             self.data['quality_display_name'] = str(component.get('name', ''))
+
+class Sources_Parser(Sonar_Definition_Parser):
+    """
+    A SonarQube parser that extracts source URL from project components.
+    """
+
+    SOURCES_MAP = {
+        'github': 'github',
+        'azure': 'tfs',
+        'gitlab': 'gitlab'
+    }
+    SOURCES_DOMAIN_FILTER: List[str] = []
+
+    def parse_component(self, index: int, component: Component) -> None:
+        # This actually needs the api/navigation/component details
+        if "alm" not in component or not isinstance(component["alm"], dict):
+            return
+
+        name = str(component.get("name", component['key']))
+        source = component["alm"]
+        self.data.setdefault(name, {source['key']: [source['url']]})
+
+class Measurements_Parser(Measurement_Parser):
+    """
+    A SonarQube parser that formats measurements of metrics in a standard
+    table-like structure.
+    """
+
+    def parse(self) -> Dict[str, Any]:
+        if self._measurements is None or self._version is None:
+            return {}
+
+        result = []
+        for measurement in self._measurements:
+            unique_metric_name = _make_metric_name(measurement,
+                                                   measurement['domain_name'])
+            row = self._parse_measurement(unique_metric_name, measurement,
+                                          self._metrics.get(unique_metric_name))
+            if row is not None:
+                result.append(row)
+
+        return {self._version['version_id']: result}
+
+    @staticmethod
+    def _parse_measurement(unique_metric_name: str, measurement: Dict[str, Any],
+                           metric_data: MetricNameData = None) \
+            -> Optional[Dict[str, str]]:
+        measurement_value = str(measurement.get("value"))
+        try:
+            value = float(measurement_value)
+        except ValueError:
+            return None
+
+        if metric_data is not None and 'target_value' in metric_data and \
+            'direction' in metric_data:
+            target = float(metric_data['target_value'])
+            if metric_data.get('perfect_value') == target:
+                category = 'perfect'
+            else:
+                green = target >= value if metric_data['direction'] == "-1" else \
+                    target <= value
+                category = 'green' if green else 'red'
+        else:
+            category = 'grey'
+
+        return {
+            'name': unique_metric_name,
+            'value': measurement_value,
+            'category': category,
+            'date': parse_date(str(measurement.get("date")))
+        }
+
+class Metric_Defaults_Parser(Metric_Parser):
+    """
+    A SonarQube parser that extracts default metric properties from the data
+    model, i.e., the list of metrics available on the instance.
+    """
+
+    SCALE_MAP: Dict[str, Union[str, Dict[str, str]]] = {
+        'INT': 'count',
+        'PERCENT': 'percentage',
+        'WORK_DUR': {
+            'scale': 'duration',
+            'direction': '-1',
+            'perfect_value': '0'
+        },
+        'RATING': {
+            'scale': 'rating',
+            'direction': '-1',
+            'perfect_value': '1'
+        }
+    }
+
+    def parse(self) -> Dict[str, Any]:
+        if self._version is None:
+            return {}
+
+        result: List[Dict[str, str]] = []
+        for metric in self._data_model.values():
+            result.append(self._format_metric(metric, self._version))
+
+        return {self._version['version_id']: result}
+
+    def _format_metric(self, metric: Dict[str, Any], version: Version) \
+            -> Dict[str, str]:
+        metric_data = {
+            "base_name": str(metric["key"]),
+            "direction": "1" if metric.get("direction") == 1 else "-1"
+        }
+
+        scale = self.SCALE_MAP.get(metric.get("type", "INT"))
+        if isinstance(scale, dict):
+            metric_data.update(scale)
+        elif scale is not None:
+            metric_data['scale'] = scale
+
+        metric_data.update(version)
+        return metric_data
+
+class Metric_Options_Parser(Metric_Defaults_Parser, Sonar_Definition_Parser):
+    """
+    A SonarQube parser that extracts targets for the metrics specified in the
+    quality gate.
+    """
+
+    def parse(self) -> Dict[str, Any]:
+        if self._version is None:
+            return {}
+
+        result: Dict[str, Dict[str, str]] = {}
+        for metric in self._data_model.values():
+            metric_data = self._format_metric(metric, self._version)
+            # All metrics are default until we know if the targets are changed
+            # in the quality profile
+            metric_data["default"] = "1"
+
+            # Make a domain-based metric for each component
+            for component in self.components:
+                domain_name = str(component['key'])
+                unique_metric_name = _make_metric_name(metric_data, domain_name)
+                metric_domain = metric_data.copy()
+                metric_domain['domain_name'] = domain_name
+                result[unique_metric_name] = metric_domain
+
+        return result
+
+    def parse_component(self, index: int, component: Component) -> None:
+        pass

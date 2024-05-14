@@ -234,9 +234,20 @@ class Data:
 
         raise NotImplementedError("Must be implemented by subclasses")
 
+    def update_source_definitions(self, contents: Dict[str, Any]) -> None:
+        """
+        Update a project definition `contents` to enrich it with more details
+        on sources.
+
+        This method alters the `contents`. If no further details can be added,
+        then subclasses can leave the implementation empty.
+        """
+
+        raise NotImplementedError("Must be implemented by subclasses")
+
     def adjust_target_versions(self, version: Version, result: Dict[str, Any],
                                from_revision: Optional[Revision] = None) \
-            -> List[Tuple[Version, Dict[str, Any]]]:
+            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
         """
         Update metric target version information to enrich with more
         intermediate versions and to limit the result to only contain updates
@@ -247,8 +258,10 @@ class Data:
         `from_revision` or earlier. If no adjustments are necessary, such
         as when parsing only one version, or if all version and metric data was
         available during the parse, i.e., the project definition source does not
-        have versioning of metric targets, then return `[(version, result)]`.
-        If the adjustments could not be made, then a `RuntimeError` is raised.
+        have versioning of metric targets, then return `[(version, result)]`,
+        assuming that `result` is formatted as a dictionary with unique metric
+        IDs as keys and metric data as values. If the adjustments could not be
+        made, then a `RuntimeError` is raised.
         """
 
         raise NotImplementedError("Must be implemented by subclasses")

@@ -123,7 +123,7 @@ likely supported unless noted otherwise.
   used, so support may break, tested with 5.12.0-rc1.
 - SonarQube: Works with version 8.0 and later. Organization support for 
   SonarCloud included; for later versions, you may need to set the URL to 
-  a specific component to avoid collecting from the entire intance. Note that 
+  a specific component to avoid collecting from the entire instance. Note that 
   some internal APIs may be used, so support may break.
 - BigBoat: Works with BigBoat version 5.0 and later.
 - Additional data is retrievable from seat count spreadsheets, Topdesk and LDAP 

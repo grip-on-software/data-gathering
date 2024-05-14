@@ -206,22 +206,33 @@ class Definition_Collector(Collector):
         """
 
         try:
+            contents = self.get_data(version)
             parser = self.build_parser(version)
-            if not isinstance(parser, Definition_Parser):
-                raise RuntimeError('Parser is not a definition parser')
-            contents = self._data.get_contents(version)
         except RuntimeError as error:
             logging.warning('Cannot create a parser for version %s: %s',
                             version['version_id'], str(error))
             return
 
         try:
-            parser.load_definition(self._data.filename, contents)
+            if isinstance(parser, Definition_Parser):
+                parser.load_definition(self._data.filename, contents)
             result = parser.parse()
             self.aggregate_result(version, result)
         except RuntimeError as error:
             logging.warning("Problem with revision %s: %s",
                             version['version_id'], str(error))
+
+    def get_data(self, version: Version) -> Dict[str, Any]:
+        """
+        Retrieve the unprocessed source data for the `version`, which is the
+        project definition. Subclasses may update the returned data before
+        it is loaded into to the parser.
+        """
+
+        if not issubclass(self.get_parser_class(), Definition_Parser):
+            return {}
+
+        return self._data.get_contents(version)
 
     def aggregate_result(self, version: Version, result: Dict[str, Any]) -> None:
         """
@@ -301,6 +312,11 @@ class Sources_Collector(Definition_Collector):
         except Source_Type_Error:
             logging.exception('Could not register source')
 
+    def get_data(self, version: Version) -> Dict[str, Any]:
+        contents = super().get_data(version)
+        self._data.update_source_definitions(contents)
+        return contents
+
     def aggregate_result(self, version: Version, result: Dict[str, Any]) -> None:
         sources_map = self._parser_class.SOURCES_MAP
         for name, metric_source in result.items():
@@ -353,6 +369,22 @@ class Unversioned_Collector(Collector):
         self.collect_version(version)
 
         self.finish(version)
+
+    def collect_version(self, version: Version) -> None:
+        data = self.get_data(version)
+        self.aggregate_result(version, data)
+
+    def get_data(self, version: Version) -> List[Dict[str, str]]:
+        """
+        Retrieve aggregate data from the data source relevant to the collector.
+        The `version` is the most recent version at the project definition
+        data source based on the `from_revision` and `to_revision` range.
+        The returned value is table-like data about entities in their state as
+        found in the version (or their current state). This is then usable as
+        additional parameters to the parser.
+        """
+
+        raise NotImplementedError('Must be defined by subclasses')
 
     def aggregate_result(self, version: Version, data: List[Dict[str, Any]]) -> None:
         """
@@ -415,9 +447,11 @@ class Measurements_Collector(Unversioned_Collector):
                 with legacy_date_path.open('r', encoding='utf-8') as date_file:
                     self._start = date_file.read()
 
-        data = self._data.get_measurements(self._metrics, version,
+        super().collect_version(version)
+
+    def get_data(self, version: Version) -> List[Dict[str, str]]:
+        return self._data.get_measurements(self._metrics, version,
                                            from_revision=self._start)
-        self.aggregate_result(version, data)
 
 class Metric_Defaults_Collector(Metric_Collector, Unversioned_Collector):
     """
@@ -432,8 +466,8 @@ class Metric_Defaults_Collector(Metric_Collector, Unversioned_Collector):
     def table_name(self) -> str:
         return 'metric_defaults'
 
-    def collect_version(self, version: Version) -> None:
-        self.aggregate_result(version, [])
+    def get_data(self, version: Version) -> List[Dict[str, str]]:
+        return []
 
 class Metric_Options_Collector(Metric_Collector, Definition_Collector):
     """
