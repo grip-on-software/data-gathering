@@ -55,7 +55,8 @@ class Quality_Time_Data(Data):
         'near_target': 'low_target',
         'target': 'target',
         'debt_target': 'debt_target',
-        'comment': 'comment'
+        'comment': 'comment',
+        'scale': 'scale'
     }
 
     def __init__(self, project: Project, source: Source, url: DataUrl = None):
@@ -100,11 +101,11 @@ class Quality_Time_Data(Data):
 
     def get_contents(self, version: Version) -> Dict[str, Any]:
         date = dateutil.parser.parse(version['version_id'])
-        url = self.get_url('report',
+        url = self.get_url(f'report/{self.filename}',
                            {'report_date': self._format_date(date)},
                            version='internal')
-        request = self._session.get(url)
         try:
+            request = self._session.get(url)
             request.raise_for_status()
         except (ConnectError, HTTPError, Timeout) as error:
             raise RuntimeError("Could not retrieve reports") from error
@@ -115,8 +116,8 @@ class Quality_Time_Data(Data):
         url = self.get_url('datamodel',
                            {'report_date': self._format_date(date)},
                            version='internal')
-        request = self._session.get(url)
         try:
+            request = self._session.get(url)
             request.raise_for_status()
         except (ConnectError, HTTPError, Timeout) as error:
             raise RuntimeError("Could not retrieve data model") from error
@@ -131,8 +132,8 @@ class Quality_Time_Data(Data):
         url = self.get_url(f'changelog/metric/{metric}/{count}',
                            {'report_date': self._format_date(date)},
                            version='internal')
-        request = self._session.get(url)
         try:
+            request = self._session.get(url)
             request.raise_for_status()
         except (ConnectError, HTTPError, Timeout) as error:
             raise RuntimeError(f"Could not retrieve changelog for {metric} from") \
@@ -177,19 +178,20 @@ class Quality_Time_Data(Data):
 
                 versions.append(self._update_metric_version(metric_uuid,
                                                             metric, delta,
-                                                            date))
+                                                            date, change))
 
         return versions
 
     def _update_metric_version(self, metric_uuid: str, metric: Row,
-                               delta: Dict[str, str], utc_date: datetime) \
+                               delta: Dict[str, str], date: datetime,
+                               change: Dict[str, str]) \
             -> Tuple[Version, MetricTargets]:
         key = self.METRIC_TARGET_MAP[delta['parameter_key']]
         metric[key] = delta['new_value']
-        local_date = convert_local_datetime(utc_date)
-        new_version = self._format_version(local_date)
+        new_version = self._format_version(date)
         new_version.update({
             'developer': delta['user'],
+            'email': change.get('email', '0'),
             'message': ''
         })
         new_result = {metric_uuid: metric.copy()}
@@ -214,8 +216,8 @@ class Quality_Time_Data(Data):
 
             url = self.get_url(f'measurements/{metric}', {'report_date': date},
                                version='internal')
-            request = self._session.get(url)
             try:
+                request = self._session.get(url)
                 request.raise_for_status()
             except (ConnectError, HTTPError, Timeout) as error:
                 raise RuntimeError(f"Could not retrieve measurements for {metric}") \

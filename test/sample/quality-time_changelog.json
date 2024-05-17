@@ -1,0 +1,33 @@
+{
+    "changelog": [
+        {
+            "delta": "Unparseable message",
+            "timestamp": "2024-05-04T13:39:32+00:00"
+        },
+        {
+            "delta": "Jane Doe changed the scale of metric 'Size (LOC)' of subject 'Quality-time' in report 'Quality-time' from 'percentage' to 'count'.",
+            "email": "janedoe@example.test",
+            "timestamp": "2024-05-04T13:39:30+00:00"
+        },
+        {
+            "delta": "Jane Doe changed the scale of metric 'Size (LOC)' of subject 'Quality-time' in report 'Quality-time' from 'count' to 'percentage'.",
+            "email": "janedoe@example.test",
+            "timestamp": "2024-05-04T13:39:23+00:00"
+        },
+        {
+            "delta": "Jane Doe changed the near_target of metric 'Size (LOC)' of subject 'Quality-time' in report 'Quality-time' from '35000' to '50000'.",
+            "email": "janedoe@example.test",
+            "timestamp": "2024-05-04T13:27:44+00:00"
+        },
+        {
+            "delta": "Jane Doe changed the target of metric 'Size (LOC)' of subject 'Quality-time' in report 'Quality-time' from '30000' to '40000'.",
+            "email": "janedoe@example.test",
+            "timestamp": "2024-05-04T13:27:42+00:00"
+        },
+        {
+            "delta": "Jane Doe changed the landing_url of metric 'Size (LOC)' of subject 'Quality-time' in report 'Quality-time' from 'https://data.test' to 'https://sonar.test'.",
+            "email": "janedoe@example.test",
+            "timestamp": "2024-05-04T13:13:13+00:00"
+        }
+    ]
+}

@@ -1,0 +1,22 @@
+{
+    "paging": {
+        "pageIndex": 1,
+        "pageSize": 100,
+        "total": 1
+    },
+    "measures": [
+        {
+            "metric": "metric1",
+            "history": [
+                {
+                    "date": "2024-05-06T07:08:09+0000",
+                    "value": "1"
+                },
+                {
+                    "date": "2024-05-16T17:18:19+0000",
+                    "value": "2"
+                }
+            ]
+        }
+    ]
+}

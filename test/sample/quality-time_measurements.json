@@ -1,0 +1,25 @@
+{
+    "measurements": [
+        {
+            "metric_uuid": "3edbace9-8e2c-4c1d-8e62-7a9fb40ae127",
+            "report_uuid": "818b0b22-1bac-45b9-9f4d-ad898a7c47e0",
+            "start": "2024-05-04T13:11:21+00:00",
+            "end": "2024-05-18T13:05:06+00:00",
+            "percentage": {
+                "target": "50",
+                "near_target": "40",
+                "debt_target": null,
+                "direction": ">",
+                "value": "68",
+                "status": "target_met",
+                "status_start": "2024-05-04T13:11:21+00:00"
+            },
+            "count": {
+                "direction": ">",
+                "value": "108163",
+                "status": "target_met",
+                "status_start": "2024-05-04T13:11:21+00:00"
+            }
+        }
+    ]
+}

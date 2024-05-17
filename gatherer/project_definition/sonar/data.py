@@ -167,7 +167,7 @@ class Sonar_Data(Data):
                 request.raise_for_status()
                 component.update(request.json())
             except (ConnectError, HTTPError, Timeout) as error:
-                raise RuntimeError("Could not update source definitionsfrom Sonar") from error
+                raise RuntimeError("Could not update source definitions from Sonar") from error
 
     def get_data_model(self, version: Version) -> Dict[str, Any]:
         try:
@@ -211,20 +211,20 @@ class Sonar_Data(Data):
                 request = self._session.get(url)
                 request.raise_for_status()
             except (ConnectError, HTTPError, Timeout) as error:
-                raise RuntimeError("Could not update source definitionsfrom Sonar") from error
+                raise RuntimeError("Could not update source definitions from Sonar") from error
 
             quality_gate = request.json()['qualityGate']
             if quality_gate['default']:
                 continue
 
             details_url = self.get_url('api/qualitygates/show', {
-                'name': quality_gate['url']
+                'name': quality_gate['name']
             })
             try:
                 details_request = self._session.get(details_url)
                 details_request.raise_for_status()
             except (ConnectError, HTTPError, Timeout) as error:
-                raise RuntimeError("Could not update source definitionsfrom Sonar") from error
+                raise RuntimeError("Could not update source definitions from Sonar") from error
 
             for condition in details_request.json()['conditions']:
                 if condition['metric'] in component_metrics:
@@ -264,21 +264,22 @@ class Sonar_Data(Data):
         # Note that the new_* metrics do not have measures history, so if those
         # are in use in the quality gate then we cannot get old measurements.
         # https://community.sonarsource.com/t/47308
-        components = self._get_metric_components(metrics)
-        for component, component_metrics in components.items():
+        for component, base in self._get_metric_components(metrics).items():
             names = [
-                metric_name for metric_name in component_metrics.keys()
+                metric_name for metric_name in base.keys()
                 if not metric_name.startswith('new_')
             ]
             query['component'] = component
-            url = self.get_url('api/measures/search_history', query)
-            url_length = len(url) + len('&p=ABC&ps=XYZ')
+            path = 'api/measures/search_history'
+            url_length = len(self.get_url(path, query)) + len('&p=ABC&ps=XYZ')
             while names:
                 query['metrics'] = ','.join(self._select_metrics(names,
                                                                  url_length))
-                measurements = self.get_paginated('measures',
-                                                  'api/measures/search_history',
-                                                  query)
+                try:
+                    measurements = self.get_paginated('measures', path, query)
+                except (ConnectError, HTTPError, Timeout) as error:
+                    raise RuntimeError("Could not retrieve measurements from Sonar") from error
+
                 for metric_measurements in measurements['measures']:
                     for history in metric_measurements['history']:
                         history.update({

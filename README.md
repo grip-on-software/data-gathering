@@ -120,7 +120,7 @@ likely supported unless noted otherwise.
     and later.
 - Jenkins: Works with LTS versions.
 - Quality-time: Works with version 5.9.0 and later. Note that internal API is 
-  used, so support may break, tested with 5.12.0-rc1.
+  used, so support may break, tested with version 5.12.0.
 - SonarQube: Works with version 8.0 and later. Organization support for 
   SonarCloud included; for later versions, you may need to set the URL to 
   a specific component to avoid collecting from the entire instance. Note that 

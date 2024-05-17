@@ -135,10 +135,12 @@ class Measurements_Parser(Measurement_Parser):
         if metric_data is not None and 'target_value' in metric_data and \
             'direction' in metric_data:
             target = float(metric_data['target_value'])
-            if metric_data.get('perfect_value') == target:
+            if 'perfect_value' in metric_data and \
+                float(metric_data['perfect_value']) == value:
                 category = 'perfect'
             else:
-                green = target >= value if metric_data['direction'] == "-1" else \
+                green = target >= value \
+                    if str(metric_data['direction']) == "-1" else \
                     target <= value
                 category = 'green' if green else 'red'
         else:

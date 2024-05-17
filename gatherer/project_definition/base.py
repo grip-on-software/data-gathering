@@ -251,7 +251,7 @@ class Data:
                                from_revision: Optional[Revision] = None) \
             -> List[Tuple[Version, MetricTargets]]:
         """
-        Update metric target version information to enrich with more
+        Update metric target version information to enrich with more details and
         intermediate versions and to limit the result to only contain updates
         since the start version.
 

@@ -1,0 +1,54 @@
+{
+    "ok": true,
+    "reports": [
+        {
+            "title": "Demo report",
+            "report_uuid": "818b0b22-1bac-45b9-9f4d-ad898a7c47e0",
+            "subjects": {
+                "ee220264-9e66-49a4-981e-4dfe37a86a2c": {
+                    "type": "software",
+                    "name": "Demo application",
+                    "description": "A custom software application.",
+                    "metrics": {
+                        "3ddbacd8-882c-4c0c-8f63-7f9fb00ade27": {
+                            "type": "loc",
+                            "name": null,
+                            "sources": {
+                                "727f25e1-d94d-48fd-9c3a-b27846d09dec": {
+                                    "type": "sonarqube",
+                                    "parameters": {
+                                        "url": "https://sonar.test",
+                                        "component": "demo"
+                                    }
+                                }
+                            },
+                            "scale": "count",
+                            "debt_target": null,
+                            "direction": null,
+                            "target": "40000",
+                            "near_target": "50000"
+                        },
+                        "3edbace9-8e2c-4c1d-8e62-7a9fb40ae127": {
+                            "type": "loc",
+                            "name": "Percentage test code",
+                            "sources": {
+                                "714bfec9-9022-4afa-be28-4490443a60c1": {
+                                    "type": "cloc",
+                                    "parameters": {
+                                        "url": "http://data.test/cloc.json"
+                                    }
+                                }
+                            },
+                            "scale": "percentage",
+                            "debt_target": null,
+                            "direction": ">",
+                            "target": "50",
+                            "near_target": "40"
+                        }
+                    }
+                }
+            },
+            "timestamp": "2024-05-04T13:39:30+00:00"
+        }
+    ]
+}

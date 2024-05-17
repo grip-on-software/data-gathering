@@ -1,5 +1,5 @@
 """
-Module for parsing report definitions from Quality Time.
+Module for parsing report definitions from Quality-time.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -18,16 +18,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Set, Union
 from ..base import Definition_Parser, Measurement_Parser, Metric_Parser, \
     MetricNameData, SourceUrl, Version, UUID
-from ...utils import parse_date
+from ...utils import convert_local_datetime, format_date
 
 Source = Dict[str, Union[str, Dict[str, Union[str, List[str]]]]]
-Metric = Dict[str, Union[str, Dict[str, Source]]]
+Metric = Dict[str, Optional[Union[str, Dict[str, Source]]]]
 Subject = Dict[str, Union[str, Dict[str, Metric]]]
 Report = Dict[str, Union[str, Dict[str, Subject]]]
-# Dict[str, str], Dict[str, int], Dict[str, Dict[str, int]]
+Measurement = Dict[str, Union[str, Dict[str, Optional[str]]]]
+Metrics = Dict[str, Dict[str, str]]
 
 class Quality_Time_Report_Parser(Definition_Parser):
     """
@@ -58,7 +60,7 @@ class Quality_Time_Report_Parser(Definition_Parser):
 
     def parse_report(self, index: int, report: Report) -> None:
         """
-        Parse a single report from a Quality Time server.
+        Parse a single report from a Quality-time server.
         """
 
         raise NotImplementedError("Must be implemented by subclasses")
@@ -113,7 +115,7 @@ class Sources_Parser(Quality_Time_Report_Parser):
             return sources
 
         for metric in metrics.values():
-            metric_sources = metric.get("sources", {})
+            metric_sources = metric.get("sources")
             if not isinstance(metric_sources, dict):
                 continue
 
@@ -126,20 +128,25 @@ class Sources_Parser(Quality_Time_Report_Parser):
 
         return sources
 
-    def _parse_source(self, subject_type: str, source: Dict[str, Any]) -> Optional[SourceUrl]:
-        parameters: Dict[str, str] = source.get("parameters", {})
-        source_url: str = parameters.get("url", "")
-        if source_url == "":
+    def _parse_source(self, subject_type: str, source: Source) \
+            -> Optional[SourceUrl]:
+        parameters = source.get("parameters")
+        if not isinstance(parameters, dict):
+            return None
+
+        source_url = parameters.get("url")
+        if not isinstance(source_url, str):
             return None
 
         for parameter, parts in self.PATH_PARAMETERS.items():
             if parameter in parameters:
-                url_parts = (source_url.rstrip("/"),) + tuple(parts) + (parameters[parameter],)
+                url_parts = (source_url.rstrip("/"),) + tuple(parts) + \
+                    (str(parameters[parameter]),)
                 source_url = "/".join(url_parts)
 
         for parameter in self.SOURCE_ID_PARAMETERS:
             if parameter in parameters:
-                return (source_url, parameters[parameter], subject_type)
+                return (source_url, str(parameters[parameter]), subject_type)
 
         return source_url
 
@@ -164,7 +171,7 @@ class Measurements_Parser(Measurement_Parser):
         return {self._version['version_id']: result}
 
     @staticmethod
-    def _parse_measurement(metric_uuid: str, measurement: Dict[str, Any],
+    def _parse_measurement(metric_uuid: str, measurement: Measurement,
                            metric_data: MetricNameData = None) \
             -> Optional[Dict[str, str]]:
         """
@@ -172,13 +179,18 @@ class Measurements_Parser(Measurement_Parser):
         """
 
         if metric_data is not None:
-            scale = metric_data.get("scale", "count")
+            scale = str(metric_data.get("scale", "count"))
         else:
             scale = "count"
 
-        count: Dict[str, Optional[str]] = measurement.get(scale, {})
-        category = count.get("status")
-        value = count.get("value")
+        count = measurement.get(scale, {})
+        if isinstance(count, dict):
+            category = count.get("status")
+            value = count.get("value")
+        else:
+            category = None
+            value = None
+
         if value is not None:
             # Ignore values that are not parseable, such as version numbers
             try:
@@ -186,12 +198,15 @@ class Measurements_Parser(Measurement_Parser):
             except ValueError:
                 return None
 
+        date = datetime.fromisoformat(str(measurement['end']))
+        since_date = datetime.fromisoformat(str(measurement['start']))
+
         return {
             'name': metric_uuid,
             'value': str(value) if value is not None else "-1",
             'category': str(category) if category is not None else "unknown",
-            'date': str(measurement.get("end")),
-            'since_date': parse_date(str(measurement.get("start")))
+            'date': format_date(convert_local_datetime(date)),
+            'since_date': format_date(convert_local_datetime(since_date))
         }
 
 class Metric_Defaults_Parser(Metric_Parser):
@@ -205,13 +220,18 @@ class Metric_Defaults_Parser(Metric_Parser):
             return {}
 
         result = []
-        metrics = self._data_model.get("metrics", {})
-        date = self._data_model.get("timestamp", self._version['version_id'])
+        metrics: Metrics = self._data_model.get("metrics", {})
+
+        timestamp = str(self._data_model.get("timestamp",
+                                             self._version['version_id']))
+        date = datetime.fromisoformat(timestamp)
+        commit_date = format_date(convert_local_datetime(date))
+
         for metric_type, metric in metrics.items():
             result.append({
                 "base_name": metric_type,
-                "version_id": date,
-                "commit_date": parse_date(date),
+                "version_id": timestamp,
+                "commit_date": commit_date,
                 "direction": "1" if metric.get("direction") == ">" else "-1",
                 "target_value": metric.get("target"),
                 "low_target_value": metric.get("near_target"),
@@ -226,10 +246,13 @@ class Metric_Options_Parser(Metric_Parser, Quality_Time_Report_Parser):
     the report.
     """
 
-    def parse_report(self, index: int, report: Dict[str, Any]) -> None:
-        metrics = self._data_model.get("metrics", {})
+    def parse_report(self, index: int, report: Report) -> None:
+        metrics: Metrics = self._data_model.get("metrics", {})
         report_uuid = str(report.get("report_uuid", ""))
-        report_date = str(report.get("timestamp", ""))
+
+        date = datetime.fromisoformat(str(report.get("timestamp", "")))
+        report_date = format_date(convert_local_datetime(date))
+
         subjects = report.get("subjects", {})
         if not isinstance(subjects, dict):
             return
@@ -238,26 +261,30 @@ class Metric_Options_Parser(Metric_Parser, Quality_Time_Report_Parser):
             if not isinstance(subject, dict):
                 continue
 
-            subject_name = subject.get("name", name)
-            subject_type = subject.get("type", "software")
-            report_metrics = subject.get("metrics", {})
-            if not isinstance(report_metrics, dict):
-                continue
+            self._parse_subject(metrics, name, subject, report_uuid,
+                                report_date)
 
-            for uuid, metric in report_metrics.items():
-                metric_data = self._parse_metric(metric, subject_name, metrics)
-                metric_data.update({
-                    "report_uuid": report_uuid,
-                    "report_date": parse_date(report_date),
-                    "domain_type": subject_type
-                })
+    def _parse_subject(self, metrics: Metrics, name: str, subject: Subject,
+                       report_uuid: str, report_date: str) -> None:
+        subject_name = str(subject.get("name", name))
+        subject_type = str(subject.get("type", "software"))
+        report_metrics = subject.get("metrics", {})
+        if not isinstance(report_metrics, dict):
+            return
 
-                self.data[uuid] = metric_data
+        for metric_uuid, metric in report_metrics.items():
+            metric_data = self._parse_metric(metric, subject_name, metrics)
+            metric_data.update({
+                "report_uuid": report_uuid,
+                "report_date": report_date,
+                "domain_type": subject_type
+            })
+
+            self.data[metric_uuid] = metric_data
 
     @staticmethod
-    def _parse_metric(metric: Dict[str, Optional[Union[str, Dict[str, Any]]]],
-                      subject_name: str,
-                      metrics: Dict[str, Dict[str, str]]) -> Dict[str, str]:
+    def _parse_metric(metric: Metric, subject_name: str, metrics: Metrics) \
+            -> Dict[str, str]:
         comment = metric.get("comment", None)
         debt_target = metric.get("debt_target", None)
         near_target = str(metric.get("near_target", ""))
