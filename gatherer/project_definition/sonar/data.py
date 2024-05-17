@@ -25,8 +25,10 @@ from urllib.parse import parse_qs, parse_qsl, urlsplit
 from packaging.version import Version as PackageVersion
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from . import parser
-from ..base import Data, DataUrl, Parser, MetricNames, Revision, Version
+from ..base import Data, DataUrl, Parser, MetricNames, MetricTargets, \
+    Revision, Version
 from ...request import Session
+from ...table import Row
 from ...utils import Iterator_Limiter, convert_local_datetime, format_date, \
     get_local_datetime
 if TYPE_CHECKING:
@@ -182,8 +184,8 @@ class Sonar_Data(Data):
 
     @staticmethod
     def _get_metric_components(metrics: MetricNames) \
-            -> Dict[str, Dict[str, Dict[str, str]]]:
-        components: Dict[str, Dict[str, Dict[str, str]]] = {}
+            -> Dict[str, MetricTargets]:
+        components: Dict[str, MetricTargets] = {}
         for metric in metrics.values():
             if metric is not None:
                 components.setdefault(metric['domain_name'], {})
@@ -193,7 +195,7 @@ class Sonar_Data(Data):
 
     def adjust_target_versions(self, version: Version, result: Dict[str, Any],
                                from_revision: Optional[Revision] = None) \
-            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
+            -> List[Tuple[Version, MetricTargets]]:
         # Quality gates are not versioned
         # Rules in quality profiles are (api/qualityprofiles/changelog),
         # but difficult to connect these to profile/gate metrics
@@ -247,12 +249,11 @@ class Sonar_Data(Data):
         return grouped_names
 
     def get_measurements(self, metrics: Optional[MetricNames], version: Version,
-                         from_revision: Optional[Revision] = None) \
-            -> List[Dict[str, str]]:
+                         from_revision: Optional[Revision] = None) -> List[Row]:
         if metrics is None:
             raise RuntimeError('No metric names available for measurements')
 
-        result: List[Dict[str, str]] = []
+        result: List[Row] = []
         query = {
             'to': version['version_id']
         }

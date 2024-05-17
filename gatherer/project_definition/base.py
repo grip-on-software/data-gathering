@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union, \
     TYPE_CHECKING
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from ..config import Configuration
+from ..table import Row
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
     from ..domain import Project, Source
@@ -35,6 +36,7 @@ DataUrl = Optional[Union[str, Dict[str, str]]]
 
 MetricNameData = Optional[Dict[str, str]]
 MetricNames = Dict[str, MetricNameData]
+MetricTargets = Dict[str, Row]
 SourceUrl = Optional[Union[str, Tuple[str, str, str]]]
 
 # Version identifier and metadata
@@ -247,7 +249,7 @@ class Data:
 
     def adjust_target_versions(self, version: Version, result: Dict[str, Any],
                                from_revision: Optional[Revision] = None) \
-            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
+            -> List[Tuple[Version, MetricTargets]]:
         """
         Update metric target version information to enrich with more
         intermediate versions and to limit the result to only contain updates
@@ -267,8 +269,7 @@ class Data:
         raise NotImplementedError("Must be implemented by subclasses")
 
     def get_measurements(self, metrics: Optional[MetricNames], version: Version,
-                         from_revision: Optional[Revision] = None) \
-            -> List[Dict[str, str]]:
+                         from_revision: Optional[Revision] = None) -> List[Row]:
         """
         Retrieve the measurements for any quality metrics measured at the
         project definition, with `metrics` providing a candidate list of metric

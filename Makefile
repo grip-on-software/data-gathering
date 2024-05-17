@@ -68,6 +68,12 @@ coverage:
 	$(COVERAGE) report -m
 	$(COVERAGE) xml -i -o test-reports/cobertura.xml
 
+# Version of the coverage target that does not write JUnit/cobertura XML output
+.PHONY: cover
+cover:
+	$(COVERAGE) run --source=gatherer,test $(TEST) --no-output
+	$(COVERAGE) report -m
+
 .PHONY: get_version
 get_version: get_setup_version get_init_version get_sonar_version
 	if [ "${SETUP_VERSION}" != "${INIT_VERSION}" ] || [ "${SETUP_VERSION}" != "${SONAR_VERSION}" ] || [ "${SETUP_VERSION}" != "${CITATION_VERSION}" ]; then \

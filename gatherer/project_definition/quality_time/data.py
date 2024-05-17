@@ -26,8 +26,10 @@ from urllib.parse import urlsplit
 import dateutil.parser
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from . import parser
-from ..base import Data, DataUrl, Parser, MetricNames, Revision, Version, UUID
+from ..base import Data, DataUrl, Parser, MetricNames, MetricTargets, \
+    Revision, Version, UUID
 from ...request import Session
+from ...table import Row
 from ...utils import convert_local_datetime, convert_utc_datetime, \
     format_date, get_utc_datetime, parse_date
 if TYPE_CHECKING:
@@ -63,7 +65,7 @@ class Quality_Time_Data(Data):
         self._session.verify = not source.get_option('unsafe_hosts')
         self._delta_description = re.compile(self.DELTA_DESCRIPTION, re.X)
 
-    def _format_version(self, date: datetime) -> Dict[str, str]:
+    def _format_version(self, date: datetime) -> Row:
         return {
             "version_id": self._format_date(date),
             "commit_date": format_date(convert_local_datetime(date))
@@ -139,7 +141,7 @@ class Quality_Time_Data(Data):
 
     def adjust_target_versions(self, version: Version, result: Dict[str, Any],
                                from_revision: Optional[Revision] = None) \
-            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
+            -> List[Tuple[Version, MetricTargets]]:
         if from_revision is not None:
             start_date = get_utc_datetime(parse_date(str(from_revision)))
         else:
@@ -158,8 +160,7 @@ class Quality_Time_Data(Data):
 
     def _adjust_changelog(self, changelog: List[Dict[str, str]],
                           start_date: datetime, metric_uuid: str,
-                          metric: Dict[str, str]) \
-            -> List[Tuple[Version, Dict[str, Dict[str, str]]]]:
+                          metric: Row) -> List[Tuple[Version, MetricTargets]]:
         versions = []
         for change in changelog:
             match = self._delta_description.match(change.get("delta", ""))
@@ -180,9 +181,9 @@ class Quality_Time_Data(Data):
 
         return versions
 
-    def _update_metric_version(self, metric_uuid: str, metric: Dict[str, str],
+    def _update_metric_version(self, metric_uuid: str, metric: Row,
                                delta: Dict[str, str], utc_date: datetime) \
-            -> Tuple[Version, Dict[str, Dict[str, str]]]:
+            -> Tuple[Version, MetricTargets]:
         key = self.METRIC_TARGET_MAP[delta['parameter_key']]
         metric[key] = delta['new_value']
         local_date = convert_local_datetime(utc_date)
@@ -196,8 +197,7 @@ class Quality_Time_Data(Data):
         return (new_version, new_result)
 
     def get_measurements(self, metrics: Optional[MetricNames], version: Version,
-                         from_revision: Optional[Revision] = None) \
-            -> List[Dict[str, str]]:
+                         from_revision: Optional[Revision] = None) -> List[Row]:
         if metrics is None:
             raise RuntimeError('No metric names available for measurements')
 
@@ -207,7 +207,7 @@ class Quality_Time_Data(Data):
         else:
             cutoff = self.START_DATE
 
-        result: List[Dict[str, str]] = []
+        result: List[Row] = []
         for metric in metrics:
             if not UUID.match(metric):
                 continue

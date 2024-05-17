@@ -1,5 +1,5 @@
 """
-Utilities for comparing and analyzing metric options.
+Module for comparing and analyzing metric options.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -48,10 +48,8 @@ class Metric_Difference:
         if metric_targets != self._previous_metric_targets:
             self._unique_versions.append(version)
             for name, metric_target in metric_targets.items():
-                if name in self._previous_metric_targets:
-                    previous_metric_target = self._previous_metric_targets[name]
-                else:
-                    previous_metric_target = {}
+                previous_metric_target = self._previous_metric_targets.get(name,
+                                                                           {})
 
                 if metric_target != previous_metric_target:
                     unique_target = dict(metric_target)

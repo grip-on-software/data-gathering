@@ -732,14 +732,15 @@ with XML versions compatible with, e.g., JUnit and SonarQube available in the
 `test-reports/` directory. Detailed information on test coverage is also 
 obtainable after a test run in various report formats, for example:
 
-- `coverage report -m` for a report on missed statements and branches in the 
-  modules in the output.
+- `coverage report -m` for a report on (counts of) statements and branches that 
+  were hit and missed in the modules in the output.
 - `coverage html` for a HTML report in the `htmlcov/` directory.
 - `coverage xml -i` for an XML output suitable for, e.g., SonarQube.
 
 To perform all the steps except the HTML report, run `make coverage`. If you do 
 not need XML outputs (each test class writes an XML file by default), then run 
-`make test` to just report on test successes and failures.
+`make test` to just report on test successes and failures or `make cover` to 
+also have the terminal report on statement/branch hits/misses.
 
 [GitHub Actions](https://github.com/grip-on-software/data-gathering/actions) is 
 used to run the unit tests and report on coverage on commits and pull requests. 

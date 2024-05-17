@@ -1,5 +1,6 @@
 """
-Module for collecting data from various versions of project definitions.
+Module for collecting data from various versions of project definitions and
+related quality metric data.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -21,6 +22,7 @@ limitations under the License.
 from abc import ABCMeta
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 from .base import DataUrl, MetricNames, SourceUrl, Revision, Version
 from .metric import Metric_Difference
@@ -28,7 +30,7 @@ from .base import Parser, Definition_Parser, Measurement_Parser, Metric_Parser
 from .update import Update_Tracker
 from ..domain import Project, Source
 from ..domain.source.types import Source_Type_Error
-from ..table import Table
+from ..table import Table, Row
 
 class Collector(metaclass=ABCMeta):
     """
@@ -177,7 +179,7 @@ class Metric_Collector(Collector, metaclass=ABCMeta):
             self._data_model = self._data.get_data_model(version)
         return parser(data_model=self._data_model, version=version)
 
-class Definition_Collector(Collector):
+class Definition_Collector(Collector, metaclass=ABCMeta):
     """
     Class that collects and aggregates data from different versions of project
     definition files.
@@ -228,9 +230,6 @@ class Definition_Collector(Collector):
         project definition. Subclasses may update the returned data before
         it is loaded into to the parser.
         """
-
-        if not issubclass(self.get_parser_class(), Definition_Parser):
-            return {}
 
         return self._data.get_contents(version)
 
@@ -335,7 +334,7 @@ class Sources_Collector(Definition_Collector):
 
         self._source_ids.write(self._project.export_key)
 
-class Unversioned_Collector(Collector):
+class Unversioned_Collector(Collector, metaclass=ABCMeta):
     """
     Collector where only the latest version is able to be collected.
     """
@@ -374,7 +373,7 @@ class Unversioned_Collector(Collector):
         data = self.get_data(version)
         self.aggregate_result(version, data)
 
-    def get_data(self, version: Version) -> List[Dict[str, str]]:
+    def get_data(self, version: Version) -> List[Row]:
         """
         Retrieve aggregate data from the data source relevant to the collector.
         The `version` is the most recent version at the project definition
@@ -421,7 +420,7 @@ class Measurements_Collector(Unversioned_Collector):
         return 'metrics'
 
     def _read_metric_names(self) -> Optional[MetricNames]:
-        metric_path = self._project.export_key / 'metric_names.json'
+        metric_path = Path(self._project.export_key, 'metric_names.json')
         if not metric_path.exists():
             logging.warning('No metric names available for %s',
                             self._project.key)
@@ -441,15 +440,15 @@ class Measurements_Collector(Unversioned_Collector):
     def collect_version(self, version: Version) -> None:
         if self._start is None and self._source.type == 'quality-time':
             # Check if old update tracker exists and read start date from there
-            legacy_date_path = \
-                self._project.export_key / 'quality_time_measurement_date.txt'
+            legacy_date_path = Path(self._project.export_key,
+                                    'quality_time_measurement_date.txt')
             if legacy_date_path.exists():
                 with legacy_date_path.open('r', encoding='utf-8') as date_file:
                     self._start = date_file.read()
 
         super().collect_version(version)
 
-    def get_data(self, version: Version) -> List[Dict[str, str]]:
+    def get_data(self, version: Version) -> List[Row]:
         return self._data.get_measurements(self._metrics, version,
                                            from_revision=self._start)
 
@@ -466,7 +465,7 @@ class Metric_Defaults_Collector(Metric_Collector, Unversioned_Collector):
     def table_name(self) -> str:
         return 'metric_defaults'
 
-    def get_data(self, version: Version) -> List[Dict[str, str]]:
+    def get_data(self, version: Version) -> List[Row]:
         return []
 
 class Metric_Options_Collector(Metric_Collector, Definition_Collector):
@@ -518,15 +517,21 @@ class Metric_Options_Collector(Metric_Collector, Definition_Collector):
             } if 'base_name' in metric else None
             for name, metric in self._metric_names.items()
         }
-        metric_names_path = self._project.export_key / 'metric_names.json'
+        metric_names_path = Path(self._project.export_key, 'metric_names.json')
         if metric_names_path.exists():
-            with metric_names_path.open('r', encoding='utf-8') as metric_names_file:
+            with metric_names_path.open('r',
+                                        encoding='utf-8') as metric_names_file:
                 existing_names: MetricNames = json.load(metric_names_file)
                 existing_names.update(metric_names)
                 metric_names = existing_names
 
-        with metric_names_path.open('w', encoding='utf-8') as metric_names_file:
-            json.dump(metric_names, metric_names_file)
+        try:
+            with metric_names_path.open('w',
+                                        encoding='utf-8') as metric_names_file:
+                json.dump(metric_names, metric_names_file)
+        except FileNotFoundError:
+            logging.exception('Could not write metric names for %s',
+                              self._project.key)
 
         super().finish(version,
                        data=data if data is not None else self._diff.previous_metric_targets)
