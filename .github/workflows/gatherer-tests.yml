@@ -48,3 +48,4 @@ jobs:
       matrix:
         python:
         - '3.8.18'
+        - '3.12.3'

@@ -45,8 +45,8 @@ depending on the situation that they are used in:
 ## Installation
 
 The data gathering scripts and modules require Python version 3.8 and higher. 
-Version 0.0.3 is the last version to support Python 3.6 and the old quality 
-reporting source.
+Version 0.0.3 is the last version to support Python 3.6, 3.7 and the old 
+quality reporting source.
 
 The scripts have been tested on MacOS 10.14+, Ubuntu 16.04+, CentOS 7.3+ as 
 well as on some Windows versions.
