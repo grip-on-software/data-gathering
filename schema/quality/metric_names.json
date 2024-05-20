@@ -9,10 +9,19 @@
             "patternProperties": {
                 ".+": {
                     "oneOf": [
-                        {"$ref": "#/$defs/metric_name"},
+                        {"$ref": "#/$defs/metric_name_data"},
                         {"type": "null"}
                     ]
                 }
+            }
+        },
+        "metric_name_data": {
+            "allOf": [
+                {"$ref": "#/$defs/metric_name"}
+            ],
+            "type": "object",
+            "properties": {
+                "scale": {"$ref": "#/$defs/scale"}
             }
         },
         "metric_name": {
@@ -31,6 +40,11 @@
                     "description": "Type of the measured object."
                 }
             }
+        },
+        "scale": {
+            "type": "string",
+            "enum": ["count", "percentage", "version_number", "duration", "rating"],
+            "description": "Scale of the measured object.\n\n- count: The measurement happens by counting items.\n- percentage: The measurement leads to a fraction of items compared to its total.\n- version_number: The measurement provides a software version.\n- duration: The measurement indicates a duration of time, in minutes.\n- rating: The measurement is a rating from 1 to 5 where lower is better."
         }
     }
 }

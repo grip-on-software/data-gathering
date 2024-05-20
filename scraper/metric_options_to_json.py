@@ -24,7 +24,8 @@ import logging
 
 from gatherer.domain import Project
 from gatherer.log import Log_Setup
-from gatherer.project_definition.collector import Metric_Options_Collector
+from gatherer.project_definition.collector import Metric_Options_Collector, \
+    Metric_Defaults_Collector
 
 def parse_args() -> Namespace:
     """
@@ -34,14 +35,16 @@ def parse_args() -> Namespace:
     description = "Obtain quality metric project definition and output JSON"
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--repo", default=None,
-                        help="Project definitions repository path or URL")
-    parser.add_argument("--context", type=int, default=3,
-                        help="Number of context lines for parser problems")
+    parser.add_argument("--url", default=None,
+                        help="Override project definitions source URL")
     parser.add_argument("--from-revision", dest="from_revision", default=None,
-                        help="revision to start from gathering definitions")
+                        help="Revision to start from gathering definitions")
     parser.add_argument("--to-revision", dest="to_revision", default=None,
-                        help="revision to stop gathering definitions at")
+                        help="Revision to stop gathering definitions at")
+    parser.add_argument("--defaults", action="store_true", default=None,
+                        help="Force collecting metric defaults as well")
+    parser.add_argument("--no-defaults", action="store_false", dest="defaults",
+                        help="Disable collecting metric defaults even if fast")
 
     Log_Setup.add_argument(parser)
     args = parser.parse_args()
@@ -63,14 +66,24 @@ def main() -> None:
         return
 
     for source in project.project_definitions_sources:
+        data_model = None
         try:
-            collector = Metric_Options_Collector(project, source,
-                                                 repo_path=args.repo,
-                                                 context_lines=args.context)
-            collector.collect(args.from_revision, args.to_revision)
+            options = Metric_Options_Collector(project, source, url=args.url)
+            options.collect(args.from_revision, args.to_revision)
+            data_model = options.data_model
         except RuntimeError:
             logging.exception('Could not collect metric options of %s',
                               project_key)
+
+        if args.defaults or (args.defaults is None and data_model is not None):
+            try:
+                defaults = Metric_Defaults_Collector(project, source,
+                                                     url=args.url,
+                                                     data_model=data_model)
+                defaults.collect(args.from_revision, args.to_revision)
+            except RuntimeError:
+                logging.exception('Could not collect metric defaults of %s',
+                                  project_key)
 
 if __name__ == "__main__":
     main()

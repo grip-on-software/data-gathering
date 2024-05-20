@@ -1,0 +1,25 @@
+{
+    "key": "foo",
+    "organization": "org",
+    "organizationName": "Test Organization",
+    "id": "AADASFFDBVXCV9",
+    "name": "Foo",
+    "ciName": "GitHub Actions",
+    "alm": {
+        "key": "github",
+        "url": "https://github.test/org/foo"
+    },
+    "qualityProfiles": [
+        {
+            "key": "ABC123",
+            "name": "Sonar way",
+            "language": "python",
+            "deleted": false
+        }
+    ],
+    "qualityGate": {
+        "key": 9,
+        "name": "Sonar way",
+        "isDefault": true
+    }
+}

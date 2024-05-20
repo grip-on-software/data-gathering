@@ -36,8 +36,10 @@ class Subversion(Source):
     def repository_class(self) -> Type[Subversion_Repository]:
         return Subversion_Repository
 
-    def _update_credentials(self) -> Tuple[SplitResult, str]:
-        orig_parts, host = super()._update_credentials()
+    def _update_credentials(self, follow_host_change: bool = True) \
+            -> Tuple[SplitResult, str]:
+        orig_parts, host = \
+            super()._update_credentials(follow_host_change=follow_host_change)
 
         # Remove trunk from the end of the URL
         self._url = re.sub(r'/(trunk/?)$', '', self._url)

@@ -13,15 +13,18 @@ env.*
 !.github/workflows/*.yml
 *.log
 *.xml
+
+# Typing coverage
 .mypy_cache/
 mypy-report/
+
+# Pylint
 pylint-report.txt
+
+# Unit tests and coverage
 .coverage
 htmlcov/
-
-# Deployer
-deployment.json
-key-*
+test-reports/
 
 # Importer distribution
 importerjson.jar
@@ -29,16 +32,11 @@ data_vcsdev_to_dev.json
 README.TXT
 lib/
 
-# Agent distribution and generated files
+# Agent distribution, generated and retrieved files
 certs/*.crt
 dropins/*/
-data_guilds.json
 export/
-data_guilds.json
-history-*.json
-metric*_base_names.json
-data_hqlib.json
-hqlib_targets_update.json
+project-git-repos/
 secrets.json
 secrets.*.json
 !test/sample/secrets.json
@@ -49,13 +47,6 @@ update/
 # maintenance/filter-sourcecode.sh
 bfg.jar
 filter.txt
-
-# Repositories from gathering quality reporting data
-kwaliteitsmetingen/
-project-git-repos/
-quality-report-data/
-quality-report-definition/
-quality-report-history*/
 
 # Pip installation
 src/*/

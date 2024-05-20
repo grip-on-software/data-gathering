@@ -1,30 +1,27 @@
 # Pip requirements file
 # gatherer.config
-urlmatch
+urlmatch==1.0.1
 # gatherer.jira
-jira>=2.0.1.0rc1
+jira==3.8.0
 # gatherer.git
-gitpython>=2.1.8
-PyGithub>=1.58.0
-#python-gitlab>=1.10.0
+GitPython==3.1.43
+PyGithub==2.3.0
+python-gitlab==4.4.0
+ordered-set==4.1.0
 # gatherer.svn
-svn>=0.3.45
+svn==1.0.1
+# gatherer.project_definition.sonar.data
+packaging==24.0
 # gatherer.request
-requests
-requests_ntlm
-ordered-set
-# gatherer.project_definition
-git+https://github.com/wekan/wekan-python-api-client.git@master#egg=wekanapi&subdirectory=src
-git+https://github.com/ICTU/quality-report.git@master#egg=quality_report&subdirectory=backend
+requests==2.31.0
+requests_ntlm==1.2.0
 # gatherer.database
-pymonetdb
+pymonetdb==1.8.1
 # gatherer.files
-pyocclient==0.4
+pyocclient==0.6
 # gatherer.salt
-bcrypt
+bcrypt==4.1.2
 # bigboat_to_json.py
-bigboat
+bigboat==0.3.0
 # generate_key.py
-sshdeploy<1.2
-# scraper.py, deployer.py
-cherrypy
+sshdeploy==1.1.4

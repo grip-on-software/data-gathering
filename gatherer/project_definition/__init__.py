@@ -1,5 +1,5 @@
 """
-Data gathering package for project definitions.
+Data gathering package for project definitions and metric sources.
 
 Project definitions are Python scripts that define a number of domain objects,
 such as projects, products and teams. Additionally, they specify options for

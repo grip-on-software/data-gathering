@@ -22,7 +22,6 @@ limitations under the License.
 from argparse import ArgumentParser, Namespace
 import logging
 import os
-
 from gatherer.log import Log_Setup
 from gatherer.project_definition.collector import Sources_Collector
 from gatherer.domain import Project
@@ -35,10 +34,8 @@ def parse_args() -> Namespace:
     description = "Obtain project sources definition"
     parser = ArgumentParser(description=description)
     parser.add_argument("project", help="project key")
-    parser.add_argument("--repo", default=None,
-                        help="Project definitions repository directory or URL")
-    parser.add_argument("--context", type=int, default=3,
-                        help="Number of context lines for parser problems")
+    parser.add_argument("--url", default=None,
+                        help="Override project definitions source URL")
     parser.add_argument("--all", action="store_true", default=False,
                         help="retrieve all updated versions of the definition")
     parser.add_argument("--from-revision", dest="from_revision", default=None,
@@ -80,8 +77,7 @@ def main() -> None:
 
     for source in project.project_definitions_sources:
         try:
-            collector = Sources_Collector(project, source, repo_path=args.repo,
-                                          context_lines=args.context)
+            collector = Sources_Collector(project, source, url=args.url)
             if args.all or args.from_revision is not None or args.to_revision is not None:
                 collector.collect(args.from_revision, args.to_revision)
             else:

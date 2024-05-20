@@ -45,6 +45,14 @@ class Project_Meta:
         cls._settings = Configuration.get_settings()
         return cls._settings
 
+    @classmethod
+    def clear_settings(cls) -> None:
+        """
+        Remove cached settings.
+        """
+
+        cls._settings = None
+
     def get_key_setting(self, section: str, key: str, *format_values: str,
                         **format_args: Union[str, bool]) -> str:
         """
@@ -95,28 +103,15 @@ class Project_Meta:
 
         return self._update_directory
 
-    def make_project_definitions(self, base: bool = False,
-                                 section: str = 'definitions',
+    def make_project_definitions(self, section: str = 'quality-time',
                                  project_name: Optional[str] = None) -> Source:
         """
-        Create a `Source` object for a repository containing project definitions
-        and metrics history, or other dependency files. If `base` is `True`,
-        then the base code source repository is provided. The options to build
-        the source are from the `section` provided, "definitions" by default.
-        If `project_name` is not `None`, then this is used for the quality
-        metrics repository name. At least one of the two arguments must be
-        provided, otherwise this method raises a `ValueError`. If required
-        settings are missing, then a `KeyError` is raised.
+        Create a `Source` object for a project definitions and metrics history
+        source. The options to build the source are from the `section` provided,
+        "quality-time" by default. If `project_name` is not `None`, then this is
+        used for the quality metrics URL template. If required settings are
+        missing, then a `KeyError` is raised.
         """
-
-        if base:
-            repo_name = self.get_key_setting(section, 'base')
-            key = 'base_url'
-        elif project_name is not None:
-            repo_name = project_name
-            key = 'url'
-        else:
-            raise ValueError('One of base or project_name must be non-falsy')
 
         try:
             source_type = self.get_key_setting(section, 'source_type')
@@ -124,8 +119,11 @@ class Project_Meta:
             source_type = section
 
         name = self.get_key_setting(section, 'name')
-        url = self.get_key_setting(section, key, repo_name,
-                                   project=not base)
+        if project_name is not None:
+            url = self.get_key_setting(section, 'url', project_name)
+        else:
+            url = self.get_key_setting(section, 'url')
+
         return Source.from_type(source_type, name=name, url=url)
 
 class Project(Project_Meta):
@@ -373,7 +371,7 @@ class Project(Project_Meta):
     def project_definitions_sources(self) -> Set[Source]:
         """
         Retrieve a set of `Source` objects that describe where to find the
-        project definitions (version control systems, Quality Time instances).
+        project definitions (Quality Time instances).
         If the project has no definitions, then an empty set is returned.
         """
 
@@ -384,7 +382,7 @@ class Project(Project_Meta):
                 return self._project_definitions
 
             project = self.quality_metrics_name
-            for section in ('definitions', 'quality-time'):
+            for section in ('quality-time', 'sonar'):
                 try:
                     source = self.make_project_definitions(section=section,
                                                            project_name=project)

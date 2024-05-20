@@ -76,6 +76,7 @@ class SourcesTest(unittest.TestCase):
 
         self.sources.load_sources(source_data)
         self.assertIn(source, self.sources)
+        self.assertIn(source_data[0], self.sources)
         self.assertEqual(len(self.sources), 1)
 
         # Another way to import sources from the set constructor signature.
@@ -84,9 +85,14 @@ class SourcesTest(unittest.TestCase):
         self.assertEqual(sources, self.sources)
 
         # Sources are also constructable using set operations.
-        conjunction = Sources() | sources
-        self.assertIn(source, conjunction)
-        self.assertEqual(conjunction, sources)
+        union = Sources() | sources
+        self.assertIn(source, union)
+        self.assertEqual(union, sources)
+
+        # Sources can also be mutated in set operations.
+        sources -= union
+        self.assertNotIn(source, sources)
+        self.assertEqual(len(sources), 0)
 
     def test_get(self) -> None:
         """

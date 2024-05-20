@@ -47,23 +47,26 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
           include_package_data=True,
           install_requires=[
               # gatherer.config
-              'urlmatch',
+              'urlmatch==1.0.1',
               # gatherer.jira
-              'jira>=2.0.1.0rc1',
+              'jira==3.8.0',
               # gatherer.git
-              'gitpython>=2.1.8', 'PyGithub>1.40', 'python-gitlab>1.10.0',
+              'GitPython==3.1.43', 'PyGithub==2.3.0', 'python-gitlab==4.4.0',
+              'ordered-set==4.1.0',
               # gatherer.svn
-              'svn>=0.3.45',
+              'svn==1.0.1',
+              # gatherer.project_definition.sonar.data
+              'packaging==24.0',
               # gatherer.request
-              'requests', 'requests_ntlm', 'ordered-set',
+              'requests==2.31.0', 'requests_ntlm==1.2.0',
               # gatherer.database
-              'pymonetdb',
+              'pymonetdb==1.8.1',
               # gatherer.files
-              'pyocclient',
+              'pyocclient==0.6',
               # gatherer.salt
-              'bcrypt'
+              'bcrypt==4.1.2'
           ],
-          python_requires='>=3.7',
+          python_requires='>=3.8',
           dependency_links=[],
           classifiers=[
               'Development Status :: 3 - Alpha',
@@ -79,7 +82,6 @@ build automation servers (Jenkins) and reservation systems (Topdesk).''',
               'Topic :: System :: Monitoring',
               'License :: OSI Approved :: Apache Software License',
               'Programming Language :: Python :: 3',
-              'Programming Language :: Python :: 3.7',
               'Programming Language :: Python :: 3.8'
           ],
           keywords='gros software development process data gathering')

@@ -1,0 +1,21 @@
+{
+    "sources": [
+        {
+            "type": "sonar",
+            "name": "SonarQube",
+            "url": "https://sonar.test/"
+        }
+    ],
+    "versions": {
+        "https://sonar.test/": "2024-05-16T17:28:39.45678+0000"
+    },
+    "targets": {
+        "metric_domain": {
+            "base_name": "metric",
+            "domain_name": "domain",
+            "version_id": "2024-05-16T17:28:39.45678+0000",
+            "target_value": "123",
+            "direction": "-1"
+        }
+    }
+}

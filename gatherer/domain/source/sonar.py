@@ -19,9 +19,10 @@ limitations under the License.
 """
 
 import logging
-from typing import Hashable, Optional, Union
+from typing import Hashable, Optional, Type, Union
 from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from ...config import Configuration
+from ...project_definition.sonar.data import Sonar_Data
 from ...request import Session
 from .types import Source, Source_Types, Project
 
@@ -52,6 +53,10 @@ class Sonar(Source):
     def update_identity(self, project: Project, public_key: str,
                         dry_run: bool = False) -> None:
         raise RuntimeError('Source does not support updating SSH key')
+
+    @property
+    def project_definition_class(self) -> Type[Sonar_Data]:
+        return Sonar_Data
 
     @property
     def version(self) -> str:

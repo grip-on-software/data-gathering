@@ -1,5 +1,6 @@
 """
-Module for collecting data from various versions of project definitions.
+Module for collecting data from various versions of project definitions and
+related quality metric data.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -18,57 +19,98 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from abc import ABCMeta
 import json
 import logging
-from typing import Any, Dict, Optional, Type
-from .base import Data, Definition_Parser, MetricNames, SourceUrl
-from .data import Project_Definition_Data, Quality_Time_Data
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Type
+from .base import DataUrl, MetricNames, SourceUrl, Revision, Version
 from .metric import Metric_Difference
+from .base import Parser, Definition_Parser, Measurement_Parser, Metric_Parser
 from .update import Update_Tracker
 from ..domain import Project, Source
 from ..domain.source.types import Source_Type_Error
-from ..table import Table
-from ..version_control.repo import PathLike, Version
+from ..table import Table, Row
 
-class Collector:
+class Collector(metaclass=ABCMeta):
     """
-    Class that collects and aggregates data from different versions of project
-    definition files.
+    Base class to describe the collection process of data from the project
+    definition source, possibly regarding data not related to the definition
+    itself, but to metrics and measurements of the project artifacts.
     """
 
-    def __init__(self, project: Project, source: Source,
-                 repo_path: Optional[PathLike] = None,
-                 target: str = 'project_definition', **options: Any):
+    def __init__(self, project: Project, source: Source, url: DataUrl = None):
         self._project = project
         self._update_tracker = Update_Tracker(self._project, source,
-                                              target=target)
-        self._options = options
-        self._target = target
-        if source.repository_class is not None:
-            self._data: Data = Project_Definition_Data(project, source,
-                                                       repo_path)
-        else:
-            self._data = Quality_Time_Data(project, source, repo_path)
+                                              target=self.target)
 
-    def collect(self, from_revision: Optional[Version] = None,
-                to_revision: Optional[Version] = None) -> None:
+        project_definition_class = source.project_definition_class
+        if project_definition_class is None:
+            raise TypeError('Source does not have a project defitinion class')
+
+        self._data = project_definition_class(project, source, url)
+
+    @property
+    def target(self) -> str:
         """
-        Collect data from project definitions of revisions in the current range.
+        Retrieve the type of the collector, which is used to uniquely
+        identify the update tracker for the collected data.
         """
 
-        from_revision = self._update_tracker.get_start_revision(from_revision)
-        versions = self._data.get_versions(from_revision, to_revision)
-        end_revision = None
-        data = None
-        for index, version in enumerate(versions):
-            logging.debug('Collecting version %s (%d in sequence)',
-                          version['version_id'], index)
-            data = self.collect_version(version)
-            end_revision = version['version_id']
+        raise NotImplementedError('Subclass must designate collector type')
 
-        self.finish(end_revision, self.use_update_data(data))
+    def collect(self, from_revision: Optional[Revision] = None,
+                to_revision: Optional[Revision] = None) -> None:
+        """
+        Collect data from the project definition source relevant to the current
+        collector, possibly from a versioned system by selecting version between
+        specific ranges identified by the `from_revision` and `to_revision`,
+        which could correspond with version control system revision numbers,
+        commit hashes or timestamps, depending on the source. If the source
+        does not support versioning for the data, then the revisions may be
+        ignored. If `from_revision` is not given, then the update tracker may
+        provide the starting revision or it defaults to the first version. If
+        `to_revision` is not given, then it is considered to be the last version
+        at the source data.
+        """
 
-    def finish(self, end_revision: Optional[Version],
+        raise NotImplementedError('Subclasses must implement this method')
+
+    def collect_version(self, version: Version) -> Optional[Dict[str, Any]]:
+        """
+        Collect data from the project definition source relevant to the current
+        collector based on a `version`, which is a dictionary containing
+        metadata of a version. If the source does not support versioning for the
+        data, then the `version` is ignored.
+
+        Returns the collected data, or `None` if it is already handled, for
+        example by being stored in a table.
+        """
+
+        raise NotImplementedError('Subclasses must implement this method')
+
+    def collect_latest(self) -> None:
+        """
+        Collect data from the latest version of the project definition.
+        """
+
+        latest_version = self._data.get_latest_version()
+        data = self.collect_version(latest_version)
+        self.finish(latest_version, data)
+
+    @property
+    def use_update_data(self) -> bool:
+        """
+        Determine whether the provided data should be included in the update
+        tracker.
+
+        Collectors that make use of earlier data return `True` to store the
+        latest version's data in the update tracker.
+        """
+
+        return False
+
+    def finish(self, version: Optional[Version],
                data: Optional[Dict[str, Any]] = None) -> None:
         """
         Finish retrieving data based on the final version we collect.
@@ -77,57 +119,121 @@ class Collector:
         between updates.
         """
 
-        self._update_tracker.set_end(end_revision, data)
+        if version is not None:
+            revision: Optional[Revision] = version['version_id']
+        else:
+            revision = None
+        self._update_tracker.set_end(revision,
+                                     data if self.use_update_data else None)
 
-    def use_update_data(self, data: Optional[Dict[str, Any]]) \
-            -> Optional[Dict[str, Any]]:
-        # pylint: disable=unused-argument
+    def build_parser(self, version: Version) -> Parser:
         """
-        Determine whether the provided data should be included in the update
-        tracker.
-
-        Collectors that make use of earlier data should return `data` or an
-        alteration of it.
+        Retrieve a project definition parser object that retrieves the data that
+        we collect. The parser may be provided the `version` for collecting
+        additional version-specific data, or other details from the collector.
         """
 
-        return None
+        parser = self.get_parser_class()
+        return parser(version=version)
 
-    def collect_version(self, version: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    def get_parser_class(self) -> Type[Parser]:
         """
-        Collect information from a version of the project definition,
-        based on a dictionary containing details of a Subversion version.
+        Retrieve a parser class for the current collection target.
+        """
+
+        parsers = self._data.parsers
+        target = self.target
+        if target not in parsers:
+            raise RuntimeError(f'Could not find a parser for collection target {target}')
+
+        return parsers[target]
+
+class Metric_Collector(Collector, metaclass=ABCMeta):
+    """
+    Collector for metric information which makes use of the project definition's
+    data model during the parsing of the collected data.
+    """
+
+    def __init__(self, project: Project, source: Source, url: DataUrl = None,
+                 data_model: Optional[Dict[str, Any]] = None):
+        super().__init__(project, source, url=url)
+        self._data_model = data_model
+
+    @property
+    def data_model(self) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve the cached data model provided to the collector or retrieved
+        when building the parser.
+
+        If the data model has not been loaded, then `None` is returned.
+        """
+
+        return self._data_model
+
+    def build_parser(self, version: Version) -> Parser:
+        parser = self.get_parser_class()
+        if not issubclass(parser, Metric_Parser):
+            raise TypeError('Parser is not a metric parser')
+
+        if self._data_model is None:
+            self._data_model = self._data.get_data_model(version)
+        return parser(data_model=self._data_model, version=version)
+
+class Definition_Collector(Collector, metaclass=ABCMeta):
+    """
+    Class that collects and aggregates data from different versions of project
+    definition files.
+    """
+
+    def collect(self, from_revision: Optional[Revision] = None,
+                to_revision: Optional[Revision] = None) -> None:
+        """
+        Collect data from project definitions of revisions in the current range.
+        """
+
+        from_revision = self._update_tracker.get_start_revision(from_revision)
+        versions = self._data.get_versions(from_revision, to_revision)
+        version = None
+        for index, version in enumerate(versions):
+            logging.debug('Collecting version %s (%d in sequence)',
+                          version['version_id'], index)
+            self.collect_version(version)
+
+        self.finish(version)
+
+    def collect_version(self, version: Version) -> None:
+        """
+        Collect information from a `version` of the project definition,
+        based on a dictionary containing metadata of a version.
         """
 
         try:
+            contents = self.get_data(version)
             parser = self.build_parser(version)
-            contents = self._data.get_contents(version)
         except RuntimeError as error:
             logging.warning('Cannot create a parser for version %s: %s',
                             version['version_id'], str(error))
-            return None
+            return
 
         try:
-            parser.load_definition(self._data.filename, contents)
+            if isinstance(parser, Definition_Parser):
+                parser.load_definition(self._data.filename, contents)
             result = parser.parse()
             self.aggregate_result(version, result)
-            return result
         except RuntimeError as error:
             logging.warning("Problem with revision %s: %s",
                             version['version_id'], str(error))
 
-        return None
-
-    def collect_latest(self) -> None:
+    def get_data(self, version: Version) -> Dict[str, Any]:
         """
-        Collect information from the latest version of the project definition,
-        and finalize the collection immediately.
+        Retrieve the unprocessed source data for the `version`, which is the
+        project definition. Subclasses may update the returned data before
+        it is loaded into to the parser.
         """
 
-        latest_version = self._data.get_latest_version()
-        data = self.collect_version(latest_version)
-        self.finish(latest_version['version_id'], self.use_update_data(data))
+        return self._data.get_contents(version)
 
-    def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
+    def aggregate_result(self, version: Version, result: Dict[str, Any]) -> None:
         """
         Perform an action on the collected result to format it according to our
         needs.
@@ -135,61 +241,46 @@ class Collector:
 
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
-        """
-        Retrieve a project definition parser object that retrieves the data that
-        we collect.
-        """
-
-        raise NotImplementedError('Must be implemented by subclasses')
-
-    def get_parser_class(self) -> Type[Definition_Parser]:
-        """
-        Retrieve a parser class for the current collection target.
-        """
-
-        parsers = self._data.parsers
-        if self._target not in parsers:
-            raise RuntimeError(f'Could not find a parser for collection target {self._target}')
-
-        return parsers[self._target]
-
-class Project_Collector(Collector):
+class Project_Collector(Definition_Collector):
     """
     Collector that retrieves project information.
     """
 
-    def __init__(self, project: Project, source: Source, **kwargs: Any):
-        super().__init__(project, source, target='project_meta', **kwargs)
+    def __init__(self, project: Project, source: Source, url: DataUrl = None):
+        super().__init__(project, source, url=url)
         self._meta: Dict[str, str] = {}
 
-    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
-        return self.get_parser_class()(**self._options)
+    @property
+    def target(self) -> str:
+        return 'project_meta'
 
-    def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
+    def aggregate_result(self, version: Version, result: Dict[str, Any]) -> None:
         self._meta = result
 
     @property
-    def meta(self) -> Dict[str, Any]:
+    def meta(self) -> Dict[str, str]:
         """
         Retrieve the parsed project metadata.
         """
 
         return self._meta
 
-class Sources_Collector(Collector):
+class Sources_Collector(Definition_Collector):
     """
     Collector that retrieves version control sources from project definitions.
     """
 
-    def __init__(self, project: Project, source: Source, **kwargs: Any):
-        super().__init__(project, source, target='project_sources', **kwargs)
+    def __init__(self, project: Project, source: Source, url: DataUrl = None):
+        super().__init__(project, source, url=url)
 
-        self._source_ids = Table('source_ids')
+        self._source_ids = Table('source_ids', merge_update=True)
         self._parser_class = self.get_parser_class()
+        # Data aggregated from latest version
+        self._result: Dict[str, Any] = {}
 
-    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
-        return self._parser_class(path=self._data.path, **self._options)
+    @property
+    def target(self) -> str:
+        return 'project_sources'
 
     def _build_metric_source(self, name: str, url: SourceUrl, source_type: str) -> None:
         if url is None:
@@ -220,7 +311,12 @@ class Sources_Collector(Collector):
         except Source_Type_Error:
             logging.exception('Could not register source')
 
-    def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
+    def get_data(self, version: Version) -> Dict[str, Any]:
+        contents = super().get_data(version)
+        self._data.update_source_definitions(contents)
+        return contents
+
+    def aggregate_result(self, version: Version, result: Dict[str, Any]) -> None:
         sources_map = self._parser_class.SOURCES_MAP
         for name, metric_source in result.items():
             for metric_type, source_type in sources_map.items():
@@ -230,84 +326,216 @@ class Sources_Collector(Collector):
                     for url in metric_source[metric_type]:
                         self._build_metric_source(name, url, source_type)
 
-    def finish(self, end_revision: Optional[Version],
+        self._result = result
+
+    def finish(self, version: Optional[Version],
                data: Optional[Dict[str, Any]] = None) -> None:
-        super().finish(end_revision, data=data)
+        super().finish(version, data=data if data is not None else self._result)
 
         self._source_ids.write(self._project.export_key)
 
-class Metric_Options_Collector(Collector):
+class Unversioned_Collector(Collector, metaclass=ABCMeta):
+    """
+    Collector where only the latest version is able to be collected.
+    """
+
+    def __init__(self, project: Project, source: Source, url: DataUrl = None):
+        super().__init__(project, source, url=url)
+        self._start: Optional[Revision] = None
+        self._table = Table(self.table_name, merge_update=True)
+        # Unprocessed intermediate data to be passed to the parser
+        self._intermediate: List[Dict[str, Any]] = []
+
+    @property
+    def table_name(self) -> str:
+        """
+        Table to store aggregated results in.
+        """
+
+        raise NotImplementedError('Must be defined by subclasses')
+
+    def collect(self, from_revision: Optional[Revision] = None,
+                to_revision: Optional[Revision] = None) -> None:
+        from_revision = self._update_tracker.get_start_revision(from_revision)
+        if from_revision is not None:
+            self._start = from_revision
+        else:
+            start_version = self._data.get_start_version()
+            if start_version is not None:
+                self._start = start_version['version_id']
+
+        version = self._data.get_versions(from_revision, to_revision)[-1]
+        self.collect_version(version)
+
+        self.finish(version)
+
+    def collect_version(self, version: Version) -> None:
+        data = self.get_data(version)
+        self.aggregate_result(version, data)
+
+    def get_data(self, version: Version) -> List[Row]:
+        """
+        Retrieve aggregate data from the data source relevant to the collector.
+        The `version` is the most recent version at the project definition
+        data source based on the `from_revision` and `to_revision` range.
+        The returned value is table-like data about entities in their state as
+        found in the version (or their current state). This is then usable as
+        additional parameters to the parser.
+        """
+
+        raise NotImplementedError('Must be defined by subclasses')
+
+    def aggregate_result(self, version: Version, data: List[Dict[str, Any]]) -> None:
+        """
+        Post-process the collected result to format it according to the table.
+        """
+
+        self._intermediate = data
+        parser = self.build_parser(version)
+        result = parser.parse()
+        self._table.extend(result[version['version_id']])
+
+    def finish(self, version: Optional[Version],
+               data: Optional[Dict[str, Any]] = None) -> None:
+        super().finish(version, data=data)
+        self._table.write(self._project.export_key)
+
+class Measurements_Collector(Unversioned_Collector):
+    """
+    Collector that retrieves measurements of metrics defined for the project at
+    the project definition source.
+    """
+
+    def __init__(self, project: Project, source: Source, url: DataUrl = None):
+        super().__init__(project, source, url=url)
+        self._source = source
+        self._metrics = self._read_metric_names()
+
+    @property
+    def target(self) -> str:
+        return 'measurements'
+
+    @property
+    def table_name(self) -> str:
+        return 'metrics'
+
+    def _read_metric_names(self) -> Optional[MetricNames]:
+        metric_path = Path(self._project.export_key, 'metric_names.json')
+        if not metric_path.exists():
+            logging.warning('No metric names available for %s',
+                            self._project.key)
+            return None
+
+        with metric_path.open('r', encoding='utf-8') as metric_file:
+            return json.load(metric_file)
+
+    def build_parser(self, version: Version) -> Parser:
+        parser = self.get_parser_class()
+        if not issubclass(parser, Measurement_Parser):
+            raise TypeError('Parser is not a measurement parser')
+
+        return parser(metrics=self._metrics, measurements=self._intermediate,
+                      version=version)
+
+    def collect_version(self, version: Version) -> None:
+        if self._start is None and self._source.type == 'quality-time':
+            # Check if old update tracker exists and read start date from there
+            legacy_date_path = Path(self._project.export_key,
+                                    'quality_time_measurement_date.txt')
+            if legacy_date_path.exists():
+                with legacy_date_path.open('r', encoding='utf-8') as date_file:
+                    self._start = date_file.read()
+
+        super().collect_version(version)
+
+    def get_data(self, version: Version) -> List[Row]:
+        return self._data.get_measurements(self._metrics, version,
+                                           from_revision=self._start)
+
+class Metric_Defaults_Collector(Metric_Collector, Unversioned_Collector):
+    """
+    Collector that retrieves default targets for metrics from the source.
+    """
+
+    @property
+    def target(self) -> str:
+        return 'metric_defaults'
+
+    @property
+    def table_name(self) -> str:
+        return 'metric_defaults'
+
+    def get_data(self, version: Version) -> List[Row]:
+        return []
+
+class Metric_Options_Collector(Metric_Collector, Definition_Collector):
     """
     Collector that retrieves changes to metric targets from project definitions.
     """
 
-    def __init__(self, project: Project, source: Source, **kwargs: Any):
-        super().__init__(project, source, target='metric_options', **kwargs)
+    def __init__(self, project: Project, source: Source, url: DataUrl = None,
+                 data_model: Optional[Dict[str, Any]] = None):
+        super().__init__(project, source, url=url, data_model=data_model)
         self._source = source
-        self._start: Optional[Version] = None
+        self._start: Optional[Revision] = None
+        self._metric_names: Dict[str, Any] = {}
         self._diff = Metric_Difference(project,
                                        self._update_tracker.get_previous_data())
 
-    def build_parser(self, version: Dict[str, str]) -> Definition_Parser:
-        data_model = self._data.get_data_model(version)
-        return self.get_parser_class()(file_time=version['commit_date'],
-                                       data_model=data_model,
-                                       **self._options)
+    @property
+    def target(self) -> str:
+        return 'metric_options'
 
-    def collect(self, from_revision: Optional[Version] = None,
-                to_revision: Optional[Version] = None) -> None:
+    def collect(self, from_revision: Optional[Revision] = None,
+                to_revision: Optional[Revision] = None) -> None:
         self._start = self._update_tracker.get_start_revision(from_revision)
         super().collect(from_revision, to_revision)
 
-    def aggregate_result(self, version: Dict[str, str], result: Dict[str, Any]) -> None:
+    def aggregate_result(self, version: Version, result: Dict[str, Any]) -> None:
+        self._metric_names.update(result)
         for new_version, data in self._data.adjust_target_versions(version,
                                                                    result,
                                                                    self._start):
             self._diff.add_version(new_version, data)
 
-    def finish(self, end_revision: Optional[Version],
+    def finish(self, version: Optional[Version],
                data: Optional[Dict[str, Any]] = None) -> None:
-        if end_revision is None:
+        if version is None:
             logging.info('Metric options: No new revisions to parse')
         else:
             logging.info('Metric options: parsed up to revision %s',
-                         end_revision)
+                         version['version_id'])
 
         self._diff.export()
-        if data is None:
-            data = self._diff.previous_metric_targets
 
-        metric_names: Dict[str, Optional[Dict[str, str]]] = {
+        metric_names: MetricNames = {
             name: {
                 'base_name': str(metric.get('base_name')),
                 'domain_name': str(metric.get('domain_name')),
-                'domain_type': str(metric.get('domain_type', ''))
+                'domain_type': str(metric.get('domain_type', '')),
+                'scale': str(metric.get('scale', 'count'))
             } if 'base_name' in metric else None
-            for name, metric in data.items()
-            if int(metric.get('number_of_sources', 1)) <= 1
+            for name, metric in self._metric_names.items()
         }
-        metric_names_path = self._project.export_key / 'metric_names.json'
+        metric_names_path = Path(self._project.export_key, 'metric_names.json')
         if metric_names_path.exists():
-            with metric_names_path.open('r', encoding='utf-8') as metric_names_file:
+            with metric_names_path.open('r',
+                                        encoding='utf-8') as metric_names_file:
                 existing_names: MetricNames = json.load(metric_names_file)
-                if isinstance(existing_names, list):
-                    existing_names = {
-                        name: metric_names.get(name) for name in existing_names
-                    }
-                metric_names.update(existing_names)
+                existing_names.update(metric_names)
+                metric_names = existing_names
 
-        with metric_names_path.open('w', encoding='utf-8') as metric_names_file:
-            json.dump(metric_names, metric_names_file)
+        try:
+            with metric_names_path.open('w',
+                                        encoding='utf-8') as metric_names_file:
+                json.dump(metric_names, metric_names_file)
+        except FileNotFoundError:
+            logging.exception('Could not write metric names for %s',
+                              self._project.key)
 
-        source = Source.from_type('metric_options',
-                                  name=self._source.name,
-                                  url=self._source.plain_url)
-        if not self._project.sources.has_url(source.plain_url):
-            self._project.sources.add(source)
-            self._project.export_sources()
+        super().finish(version,
+                       data=data if data is not None else self._diff.previous_metric_targets)
 
-        super().finish(end_revision, data=data)
-
-    def use_update_data(self, data: Optional[Dict[str, Any]]) \
-            -> Optional[Dict[str, Any]]:
-        return data
+    @property
+    def use_update_data(self) -> bool:
+        return True

@@ -1,17 +1,16 @@
 FROM python:3.8-alpine3.18
 
 # Install dependencies
-COPY requirements.txt setup.py /tmp/
+COPY Makefile requirements.txt requirements-agent.txt setup.py /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
-	apk --update add gcc musl-dev libffi-dev libxml2-dev libxslt-dev libressl-dev bash git subversion openssh-client gettext cargo make cmake && \
-	cd /tmp/ && pip install -r requirements.txt && \
-	pip install -I 'python-gitlab>=1.10.0'
+	apk --update add gcc musl-dev libffi-dev libressl-dev bash git subversion openssh-client gettext cargo make cmake && \
+	cd /tmp/ && make setup_agent
 
 # Install gatherer
 COPY gatherer/ /tmp/gatherer/
 
-RUN cd /tmp && python setup.py install && \
+RUN cd /tmp/ && make install && \
 	apk del gcc musl-dev libffi-dev libressl-dev cargo make cmake && \
 	rm -rf /var/cache/apk/* /tmp /root/.cache /root/.cargo
 

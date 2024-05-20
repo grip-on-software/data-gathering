@@ -1,9 +1,8 @@
 # Install normal dependencies as well
 -r requirements.txt
 # Controller daemons and web interfaces
-Pyro4
-flup
-psutil
-etcd3
-python-ldap>=3.0.0b4
-pyyaml
+Pyro4==4.82
+psutil==5.9.8
+etcd3==0.12.0
+python-ldap==3.4.4
+PyYAML==6.0.1

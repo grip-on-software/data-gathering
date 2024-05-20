@@ -19,21 +19,15 @@ jobs:
       - name: Install development packages for some dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libxml2-dev libxslt1-dev libldap-dev libsasl2-dev
+          sudo apt-get install libldap-dev libsasl2-dev
       - name: Install dependencies for test
-        run: pip install -r requirements-test.txt
+        run: make setup_test
       - name: Unit test and coverage
-        run: |
-          coverage run --source=gatherer,test tests.py
-          coverage report -m
-          coverage xml -i -o test-reports/cobertura.xml
+        run: make coverage
       - name: Mypy typing coverage
         run: |
-          pip install -r requirements-analysis.txt
-          mypy gatherer scraper controller maintenance test setup.py tests.py \
-            --cobertura-xml-report mypy-report \
-            --junit-xml mypy-report/TEST-junit.xml \
-            --no-incremental --show-traceback
+          make setup_analysis
+          make mypy
       - name: Adjust source paths in coverage for Sonar
         run: |
           sed -i "s/<source>\/home\/runner\/work\/data-gathering\/data-gathering/<source>\/github\/workspace/g" \
