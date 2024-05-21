@@ -56,7 +56,8 @@ class Quality_Time_Data(Data):
         'target': 'target',
         'debt_target': 'debt_target',
         'comment': 'comment',
-        'scale': 'scale'
+        'scale': 'scale',
+        'direction': 'direction'
     }
 
     def __init__(self, project: Project, source: Source, url: DataUrl = None):

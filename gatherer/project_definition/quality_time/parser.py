@@ -306,6 +306,7 @@ class Metric_Options_Parser(Metric_Parser, Quality_Time_Report_Parser):
                 if isinstance(metric_sources, dict) else "0"
         }
         if comment is None and debt_target is None and \
+            metric.get("direction") == model.get("direction") and \
             target == str(model.get("target", "0")) and \
             near_target == str(model.get("near_target", "0")):
             metric_data["default"] = "1"
@@ -314,6 +315,7 @@ class Metric_Options_Parser(Metric_Parser, Quality_Time_Report_Parser):
                 "low_target": near_target,
                 "target": target,
                 "debt_target": "" if debt_target is None else str(debt_target),
+                "direction": "1" if metric.get("direction") == ">" else "-1",
                 "comment": "" if comment is None else str(comment),
             })
 

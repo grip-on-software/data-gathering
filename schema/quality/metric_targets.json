@@ -9,7 +9,7 @@
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "items": {
                 "anyOf": [
-                    {"$ref": "metric_names.json#/$defs/metric_names"}
+                    {"$ref": "metric_names.json#/$defs/metric_name_data"}
                 ],
                 "$ref": "#/$defs/quality_metric_target"
             }
@@ -54,6 +54,11 @@
                 "debt_target": {
                     "$ref": "../utils.json#/$defs/float",
                     "description": "Target to reach while technical debt is being worked on."
+                },
+                "direction": {
+                    "type": "string",
+                    "enum": ["-1", "1"],
+                    "description": "The direction in which the metric value should improve in order to become better. `-1` means a lower value is better, `1` means a higher value is better."
                 }
             }
         }
