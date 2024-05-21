@@ -29,11 +29,6 @@
                     "$ref": "../utils.json#/$defs/float",
                     "description": "Low target of the metric."
                 },
-                "type": {
-                    "type": "string",
-                    "enum": ["options", "old_options", "TechnicalDebtTarget"],
-                    "description": "Type of change within the quality report structure."
-                },
                 "comment": {
                     "type": "string",
                     "description": "Reason for adjustment of the metric targets."
