@@ -148,6 +148,8 @@ class Measurements_Parser(Measurement_Parser):
 
         return {
             'name': unique_metric_name,
+            'base_name': measurement['base_name'],
+            'domain_name': measurement['domain_name'],
             'value': measurement_value,
             'category': category,
             'date': parse_date(str(measurement.get("date")))

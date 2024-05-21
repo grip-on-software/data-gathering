@@ -129,12 +129,16 @@ class MeasurementsParserTest(unittest.TestCase):
             '12345': [
                 {
                     'name': 'metric1_foo',
+                    'base_name': 'metric1',
+                    'domain_name': 'foo',
                     'value': '1',
                     'category': 'perfect',
                     'date': '2024-05-06 07:08:09'
                 },
                 {
                     'name': 'metric1_foo',
+                    'base_name': 'metric1',
+                    'domain_name': 'foo',
                     'value': '2',
                     'category': 'green',
                     'date': '2024-05-16 17:18:19'
@@ -167,6 +171,8 @@ class MeasurementsParserTest(unittest.TestCase):
             '56789': [
                 {
                     'name': 'metric2_bar',
+                    'base_name': 'metric2',
+                    'domain_name': 'bar',
                     'value': '20.0',
                     'category': 'grey',
                     'date': '2024-05-18 16:03:12'
