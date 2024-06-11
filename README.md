@@ -720,7 +720,7 @@ relevant to the project. The `blacklist` section contains a global deny list
 under the option name `all` that filters irrelevant events based on their 
 description. There is no project-specific deny list.
 
-## Testing
+## Development and testing
 
 Some of the modules come with unit tests, while also depending on the 
 correctness of dependencies to provide with accurate data from sources and 
@@ -762,3 +762,14 @@ configuration files as well as all the exported artifacts against the schema.
 For example, the Jira and Azure DevOps field mapping specifications are able to 
 be checked; see the [issue trackers](#issue-trackers-jira-and-azure-devops) 
 section for an example.
+
+We publish releases to [PyPI](https://pypi.org/project/gros-gatherer/) using 
+`make setup_release` to install dependencies from `requirements-release.txt` 
+and `make release` which performs multiple checks: unit tests, typing, lint and 
+version number consistency. The release files are also published on 
+[GitHub](https://github.com/grip-on-software/data-gathering/releases) and from 
+there are archived on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10911861).
+
+## License
+
+Data gathering scripts and modules are licensed under the Apache 2.0 License.
