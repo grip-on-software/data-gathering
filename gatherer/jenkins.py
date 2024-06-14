@@ -21,17 +21,25 @@ limitations under the License.
 from abc import ABCMeta
 from configparser import RawConfigParser
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, \
     Tuple, Union
 from urllib.parse import quote, urlencode
 from requests.adapters import BaseAdapter
 from requests.auth import HTTPBasicAuth
+from requests.exceptions import ConnectionError as ConnectError, HTTPError, \
+    Timeout
 from requests.models import Response
 from .config import Configuration
 from .request import Session
 
 BaseUrl = Optional[Union[str, Dict[str, str]]]
+
+class RequestException(RuntimeError):
+    """
+    An exception during a request to the Jenkins API.
+    """
 
 class NoneMapping(Mapping[str, None]):
     """
@@ -115,15 +123,20 @@ class Base(metaclass=ABCMeta):
 
     def _retrieve(self) -> Response:
         url = f'{self.base_url}api/json?{urlencode(self._query)}'
-        request = self.instance.session.get(url, timeout=self.instance.timeout)
-        if Session.is_code(request, 'not_found'):
-            self._exists = False
-            self._data = NoneMapping()
-        else:
-            self._data = request.json()
-            self._has_data = True
-            self._exists = True
-        return request
+        try:
+            request = self.instance.session.get(url,
+                                                timeout=self.instance.timeout)
+            if Session.is_code(request, 'not_found'):
+                self._exists = False
+                self._data = NoneMapping()
+            else:
+                request.raise_for_status()
+                self._data = request.json()
+                self._has_data = True
+                self._exists = True
+            return request
+        except (ConnectError, HTTPError, Timeout) as error:
+            raise RequestException('Could not retrieve data') from error
 
     @property
     def data(self) -> Mapping[str, Any]:
@@ -202,8 +215,12 @@ class Base(metaclass=ABCMeta):
             raise TypeError("This object does not support deletion")
 
         url = f'{self.base_url}{self.DELETE_URL}'
-        request = self.instance.session.post(url, timeout=self.instance.timeout)
-        request.raise_for_status()
+        try:
+            request = self.instance.session.post(url,
+                                                 timeout=self.instance.timeout)
+            request.raise_for_status()
+        except (ConnectError, HTTPError, Timeout) as error:
+            raise RequestException('Could not delete object') from error
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Base):
@@ -286,16 +303,25 @@ class Jenkins(Base):
         self._session.mount(prefix, adapter)
 
     def _add_crumb_header(self) -> None:
-        request = self._session.get(f'{self.base_url}crumbIssuer/api/json',
-                                    timeout=3)
-        if Session.is_code(request, 'not_found'):
-            # This Jenkins instance does not have a crumb issuer?
-            self._has_crumb = True
+        try:
+            request = self._session.get(f'{self.base_url}crumbIssuer/api/json',
+                                        timeout=3)
+
+            self._version = request.headers.get('X-Jenkins', '')
+
+            request.raise_for_status()
+        except (ConnectError, HTTPError, Timeout) as error:
+            if error.response is not None and \
+                Session.is_code(error.response, 'not_found'):
+                # This Jenkins instance does not seem to have a crumb issuer
+                # Do not try to request a crumb again
+                self._has_crumb = True
+            else:
+                # Try to continue with the session without a crumb for now
+                # We can request a crumb again if the session is used again
+                logging.exception('Could not retrieve crumb token')
+
             return
-
-        self._version = request.headers.get('X-Jenkins', '')
-
-        request.raise_for_status()
 
         self._has_crumb = True
         crumb_data: Dict[str, str] = request.json()
@@ -758,8 +784,14 @@ class Job(Base):
             url = f'{self.base_url}buildWithParameters'
             params.update(parameters)
 
-        return self.instance.session.post(url, params=params, data=data,
-                                          timeout=self.instance.timeout)
+        try:
+            request = self.instance.session.post(url, params=params, data=data,
+                                                 timeout=self.instance.timeout)
+            request.raise_for_status()
+            return request
+        except (ConnectError, HTTPError, Timeout) as error:
+            raise RequestException(f'Could not start a build for {self.name}') \
+                from error
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Job):

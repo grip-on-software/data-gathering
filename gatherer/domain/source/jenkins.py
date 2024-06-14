@@ -20,7 +20,6 @@ limitations under the License.
 
 from typing import Hashable, Optional
 from urllib.parse import urlsplit
-from requests.exceptions import ConnectionError as ConnectError, HTTPError, Timeout
 from ...config import Configuration
 from ...jenkins import Jenkins as JenkinsAPI
 from .types import Source, Source_Types, Project
@@ -54,7 +53,7 @@ class Jenkins(Source):
         try:
             self.jenkins_api.timeout = 3
             return self.jenkins_api.version
-        except (RuntimeError, ConnectError, HTTPError, Timeout):
+        except RuntimeError:
             return ''
         finally:
             if self._jenkins_api is not None:

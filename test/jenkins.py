@@ -19,13 +19,13 @@ limitations under the License.
 """
 
 from configparser import RawConfigParser
-from typing import Any, Optional, Tuple
+from typing import Optional, Tuple
 import unittest
 from unittest.mock import patch
 from requests.auth import HTTPBasicAuth
 import requests_mock
 from gatherer.jenkins import Base, Build, Jenkins, Job, Nodes, Node, \
-    NoneMapping, View
+    NoneMapping, RequestException, View
 
 class NoneMappingTest(unittest.TestCase):
     """
@@ -46,16 +46,14 @@ class NoneMappingTest(unittest.TestCase):
         self.assertNotIn('key', mapping)
         self.assertEqual(repr(mapping), 'NoneMapping()')
 
-def _setup_jenkins(**kwargs: Any) -> Tuple[Jenkins, requests_mock.Adapter]:
-    # Default protocol to use in our adapter
-    protocol = 'http+mock://'
-
+def _setup_jenkins(host: Optional[str] = None,
+                   protocol: str = 'http+mock://',
+                   jenkins: Optional[Jenkins] = None) -> \
+        Tuple[Jenkins, requests_mock.Adapter]:
     # Create or obtain the Jenkins instance
-    host: Optional[str] = None
-    if 'jenkins' in kwargs:
-        jenkins = kwargs.pop('jenkins')
-    else:
-        host = str(kwargs.pop('host', f'{protocol}jenkins.test'))
+    if jenkins is None:
+        if host is None:
+            host = f'{protocol}jenkins.test'
         jenkins = Jenkins(host)
 
     # Set up adapter with crumb issuer route (just route it to a 404)
@@ -67,6 +65,7 @@ def _setup_jenkins(**kwargs: Any) -> Tuple[Jenkins, requests_mock.Adapter]:
     if prefix is not None and prefix.startswith(protocol):
         prefix = protocol
 
+    # Mount on the host/protocol prefix
     jenkins.mount(adapter, prefix=prefix)
     return jenkins, adapter
 
@@ -136,7 +135,17 @@ class BaseTest(unittest.TestCase):
 
         self.base.invalidate()
 
+        # After invalidation, the data becomes an empty mapping.
         self.assertEqual(self.base.data, NoneMapping())
+        self.assertTrue(matcher.called_once)
+
+        # Other HTTP errors cause an exception
+        self.adapter.reset()
+        matcher = self.adapter.register_uri('GET', '/api/json', status_code=500)
+        self.base.invalidate()
+
+        with self.assertRaises(RequestException):
+            self.assertNotEqual(self.base.data, NoneMapping())
         self.assertTrue(matcher.called_once)
 
     def test_version(self) -> None:
@@ -194,6 +203,14 @@ class BaseTest(unittest.TestCase):
         with patch.object(Base, 'DELETE_URL', new='doDelete'):
             matcher = self.adapter.register_uri('POST', '/doDelete')
             self.base.delete()
+            self.assertTrue(matcher.called_once)
+
+            self.adapter.reset()
+            matcher = self.adapter.register_uri('POST', '/doDelete',
+                                                status_code=500)
+
+            with self.assertRaises(RequestException):
+                self.base.delete()
             self.assertTrue(matcher.called_once)
 
     def test_comparison(self) -> None:
@@ -265,6 +282,12 @@ class JenkinsTest(unittest.TestCase):
         })
         self.assertEqual(verify.session.verify, 'certs/README.md')
         self.assertEqual(verify.session.headers['X-Crumb'], 'my-token')
+
+        # Test crumb token retrieval with (temporary) error
+        crumb_error = Jenkins.from_config(config)
+        _, adapter = _setup_jenkins(jenkins=crumb_error)
+        adapter.register_uri('GET', '/crumbIssuer/api/json', status_code=500)
+        self.assertNotIn('X-Crumb', crumb_error.session.headers)
 
     def test_properties(self) -> None:
         """
@@ -593,6 +616,70 @@ class JobTest(unittest.TestCase):
         self.assertFalse(self.job.get_build(3).exists)
         self.assertTrue(self.job.get_build(2).exists)
 
+    def test_get_last_branch_build(self) -> None:
+        """
+        Test retrieving the latest build of the job for a given branch.
+        """
+
+        job_data = {
+            'lastBuild': 2,
+            'builds': [
+                {'number': 1},
+                {'number': 2}
+            ]
+        }
+        self.adapter.register_uri('GET', '/job/test-job/api/json',
+                                  json=job_data)
+
+        build_data = {
+            'number': 2,
+            'actions': [
+                {},
+                {
+                    'buildsByBranchName': {
+                        'main': {'buildNumber': 1},
+                        'feature': {'buildNumber': 2}
+                    }
+                }
+            ]
+        }
+        self.adapter.register_uri('GET', '/job/test-job/lastBuild/api/json',
+                                  json=build_data)
+        build, build_result = self.job.get_last_branch_build('main')
+        if build is None: # pragma: no cover
+            self.fail('Excepted main build for test-job to not be None')
+        self.assertEqual(build.base_url,
+                         'http+mock://jenkins.test/job/test-job/1/')
+        self.assertEqual(build_result, {'buildNumber': 1})
+
+        build, build_result = self.job.get_last_branch_build('feature')
+        if build is None: # pragma: no cover
+            self.fail('Excepted feature build for test-job to not be None')
+        self.assertEqual(build.base_url,
+                         'http+mock://jenkins.test/job/test-job/lastBuild/')
+        self.assertEqual(build_result, {'buildNumber': 2})
+
+        # If a nonexistent branch is requested, then we cannot return anything.
+        self.assertEqual(self.job.get_last_branch_build('other'), (None, None))
+
+        # If there are no builds by branch, then we cannot return anything.
+        build_data['actions'] = []
+        self.adapter.register_uri('GET', '/job/test-job/lastBuild/api/json',
+                                  json=build_data)
+        self.job.last_build.invalidate()
+        self.assertEqual(self.job.get_last_branch_build('main'), (None, None))
+
+        # If there are no builds, then a ValueError is raised.
+        job_data = {
+            'lastBuild': None,
+            'builds': []
+        }
+        self.adapter.register_uri('GET', '/job/new-job/api/json', json=job_data)
+        with self.assertRaises(ValueError):
+            new_job = Job(self.jenkins, name='new-job')
+            self.assertIsNone(new_job.data['lastBuild'])
+            new_job.get_last_branch_build('main')
+
     def test_default_parameters(self) -> None:
         """
         Test retrieving parameters defined for a parameterized job.
@@ -668,6 +755,16 @@ class JobTest(unittest.TestCase):
         self.job.build(parameters={'VARIABLE_NAME': 'jobtest',
                                    'TEST_ENVIRONMENT': 'true'})
         self.assertTrue(params.called_once)
+
+        # Test HTTP error
+        self.adapter.reset()
+        error = self.adapter.register_uri('POST',
+                                           '/job/test-job/buildWithParameters',
+                                           status_code=500)
+        with self.assertRaises(RequestException):
+            self.job.build(parameters={'VARIABLE_NAME': 'joberror',
+                                       'TEST_ENVIRONMENT': '???'})
+        self.assertTrue(error.called_once)
 
     def test_comparison(self) -> None:
         """
