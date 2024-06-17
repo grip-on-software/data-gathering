@@ -1,0 +1,72 @@
+[project]
+name = "gros-gatherer"
+version = "0.1.0"
+description = "Software development process data gathering"
+readme = "README.md"
+authors = [{name = "Leon Helwerda", email = "l.s.helwerda@liacs.leidenuniv.nl"}]
+license = {text = "Apache 2.0"}
+requires-python = ">=3.8"
+dependencies = [
+    # gatherer.config
+    "urlmatch==1.0.1",
+    # gatherer.jira
+    "jira==3.8.0",
+    # gatherer.git
+    "GitPython==3.1.43",
+	"PyGithub==2.3.0",
+	"python-gitlab==4.4.0",
+    "ordered-set==4.1.0",
+    # gatherer.svn
+    "svn==1.0.1",
+    # gatherer.project_definition.sonar.data
+    "packaging==24.0",
+    # gatherer.request
+    "requests==2.31.0", "requests_ntlm==1.2.0",
+    # gatherer.database
+    "pymonetdb==1.8.1",
+    # gatherer.files
+    "pyocclient==0.6",
+    # gatherer.salt
+    "bcrypt==4.1.2"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Topic :: Software Development :: Bug Tracking",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Monitoring",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["software development process", "data gathering"]
+
+[project.urls]
+"Homepage" = "https://gros.liacs.nl"
+"PyPI" = "https://pypi.python.org/pypi/gros-gatherer"
+"Source Code" = "https://github.com/grip-on-software/data-gathering"
+"Issues" = "https://github.com/grip-on-software/data-gathering/issues"
+"Pull Requests" = "https://github.com/grip-on-software/data-gathering/pulls"
+"CI: GitHub Actions" = "https://github.com/grip-on-software/data-gathering/actions"
+"CI: Coveralls" = "https://coveralls.io/github/grip-on-software/data-gathering?branch=master"
+"CI: SonarCloud" = "https://sonarcloud.io/project/overview?id=grip-on-software_data-gathering"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["gatherer"]
+
+[tool.setuptools.package-data]
+"gatherer" = ["py.typed"]

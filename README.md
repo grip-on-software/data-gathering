@@ -754,8 +754,9 @@ may be checked using Pylint with `make pylint` and mypy with `make mypy`,
 respectively, after following the [installation](#installation) instructions 
 for static code analysis (i.e., running `make setup_analysis`). The command for 
 mypy provides potential errors in the output and typing coverage reports in 
-several formats, including HTML and XML (compatible with JUnit and  SonarQube) 
-in the `mypy-report/` directory.
+several formats, including XML (compatible with JUnit and  SonarQube) in the 
+`mypy-report/` directory. To also receive the HTML report, use `make mypy_html` 
+instead.
 
 Finally, the schemas in the `schema/` directory allow validation of certain 
 configuration files as well as all the exported artifacts against the schema. 
