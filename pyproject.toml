@@ -70,3 +70,10 @@ where = ["gatherer"]
 
 [tool.setuptools.package-data]
 "gatherer" = ["py.typed"]
+
+[tool.mypy]
+mypy_path = "typeshed"
+
+[[tool.mypy.overrides]]
+module = ["Pyro4", "etcd3", "psutil"]
+ignore_missing_imports = true
