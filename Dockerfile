@@ -1,7 +1,7 @@
 FROM python:3.8-alpine3.18
 
 # Install dependencies
-COPY Makefile requirements.txt requirements-agent.txt setup.py /tmp/
+COPY Makefile requirements.txt requirements-agent.txt pyproject.toml /tmp/
 
 RUN addgroup agent && adduser -s /bin/bash -D -G agent agent && \
 	apk --update add gcc musl-dev libffi-dev libressl-dev bash git subversion openssh-client gettext cargo make cmake && \

@@ -66,9 +66,9 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withPythonEnv('System-CPython-3') {
-                    pysh 'python -m pip install -r requirements-analysis.txt'
-                    pysh 'mypy gatherer scraper controller maintenance setup.py --html-report mypy-report --cobertura-xml-report mypy-report --junit-xml mypy-report/junit.xml --no-incremental --show-traceback || true'
-                    pysh 'python -m pylint gatherer scraper controller maintenance setup.py --exit-zero --reports=n --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" -d duplicate-code > pylint-report.txt'
+                    pysh 'make setup_analysis'
+                    pysh 'make mypy_html'
+                    pysh 'make pylint > pylint-report.txt'
                 }
                 withSonarQubeEnv('SonarQube') {
                     sh '${SCANNER_HOME}/bin/sonar-scanner -Dsonar.projectKey=data-gathering:$BRANCH_NAME -Dsonar.projectName="Data gathering $BRANCH_NAME"'
@@ -90,8 +90,8 @@ pipeline {
                 }
             }
             steps {
-                sh 'python setup.py sdist'
-                sh 'python setup.py bdist_wheel'
+                sh 'make setup_release'
+                sh 'make build'
                 sh 'mkdir -p build/wheel'
                 sh 'grep "#egg=" requirements.txt | xargs pip wheel -w build/wheel --no-deps'
             }
@@ -100,7 +100,7 @@ pipeline {
             when { branch 'master' }
             steps {
                 withPythonEnv('System-CPython-3') {
-                    pysh 'python -m pip install twine'
+                    pysh 'make setup_release'
                     withCredentials([usernamePassword(credentialsId: 'pypi-credentials', passwordVariable: 'TWINE_PASSWORD', usernameVariable: 'TWINE_USERNAME'), string(credentialsId: 'pypi-repository', variable: 'TWINE_REPOSITORY_URL'), file(credentialsId: 'pypi-certificate', variable: 'TWINE_CERT')]) {
                         pysh 'python -m twine upload dist/* build/wheel/*'
                     }
