@@ -769,7 +769,8 @@ We publish releases to [PyPI](https://pypi.org/project/gros-gatherer/) using
 and `make release` which performs multiple checks: unit tests, typing, lint and 
 version number consistency. The release files are also published on 
 [GitHub](https://github.com/grip-on-software/data-gathering/releases) and from 
-there are archived on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10911861).
+there are archived on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10911861). 
+Noteworthy changes to the modules are added to the [changelog](CHANGELOG.md).
 
 ## License
 

@@ -85,8 +85,8 @@ cover:
 	$(COVERAGE) report -m
 
 .PHONY: get_version
-get_version: get_toml_version get_init_version get_sonar_version get_citation_version
-	if [ "${TOML_VERSION}" != "${INIT_VERSION}" ] || [ "${TOML_VERSION}" != "${SONAR_VERSION}" ] || [ "${TOML_VERSION}" != "${CITATION_VERSION}" ]; then \
+get_version: get_toml_version get_init_version get_sonar_version get_citation_version get_changelog_version
+	if [ "${TOML_VERSION}" != "${INIT_VERSION}" ] || [ "${TOML_VERSION}" != "${SONAR_VERSION}" ] || [ "${TOML_VERSION}" != "${CITATION_VERSION}" ] || [ "${TOML_VERSION}" != "${CHANGELOG_VERSION}" ]; then \
 		echo "Version mismatch"; \
 		exit 1; \
 	fi
@@ -115,6 +115,11 @@ get_sonar_version:
 get_citation_version:
 	$(eval CITATION_VERSION=v$(shell grep "^version:" CITATION.cff | cut -d' ' -f2))
 	$(info Version in CITATION.cff: $(CITATION_VERSION))
+
+.PHONY: get_changelog_version
+get_changelog_version:
+	$(eval CHANGELOG_VERSION=v$(shell grep "^## \[[0-9]\+\.[0-9]\+\.[0-9]\+\]" CHANGELOG.md | head -n 1 | sed -E "s/## \[([0-9]+\.[0-9]+\.[0-9]+)\].*/\1/"))
+	$(info Version in CHANGELOG.md: $(CHANGELOG_VERSION))
 
 .PHONY: tag
 tag: get_version
