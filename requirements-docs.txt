@@ -1,0 +1,5 @@
+# Install dependencies for all modules
+-r requirements.txt
+# Documentation dependencies
+Sphinx==7.1.2
+myst-parser==3.0.1

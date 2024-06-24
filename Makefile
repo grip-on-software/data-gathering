@@ -42,6 +42,10 @@ setup_analysis:
 setup_test:
 	$(PIP) install -r requirements-test.txt
 
+.PHONY: setup_docs
+setup_docs:
+	$(PIP) install -r requirements-docs.txt
+
 .PHONY: install
 install:
 	$(PIP) install .
@@ -85,8 +89,8 @@ cover:
 	$(COVERAGE) report -m
 
 .PHONY: get_version
-get_version: get_toml_version get_init_version get_sonar_version get_citation_version get_changelog_version
-	if [ "${TOML_VERSION}" != "${INIT_VERSION}" ] || [ "${TOML_VERSION}" != "${SONAR_VERSION}" ] || [ "${TOML_VERSION}" != "${CITATION_VERSION}" ] || [ "${TOML_VERSION}" != "${CHANGELOG_VERSION}" ]; then \
+get_version: get_toml_version get_init_version get_sonar_version get_citation_version get_changelog_version get_docs_version
+	if [ "${TOML_VERSION}" != "${INIT_VERSION}" ] || [ "${TOML_VERSION}" != "${SONAR_VERSION}" ] || [ "${TOML_VERSION}" != "${CITATION_VERSION}" ] || [ "${TOML_VERSION}" != "${CHANGELOG_VERSION}" ] || [ "${TOML_VERSION}" != "${DOCS_VERSION}" ]; then \
 		echo "Version mismatch"; \
 		exit 1; \
 	fi
@@ -121,6 +125,11 @@ get_changelog_version:
 	$(eval CHANGELOG_VERSION=v$(shell grep "^## \[[0-9]\+\.[0-9]\+\.[0-9]\+\]" CHANGELOG.md | head -n 1 | sed -E "s/## \[([0-9]+\.[0-9]+\.[0-9]+)\].*/\1/"))
 	$(info Version in CHANGELOG.md: $(CHANGELOG_VERSION))
 
+.PHONY: get_docs_version
+get_docs_version:
+	$(eval DOCS_VERSION=v$(shell grep "^release" doc/source/conf.py | sed -E "s/release = .([0-9.]+)./\\1/"))
+	$(info Version in doc/source/conf.py: $(DOCS_VERSION))
+
 .PHONY: tag
 tag: get_version
 	git tag $(VERSION)
@@ -136,6 +145,10 @@ push: get_version
 .PHONY: upload
 upload:
 	$(TWINE) upload dist/*
+
+.PHONY: docs
+docs:
+	make html -C doc
 
 .PHONY: clean
 clean:

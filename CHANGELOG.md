@@ -101,6 +101,7 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Removed
 
 - Support for Python 2.7 dropped.
+- Support for GitLab legacy v3 API (for GitLab version 8) dropped.
 
 [Unreleased]: 
 https://github.com/grip-on-software/data-gathering/compare/v0.0.3...HEAD
