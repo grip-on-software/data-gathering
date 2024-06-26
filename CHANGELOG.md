@@ -54,6 +54,10 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   can be used for fetch/parse methods of issue fields and fetch/parse methods 
   of changelog fields, same for special fields.
 - Package is now a `pyproject.toml` project instead of using `setup.py`.
+- Docker build no longer reads `env` files (should be added as volume instead, 
+  or use Compose environment sections in case an initial `env` file cannot be 
+  provided during startup), does include the `vsts_fields.json` file and the 
+  `VERSION` file is now optional (version information is degraded if missing).
 
 ### Removed
 

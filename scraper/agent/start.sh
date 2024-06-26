@@ -19,7 +19,11 @@
 # limitations under the License.
 
 # Make the agent version available on the shared config volume.
-cp /home/agent/VERSION /home/agent/config/VERSION
+if [ -f /home/agent/VERSION ]; then
+	cp /home/agent/VERSION /home/agent/config/VERSION
+else
+	python -c "from gatherer import __version__;print(__version__)" > /home/agent/config/VERSION
+fi
 
 # Update configuration based on docker compose environment variables.
 (find /home/agent -name '*.cfg.example' | while read file; do

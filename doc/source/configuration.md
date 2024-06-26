@@ -271,12 +271,14 @@ section, all settings and credentials may be set through environment variables,
 originating from either Docker parameters (Jenkins-style runs only) or `env` 
 files.
 
-The `env` files may exist in the `/home/agent` directory as added during 
-a build of the Docker image, as well as in the `/home/agent/config` volume; 
-both files are read during startup as well as when starting any scrape 
-operation. This writes the variables into the configuration files on the 
-`/home/agent/config` volume (only if they do not yet exist) at startup, and 
-makes other environment variables available during the scrape.
+The `env` files may exist in the `/home/agent` directory as added through 
+a volume when running the Docker image, as well as in the `/home/agent/config` 
+volume; both files are read during startup as well as when starting any scrape 
+operation. The file should contain lines of environment variables (without the 
+dollar sign prefix `$`), an equals sign and values to set them to. This writes 
+the variables into the configuration files on the `/home/agent/config` volume 
+(only if they do not yet exist) at startup, and makes other environment 
+variables available during the scrape.
 
 The following environment variables alter the Docker instance behavior, aside 
 from writing them into the configuration files (if at all):
@@ -311,7 +313,8 @@ from writing them into the configuration files (if at all):
   been located yet.
 
 In addition, the following environment variables change the configuration of 
-all the modes in which the data gathering modules are used:
+all the modes in which the data gathering modules are used, and are also read 
+in non-Docker contexts:
 
 - `$GATHERER_SETTINGS_FILE`: The path to the `settings.cfg` file.
 - `$GATHERER_CREDENTIALS_FILE`: The path to the `credentials.cfg` file.

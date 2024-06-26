@@ -15,7 +15,7 @@ RUN cd /tmp/ && make install && \
 	rm -rf /var/cache/apk/* /tmp /root/.cache /root/.cargo
 
 # Configure agent environment
-COPY VERSION *.cfg.example jira_fields.json en[v] /home/agent/
+COPY *.cfg.example *_fields.json [V]ERSION /home/agent/
 COPY certs/ /home/agent/certs/
 COPY scraper/ /home/agent/scraper/
 COPY subversion-servers /home/agent/.subversion/servers
