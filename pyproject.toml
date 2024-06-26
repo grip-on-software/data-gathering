@@ -13,8 +13,8 @@ dependencies = [
     "jira==3.8.0",
     # gatherer.git
     "GitPython==3.1.43",
-	"PyGithub==2.3.0",
-	"python-gitlab==4.4.0",
+    "PyGithub==2.3.0",
+    "python-gitlab==4.4.0",
     "ordered-set==4.1.0",
     # gatherer.svn
     "svn==1.0.1",
@@ -65,8 +65,8 @@ keywords = ["software development process", "data gathering"]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-where = ["gatherer"]
+[tool.setuptools]
+packages = ["gatherer"]
 
 [tool.setuptools.package-data]
 "gatherer" = ["py.typed"]
