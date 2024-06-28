@@ -18,6 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from typing import Dict, List, Union
 import unittest
 from unittest.mock import patch, MagicMock
 from github import GithubException
@@ -105,7 +106,7 @@ class GitHubTest(unittest.TestCase):
 
         repo = MagicMock(spec_set=Repository, name='repo2',
                          clone_url='https://github.test/owner/repo2.git')
-        attrs = {
+        attrs: Dict[str, Union[List[MagicMock], Exception]] = {
             'get_repos.return_value': [repo]
         }
         self.api.get_user.return_value.configure_mock(**attrs)
