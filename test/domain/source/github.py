@@ -20,6 +20,7 @@ limitations under the License.
 
 import unittest
 from unittest.mock import patch, MagicMock
+from github import GithubException
 from github.Repository import Repository
 from github.Team import Team
 from gatherer.config import Configuration
@@ -134,3 +135,10 @@ class GitHubTest(unittest.TestCase):
             Source.from_type('github', name=repo.name, url=repo.clone_url,
                              github_team='t1')
         ])
+
+        attrs = {
+            'get_teams.side_effect': GithubException(403)
+        }
+        self.api.get_organization.return_value.configure_mock(**attrs)
+        with self.assertRaises(RuntimeError):
+            source.get_sources()

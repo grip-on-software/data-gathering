@@ -168,21 +168,24 @@ class GitHub(Git):
         return self._github_api
 
     def get_sources(self) -> List[Source]:
-        if self._github_team is None:
-            user = self.github_api.get_user(self._github_owner)
-            repos = user.get_repos()
-        else:
-            org = self.github_api.get_organization(self._github_owner)
-            team = None
-            for team in org.get_teams():
-                if team.slug == self._github_team:
-                    break
+        try:
+            if self._github_team is None:
+                user = self.github_api.get_user(self._github_owner)
+                repos = user.get_repos()
             else:
-                msg = "Cannot find team '{}' in organization '{}'"
-                raise RuntimeError(msg.format(self._github_team,
-                                              self._github_owner))
+                org = self.github_api.get_organization(self._github_owner)
+                team = None
+                for team in org.get_teams():
+                    if team.slug == self._github_team:
+                        break
+                else:
+                    msg = "Cannot find team '{}' in organization '{}'"
+                    raise RuntimeError(msg.format(self._github_team,
+                                                  self._github_owner))
 
-            repos = team.get_repos()
+                repos = team.get_repos()
+        except github.GithubException as error:
+            raise RuntimeError('Could not collect sources from GitHub') from error
 
         sources = []
         for repo in repos:

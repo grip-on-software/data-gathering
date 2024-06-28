@@ -123,6 +123,49 @@ class GitHub_Repository(Git_Repository, Review_System):
         tracker_date = get_local_datetime(update_tracker)
         return tracker_date >= repo.updated_at.replace(tzinfo=dateutil.tz.tzutc())
 
+    @classmethod
+    def _get_repo_project(cls, source: Source) -> github.Repository.Repository:
+        if not isinstance(source, GitHub):
+            raise RuntimeError('Source must be a GitHub source')
+
+        try:
+            repo_project = source.github_repo
+        except github.GithubException as error:
+            raise RuntimeError('Cannot access the GitHub API (insufficient credentials)') from error
+
+        return repo_project
+
+    @classmethod
+    def get_compare_url(cls, source: Source, first_version: Version,
+                        second_version: Optional[Version] = None) -> Optional[str]:
+        if second_version is None:
+            try:
+                repo_project = cls._get_repo_project(source)
+            except RuntimeError:
+                # Cannot connect to API to retrieve web URL
+                return None
+
+            second_version = repo_project.default_branch
+
+        return f'{source.web_url}/compare/{first_version}...{second_version}'
+
+    @classmethod
+    def get_tree_url(cls, source: Source, version: Optional[Version] = None,
+                     path: Optional[str] = None, line: Optional[int] = None) -> Optional[str]:
+        if version is None:
+            try:
+                repo_project = cls._get_repo_project(source)
+            except RuntimeError:
+                # Cannot connect to API to retrieve web URL
+                return None
+
+            version = repo_project.default_branch
+
+        if path is None:
+            path = ''
+        line_anchor = f'#L{line}' if line is not None else ''
+        return f'{source.web_url}/tree/{version}/{path}{line_anchor}'
+
     @property
     def source(self) -> GitHub:
         return cast(GitHub, self._source)

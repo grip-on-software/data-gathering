@@ -31,6 +31,7 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changelog fields return the field, and added property accessors for the 
   fields and changelog object. Can also retrieve projects from the project 
   parser if they are prefetched, and the query and iterator limiter.
+- GitHub repository comparison and tree/file URL methods added.
 
 ### Changed
 
@@ -58,6 +59,7 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or use Compose environment sections in case an initial `env` file cannot be 
   provided during startup), does include the `vsts_fields.json` file and the 
   `VERSION` file is now optional (version information is degraded if missing).
+- GitHub sources lookup wraps exceptions from GitHub API in a `RuntimeError`.
 
 ### Removed
 
