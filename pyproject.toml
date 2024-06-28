@@ -53,6 +53,7 @@ keywords = ["software development process", "data gathering"]
 
 [project.urls]
 "Homepage" = "https://gros.liacs.nl"
+"Documentation" = "https://gros.liacs.nl/data-gathering/"
 "PyPI" = "https://pypi.python.org/pypi/gros-gatherer"
 "Source Code" = "https://github.com/grip-on-software/data-gathering"
 "Issues" = "https://github.com/grip-on-software/data-gathering/issues"
