@@ -1,0 +1,35 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/project/source_ids.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Project source IDs",
+    "$ref": "#/$defs/quality_project_source_ids",
+    "$defs": {
+        "quality_project_source_ids": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "domain_name": {
+                        "type": "string",
+                        "description": "Name of the source or the domain object for which an identifier exists."
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL of the source without identifiers."
+                    },
+                    "source_id": {
+                        "type": "string",
+                        "description": "Identifier of the domain object at the source."
+                    },
+                    "source_type": {"$ref": "sources.json#/$defs/source_type"},
+                    "domain_type": {
+                        "type": "string",
+                        "description": "Type of the domain object."
+                    }
+                },
+                "required": ["domain_name", "source_id"]
+            }
+        }
+    }
+}

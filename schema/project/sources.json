@@ -9,20 +9,7 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "controller",
-                            "git", "github", "gitlab",
-                            "subversion",
-                            "tfs", "tfvc",
-                            "history", "compact-history", "metric_history",
-                            "metric_options", "quality-time", "sonar",
-                            "jenkins",
-                            "jira"
-                        ],
-                        "description": "Type of the source."
-                    },
+                    "type": {"$ref": "#/$defs/source_type"},
                     "name": {
                         "type": "string",
                         "description": "Name of the source."
@@ -39,6 +26,20 @@
                 },
                 "required": ["type", "name", "url"]
             }
+        },
+        "source_type": {
+            "type": "string",
+            "enum": [
+                "controller",
+                "git", "github", "gitlab",
+                "subversion",
+                "tfs", "tfvc",
+                "history", "compact-history", "metric_history",
+                "metric_options", "quality-time", "sonar",
+                "jenkins",
+                "jira"
+            ],
+            "description": "Type of the source."
         }
     }
 }
