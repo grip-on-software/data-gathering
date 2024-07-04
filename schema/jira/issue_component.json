@@ -37,7 +37,9 @@
                     ],
                     "description": "Moment when the component was removed from the issue. This is `0` when the component is still related to the issue."
                 }
-            }
+            },
+            "required": ["issue_id", "component_id", "start_date", "end_date"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

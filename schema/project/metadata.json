@@ -13,14 +13,17 @@
                 },
                 "jira_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the project as used in the issue tracker. May be the same as `jira_key`."
                 },
                 "github_team": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the team in the GitHub source of the project."
                 },
                 "gitlab_group_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the group in the GitLab source of the project."
                 },
                 "tfs_collection": {
@@ -29,14 +32,17 @@
                 },
                 "quality_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the project used as an identifier at the quality metrics project definition source."
                 },
                 "quality_display_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Human-readable name of the project retrieved from the quality metrics project definition source."
                 },
                 "main_project": {
                     "type": ["string", "null"],
+                    "maxLength": 100,
                     "default": null,
                     "description": "Main project for this subproject, if the project has a known hierarchical relation with another, encompassing project."
                 },
@@ -45,7 +51,9 @@
                     "default": false,
                     "description": "Whether the project is maintained by a team as a means of support for other projects."
                 }
-            }
+            },
+            "required": [],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

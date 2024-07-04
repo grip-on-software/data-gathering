@@ -15,11 +15,12 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "tag_name": {
                     "description": "Name of the tag.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "version_id": {
                     "description": "Hexadecimal SHA identifier of the version, if the event was related to a version.",
@@ -38,11 +39,12 @@
                 },
                 "tagger": {
                     "description": "Name of the developer who created the tag. This can also be the account name. This is `0` if the developer is unknown.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "tagger_email": {
                     "description": "Email address of the developer who created the tag. This is `0` if the developer is unknown.",
                     "type": "string",
+                    "maxLength": 100,
                     "oneOf": [
                         {"format": "email"},
                         {"const": "0"}
@@ -52,7 +54,12 @@
                     "description": "Whether the personal information of the developer is encrypted.",
                     "$ref": "../utils.json#/$defs/boolean"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "tag_name", "version_id", "message", "tagged_date",
+                "tagger", "tagger_email"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

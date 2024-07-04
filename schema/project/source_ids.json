@@ -6,30 +6,35 @@
     "$defs": {
         "quality_project_source_ids": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "domain_name": {
-                        "type": "string",
-                        "description": "Name of the source or the domain object for which an identifier exists."
-                    },
-                    "url": {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "URL of the source without identifiers."
-                    },
-                    "source_id": {
-                        "type": "string",
-                        "description": "Identifier of the domain object at the source."
-                    },
-                    "source_type": {"$ref": "sources.json#/$defs/source_type"},
-                    "domain_type": {
-                        "type": "string",
-                        "description": "Type of the domain object."
-                    }
+            "items": {"$ref": "#/$defs/source_id"}
+        },
+        "source_id": {
+            "type": "object",
+            "properties": {
+                "domain_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "Name of the source or the domain object for which an identifier exists."
                 },
-                "required": ["domain_name", "source_id"]
-            }
+                "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 255,
+                    "description": "URL of the source without identifiers."
+                },
+                "source_id": {
+                    "type": "string",
+                    "description": "Identifier of the domain object at the source."
+                },
+                "source_type": {"$ref": "sources.json#/$defs/source_type"},
+                "domain_type": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "description": "Type of the domain object."
+                }
+            },
+            "required": ["domain_name", "source_id"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

@@ -15,7 +15,7 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "version_id": {
                     "description": "Identifier of the version, either a hexadecimal SHA hash or an incremental version number.",
@@ -23,7 +23,8 @@
                 },
                 "file": {
                     "description": "Path to the file as it is named after the change.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 1000
                 },
                 "change_type": {
                     "description": "Type of change made to the file. This is `M` for Modified, `A` for Added, `D` for Deleted or `R` for Replaced.",
@@ -42,7 +43,12 @@
                     "description": "Size in bytes of the file or the change.",
                     "$ref": "../utils.json#/$defs/positive_integer"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "version_id", "file", "change_type",
+                "insertions", "deletions"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

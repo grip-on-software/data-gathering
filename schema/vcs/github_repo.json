@@ -15,7 +15,7 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "github_id": {
                     "description": "Internal identifier from GitHub for the repository.",
@@ -45,7 +45,12 @@
                     "description": "Number of people who follow updates of the repository.",
                     "$ref": "../utils.json#/$defs/positive_integer"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "github_id", "description", "create_time",
+                "private", "forked", "star_count", "watch_count"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

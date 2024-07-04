@@ -7,43 +7,52 @@
         "reservations": {
             "type": "array",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "reservation_id": {
-                        "type": "string",
-                        "description": "Identifier of the reservation."
-                    },
-                    "requester": {
-                        "type": "string",
-                        "description": "Name of the person who requests the reservation."
-                    },
-                    "number_of_people": {
-                        "$ref": "../utils.json#/$defs/positive_integer",
-                        "description": "Number of people that the reservation encompasses."
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Description of the meeting."
-                    },
-                    "start_date": {
-                        "$ref": "../utils.json#/$defs/datetime",
-                        "description": "Moment when the reservation starts."
-                    },
-                    "end_date": {
-                        "$ref": "../utils.json#/$defs/datetime",
-                        "description": "Moment when the reservation ends."
-                    },
-                    "prepare_date": {
-                        "$ref": "../utils.json#/$defs/datetime",
-                        "description": "Moment when the reservation is booked to perform setup in the room. This is the same as `start_date` if no setup is required."
-                    },
-                    "close_date": {
-                        "$ref": "../utils.json#/$defs/datetime",
-                        "description": "Moment when the reservation is booked to break down setup in the room. This is the same as `end_date` if no dismantling is required."
-                    }
+            "items": {"$ref": "#/$defs/reservation"}
+        },
+        "reservation": {
+            "type": "object",
+            "properties": {
+                "reservation_id": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "description": "Identifier of the reservation."
+                },
+                "requester": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Name of the person who requests the reservation."
+                },
+                "number_of_people": {
+                    "$ref": "../utils.json#/$defs/positive_integer",
+                    "description": "Number of people that the reservation encompasses."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Description of the meeting."
+                },
+                "start_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the reservation starts."
+                },
+                "end_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the reservation ends."
+                },
+                "prepare_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the reservation is booked to perform setup in the room. This is the same as `start_date` if no setup is required."
+                },
+                "close_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the reservation is booked to break down setup in the room. This is the same as `end_date` if no dismantling is required."
                 }
-            }
+            },
+            "required": [
+                "reservation_id", "requester", "number_of_people",
+                "description", "start_date", "end_date", "prepare_date",
+                "close_date"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

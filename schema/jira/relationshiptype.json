@@ -19,6 +19,7 @@
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the relationship type."
                 },
                 "inward": {
@@ -29,7 +30,9 @@
                     "type": "string",
                     "description": "Phrase used to describe an outward link that has the relationship type."
                 }
-            }
+            },
+            "required": ["id", "name"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

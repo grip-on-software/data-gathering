@@ -14,36 +14,62 @@
         },
         "positive_integer": {
             "type": "string",
-            "pattern": "^\\d+$"
+            "$comment": "Only allow parseable integers in normal Integer types (between 0 and 2**31-1)",
+            "pattern": "^[0-9]{1,9}$"
         },
         "integer": {
             "type": "string",
-            "pattern": "^-?\\d+$"
+            "$comment": "Only allow parseable integers in normal Integer types (between -2**31 and 2**31-1)",
+            "pattern": "^-?[0-9]{1,9}$"
         },
         "positive_float": {
             "type": "string",
-            "pattern": "^\\d+(\\.\\d+)?$"
+            "pattern": "^[0-9]+(\\.[0-9]+)?$"
         },
         "float": {
             "type": "string",
-            "pattern": "^-?\\d+(\\.\\d+)?$"
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$"
         },
         "datetime": {
             "type": "string",
-            "format": "date-time",
-            "pattern": "^\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d$"
+            "$comment": "Most implementations do not like having `\"format\": \"date-time\"` here as well as the `pattern`, because the former assumes a `T` separator. The pattern allows all four-digit years (1000-9999), all months with leading zeros (01-12), all days with leading zeros (01-31), even if this combination does not exist in that month or year. All two-digit hours, months and seconds with leading zeros are allowed. This is the minimum to let `java.sql.Timestamp` parse such a time and survive a round-trip into a MonetDB database.",
+            "pattern": "^[1-9][0-9][0-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) [0-9][0-9]:[0-9][0-9]:[0-9][0-9]$"
+        },
+        "developer": {
+            "type": "string",
+            "maxLength": 64
+        },
+        "repo_name": {
+            "type": "string",
+            "maxLength": 1000
         },
         "jira_project": {
             "type": "string",
-            "pattern": "^[A-Z]+$"
+            "pattern": "^[A-Z]+$",
+            "maxLength": 20
         },
         "jira_issue": {
             "type": "string",
-            "pattern": "^[A-Z]+-\\d+$"
+            "pattern": "^[A-Z]+-[0-9]+$",
+            "maxLength": 20
         },
         "version": {
             "type": "string",
-            "pattern": "^[a-f0-9]+$"
+            "pattern": "^[a-f0-9]+$",
+            "maxLength": 100
+        },
+        "bufferable": {
+            "anyOf": [
+                {
+                    "not": {"type": ["object", "array", "integer"]}
+                },
+                {
+                    "type": "integer",
+                    "$comment": "Only allow immediately parseable integers in Long types (between -2**63 and 2**63-1).",
+                    "minimum": -9223372036854775808,
+                    "maximum": 9223372036854775807
+                }
+            ]
         }
     }
 }

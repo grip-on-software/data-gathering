@@ -23,10 +23,12 @@
                 },
                 "status": {
                     "type": "string",
+                    "maxLength": 64,
                     "description": "Status of the work item."
                 },
                 "issuetype": {
                     "type": "string",
+                    "maxLength": 64,
                     "description": "Type of the work item."
                 },
                 "created_date": {
@@ -35,11 +37,13 @@
                 },
                 "reporter": {
                     "type": "string",
-                    "description": "Name of the developer who created the work item."
+                    "description": "Name of the developer who created the work item.",
+                    "maxLength": 100
                 },
                 "assignee": {
                     "type": "string",
-                    "description": "Name of the developer who is assigned to resolve the work item."
+                    "description": "Name of the developer who is assigned to resolve the work item.",
+                    "maxLength": 100
                 },
                 "updated": {
                     "$ref": "../utils.json#/$defs/datetime",
@@ -47,7 +51,8 @@
                 },
                 "updated_by": {
                     "type": "string",
-                    "description": "Name of the developer who made the change to the work item for this version."
+                    "description": "Name of the developer who made the change to the work item for this version.",
+                    "maxLength": 100
                 },
                 "title": {
                     "type": "string",
@@ -67,14 +72,17 @@
                 },
                 "project_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the project that the work item is for."
                 },
                 "team_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the team that works on the work item."
                 },
                 "sprint_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the sprint that the work item is worked in."
                 },
                 "priority": {
@@ -122,7 +130,8 @@
                     "$ref": "../utils.json#/$defs/boolean"
                 }
             },
-            "required": ["issue_id", "changelog_id"]
+            "required": ["issue_id", "changelog_id", "title", "attachments"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

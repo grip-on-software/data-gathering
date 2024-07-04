@@ -15,7 +15,7 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "merge_request_id": {
                     "description": "Identifier of the request.",
@@ -35,11 +35,12 @@
                 },
                 "author": {
                     "description": "Name of the author of the note. This can also be an account name.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 500
                 },
                 "author_username": {
                     "description": "Account name of the author of the note.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "comment": {
                     "description": "Contents of the note.",
@@ -57,7 +58,12 @@
                     "description": "Whether the personal information of the author is encrypted.",
                     "$ref": "../utils.json#/$defs/boolean"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "merge_request_id", "thread_id", "note_id",
+                "parent_id", "author", "comment", "created_at"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

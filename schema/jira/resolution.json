@@ -19,13 +19,17 @@
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the resolution."
                 },
                 "description": {
                     "type": "string",
+                    "maxLength": 500,
                     "description": "Description of the resolution."
                 }
-            }
+            },
+            "required": ["id", "name", "description"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

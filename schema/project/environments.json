@@ -6,43 +6,50 @@
     "$defs": {
         "environments": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "controller",
-                            "git", "github", "gitlab",
-                            "subversion",
-                            "tfs",
-                            "metric_history",
-                            "metric_options", "quality-time", "sonar",
-                            "jenkins",
-                            "jira"
-                        ],
-                        "description": "Type of the environment based on the sources that live in the environment."
-                    },
-                    "url": {
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "format": "url"
-                            },
-                            {"type": "null"}
-                        ],
-                        "description": "Representative URL for the environment where the sources can be seen, if available."
-                    },
-                    "environment": {
-                        "type": "string",
-                        "description": "Identifier of the environment."
-                    },
-                    "version": {
-                        "type": "string",
-                        "description": "Version of the system that the sources within the environment run on."
-                    }
+            "items": {"$ref": "#/$defs/source_environment"}
+        },
+        "source_environment": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "controller",
+                        "git", "github", "gitlab",
+                        "subversion",
+                        "tfs",
+                        "metric_history",
+                        "metric_options", "quality-time", "sonar",
+                        "jenkins",
+                        "jira"
+                    ],
+                    "description": "Type of the environment based on the sources that live in the environment."
+                },
+                "url": {
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "format": "url",
+                            "maxLength": 255
+                        },
+                        {"type": "null"}
+                    ],
+                    "description": "Representative URL for the environment where the sources can be seen, if available."
+                },
+                "environment": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Identifier of the environment."
+                },
+                "version": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "default": "",
+                    "description": "Version of the system that the sources within the environment run on."
                 }
-            }
+            },
+            "required": ["type", "environment"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

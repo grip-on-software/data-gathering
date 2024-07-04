@@ -90,11 +90,11 @@
                     "description": "Identifier of the status of the issue."
                 },
                 "reporter": {
-                    "type": "string",
+                    "$ref": "../utils.json#/$defs/developer",
                     "description": "Account name of the developer who created or reported the issue."
                 },
                 "assignee": {
-                    "type": "string",
+                    "$ref": "../utils.json#/$defs/developer",
                     "description": "Account name of the developer who is assigned to resolve the issue."
                 },
                 "additional_information": {
@@ -118,7 +118,7 @@
                     "description": "Identifier of the first sprint that the issue is worked in."
                 },
                 "updated_by": {
-                    "type": "string",
+                    "$ref": "../utils.json#/$defs/developer",
                     "description": "Name of the developer who made the change to the issue for this version."
                 },
                 "title": {
@@ -199,7 +199,11 @@
                     "$ref": "../utils.json#/$defs/boolean"
                 }
             },
-            "required": ["issue_id", "changelog_id"]
+            "required": [
+                "issue_id", "changelog_id", "key", "title",
+                "watchers", "attachment", "flagged", "labels"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

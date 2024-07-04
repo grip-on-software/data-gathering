@@ -4,34 +4,36 @@
     "title": "Quality control metric target versions",
     "$ref": "#/$defs/metric_versions",
     "$defs": {
-        "metric_verions": {
+        "metric_versions": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "message": {
-                        "type": "string",
-                        "description": "Commit message of the version."
-                    },
-                    "developer": {
-                        "type": "string",
-                        "description": "Name of the developer who made the version of the metrics."
-                    },
-                    "version_id": {
-                        "type": "string",
-                        "oneOf": [
-                            {"$ref": "../utils.json#/$defs/version"},
-                            {"format": "date-time"}
-                        ],
-                        "description": "Identifier of the version, either a hexadecimal SHA hash, an incremental version number or a timestamp formatted in ISO 8601 with timezone."
-                    },
-                    "commit_date": {
-                        "$ref": "../utils.json#/$defs/datetime",
-                        "description": "Moment when the version was committed."
-                    }
+            "items": {"$ref": "#/$defs/metric_version"}
+        },
+        "metric_version": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Commit message of the version."
                 },
-                "required": ["version_id", "commit_date"]
-            }
+                "developer": {
+                    "$ref": "../utils.json#/$defs/developer",
+                    "description": "Name of the developer who made the version of the metrics."
+                },
+                "version_id": {
+                    "type": "string",
+                    "oneOf": [
+                        {"$ref": "../utils.json#/$defs/version"},
+                        {"format": "date-time"}
+                    ],
+                    "description": "Identifier of the version, either a hexadecimal SHA hash, an incremental version number or a timestamp formatted in ISO 8601 with timezone."
+                },
+                "commit_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the version was committed."
+                }
+            },
+            "required": ["version_id", "commit_date"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

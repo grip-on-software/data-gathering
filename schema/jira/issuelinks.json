@@ -45,7 +45,12 @@
                     ],
                     "description": "Moment when the link was created. When this is `0`, the link still exists."
                 }
-            }
+            },
+            "required": [
+                "from_key", "to_key", "relationshiptype", "outward",
+                "start_date", "end_date"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

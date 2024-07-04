@@ -16,9 +16,9 @@
                             "description": "Most recently collected version of the source."
                         }
                     }
-                },
-                "required": ["sources"]
-            }
+                }
+            },
+            "required": ["sources"]
         },
         "metric_options_update": {
             "allOf": [

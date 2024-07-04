@@ -28,18 +28,24 @@
             "type": "object",
             "properties": {
                 "base_name": {
-                    "type": "string",
+                    "$ref": "#/$defs/name",
                     "description": "Class name of the metric."
                 },
                 "domain_name": {
-                    "type": "string",
+                    "$ref": "#/$defs/name",
                     "description": "Domain name of the measured object."
                 },
                 "domain_type": {
                     "type": "string",
+                    "maxLength": 32,
                     "description": "Type of the measured object."
                 }
             }
+        },
+        "name": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[A-Za-z0-9]+$"
         },
         "scale": {
             "type": "string",

@@ -15,25 +15,30 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "team_name": {
                     "description": "Name of the team.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "user": {
                     "description": "Name of the developer.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "username": {
                     "description": "Account name of the developer.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "encrypted": {
                     "description": "Whether the personal information of the developer is encrypted.",
                     "$ref": "../utils.json#/$defs/boolean"
                 }
-            }
+            },
+            "required": ["repo_name", "team_name", "user", "username"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

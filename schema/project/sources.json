@@ -6,26 +6,29 @@
     "$defs": {
         "quality_project_sources": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "type": {"$ref": "#/$defs/source_type"},
-                    "name": {
-                        "type": "string",
-                        "description": "Name of the source."
-                    },
-                    "url": {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "URL of the source."
-                    },
-                    "github_team": {
-                        "type": "string",
-                        "description": "Name of the team in the GitHub source."
-                    }
+            "items": {"$ref": "#/$defs/source"}
+        },
+        "source": {
+            "type": "object",
+            "properties": {
+                "type": {"$ref": "#/$defs/source_type"},
+                "name": {
+                    "$ref": "../utils.json#/$defs/repo_name",
+                    "description": "Name of the source."
                 },
-                "required": ["type", "name", "url"]
-            }
+                "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 255,
+                    "description": "URL of the source."
+                },
+                "github_team": {
+                    "type": "string",
+                    "description": "Name of the team in the GitHub source."
+                }
+            },
+            "required": ["type", "name", "url"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         },
         "source_type": {
             "type": "string",

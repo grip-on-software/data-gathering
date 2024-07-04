@@ -15,7 +15,7 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "id": {
                     "description": "Identifier of the request.",
@@ -35,27 +35,31 @@
                 },
                 "source_branch": {
                     "description": "Branch where versions were committed in order to be merged upon completion of the request.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 255
                 },
                 "target_branch": {
                     "description": "Branch where the changes of the request should be merged into.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 255
                 },
                 "author": {
                     "description": "Name of the developer who made the request.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 500
                 },
                 "author_username": {
                     "description": "Account name of the developer who made the request.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "assignee": {
                     "description": "Name of the developer who is assigned to review the request. This is `0` if the system has no assignees.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 500
                 },
                 "assignee_username": {
                     "description": "Account name of the developer who is assigned to review the request. This is `0` if the system has no assignees.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "upvotes": {
                     "description": "The number of positive votes for the request.",
@@ -77,7 +81,13 @@
                     "description": "Whether the personal information fields regarding the author and assignee are encrypted.",
                     "$ref": "../utils.json#/$defs/boolean"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "id", "title", "description", "status",
+                "source_branch", "target_branch", "author", "assignee",
+                "upvotes", "downvotes", "created_at", "updated_at"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

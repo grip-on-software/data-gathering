@@ -19,13 +19,17 @@
                 },
                 "name": {
                     "type": "string",
-                    "description": "Name of the issue type."
+                    "description": "Name of the issue type.",
+                    "maxLength": 100
                 },
                 "description": {
                     "type": "string",
-                    "description": "Description of the issue type."
+                    "description": "Description of the issue type.",
+                    "maxLength": 500
                 }
-            }
+            },
+            "required": ["id", "name", "description"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

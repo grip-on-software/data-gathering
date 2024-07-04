@@ -19,9 +19,12 @@
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the priority."
                 }
-            }
+            },
+            "required": ["id", "name"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

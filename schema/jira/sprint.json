@@ -19,6 +19,7 @@
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 500,
                     "description": "Name of the sprint."
                 },
                 "start_date": {
@@ -35,6 +36,7 @@
                 },
                 "goal": {
                     "type": "string",
+                    "maxLength": 500,
                     "description": "Description of the primary goal of the sprint."
                 },
                 "board_id": {
@@ -42,7 +44,8 @@
                     "description": "Identifier of the board which contains the sprint."
                 }
             },
-            "required": ["id", "name"]
+            "required": ["id", "name"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

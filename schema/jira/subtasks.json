@@ -21,7 +21,9 @@
                     "$ref": "../utils.json#/$defs/positive_integer",
                     "description": "The subtask issue."
                 }
-            }
+            },
+            "required": ["from_id", "to_id"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

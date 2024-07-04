@@ -15,7 +15,7 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "id": {
                     "description": "Identifier of the issue.",
@@ -31,19 +31,20 @@
                 },
                 "status": {
                     "description": "State of the issue.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "author": {
                     "description": "Account name of the developer who made the issue.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "author_username": {
                     "description": "Account name of the developer who made the issue.",
                     "type": "string"
                 },
                 "assignee": {
-                    "description": "Account name of the developer who is assigned to review or resolve the issue.",
-                    "type": "string"
+                    "description": "Account name of the developer who is assigned to review or resolve the issue. This is `0` if there is no assignee.",
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "assignee_username": {
                     "description": "Account name of the developer who is assigned to review or resolve the issue.",
@@ -74,13 +75,19 @@
                 },
                 "closed_by": {
                     "description": "Account name of the developer who closed the issue. This is `0` if the issue is not yet closed.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "encrypted": {
                     "description": "Whether the personal information fields regarding the author and assignee are encrypted.",
                     "$ref": "../utils.json#/$defs/boolean"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "id", "title", "description", "status", "author",
+                "assignee", "created_at", "updated_at", "pull_request_id",
+                "labels", "closed_at", "closed_by"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

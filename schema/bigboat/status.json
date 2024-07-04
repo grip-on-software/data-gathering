@@ -14,6 +14,7 @@
             "properties": {
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the health status metric."
                 },
                 "checked_time": {

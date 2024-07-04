@@ -14,19 +14,23 @@
             "type": "object",
             "properties": {
                 "name": {
-                    "type": "string",
+                    "$ref": "../utils.json#/$defs/developer",
                     "description": "Account name of the developer."
                 },
                 "display_name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Full name of the developer."
                 },
                 "email": {
                     "type": "string",
                     "format": "email",
+                    "maxLength": 100,
                     "description": "Email address of the developer."
                 }
-            }
+            },
+            "required": ["display_name"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

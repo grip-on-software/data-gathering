@@ -1,0 +1,35 @@
+{
+    "$id": "https://gros.liacs.nl/schema/data-gathering/exports.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Data gathering schema export file mapping",
+    "$ref": "#/$defs/exports",
+    "$defs": {
+        "exports": {
+            "type": "object",
+            "patternProperties": {
+                "^.+\\.json$": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/$defs/export",
+                            "description": "Filename of export data file that is valid according to the schema specification."
+                        },
+                        {
+                            "type": "object",
+                            "patternProperties": {
+                                "^.+$": {
+                                    "$ref": "#/$defs/export",
+                                    "description": "Filename of export data file that is valid according to the referenced definition in the schema specification."
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "export": {
+            "type": "string",
+            "pattern": "^[^/]+\\.json$"
+        }
+    }
+}
+

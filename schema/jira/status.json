@@ -19,10 +19,12 @@
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the status."
                 },
                 "description": {
                     "type": "string",
+                    "maxLength": 500,
                     "description": "Description of the status."
                 },
                 "statusCategory": {
@@ -30,7 +32,9 @@
                     "minimum": 0,
                     "description": "Identifier of the category to which the status belongs."
                 }
-            }
+            },
+            "required": ["id", "name", "description"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

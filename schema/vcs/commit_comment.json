@@ -9,10 +9,11 @@
             "items": {"$ref": "#/$defs/commit_comment"}
         },
         "commit_comment": {
+            "type": "object",
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "commit_id": {
                     "description": "Hexadecimal SHA hash of the commit.",
@@ -36,22 +37,24 @@
                 },
                 "author": {
                     "description": "Name of the author of the commit comment. This can also be an account name.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 500
                 },
                 "author_username": {
                     "description": "Account name of the author of the commit comment.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/developer"
                 },
                 "comment": {
                     "description": "Contents of the commit comment.",
                     "type": "string"
                 },
                 "file": {
-                    "description": "Path to the file in the repository to which the commit comment was made.",
-                    "type": "string"
+                    "description": "Path to the file in the repository to which the commit comment was made. This is `0` if the comment was not made to a file.",
+                    "type": "string",
+                    "maxLength": 1000
                 },
                 "line": {
-                    "description": "Start line in the file to which the commit comment was made.",
+                    "description": "Start line in the file to which the commit comment was made. This is `0` if the comment was not made to a line or range.",
                     "$ref": "../utils.json#/$defs/positive_integer"
                 },
                 "end_line": {
@@ -75,7 +78,13 @@
                     "description": "Whether the personal information of the author is encrypted.",
                     "$ref": "../utils.json#/$defs/boolean"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "commit_id", "merge_request_id", "thread_id",
+                "note_id", "parent_id", "author", "comment", "file", "line",
+                "line_type"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

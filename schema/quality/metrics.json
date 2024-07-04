@@ -6,35 +6,39 @@
     "$defs": {
         "metrics": {
             "type": "array",
-            "items": {
-                "anyOf": [
-                    {"$ref": "metric_names.json#/$defs/metric_name"}
-                ],
-                "type": "object",
-                "$comment": "All fields are strings for cross-compatibility with older importers.",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Amalgamated name of the metric."
-                    },
-                    "value": {
-                        "$ref": "../utils.json#/$defs/float",
-                        "description": "Value of the metric. This is `-1` when there was no measurement at that moment."
-                    },
-                    "category": {
-                        "type": "string",
-                        "description": "Severity category of the metric."
-                    },
-                    "date": {
-                        "$ref": "../utils.json#/$defs/datetime",
-                        "description": "Moment when the metric was measured."
-                    },
-                    "since_date": {
-                        "$ref": "../utils.json#/$defs/datetime",
-                        "description": "Moment when the metric had the same value such that it has been unchanged until now."
-                    }
+            "items": {"$ref": "#/$defs/metric_value"}
+        },
+        "metric_value": {
+            "anyOf": [
+                {"$ref": "metric_names.json#/$defs/metric_name"}
+            ],
+            "type": "object",
+            "$comment": "All fields are strings for cross-compatibility with older importers.",
+            "properties": {
+                "name": {
+                    "$ref": "metric_names.json#/$defs/name",
+                    "description": "Amalgamated name of the metric."
+                },
+                "value": {
+                    "$ref": "../utils.json#/$defs/float",
+                    "description": "Value of the metric. This is `-1` when there was no measurement at that moment."
+                },
+                "category": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "Severity category of the metric."
+                },
+                "date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the metric was measured."
+                },
+                "since_date": {
+                    "$ref": "../utils.json#/$defs/datetime",
+                    "description": "Moment when the metric had the same value such that it has been unchanged until now."
                 }
-            }
+            },
+            "required": ["name", "value", "category", "date"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

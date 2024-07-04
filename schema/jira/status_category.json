@@ -19,17 +19,22 @@
                 },
                 "key": {
                     "type": "string",
+                    "maxLength": 32,
                     "description": "Class name of the status category."
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the status category."
                 },
                 "color": {
                     "type": "string",
+                    "maxLength": 32,
                     "description": "Name of a color representing the status category."
                 }
-            }
+            },
+            "required": ["id", "key", "name", "color"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

@@ -19,9 +19,12 @@
                 },
                 "value": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the test execution method state."
                 }
-            }
+            },
+            "required": ["id", "value"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

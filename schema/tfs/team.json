@@ -15,17 +15,21 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "team_name": {
                     "description": "Name of the team.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "description": {
                     "description": "Description of the team.",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 500
                 }
-            }
+            },
+            "required": ["repo_name", "team_name"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

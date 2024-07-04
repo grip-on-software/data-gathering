@@ -19,11 +19,13 @@
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the version."
                 },
                 "description": {
                     "type": "string",
                     "default": "",
+                    "maxLength": 500,
                     "description": "Description of the version."
                 },
                 "start_date": {
@@ -47,7 +49,12 @@
                     "$ref": "../utils.json#/$defs/jira_boolean",
                     "description": "Whether the version has been released."
                 }
-            }
+            },
+            "required": [
+                "id", "name", "description", "start_date", "release_date",
+                "released"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

@@ -10,24 +10,30 @@
                 "host": {
                     "type": "string",
                     "format": "uri",
+                    "maxLength": 255,
                     "description": "Base URL of the Jenkins instance."
                 },
                 "jobs": {
                     "type": "integer",
                     "minimum": 0,
+                    "maximum": 2147483647,
                     "description": "Number of jobs configured on the instance."
                 },
                 "views": {
                     "type": "integer",
                     "minimum": 0,
+                    "maximum": 2147483647,
                     "description": "Number of views configured on the instance."
                 },
                 "nodes": {
                     "type": "integer",
                     "minimum": 0,
+                    "maximum": 2147483647,
                     "description": "Number of computation nodes configured to accept jobs for the instance."
                 }
-            }
+            },
+            "required": ["host", "jobs", "views", "nodes"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

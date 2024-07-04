@@ -15,7 +15,7 @@
             "properties": {
                 "repo_name": {
                     "description": "Name of the repository.",
-                    "type": "string"
+                    "$ref": "../utils.json#/$defs/repo_name"
                 },
                 "gitlab_id": {
                     "description": "Internal identifier from GitLab for the project.",
@@ -41,7 +41,12 @@
                     "description": "Number of people who gave the project a star.",
                     "$ref": "../utils.json#/$defs/positive_integer"
                 }
-            }
+            },
+            "required": [
+                "repo_name", "gitlab_id", "description", "create_time",
+                "archived", "has_avatar", "star_count"
+            ],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }

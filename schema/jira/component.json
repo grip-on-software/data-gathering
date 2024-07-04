@@ -19,13 +19,17 @@
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "description": "Name of the component."
                 },
                 "description": {
                     "type": "string",
+                    "maxLength": 500,
                     "description": "Description of the component. This is `0` when the component has no description."
                 }
-            }
+            },
+            "required": ["id", "name", "description"],
+            "additionalProperties": {"$ref": "../utils.json#/$defs/bufferable"}
         }
     }
 }
