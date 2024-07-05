@@ -20,6 +20,7 @@
                     "description": "Class name of the metric."
                 },
                 "version_id": {
+                    "type": "string",
                     "oneOf": [
                         {"$ref": "../utils.json#/$defs/version"},
                         {"format": "date-time"}
