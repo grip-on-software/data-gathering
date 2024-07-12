@@ -6,9 +6,9 @@
     "$defs": {
         "developers": {
             "type": "array",
-            "items": {"$ref": "#/$defs/developer"}
+            "items": {"$ref": "#/$defs/jira_developer"}
         },
-        "developer": {
+        "jira_developer": {
             "description": "A user within Jira.",
             "$comment": "All fields are strings for cross-compatibility with older importers.",
             "type": "object",
