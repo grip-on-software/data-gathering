@@ -1,6 +1,6 @@
 [project]
 name = "gros-gatherer"
-version = "0.1.0"
+version = "1.0.0"
 description = "Software development process data gathering"
 readme = "README.md"
 authors = [{name = "Leon Helwerda", email = "l.s.helwerda@liacs.leidenuniv.nl"}]
@@ -30,7 +30,7 @@ dependencies = [
     "bcrypt==4.1.2"
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",

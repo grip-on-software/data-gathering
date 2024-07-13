@@ -21,4 +21,4 @@ limitations under the License.
 from typing import List
 
 __all__: List[str] = []
-__version__ = '0.1.0'
+__version__ = '1.0.0'

@@ -13,7 +13,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 project = 'Data gathering'
 project_copyright = '2017-2020 ICTU, 2017-2022 Leiden University, 2017-2024 Leon Helwerda'
 author = 'Leon Helwerda'
-release = '0.0.3'
+release = '1.0.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

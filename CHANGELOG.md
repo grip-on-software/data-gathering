@@ -7,6 +7,8 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0] - 2024-07-13
+
 ### Added
 
 - Unit tests for the `bigboat`, `config`, `database`, `domain`, `files`, 
@@ -110,5 +112,6 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Support for GitLab legacy v3 API (for GitLab version 8) dropped.
 
 [Unreleased]: 
-https://github.com/grip-on-software/data-gathering/compare/v0.0.3...HEAD
+https://github.com/grip-on-software/data-gathering/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/grip-on-software/data-gathering/releases/tag/v1.0.0
 [0.0.3]: https://github.com/grip-on-software/data-gathering/releases/tag/v0.0.3
