@@ -1,5 +1,5 @@
 """
-Quality Time domain object.
+Quality-time source domain object.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -29,7 +29,7 @@ from ...request import Session
 @Source_Types.register('quality-time')
 class Quality_Time(Source):
     """
-    Quality Time source.
+    Quality-time source.
     """
 
     @property

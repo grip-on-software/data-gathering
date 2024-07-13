@@ -1,5 +1,5 @@
 """
-Tests for SonarQube source domain object.
+Tests for Quality-time source domain object.
 
 Copyright 2017-2020 ICTU
 Copyright 2017-2022 Leiden University
@@ -28,13 +28,13 @@ from gatherer.domain.source import Source
 
 class SonarTest(unittest.TestCase):
     """
-    Tests for SonarQube source.
+    Tests for Quality-time source.
     """
 
     def setUp(self) -> None:
         Configuration.clear()
-        self.source = Source.from_type('sonar', name='test-sonarqube',
-                                       url='https://sonarqube.test')
+        self.source = Source.from_type('quality-time', name='test-qt',
+                                       url='https://quality-time.test')
 
     def tearDown(self) -> None:
         Configuration.clear()
@@ -44,8 +44,9 @@ class SonarTest(unittest.TestCase):
         Test retrieving a URL for the environment that the source lives in.
         """
 
-        self.assertEqual(self.source.environment, 'https://sonarqube.test/')
-        self.assertEqual(self.source.environment_url, 'https://sonarqube.test/')
+        self.assertEqual(self.source.environment,
+                         ('quality-time', 'https://quality-time.test'))
+        self.assertEqual(self.source.environment_url, 'https://quality-time.test')
 
     def test_update_identity(self) -> None:
         """
@@ -61,29 +62,26 @@ class SonarTest(unittest.TestCase):
         Test retrieving relevant version information for the source.
         """
 
-        request.get('https://sonarqube.test/api/server/version', text='1.2.3')
+        request.get('https://quality-time.test/api/v3/server', json={'version': '1.2.3'})
         self.assertEqual(self.source.version, '1.2.3')
 
         Configuration.clear()
 
         with patch.dict('os.environ',
-                        {'GATHERER_URL_BLACKLIST': 'https://deny-sonar.test'}):
-            deny = Source.from_type('sonar', name='deny-sonarqube',
-                                    url='https://deny-sonar.test/')
+                        {'GATHERER_URL_BLACKLIST': 'https://deny-qt.test'}):
+            deny = Source.from_type('quality-time', name='deny-qt',
+                                    url='https://deny-qt.test/')
 
             self.assertEqual(deny.version, '')
 
         Configuration.clear()
 
         credentials = Configuration.get_credentials()
-        credentials.add_section('error-sonar.test')
-        credentials.set('error-sonar.test', 'verify', '/path/to/server.crt')
+        credentials.add_section('error-qt.test')
+        credentials.set('error-qt.test', 'verify', '/path/to/server.crt')
 
-        request.get('https://error-sonar.test/api/server/version',
+        request.get('https://error-qt.test/api/v3/server',
                     exc=ConnectError)
-        error = Source.from_type('sonar', name='error-sonarqube',
-                                 url='https://error-sonar.test/')
+        error = Source.from_type('quality-time', name='error-qt',
+                                 url='https://error-qt.test/')
         self.assertEqual(error.version, '')
-        request.reset_mock()
-        self.assertEqual(error.version, '')
-        self.assertFalse(request.called)
