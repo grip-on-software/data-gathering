@@ -17,7 +17,8 @@ data schemas](https://gros.liacs.nl/schema/) documentation. The exported data
 is suited for import into a MonetDB database.
 
 This documentation describes the steps to set up the data gathering modules and 
-scripts. It augments the README.md file part of the Git repository that is also 
+scripts. It augments the README.md file part of the [data gathering Git 
+repository](https://github.com/grip-on-software/data-gathering) that is also 
 published on the [PyPI repository](https://pypi.org/project/gros-gatherer/), 
 which introduces the modules from an installation and development standpoint.
 
