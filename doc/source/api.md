@@ -9,6 +9,14 @@ exchange data regarding status and registration. This is where two APIs come
 into play. This document provides an overview of the APIs, also as a starting 
 point to set up this agent-based networking in a virtualized ecosystem.
 
+This is an advanced setup which requires a central system with proper user 
+access management such that controller services can automatically manage 
+permissions through `sudo` calls. Additionally, the agents are set up through 
+Docker Compose with the data gathering scripts and modules as well as 
+a configuration interface. Updates to the instances could be deployed using 
+automation for Docker platforms, such as with BigBoat (which is no longer 
+maintained).
+
 ## Scraper agent web API
 
 In the [Docker instance](docker.md) of the agent when running the 'Daemon' 
@@ -53,7 +61,29 @@ Jenkins-style scrape jobs. Setup of this host requires some extensive
 configuration of directories and users/permissions in order to keep data secure 
 during the scrape process while allowing administration of the agent users. The 
 `controller` directory provides a few services which play a role in setting up 
-all the backend services.
+all the backend services. The services require a specific 
+[installation](installation.md#controller) in order to function, along with 
+additional directories `/agents` and `/controller` and system users.
+
+There are three backend daemon services which focus on different tasks during 
+the agent-based data acquisition process:
+
+- The controller daemon handles agent user creation, setting up proper 
+  permissions for home directories to exchange data from the agent to the other 
+  services through SSH key identities and cleaning up afterwards. It runs as 
+  the `controller` system user in the `controller` group and requires `sudo` 
+  rights to execute the following binaries: `useradd`, `adduser`, `mkdir`, 
+  `rm`, `chown` and `chmod`.
+- The exporter daemon handles export of the agent data from the exchanged home 
+  directories and import into the database using the Java importer as well as 
+  remote Jenkins scrape job build execution. It runs as the `exporter` system 
+  user in the `controller` group and requires `sudo` rights to execute the 
+  following binaries: `mkdir`, `rm`, `chown` and `chmod`.
+- The gatherer daemon checks database status of agent data, update trackers, 
+  manages schedules for frequent data acquisition runs, provides encryption 
+  functionalities and receives health status information from BigBoat. It runs 
+  as the `gatherer` system user in the `controller` group and does not require 
+  any elevated rights.
 
 A web API is exposed by the controller API, provided from the `controller/auth` 
 directory. The API is meant to run on HTTPS port 443, with a certificate 
