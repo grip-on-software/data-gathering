@@ -1,0 +1,3 @@
+# Specific executables for Grip on Software data gathering controller users
+controller ALL = (root) NOPASSWD: /usr/sbin/useradd, /usr/sbin/adduser, /usr/bin/mkdir, /usr/bin/rm, /usr/bin/chown, /usr/bin/chmod
+exporter ALL = (roo) NOPASSWD: /usr/bin/mkdir, /usr/bin/rm, /usr/bin/chown, /usr/bin/chmod

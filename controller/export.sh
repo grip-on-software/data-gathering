@@ -19,6 +19,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This script should not be run directly, instead it should be installed into
+# /usr/local/bin/controller-export.sh using ./setup.sh and only be run by
+# the gros-exporter service/daemon.
+
 AGENTS_DIRECTORY="/agents"
 CONTROLLER_DIRECTORY="/controller"
 # The scripts that the agent scraper runs which generate update files

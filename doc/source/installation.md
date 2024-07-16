@@ -44,17 +44,35 @@ user's Python libraries path if you do not have access to the system libraries.
 
 ## Controller
 
-For the controller setup, a virtual environment must be created beneath 
+For the controller setup, the repository must be cloned in a directory called 
+`/srv/data-gathering` and a virtual environment must be created beneath 
 `/usr/local/envs` (create this directory) named `controller` with the 
 dependencies above. Next, continue with the following steps:
 
 - Configure the agent, controller or development environment using the settings 
   and credentials files as explained in the [configuration](configuration.md) 
   section.
-- For the controller: use `sudo ./controller/setup.sh` to create services and 
-  symlink scripts to make them available for the services.
+- For the controller: use `sudo ./controller/setup.sh` to create directories, 
+  users/groups, services, symlinks to scripts and install the module and 
+  dependencies into the virtual environment to make them available for the 
+  daemon services. This script must be run from the `/srv/data-gathering` repo.
+- Set up a small web server which has support for CGI to host the Python API 
+  endpoints in the `controller/auth` directory. Lighttpd is known to work.
+- Configure an SSH server to accept only keys listed in a user-specific 
+  directory under `/etc/ssh/control` for the agent users, for example for 
+  OpenSSH in `/etc/ssh/sshd_config`:
+
+```
+Match User agent-*
+    AuthorizedKeysFile /etc/ssh/control/%u
+```
+
+Additional security measures may be taken to prevent logins from other sources, 
+although the controller already creates agent users with a restricted login 
+shell that only allows specific data upload transmissions to take place.
 
 Some agent scripts and controller services interact with a database for update 
 trackers, project salts and status information storage. This database must be 
 a MonetDB instance pre-installed in the environment where the controller is 
-able to access it directly.
+able to access it directly. Further details for the backend services is 
+described in the [controller](api.md#controller) section.

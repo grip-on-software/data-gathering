@@ -7,6 +7,11 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Controller setup did not set up users/groups, directories and dependencies.
+- Controller restricted agent upload shell did not work with Python 3.
+
 ## [1.0.0] - 2024-07-13
 
 ### Added

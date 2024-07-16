@@ -71,19 +71,24 @@ the agent-based data acquisition process:
 - The controller daemon handles agent user creation, setting up proper 
   permissions for home directories to exchange data from the agent to the other 
   services through SSH key identities and cleaning up afterwards. It runs as 
-  the `controller` system user in the `controller` group and requires `sudo` 
-  rights to execute the following binaries: `useradd`, `adduser`, `mkdir`, 
-  `rm`, `chown` and `chmod`.
+  the `controller` user in the `controller` group and requires `sudo` rights to 
+  execute the following binaries: `useradd`, `adduser`, `mkdir`, `rm`, `chown` 
+  and `chmod`.
 - The exporter daemon handles export of the agent data from the exchanged home 
   directories and import into the database using the Java importer as well as 
-  remote Jenkins scrape job build execution. It runs as the `exporter` system 
-  user in the `controller` group and requires `sudo` rights to execute the 
-  following binaries: `mkdir`, `rm`, `chown` and `chmod`.
+  remote Jenkins scrape job build execution. It runs as the `exporter` user in 
+  the `controller` group and requires `sudo` rights to execute the following 
+  binaries: `mkdir`, `rm`, `chown` and `chmod`.
 - The gatherer daemon checks database status of agent data, update trackers, 
   manages schedules for frequent data acquisition runs, provides encryption 
   functionalities and receives health status information from BigBoat. It runs 
-  as the `gatherer` system user in the `controller` group and does not require 
-  any elevated rights.
+  as the `gatherer` user in the `controller` group and does not require any 
+  elevated rights.
+- The pyro-ns service provides a name server for daemons and API endpoints to 
+  look up other services in order to connect to them, exchange data and perform 
+  actions while separating these concerns and thus improving security around 
+  elevated rights. The nameserver runs as the `pyro-ns` user in the `pyro-ns` 
+  group and does not require any elevated rights.
 
 A web API is exposed by the controller API, provided from the `controller/auth` 
 directory. The API is meant to run on HTTPS port 443, with a certificate 
