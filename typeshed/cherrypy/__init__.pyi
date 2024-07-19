@@ -1,5 +1,7 @@
 from typing import Any, Callable, Dict, List, Optional, TextIO, TypeVar, Union
 
+__version__: str
+
 class HTTPError(Exception):
     pass
 

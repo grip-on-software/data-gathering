@@ -60,7 +60,7 @@ class SessionTest(unittest.TestCase):
         user_agent = session.headers['User-Agent'] \
             if isinstance(session.headers['User-Agent'], str) \
             else str(session.headers['User-Agent'], encoding='utf-8')
-        self.assertTrue(user_agent.endswith(f' gatherer/{version}'),
+        self.assertTrue(user_agent.startswith(f'gatherer/{version} '),
                         msg=f'User-Agent header missing module: {user_agent}')
 
         attrs = {
@@ -72,5 +72,5 @@ class SessionTest(unittest.TestCase):
         user_agent = session.headers['User-Agent'] \
             if isinstance(session.headers['User-Agent'], str) \
             else str(session.headers['User-Agent'], encoding='utf-8')
-        self.assertTrue(user_agent.endswith(f' gatherer/{version}-tests-sha'),
+        self.assertTrue(user_agent.startswith(f'gatherer/{version}-tests-sha '),
                         msg=f'User-Agent header missing module: {user_agent}')

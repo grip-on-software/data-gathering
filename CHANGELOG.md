@@ -11,6 +11,9 @@ and we adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Controller setup did not set up users/groups, directories and dependencies.
 - Controller restricted agent upload shell did not work with Python 3.
+- Gatherer requests and scraper agent API responses now have decreasing order 
+  of significance in modules in User-Agent and Server headers, respectively, 
+  with no versions specified in scraper agent API headers/errors outside debug.
 
 ## [1.0.0] - 2024-07-13
 

@@ -40,7 +40,7 @@ class Session(requests.Session):
         user_agent = self.headers['User-Agent'] \
             if isinstance(self.headers['User-Agent'], str) \
             else str(self.headers['User-Agent'], encoding='utf-8')
-        self.headers['User-Agent'] = f'{user_agent} {self._get_user_agent()}'
+        self.headers['User-Agent'] = f'{self._get_user_agent()} {user_agent}'
         self.verify = verify
         self.auth = auth
 

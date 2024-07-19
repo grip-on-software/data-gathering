@@ -31,12 +31,18 @@ import gatherer
 
 Status = Dict[str, Union[bool, str]]
 
+HOME_DIRECTORY = '/home/agent'
+try:
+    with open(f'{HOME_DIRECTORY}/VERSION', 'r',
+              encoding='utf-8') as version_file:
+        GATHERER_VERSION = version_file.readline().strip()
+except IOError:
+    GATHERER_VERSION = gatherer.__version__
+
 class Scraper:
     """
     Scraper listener.
     """
-
-    HOME_DIRECTORY = '/home/agent'
 
     def __init__(self, domain: Optional[str] = None) -> None:
         self._domain = domain
@@ -45,7 +51,7 @@ class Scraper:
     def _is_running(cls) -> bool:
         try:
             subprocess.check_call([
-                'pgrep', '-f', f'{cls.HOME_DIRECTORY}/scraper/agent/run.sh',
+                'pgrep', '-f', f'{HOME_DIRECTORY}/scraper/agent/run.sh',
             ], stdout=None, stderr=None)
         except subprocess.CalledProcessError:
             return False
@@ -92,7 +98,7 @@ class Scraper:
         if self._is_running():
             raise cherrypy.HTTPError(503, 'Another scrape process is already running')
 
-        path = Path(f'{self.HOME_DIRECTORY}/scraper/agent/scrape.sh')
+        path = Path(f'{HOME_DIRECTORY}/scraper/agent/scrape.sh')
         if not path.exists():
             raise cherrypy.HTTPError(500, f'Cannot find scraper at {path}')
 
@@ -113,18 +119,13 @@ class Scraper:
             return {'ok': True}
 
     @classmethod
-    def json_error(cls, status: str, message: str, traceback: str, version: str) -> str:
+    def json_error(cls, status: str, message: str, traceback: str,
+                   version: str) -> str:
         """
         Handle HTTP errors by formatting the exception details as JSON.
         """
 
         cherrypy.response.headers['Content-Type'] = 'application/json'
-        try:
-            with open(f'{cls.HOME_DIRECTORY}/VERSION', 'r',
-                      encoding='utf-8') as version_file:
-                gatherer_version = version_file.readline().strip()
-        except IOError:
-            gatherer_version = gatherer.__version__
         return json.dumps({
             'ok': False,
             'error': {
@@ -133,9 +134,9 @@ class Scraper:
                 'traceback': traceback if cherrypy.request.show_tracebacks else None,
             },
             'version': {
-                'gros-data-gathering-agent': gatherer_version,
+                'gros-data-gathering-agent': GATHERER_VERSION,
                 'cherrypy': version
-            }
+            } if cherrypy.request.show_tracebacks else {}
         })
 
 def parse_args() -> Namespace:
@@ -161,6 +162,12 @@ def main() -> None:
 
     args = parse_args()
 
+    if args.debug:
+        server = ' '.join((f'gros-data-gathering-agent/{GATHERER_VERSION}',
+                           f'CherryPy/{cherrypy.__version__}'))
+    else:
+        server = 'gros-data-gathering-agent CherryPy'
+
     config = {
         'global': {
             'server.socket_port': args.port,
@@ -168,6 +175,7 @@ def main() -> None:
         },
         '/': {
             'error_page.default': Scraper.json_error,
+            'response.headers.server': server
         }
     }
     if args.listen is not None:
